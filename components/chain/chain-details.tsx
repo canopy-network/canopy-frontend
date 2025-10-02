@@ -5,6 +5,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -23,7 +32,19 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { TrendingUp, Share2, Star, Bell } from "lucide-react";
+import {
+  TrendingUp,
+  Share2,
+  Star,
+  Bell,
+  ChevronDown,
+  ChevronUp,
+  ArrowRight,
+  ExternalLink,
+  FileText,
+  Globe,
+  Twitter,
+} from "lucide-react";
 
 interface ChainProject {
   id: string;
@@ -349,17 +370,20 @@ export function ChainDetails({ chainId }: ChainDetailsProps) {
   const [isFollowing, setIsFollowing] = useState(false);
   const [isPriceAlertSet, setIsPriceAlertSet] = useState(false);
   const [showBondingCurve, setShowBondingCurve] = useState(false);
+  const [buyAmount, setBuyAmount] = useState("0");
+  const [purchaseType, setPurchaseType] = useState("one-time");
 
   useEffect(() => {
     // In real app, fetch chain data from API
-    const chainData = mockChainData[chainId];
-    setChain(chainData || null);
+    // For now, always show the static page with mock data
+    const chainData = mockChainData["1"]; // Always use the first mock data
+    setChain(chainData);
   }, [chainId]);
 
   if (!chain) {
     return (
-      <div className="flex flex-col h-full">
-        <div className="border-b border-[#2a2a2a] p-4">
+      <div className="flex flex-col h-full bg-gray-900">
+        <div className="border-b border-gray-800 p-4">
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
@@ -406,55 +430,44 @@ export function ChainDetails({ chainId }: ChainDetailsProps) {
     }
   };
 
-  return (
-    <div className="flex flex-col h-full">
-      <div className="border-b border-[#2a2a2a] p-3 flex items-center justify-between">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink
-                href="/"
-                className="text-gray-400 hover:text-white"
-              >
-                Launchpad
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator className="text-gray-600" />
-            <BreadcrumbItem>
-              <BreadcrumbPage className="text-white">
-                {chain?.name || "Loading..."}
-              </BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
+  // Mock chart data for the price chart
+  const chartData = [
+    { time: "10:50 AM", price: 54.8 },
+    { time: "11:00 AM", price: 54.9 },
+    { time: "11:30 AM", price: 55.1 },
+    { time: "12:00 PM", price: 54.7 },
+    { time: "12:30 PM", price: 54.5 },
+    { time: "1:00 PM", price: 54.2 },
+    { time: "1:30 PM", price: 54.0 },
+    { time: "2:00 PM", price: 54.1 },
+    { time: "2:30 PM", price: 54.3 },
+    { time: "2:57 PM", price: 54.996 },
+  ];
 
-        {chain && (
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 px-3 py-1 bg-gray-800 rounded-lg mr-4">
-              <div>
-                <div className="text-gray-400 text-xs">Contract</div>
-                <div className="text-white font-mono text-xs">
-                  {chain.contractAddress.slice(0, 8)}...
-                  {chain.contractAddress.slice(-6)}
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={copyAddress}
-                className="text-gray-400 hover:text-white h-6 w-6 p-0"
-              >
-                📋
-              </Button>
+  return (
+    <div className="flex flex-col h-full  max-w-8xl mx-auto">
+      {/* Header */}
+      <div className="border-b border-gray-800 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
+              <span className="text-white font-bold text-sm">₿</span>
             </div>
+            <div>
+              <h1 className="text-xl font-bold text-white">DeFi App</h1>
+              <p className="text-sm text-gray-400">DEFI</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setIsFollowing(!isFollowing)}
-              className={`border-gray-700 hover:bg-gray-800 ${
+              className={`${
                 isFollowing
-                  ? "bg-green-500 text-black border-green-500"
-                  : "bg-transparent"
+                  ? "bg-green-500 text-white border-green-500"
+                  : "bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700"
               }`}
             >
               <Star
@@ -466,10 +479,10 @@ export function ChainDetails({ chainId }: ChainDetailsProps) {
               variant="outline"
               size="sm"
               onClick={() => setIsPriceAlertSet(!isPriceAlertSet)}
-              className={`border-gray-700 hover:bg-gray-800 ${
+              className={`${
                 isPriceAlertSet
                   ? "bg-blue-500 text-white border-blue-500"
-                  : "bg-transparent"
+                  : "bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700"
               }`}
             >
               <Bell
@@ -483,452 +496,472 @@ export function ChainDetails({ chainId }: ChainDetailsProps) {
               variant="outline"
               size="sm"
               onClick={shareProject}
-              className="border-gray-700 hover:bg-gray-800 bg-green-500 text-black border-green-500"
+              className="bg-green-500 text-white border-green-500 hover:bg-green-600"
             >
               <Share2 className="h-4 w-4 mr-1" />
               Share
             </Button>
           </div>
-        )}
-      </div>
+        </div>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-auto">
-        <div className="max-w-7xl mx-auto p-4">
-          <div className="mb-4">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">{chain.tokenIcon}</span>
-                <span className="text-xl">{chain.chainIcon}</span>
-              </div>
-              <div>
-                <div className="flex items-center gap-3 mb-1">
-                  <h1 className="text-xl font-bold text-white">{chain.name}</h1>
-                  <Badge className="text-xs bg-gray-700 text-gray-300">
-                    {chain.tokenSymbol}
-                  </Badge>
-                  <Badge className="text-xs bg-gray-700 text-gray-300">
-                    NASDAQ
-                  </Badge>
-                  <Badge
-                    variant={
-                      chain.status === "active" ? "default" : "secondary"
-                    }
-                    className={
-                      chain.status === "active"
-                        ? "bg-green-500 text-black text-xs"
-                        : "bg-gray-700 text-gray-300 text-xs"
-                    }
-                  >
-                    {chain.status}
-                  </Badge>
-                </div>
-                <p className="text-gray-400 text-sm">{chain.description}</p>
-              </div>
-            </div>
+        {/* Navigation Tabs */}
+        <div className="mt-4">
+          <Tabs defaultValue="overview" className="w-full">
+            <TabsList className="bg-transparent border-b border-gray-800 rounded-none h-auto p-0 w-full justify-start">
+              <TabsTrigger
+                value="overview"
+                className="bg-transparent border-b-2 border-transparent data-[state=active]:border-green-500 data-[state=active]:bg-transparent rounded-none px-4 py-2 text-sm font-medium text-gray-400 data-[state=active]:text-white"
+              >
+                Overview
+              </TabsTrigger>
+              <TabsTrigger
+                value="project"
+                className="bg-transparent border-b-2 border-transparent data-[state=active]:border-green-500 data-[state=active]:bg-transparent rounded-none px-4 py-2 text-sm font-medium text-gray-400 data-[state=active]:text-white"
+              >
+                Project Information
+              </TabsTrigger>
+              <TabsTrigger
+                value="code"
+                className="bg-transparent border-b-2 border-transparent data-[state=active]:border-green-500 data-[state=active]:bg-transparent rounded-none px-4 py-2 text-sm font-medium text-gray-400 data-[state=active]:text-white"
+              >
+                Code
+              </TabsTrigger>
+              <TabsTrigger
+                value="explorer"
+                className="bg-transparent border-b-2 border-transparent data-[state=active]:border-green-500 data-[state=active]:bg-transparent rounded-none px-4 py-2 text-sm font-medium text-gray-400 data-[state=active]:text-white"
+              >
+                Block Explorer
+              </TabsTrigger>
+            </TabsList>
 
-            <Tabs defaultValue="overview" className="mb-4">
-              <TabsList className="bg-transparent border-b border-gray-800 rounded-none h-auto p-0">
-                <TabsTrigger
-                  value="overview"
-                  className="bg-transparent border-b-2 border-transparent data-[state=active]:border-green-500 data-[state=active]:bg-transparent rounded-none px-4 py-2 text-sm"
-                >
-                  Overview
-                </TabsTrigger>
-                <TabsTrigger
-                  value="historical"
-                  className="bg-transparent border-b-2 border-transparent data-[state=active]:border-green-500 data-[state=active]:bg-transparent rounded-none px-4 py-2 text-sm"
-                >
-                  Historical Data
-                </TabsTrigger>
-                <TabsTrigger
-                  value="financials"
-                  className="bg-transparent border-b-2 border-transparent data-[state=active]:border-green-500 data-[state=active]:bg-transparent rounded-none px-4 py-2 text-sm"
-                >
-                  Financials
-                </TabsTrigger>
-                <TabsTrigger
-                  value="team"
-                  className="bg-transparent border-b-2 border-transparent data-[state=active]:border-green-500 data-[state=active]:bg-transparent rounded-none px-4 py-2 text-sm"
-                >
-                  Team
-                </TabsTrigger>
-                <TabsTrigger
-                  value="research"
-                  className="bg-transparent border-b-2 border-transparent data-[state=active]:border-green-500 data-[state=active]:bg-transparent rounded-none px-4 py-2 text-sm"
-                >
-                  Research
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="overview" className="mt-4">
-                <div className="grid gap-6 lg:grid-cols-4">
-                  {/* Left Column - Chart */}
-                  <div className="lg:col-span-3">
-                    <Card className="bg-gray-900 border-gray-800 mb-6">
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-2 mb-4">
-                          <span className="text-sm text-gray-400">
-                            powered by
+            <TabsContent value="overview" className="mt-6">
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                {/* Left Column - Chart and Stats */}
+                <div className="lg:col-span-3 space-y-6">
+                  {/* Price Chart */}
+                  <Card className="bg-gray-900 border-gray-800">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-4xl font-bold text-white">
+                            54,996.00
                           </span>
-                          <span className="text-sm font-medium text-white">
-                            perplexity
+                          <span className="text-red-500 text-lg font-medium">
+                            -2.78%
                           </span>
-                          <div className="flex gap-1 ml-4">
-                            {[
-                              "1D",
-                              "5D",
-                              "1M",
-                              "6M",
-                              "YTD",
-                              "1Y",
-                              "5Y",
-                              "MAX",
-                            ].map((period) => (
-                              <Button
-                                key={period}
-                                variant="ghost"
-                                size="sm"
-                                className={`h-6 px-2 text-xs ${
-                                  period === "1D"
-                                    ? "bg-gray-700 text-white"
-                                    : "text-gray-400 hover:text-white"
-                                }`}
-                              >
-                                {period}
-                              </Button>
-                            ))}
-                          </div>
-                          <div className="ml-auto flex items-center gap-2 text-sm">
-                            <span className="text-red-500">-$1.41</span>
-                            <span className="text-red-500">↓ 0.55%</span>
-                          </div>
                         </div>
-                        <div className="h-80">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={chain.bondingCurve}>
-                              <CartesianGrid
-                                strokeDasharray="3 3"
-                                stroke="#374151"
-                              />
-                              <XAxis
-                                dataKey="supply"
-                                tickFormatter={(value) =>
-                                  `${(value / 1000).toFixed(0)}K`
-                                }
-                                tick={{ fill: "#9CA3AF", fontSize: 12 }}
-                                axisLine={{ stroke: "#374151" }}
-                              />
-                              <YAxis
-                                tickFormatter={(value) =>
-                                  `$${value.toFixed(2)}`
-                                }
-                                tick={{ fill: "#9CA3AF", fontSize: 12 }}
-                                axisLine={{ stroke: "#374151" }}
-                              />
-                              <Tooltip
-                                formatter={(value: number) => [
-                                  `$${value.toFixed(3)}`,
-                                  "Price",
-                                ]}
-                                labelFormatter={(value) =>
-                                  `Supply: ${Number.parseInt(
-                                    value
-                                  ).toLocaleString()}`
-                                }
-                                contentStyle={{
-                                  backgroundColor: "#1f2937",
-                                  border: "1px solid #374151",
-                                  borderRadius: "8px",
-                                  color: "#ffffff",
-                                }}
-                              />
-                              <Line
-                                type="monotone"
-                                dataKey="price"
-                                stroke="#ef4444"
-                                strokeWidth={2}
-                                dot={false}
-                              />
-                            </LineChart>
-                          </ResponsiveContainer>
+                        <div className="flex gap-1">
+                          {["1H", "1M", "1D"].map((period) => (
+                            <Button
+                              key={period}
+                              variant="ghost"
+                              size="sm"
+                              className={`h-8 px-3 text-sm ${
+                                period === "1M"
+                                  ? "bg-gray-700 text-white"
+                                  : "text-gray-400 hover:text-white"
+                              }`}
+                            >
+                              {period}
+                            </Button>
+                          ))}
                         </div>
-                        <div className="text-xs text-gray-500 mt-2">
-                          Prev close: $256.87
-                        </div>
-                      </CardContent>
-                    </Card>
+                      </div>
 
-                    {/* Quick Stats Section */}
-                    <Card className="bg-gray-900 border-gray-800">
-                      <CardContent className="p-6">
-                        <h3 className="text-lg font-bold text-white mb-4">
-                          Quick Stats
-                        </h3>
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400">Transactions</span>
-                            <span className="text-white font-bold">
-                              {chain.metrics.transactions.toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400">Token Symbol</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-lg">{chain.tokenIcon}</span>
-                              <span className="text-white font-bold">
-                                {chain.tokenSymbol}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400">Holders</span>
-                            <span className="text-white font-bold">
-                              {chain.metrics.holders.toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400">24h Volume</span>
-                            <span className="text-white font-bold">
-                              ${chain.metrics.volume24h}
-                            </span>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Right Column - Trading Section + Company Info */}
-                  <div className="space-y-6">
-                    {/* Trading Section */}
-                    <Card className="bg-gray-900 border-gray-800">
-                      <CardContent className="p-6">
-                        <div className="flex items-center gap-3 mb-6">
-                          <span className="text-2xl">{chain.tokenIcon}</span>
-                          <h2 className="text-xl font-bold text-white">
-                            Trade {chain.tokenSymbol}
-                          </h2>
-                        </div>
-
-                        {/* Progress Section */}
-                        <div className="mb-6">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-gray-400">
-                              Progress to Graduation
-                            </span>
-                            <span className="text-green-500 font-bold">
-                              {chain.progress}%
-                            </span>
-                          </div>
-                          <div className="w-full bg-gray-700 rounded-full h-2 mb-3">
-                            <div
-                              className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                              style={{ width: `${chain.progress}%` }}
+                      <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={chartData}>
+                            <CartesianGrid
+                              strokeDasharray="3 3"
+                              stroke="#374151"
                             />
+                            <XAxis
+                              dataKey="time"
+                              tick={{ fill: "#9CA3AF", fontSize: 12 }}
+                              axisLine={{ stroke: "#374151" }}
+                            />
+                            <YAxis
+                              tick={{ fill: "#9CA3AF", fontSize: 12 }}
+                              axisLine={{ stroke: "#374151" }}
+                            />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: "#1f2937",
+                                border: "1px solid #374151",
+                                borderRadius: "8px",
+                                color: "#ffffff",
+                              }}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="price"
+                              stroke="#ef4444"
+                              strokeWidth={2}
+                              dot={false}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Market Stats */}
+                  <Card className="bg-gray-900 border-gray-800">
+                    <CardContent className="p-6">
+                      <h3 className="text-lg font-semibold text-white mb-4">
+                        Market Statistics
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                            <span className="text-white text-xs">i</span>
                           </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-400">
-                              ${chain.raised} raised
-                            </span>
-                            <span className="text-gray-400">
-                              ${chain.target} target
-                            </span>
+                          <div>
+                            <div className="text-sm text-gray-400">
+                              Market cap
+                            </div>
+                            <div className="font-semibold text-white">
+                              5.0M CNPY
+                            </div>
                           </div>
                         </div>
-
-                        {/* Key Stats Grid */}
-                        <div className="grid grid-cols-2 gap-4 mb-6">
-                          <div>
-                            <div className="text-gray-400 text-sm mb-1">
-                              Participants
-                            </div>
-                            <div className="text-white text-xl font-bold">
-                              {chain.participants}
-                            </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                            <span className="text-white text-xs">i</span>
                           </div>
                           <div>
-                            <div className="text-gray-400 text-sm mb-1">
-                              Time Left
+                            <div className="text-sm text-gray-400">
+                              Volume (24h)
                             </div>
-                            <div className="text-white text-xl font-bold">
-                              {chain.timeLeft}
+                            <div className="font-semibold text-white">
+                              33K CNPY
+                            </div>
+                            <div className="text-red-500 text-xs">-1.47%</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                            <span className="text-white text-xs">i</span>
+                          </div>
+                          <div>
+                            <div className="text-sm text-gray-400">
+                              Circulating supply
+                            </div>
+                            <div className="font-semibold text-white">
+                              50M DEFI
+                            </div>
+                            <div className="text-gray-400 text-xs">
+                              10% of total supply
                             </div>
                           </div>
                         </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                            <span className="text-white text-xs">i</span>
+                          </div>
+                          <div>
+                            <div className="text-sm text-gray-400">Mainnet</div>
+                            <div className="font-semibold text-white">
+                              75 days
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                            <span className="text-white text-xs">i</span>
+                          </div>
+                          <div>
+                            <div className="text-sm text-gray-400">
+                              Bonding Curve
+                            </div>
+                            <div className="w-full bg-gray-700 rounded-full h-2 mt-1">
+                              <div
+                                className="bg-green-500 h-2 rounded-full"
+                                style={{ width: "70%" }}
+                              ></div>
+                            </div>
+                            <div className="text-xs text-gray-400 mt-1">
+                              70% buy • 30% sell
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                            <span className="text-white text-xs">i</span>
+                          </div>
+                          <div>
+                            <div className="text-sm text-gray-400">
+                              Popularity
+                            </div>
+                            <div className="font-semibold text-white">#1</div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-                        {/* Prominent Buy Button */}
-                        <Button
-                          className="w-full bg-green-500 hover:bg-green-600 text-black font-bold py-4 text-lg mb-4"
-                          onClick={() => setShowBondingCurve(true)}
-                        >
-                          <TrendingUp className="h-5 w-5 mr-2" />
-                          Buy {chain.tokenSymbol}
-                        </Button>
-                      </CardContent>
-                    </Card>
+                  {/* Performance */}
+                  <Card className="bg-gray-900 border-gray-800">
+                    <CardContent className="p-6">
+                      <div className="text-sm text-gray-400 mb-2">
+                        Updated December 3, 2021, 9:14 AM PST
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-white">DEFI</span>
+                        <span className="text-green-500 font-medium">
+                          +183%
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-                    {/* Company Info Section */}
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-400">Symbol</span>
-                        <span className="font-medium text-white">
-                          {chain.tokenSymbol}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-400">
-                          Market Cap
-                        </span>
-                        <span className="font-medium text-white">
-                          ${chain.metrics.marketCap}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-400">IPO Date</span>
-                        <span className="font-medium text-white">
-                          Dec 11, 1980
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-400">CEO</span>
-                        <span className="font-medium text-white">
-                          {chain.creatorProfile.name}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-400">
-                          Fulltime Employees
-                        </span>
-                        <span className="font-medium text-white">164K</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-400">Sector</span>
-                        <span className="font-medium text-white">
-                          Technology
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-400">Industry</span>
-                        <span className="font-medium text-white">
-                          Consumer Electronics
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-400">Country</span>
-                        <span className="font-medium text-white">US</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-400">Exchange</span>
-                        <span className="font-medium text-white">
-                          NASDAQ Global Select
-                        </span>
-                      </div>
-                    </div>
+                  {/* Overview */}
+                  <Card className="bg-gray-900 border-gray-800">
+                    <CardContent className="p-6">
+                      <h3 className="text-lg font-semibold text-white mb-4">
+                        Overview
+                      </h3>
+                      <p className="text-gray-300 leading-relaxed mb-4">
+                        Bitcoin is the world's first widely-adopted
+                        cryptocurrency. With Bitcoin, people can securely and
+                        directly send each other digital money on the internet.
+                      </p>
+                      <p className="text-gray-300 leading-relaxed mb-4">
+                        Bitcoin was created by Satoshi Nakamoto, a pseudonymous
+                        person or team who outlined the technology in a 2008
+                        white paper. Bitcoin is more than a payment system—it's
+                        a new kind of money.
+                      </p>
+                      <p className="text-gray-300 leading-relaxed mb-4">
+                        Unlike traditional payment methods like Venmo and
+                        PayPal, which are built on top of the traditional
+                        financial system, Bitcoin is completely independent.
+                        There's no company, government, or institution in charge
+                        of Bitcoin. It's like the internet for money.
+                      </p>
 
-                    <div className="text-sm text-gray-300 leading-relaxed">
-                      {chain.longDescription}
-                      <button className="text-green-500 hover:underline ml-1">
-                        Read More
-                      </button>
-                    </div>
-
-                    {/* Watchlist Section */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="text-sm font-medium text-white">
-                          Watchlist
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                        >
-                          <span className="text-xs">⚙️</span>
-                        </Button>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 text-blue-400 hover:text-blue-300 cursor-pointer">
+                          <FileText className="h-4 w-4" />
+                          <span className="text-sm">Whitepaper</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-blue-400 hover:text-blue-300 cursor-pointer">
+                          <Globe className="h-4 w-4" />
+                          <span className="text-sm">Official website</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-blue-400 hover:text-blue-300 cursor-pointer">
+                          <Twitter className="h-4 w-4" />
+                          <span className="text-sm">Social Account</span>
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between p-2 rounded border border-gray-800">
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg">{chain.tokenIcon}</span>
-                            <div>
-                              <div className="text-sm font-medium text-white">
-                                {chain.name}
+
+                      <Button
+                        variant="outline"
+                        className="mt-4 border-gray-700 text-gray-300 hover:bg-gray-800"
+                      >
+                        View more
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Right Column - Trading */}
+                <div className="space-y-6">
+                  {/* Buy/Sell Section */}
+                  <Card className="bg-gray-900 border-gray-800">
+                    <CardContent className="p-6">
+                      <Tabs defaultValue="buy" className="w-full">
+                        <TabsList className="grid w-full grid-cols-2 bg-gray-800">
+                          <TabsTrigger
+                            value="buy"
+                            className="data-[state=active]:bg-gray-700"
+                          >
+                            Buy
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="sell"
+                            className="data-[state=active]:bg-gray-700"
+                          >
+                            Sell
+                          </TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="buy" className="space-y-4">
+                          <div>
+                            <Label
+                              htmlFor="amount"
+                              className="text-sm font-medium text-gray-300"
+                            >
+                              Amount
+                            </Label>
+                            <div className="relative mt-1">
+                              <Input
+                                id="amount"
+                                value={buyAmount}
+                                onChange={(e) => setBuyAmount(e.target.value)}
+                                className="text-2xl font-bold pr-12 bg-gray-800 border-gray-700 text-white"
+                                placeholder="$0"
+                              />
+                              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
+                                <ChevronUp className="h-4 w-4 text-gray-400" />
+                                <ChevronDown className="h-4 w-4 text-gray-400" />
+                                <span className="text-sm text-gray-400 ml-2">
+                                  BTC
+                                </span>
                               </div>
-                              <div className="text-xs text-gray-400">
-                                {chain.tokenSymbol} • NASDAQ
-                              </div>
                             </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-sm font-medium text-white">
-                              ${chain.metrics.currentPrice}
-                            </div>
-                            <div className="text-xs text-red-500">-0.55%</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
-
-              {/* Other tab contents remain the same */}
-              <TabsContent value="historical">
-                <div className="text-center py-8 text-gray-400">
-                  Historical data coming soon...
-                </div>
-              </TabsContent>
-              <TabsContent value="financials">
-                <div className="text-center py-8 text-gray-400">
-                  Financial data coming soon...
-                </div>
-              </TabsContent>
-              <TabsContent value="team">
-                <Card className="bg-gray-900 border-gray-800">
-                  <CardContent className="p-4">
-                    <div className="grid gap-6 md:grid-cols-2">
-                      {chain.team.map((member, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center gap-4 p-4 rounded-lg border border-gray-800 bg-gray-800/50"
-                        >
-                          <img
-                            src={member.avatar || "/placeholder.svg"}
-                            alt={member.name}
-                            className="w-12 h-12 rounded-full"
-                          />
-                          <div>
-                            <h3 className="font-semibold text-white">
-                              {member.name}
-                            </h3>
-                            <p className="text-sm text-gray-400">
-                              {member.role}
+                            <p className="text-sm text-gray-400 mt-1">
+                              You can buy up to $35,000.00
                             </p>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-              <TabsContent value="research">
-                <div className="text-center py-8 text-gray-400">
-                  Research reports coming soon...
-                </div>
-              </TabsContent>
-            </Tabs>
-          </div>
 
-          {/* Bonding Curve Modal */}
-          {showBondingCurve && (
-            <BondingCurveChart
-              project={chain}
-              isOpen={showBondingCurve}
-              onClose={() => setShowBondingCurve(false)}
-            />
-          )}
+                          <div>
+                            <Label className="text-sm font-medium text-gray-300">
+                              Purchase type
+                            </Label>
+                            <Select
+                              value={purchaseType}
+                              onValueChange={setPurchaseType}
+                            >
+                              <SelectTrigger className="mt-1 bg-gray-800 border-gray-700 text-white">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-gray-800 border-gray-700">
+                                <SelectItem
+                                  value="one-time"
+                                  className="text-white hover:bg-gray-700"
+                                >
+                                  One time purchase
+                                </SelectItem>
+                                <SelectItem
+                                  value="recurring"
+                                  className="text-white hover:bg-gray-700"
+                                >
+                                  Recurring purchase
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between p-3 border border-gray-700 rounded-lg hover:bg-gray-800 cursor-pointer">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
+                                  <span className="text-white font-bold text-sm">
+                                    ₿
+                                  </span>
+                                </div>
+                                <div>
+                                  <div className="font-medium text-white">
+                                    DeFi App
+                                  </div>
+                                </div>
+                              </div>
+                              <ArrowRight className="h-4 w-4 text-gray-400" />
+                            </div>
+
+                            <div className="flex items-center justify-between p-3 border border-gray-700 rounded-lg hover:bg-gray-800 cursor-pointer">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                                  <span className="text-white font-bold text-sm">
+                                    7
+                                  </span>
+                                </div>
+                                <div>
+                                  <div className="font-medium text-white">
+                                    CNPY
+                                  </div>
+                                </div>
+                              </div>
+                              <ArrowRight className="h-4 w-4 text-gray-400" />
+                            </div>
+                          </div>
+
+                          <Button className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 text-lg">
+                            Buy DEFI
+                          </Button>
+
+                          <p className="text-sm text-gray-400">
+                            BTC balance 0.00355664
+                          </p>
+                        </TabsContent>
+                      </Tabs>
+                    </CardContent>
+                  </Card>
+
+                  {/* Top Holders */}
+                  <Card className="bg-gray-900 border-gray-800">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <h3 className="font-semibold text-white">
+                          Top Holders
+                        </h3>
+                        <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                          <span className="text-white text-xs">i</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        {Array.from({ length: 8 }, (_, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center justify-between"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 bg-gray-600 rounded-full"></div>
+                              <div>
+                                <div className="text-sm font-medium text-white">
+                                  Name
+                                </div>
+                                <div className="text-xs text-gray-400">
+                                  0132561....16516
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm font-medium text-white">
+                                $12.34
+                              </div>
+                              <div className="text-xs text-gray-400">100%</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="project">
+              <div className="text-center py-8 text-gray-400">
+                Project information coming soon...
+              </div>
+            </TabsContent>
+
+            <TabsContent value="code">
+              <div className="text-center py-8 text-gray-400">
+                Code repository coming soon...
+              </div>
+            </TabsContent>
+
+            <TabsContent value="explorer">
+              <div className="text-center py-8 text-gray-400">
+                Block explorer coming soon...
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
+
+      {/* Bonding Curve Modal */}
+      {showBondingCurve && (
+        <BondingCurveChart
+          project={chain}
+          isOpen={showBondingCurve}
+          onClose={() => setShowBondingCurve(false)}
+        />
+      )}
     </div>
   );
 }
