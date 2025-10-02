@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: canopy-frontend
+  labels:
+    app: canopy-frontend
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: canopy.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: canopy-frontend
+            port:
+              number: 80
+  # Uncomment for TLS/SSL
+  # tls:
+  # - hosts:
+  #   - canopy.local
+  #   secretName: canopy-frontend-tls
