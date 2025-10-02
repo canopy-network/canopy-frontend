@@ -4,12 +4,12 @@ version: '3.8'
 services:
   canopy-frontend:
     build:
-      context: ../..
-      dockerfile: deploy/docker/Dockerfile
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=dev
+      - NODE_ENV=production
       - NEXT_TELEMETRY_DISABLED=1
     restart: unless-stopped
     healthcheck:
