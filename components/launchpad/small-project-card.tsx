@@ -3,11 +3,7 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import {
-  SmallProjectCardProps,
-  PROJECT_CATEGORY_LABELS,
-  PROJECT_CATEGORY_COLORS,
-} from "@/types/launchpad";
+import { ChainWithUI } from "@/lib/stores/chains-store";
 import { useMemo } from "react";
 
 /**
@@ -15,6 +11,11 @@ import { useMemo } from "react";
  * Displays project information in a condensed format with icon, title, source, performance, and progress
  * Used in dashboard listings and project grids where space is limited
  */
+interface SmallProjectCardProps {
+  project: ChainWithUI;
+  href?: string;
+}
+
 export const SmallProjectCard = ({
   project,
   href = `/launchpad/${project.id}`,
@@ -46,7 +47,7 @@ export const SmallProjectCard = ({
   // Dynamic time calculation
   const timeAgo = useMemo(() => {
     const now = new Date();
-    const created = new Date(project.createdAt);
+    const created = new Date(project.created_at);
     const diffMs = now.getTime() - created.getTime();
     const diffMins = Math.floor(diffMs / (1000 * 60));
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
@@ -56,31 +57,34 @@ export const SmallProjectCard = ({
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
     return `${Math.floor(diffDays / 7)}w ago`;
-  }, [project.createdAt]);
+  }, [project.created_at]);
 
   // Dynamic icon generation based on project category and name
   const iconData = useMemo(() => {
-    const categoryIcons = {
+    const categoryIcons: Record<string, string> = {
       defi: "🔵",
       gaming: "🎮",
       nft: "🖼️",
       infrastructure: "⚙️",
       social: "👥",
+      other: "🚀",
     };
 
-    const gradients = {
+    const gradients: Record<string, string> = {
       defi: "from-blue-500 to-cyan-600",
       gaming: "from-purple-500 to-pink-600",
       nft: "from-pink-500 to-rose-600",
       infrastructure: "from-orange-500 to-red-600",
       social: "from-green-500 to-emerald-600",
+      other: "from-gray-500 to-gray-600",
     };
 
+    const category = project.template?.template_category || "other";
     return {
-      emoji: categoryIcons[project.category] || "🚀",
-      gradient: gradients[project.category] || "from-gray-500 to-gray-600",
+      emoji: categoryIcons[category] || "🚀",
+      gradient: gradients[category] || "from-gray-500 to-gray-600",
     };
-  }, [project.category]);
+  }, [project.template?.template_category]);
 
   // Format numbers with proper suffixes
   const formatNumber = (num: number) => {
@@ -96,14 +100,14 @@ export const SmallProjectCard = ({
 
   // Dynamic status indicator
   const statusIndicator = useMemo(() => {
-    if (project.isGraduated)
+    if (project.is_graduated)
       return { color: "bg-blue-500", label: "Graduated" };
     if (project.progress >= 100)
       return { color: "bg-green-500", label: "Complete" };
     if (project.progress >= 75)
       return { color: "bg-yellow-500", label: "Near Goal" };
     return { color: "bg-green-500", label: "Active" };
-  }, [project.isGraduated, project.progress]);
+  }, [project.is_graduated, project.progress]);
 
   return (
     <Link
@@ -131,10 +135,10 @@ export const SmallProjectCard = ({
           {/* Project Title with Token Symbol */}
           <div className="flex items-center gap-2">
             <h3 className="text-white font-semibold text-sm truncate group-hover:text-blue-300 transition-colors">
-              {project.name}
+              {project.chain_name}
             </h3>
             <span className="text-gray-400 text-xs font-mono">
-              ${project.name.split(" ").pop()?.toUpperCase() || "TOKEN"}
+              ${project.token_symbol}
             </span>
           </div>
 
@@ -143,14 +147,29 @@ export const SmallProjectCard = ({
             <Badge
               variant="secondary"
               className={`text-xs px-2 py-0.5 ${
-                PROJECT_CATEGORY_COLORS[project.category]
+                project.template?.template_category === "defi"
+                  ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
+                  : project.template?.template_category === "gaming"
+                  ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300"
+                  : project.template?.template_category === "nft"
+                  ? "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-300"
+                  : project.template?.template_category === "infrastructure"
+                  ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300"
+                  : project.template?.template_category === "social"
+                  ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                  : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"
               }`}
             >
-              {PROJECT_CATEGORY_LABELS[project.category]}
+              {project.template?.template_category?.charAt(0).toUpperCase() +
+                project.template?.template_category?.slice(1) || "Other"}
             </Badge>
             <span className="text-gray-400 text-xs">•</span>
             <span className="text-gray-400 text-xs">
-              {project.creator.slice(0, 6)}...{project.creator.slice(-4)}
+              {project.creator?.display_name ||
+                project.creator?.wallet_address?.slice(0, 6) +
+                  "..." +
+                  project.creator?.wallet_address?.slice(-4) ||
+                "Unknown"}
             </span>
             <span className="text-gray-400 text-xs">•</span>
             <span className="text-gray-400 text-xs">{timeAgo}</span>

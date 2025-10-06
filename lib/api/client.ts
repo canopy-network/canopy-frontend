@@ -17,6 +17,7 @@ import axios, {
   InternalAxiosRequestConfig,
 } from "axios";
 import { ApiResponse, ApiError } from "@/types/api";
+import { API_CONFIG } from "@/lib/config/api";
 
 // ============================================================================
 // CONFIGURATION
@@ -36,10 +37,10 @@ interface ApiConfig {
  * Default API configuration
  */
 const DEFAULT_CONFIG: ApiConfig = {
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080",
-  timeout: 10000, // 10 seconds
-  retryAttempts: 3,
-  retryDelay: 1000, // 1 second
+  baseURL: API_CONFIG.baseURL,
+  timeout: API_CONFIG.timeout,
+  retryAttempts: API_CONFIG.retryAttempts,
+  retryDelay: API_CONFIG.retryDelay,
 };
 
 // ============================================================================
@@ -139,9 +140,9 @@ function calculateRetryDelay(attempt: number, baseDelay: number): number {
  */
 function getAuthHeaders(): Record<string, string> {
   // In development, use mock user ID
-  if (process.env.NEXT_PUBLIC_DEV_MODE === "true") {
+  if (API_CONFIG.devMode && API_CONFIG.mockAuth) {
     return {
-      "X-User-ID": "550e8400-e29b-41d4-a716-446655440000",
+      "X-User-ID": API_CONFIG.mockUserId,
     };
   }
 
