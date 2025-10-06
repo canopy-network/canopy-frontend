@@ -122,23 +122,23 @@ export function useLaunchpadDashboard({
   // Convert chains to UI format
   const chainsWithUI = useMemo(() => {
     return getChainsWithUI();
-  }, [getChainsWithUI]);
+  }, [chains, virtualPools, getChainsWithUI]);
 
   // Get featured project (first active project)
   const featuredProject = useMemo(() => {
     const activeProjects = chainsWithUI.filter((p) => p.status === "active");
     return activeProjects[0] || null;
-  }, [chains]);
+  }, [chainsWithUI]);
 
   // Get active projects
   const activeProjects = useMemo(() => {
     return chainsWithUI.filter((p) => p.status === "active");
-  }, [chains]);
+  }, [chainsWithUI]);
 
   // Get graduated projects
   const graduatedProjects = useMemo(() => {
     return chainsWithUI.filter((p) => p.status === "graduated");
-  }, [chains]);
+  }, [chainsWithUI]);
 
   // Category options for dropdown
   const categoryOptions = useMemo(() => {
@@ -207,7 +207,7 @@ export function useLaunchpadDashboard({
     );
 
     return filtered;
-  }, [chains, filters]);
+  }, [chainsWithUI, filters]);
 
   // ============================================================================
   // ACTIONS

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,384 +45,30 @@ import {
   Globe,
   Twitter,
 } from "lucide-react";
-
-interface ChainProject {
-  id: string;
-  name: string;
-  description: string;
-  longDescription: string;
-  creator: string;
-  creatorProfile: {
-    name: string;
-    avatar: string;
-    verified: boolean;
-  };
-  progress: number;
-  raised: string;
-  target: string;
-  participants: number;
-  timeLeft: string;
-  status: "active" | "graduated" | "pending";
-  bondingCurve: { price: number; supply: number }[];
-  tokenSymbol: string;
-  tokenIcon: string; // Added token icon
-  chainIcon: string; // Added chain icon
-  contractAddress: string;
-  website?: string;
-  twitter?: string;
-  discord?: string;
-  github?: string;
-  whitepaper?: string;
-  features: string[];
-  roadmap: {
-    phase: string;
-    status: "completed" | "current" | "upcoming";
-    items: string[];
-  }[];
-  team: { name: string; role: string; avatar: string }[];
-  tokenomics: {
-    category: string;
-    percentage: number;
-    amount: string;
-    description: string;
-  }[];
-  metrics: {
-    holders: number;
-    transactions: number;
-    volume24h: string;
-    marketCap: string;
-    fdv: string;
-    currentPrice: string;
-  };
-  images?: string[]; // Added user-uploaded images
-}
-
-// Mock data - in real app this would come from API
-const mockChainData: Record<string, ChainProject> = {
-  "1": {
-    id: "1",
-    name: "DeFi Chain Alpha",
-    description:
-      "Next-generation DeFi infrastructure with cross-chain compatibility",
-    longDescription:
-      "DeFi Chain Alpha is building the next generation of decentralized finance infrastructure with native cross-chain compatibility, advanced yield farming mechanisms, and institutional-grade security features.",
-    creator: "0x742d...8D4",
-    creatorProfile: {
-      name: "Alex Chen",
-      avatar: "/developer-working.png",
-      verified: true,
-    },
-    progress: 75,
-    raised: "450,000",
-    target: "600,000",
-    participants: 234,
-    timeLeft: "2d 14h",
-    status: "active",
-    tokenSymbol: "DEFI",
-    tokenIcon: "🔷", // Added token icon
-    chainIcon: "⛓️", // Added chain icon
-    contractAddress: "0x742d35Cc6634C0532925a3b8D4C0532925a3b8D4",
-    website: "https://defichainalpha.com",
-    twitter: "https://twitter.com/defichainalpha",
-    discord: "https://discord.gg/defichainalpha",
-    github: "https://github.com/defichainalpha",
-    whitepaper: "https://defichainalpha.com/whitepaper.pdf",
-    bondingCurve: [
-      { price: 0.1, supply: 0 },
-      { price: 0.15, supply: 100000 },
-      { price: 0.25, supply: 300000 },
-      { price: 0.4, supply: 450000 },
-      { price: 0.6, supply: 600000 },
-    ],
-    features: [
-      "Cross-chain asset bridges",
-      "Advanced yield farming",
-      "Institutional custody",
-      "MEV protection",
-      "Gasless transactions",
-      "DAO governance",
-    ],
-    roadmap: [
-      {
-        phase: "Phase 1: Foundation",
-        status: "completed",
-        items: [
-          "Core blockchain development",
-          "Basic DeFi protocols",
-          "Security audits",
-        ],
-      },
-      {
-        phase: "Phase 2: DeFi Expansion",
-        status: "current",
-        items: [
-          "Advanced AMM",
-          "Yield farming protocols",
-          "Cross-chain bridges",
-        ],
-      },
-      {
-        phase: "Phase 3: Enterprise",
-        status: "upcoming",
-        items: [
-          "Institutional features",
-          "Compliance tools",
-          "Enterprise partnerships",
-        ],
-      },
-    ],
-    team: [
-      {
-        name: "Alex Chen",
-        role: "Founder & CEO",
-        avatar: "/diverse-ceo-group.png",
-      },
-      { name: "Sarah Kim", role: "CTO", avatar: "/cto.jpg" },
-      {
-        name: "Mike Johnson",
-        role: "Head of DeFi",
-        avatar: "/defi-concept.png",
-      },
-      {
-        name: "Lisa Wang",
-        role: "Security Lead",
-        avatar: "/digital-security-abstract.png",
-      },
-    ],
-    tokenomics: [
-      {
-        category: "Public Sale",
-        percentage: 40,
-        amount: "400M",
-        description: "Available through bonding curve",
-      },
-      {
-        category: "Team & Advisors",
-        percentage: 20,
-        amount: "200M",
-        description: "4-year vesting",
-      },
-      {
-        category: "Development",
-        percentage: 25,
-        amount: "250M",
-        description: "Protocol development fund",
-      },
-      {
-        category: "Ecosystem",
-        percentage: 10,
-        amount: "100M",
-        description: "Partnerships and grants",
-      },
-      {
-        category: "Treasury",
-        percentage: 5,
-        amount: "50M",
-        description: "DAO treasury",
-      },
-    ],
-    metrics: {
-      holders: 1247,
-      transactions: 15420,
-      volume24h: "125,000",
-      marketCap: "450,000",
-      fdv: "600,000",
-      currentPrice: "0.45",
-    },
-    images: [
-      "/defi-concept.png",
-      "/interconnected-blocks.png",
-      "/digital-security-abstract.png",
-    ], // Added sample images
-  },
-  "2": {
-    id: "2",
-    name: "GameFi Universe",
-    description: "Gaming-focused blockchain with built-in NFT marketplace",
-    longDescription:
-      "GameFi Universe is the ultimate gaming blockchain designed for the next generation of play-to-earn games, NFT marketplaces, and virtual worlds. Built with high-performance gaming in mind, our chain supports complex game mechanics, real-time interactions, and seamless NFT trading.",
-    creator: "0x123a...9F2",
-    creatorProfile: {
-      name: "Gaming Studios DAO",
-      avatar: "/gaming-setup.png",
-      verified: true,
-    },
-    progress: 45,
-    raised: "180,000",
-    target: "400,000",
-    participants: 156,
-    timeLeft: "5d 8h",
-    status: "active",
-    tokenSymbol: "GAME",
-    tokenIcon: "🎮", // Added token icon
-    chainIcon: "🚀", // Added chain icon
-    contractAddress: "0x123a35Cc6634C0532925a3b8D4C0532925a3b9F2",
-    website: "https://gamefi-universe.com",
-    twitter: "https://twitter.com/gamefi_universe",
-    discord: "https://discord.gg/gamefi-universe",
-    bondingCurve: [
-      { price: 0.08, supply: 0 },
-      { price: 0.12, supply: 80000 },
-      { price: 0.18, supply: 180000 },
-      { price: 0.3, supply: 300000 },
-      { price: 0.5, supply: 400000 },
-    ],
-    features: [
-      "High-performance gaming",
-      "Built-in NFT marketplace",
-      "Play-to-earn mechanics",
-      "Virtual world support",
-      "Cross-game assets",
-      "Tournament infrastructure",
-    ],
-    roadmap: [
-      {
-        phase: "Phase 1: Core Gaming",
-        status: "completed",
-        items: ["Gaming blockchain core", "NFT standards", "Basic marketplace"],
-      },
-      {
-        phase: "Phase 2: Ecosystem",
-        status: "current",
-        items: [
-          "Game partnerships",
-          "Advanced marketplace",
-          "Tournament system",
-        ],
-      },
-      {
-        phase: "Phase 3: Metaverse",
-        status: "upcoming",
-        items: [
-          "Virtual worlds",
-          "Cross-game interoperability",
-          "VR/AR support",
-        ],
-      },
-    ],
-    team: [
-      {
-        name: "David Park",
-        role: "Game Director",
-        avatar: "/game-director.jpg",
-      },
-      {
-        name: "Emma Rodriguez",
-        role: "Blockchain Lead",
-        avatar: "/interconnected-blocks.png",
-      },
-      {
-        name: "Tom Wilson",
-        role: "NFT Specialist",
-        avatar: "/digital-art-collection.png",
-      },
-    ],
-    tokenomics: [
-      {
-        category: "Public Sale",
-        percentage: 35,
-        amount: "350M",
-        description: "Available through bonding curve",
-      },
-      {
-        category: "Gaming Rewards",
-        percentage: 30,
-        amount: "300M",
-        description: "Play-to-earn rewards",
-      },
-      {
-        category: "Team",
-        percentage: 15,
-        amount: "150M",
-        description: "3-year vesting",
-      },
-      {
-        category: "Development",
-        percentage: 15,
-        amount: "150M",
-        description: "Game development fund",
-      },
-      {
-        category: "Marketing",
-        percentage: 5,
-        amount: "50M",
-        description: "Community growth",
-      },
-    ],
-    metrics: {
-      holders: 892,
-      transactions: 8340,
-      volume24h: "45,000",
-      marketCap: "180,000",
-      fdv: "400,000",
-      currentPrice: "0.18",
-    },
-    images: ["/game-director.jpg", "/digital-art-collection.png"], // Added sample images
-  },
-};
+import { ChainWithUI } from "@/lib/stores/chains-store";
+import { VirtualPool } from "@/types/chains";
 
 interface ChainDetailsProps {
-  chainId: string;
+  chain: ChainWithUI;
+  virtualPool?: VirtualPool | null;
 }
 
-export function ChainDetails({ chainId }: ChainDetailsProps) {
-  const [chain, setChain] = useState<ChainProject | null>(null);
+export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
   const [isFollowing, setIsFollowing] = useState(false);
   const [isPriceAlertSet, setIsPriceAlertSet] = useState(false);
   const [showBondingCurve, setShowBondingCurve] = useState(false);
   const [buyAmount, setBuyAmount] = useState("0");
   const [purchaseType, setPurchaseType] = useState("one-time");
 
-  useEffect(() => {
-    // In real app, fetch chain data from API
-    // For now, always show the static page with mock data
-    const chainData = mockChainData["1"]; // Always use the first mock data
-    setChain(chainData);
-  }, [chainId]);
-
-  if (!chain) {
-    return (
-      <div className="flex flex-col h-full bg-gray-900">
-        <div className="border-b border-gray-800 p-4">
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink
-                  href="/"
-                  className="text-gray-400 hover:text-white"
-                >
-                  Launchpad
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator className="text-gray-600" />
-              <BreadcrumbItem>
-                <BreadcrumbPage className="text-white">
-                  Chain Not Found
-                </BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-        <div className="flex-1 p-6">
-          <Card className="bg-gray-900 border-gray-800">
-            <CardContent className="p-8 text-center">
-              <p className="text-gray-400">Chain not found</p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
   const copyAddress = () => {
-    navigator.clipboard.writeText(chain.contractAddress);
+    navigator.clipboard.writeText(chain.chain_id || "");
   };
 
   const shareProject = () => {
     if (navigator.share) {
       navigator.share({
-        title: chain.name,
-        text: chain.description,
+        title: chain.chain_name,
+        text: chain.chain_description,
         url: window.location.href,
       });
     } else {
@@ -430,19 +76,14 @@ export function ChainDetails({ chainId }: ChainDetailsProps) {
     }
   };
 
-  // Mock chart data for the price chart
-  const chartData = [
-    { time: "10:50 AM", price: 54.8 },
-    { time: "11:00 AM", price: 54.9 },
-    { time: "11:30 AM", price: 55.1 },
-    { time: "12:00 PM", price: 54.7 },
-    { time: "12:30 PM", price: 54.5 },
-    { time: "1:00 PM", price: 54.2 },
-    { time: "1:30 PM", price: 54.0 },
-    { time: "2:00 PM", price: 54.1 },
-    { time: "2:30 PM", price: 54.3 },
-    { time: "2:57 PM", price: 54.996 },
-  ];
+  // Use actual chain chart data
+  const chartData = chain.chartData.map((point, index) => ({
+    time: new Date(point.time).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    price: point.value,
+  }));
 
   return (
     <div className="flex flex-col h-full  max-w-8xl mx-auto">
@@ -451,11 +92,15 @@ export function ChainDetails({ chainId }: ChainDetailsProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-sm">₿</span>
+              <span className="text-white font-bold text-sm">
+                {chain.token_symbol?.charAt(0) || "₿"}
+              </span>
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white">DeFi App</h1>
-              <p className="text-sm text-gray-400">DEFI</p>
+              <h1 className="text-xl font-bold text-white">
+                {chain.chain_name}
+              </h1>
+              <p className="text-sm text-gray-400">{chain.token_symbol}</p>
             </div>
           </div>
 
@@ -544,7 +189,7 @@ export function ChainDetails({ chainId }: ChainDetailsProps) {
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
                           <span className="text-4xl font-bold text-white">
-                            54,996.00
+                            {chain.price.toFixed(4)}
                           </span>
                           <span className="text-red-500 text-lg font-medium">
                             -2.78%
@@ -621,7 +266,7 @@ export function ChainDetails({ chainId }: ChainDetailsProps) {
                               Market cap
                             </div>
                             <div className="font-semibold text-white">
-                              5.0M CNPY
+                              {chain.marketCap.toLocaleString()} CNPY
                             </div>
                           </div>
                         </div>
@@ -634,7 +279,7 @@ export function ChainDetails({ chainId }: ChainDetailsProps) {
                               Volume (24h)
                             </div>
                             <div className="font-semibold text-white">
-                              33K CNPY
+                              {chain.volume24h.toLocaleString()} CNPY
                             </div>
                             <div className="text-red-500 text-xs">-1.47%</div>
                           </div>
@@ -648,10 +293,16 @@ export function ChainDetails({ chainId }: ChainDetailsProps) {
                               Circulating supply
                             </div>
                             <div className="font-semibold text-white">
-                              50M DEFI
+                              {chain.initial_token_supply.toLocaleString()}{" "}
+                              {chain.token_symbol}
                             </div>
                             <div className="text-gray-400 text-xs">
-                              10% of total supply
+                              {Math.round(
+                                (chain.initial_token_supply /
+                                  chain.token_total_supply) *
+                                  100
+                              )}
+                              % of total supply
                             </div>
                           </div>
                         </div>
@@ -677,11 +328,11 @@ export function ChainDetails({ chainId }: ChainDetailsProps) {
                             <div className="w-full bg-gray-700 rounded-full h-2 mt-1">
                               <div
                                 className="bg-green-500 h-2 rounded-full"
-                                style={{ width: "70%" }}
+                                style={{ width: `${chain.progress}%` }}
                               ></div>
                             </div>
                             <div className="text-xs text-gray-400 mt-1">
-                              70% buy • 30% sell
+                              {chain.progress}% complete
                             </div>
                           </div>
                         </div>
@@ -722,23 +373,13 @@ export function ChainDetails({ chainId }: ChainDetailsProps) {
                         Overview
                       </h3>
                       <p className="text-gray-300 leading-relaxed mb-4">
-                        Bitcoin is the world's first widely-adopted
-                        cryptocurrency. With Bitcoin, people can securely and
-                        directly send each other digital money on the internet.
+                        {chain.chain_description}
                       </p>
-                      <p className="text-gray-300 leading-relaxed mb-4">
-                        Bitcoin was created by Satoshi Nakamoto, a pseudonymous
-                        person or team who outlined the technology in a 2008
-                        white paper. Bitcoin is more than a payment system—it's
-                        a new kind of money.
-                      </p>
-                      <p className="text-gray-300 leading-relaxed mb-4">
-                        Unlike traditional payment methods like Venmo and
-                        PayPal, which are built on top of the traditional
-                        financial system, Bitcoin is completely independent.
-                        There's no company, government, or institution in charge
-                        of Bitcoin. It's like the internet for money.
-                      </p>
+                      {chain.template?.template_description && (
+                        <p className="text-gray-300 leading-relaxed mb-4">
+                          {chain.template.template_description}
+                        </p>
+                      )}
 
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 text-blue-400 hover:text-blue-300 cursor-pointer">
@@ -806,7 +447,7 @@ export function ChainDetails({ chainId }: ChainDetailsProps) {
                                 <ChevronUp className="h-4 w-4 text-gray-400" />
                                 <ChevronDown className="h-4 w-4 text-gray-400" />
                                 <span className="text-sm text-gray-400 ml-2">
-                                  BTC
+                                  {chain.token_symbol}
                                 </span>
                               </div>
                             </div>
@@ -853,7 +494,7 @@ export function ChainDetails({ chainId }: ChainDetailsProps) {
                                 </div>
                                 <div>
                                   <div className="font-medium text-white">
-                                    DeFi App
+                                    {chain.chain_name}
                                   </div>
                                 </div>
                               </div>
@@ -878,7 +519,7 @@ export function ChainDetails({ chainId }: ChainDetailsProps) {
                           </div>
 
                           <Button className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 text-lg">
-                            Buy DEFI
+                            Buy {chain.token_symbol}
                           </Button>
 
                           <p className="text-sm text-gray-400">
@@ -957,7 +598,19 @@ export function ChainDetails({ chainId }: ChainDetailsProps) {
       {/* Bonding Curve Modal */}
       {showBondingCurve && (
         <BondingCurveChart
-          project={chain}
+          project={{
+            id: chain.id,
+            name: chain.chain_name,
+            description: chain.chain_description,
+            creator: chain.creator?.display_name || "Unknown",
+            progress: chain.progress,
+            raised: chain.raised,
+            target: chain.target,
+            participants: chain.participants,
+            timeLeft: chain.timeLeft,
+            status: chain.status,
+            bondingCurve: chain.bondingCurve,
+          }}
           isOpen={showBondingCurve}
           onClose={() => setShowBondingCurve(false)}
         />
