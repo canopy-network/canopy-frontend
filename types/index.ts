@@ -3,7 +3,18 @@
  * Re-exports all types from individual modules for easier importing
  */
 
-// Launchpad types
+// TODO: Improve the JSDOC comments, they dont give the details correctly when hovering over the types.
+
+// Base API types (response wrappers, auth, etc.)
+export * from "./api";
+
+// Chain-related types (chains, creators, virtual pools, transactions)
+export * from "./chains";
+
+// Template-related types (templates, categories, complexity levels)
+export * from "./templates";
+
+// Legacy Launchpad types (for backward compatibility)
 export * from "./launchpad";
 
 // Add other type modules here as they are created
