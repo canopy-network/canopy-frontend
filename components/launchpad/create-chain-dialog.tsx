@@ -743,7 +743,7 @@ export function CreateChainDialog() {
                     {stepNum}
                   </div>
                   <span className="text-xs mt-1 hidden md:block">
-                    {stepNum === 1 && "Basics & Assets"}
+                    {stepNum === 1 && "Basics"}
                     {stepNum === 2 && "Template"}
                     {stepNum === 3 && "Links"}
                     {stepNum === 4 && "Schedule"}
