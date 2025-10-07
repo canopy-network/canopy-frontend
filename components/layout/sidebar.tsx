@@ -2,6 +2,7 @@
 
 import { MainNav } from "@/components/navigation/main-nav";
 import { WalletConnectButton } from "@/components/wallet/wallet-connect-button";
+import { EmailAuth } from "@/components/auth/email-auth";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Plus } from "lucide-react";
@@ -49,7 +50,8 @@ export function Sidebar() {
         <MainNav />
       </div>
 
-      <div className="border-t border-[#2a2a2a] p-4">
+      <div className="border-t border-[#2a2a2a] p-4 space-y-3">
+        <EmailAuth />
         <WalletConnectButton />
       </div>
     </div>
