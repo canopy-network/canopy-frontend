@@ -51,6 +51,13 @@ import {
   COMPLEXITY_LEVEL_COLORS,
 } from "@/types/templates";
 import { chainsApi } from "@/lib/api";
+import {
+  validateGitHubOwnership,
+  parseGitHubUrl,
+  isValidGitHubUrl,
+  type GitHubValidationResult,
+} from "@/lib/api/github";
+import { useSession } from "next-auth/react";
 
 // ============================================================================
 // VALIDATION SCHEMAS
@@ -326,6 +333,14 @@ export function CreateChainDialog() {
     pricePerToken: number;
   } | null>(null);
 
+  // GitHub validation state
+  const { data: session } = useSession();
+  const [githubValidation, setGithubValidation] =
+    useState<GitHubValidationResult | null>(null);
+  const [isValidatingGithub, setIsValidatingGithub] = useState(false);
+  const [githubValidationTimeout, setGithubValidationTimeout] =
+    useState<NodeJS.Timeout | null>(null);
+
   const [formData, setFormData] = useState<FormData>({
     // Step 1
     chainName: "",
@@ -465,6 +480,21 @@ export function CreateChainDialog() {
               newErrors[err.path[0] as string] = err.message;
             });
             setErrors(newErrors);
+            return false;
+          }
+
+          // Check GitHub validation
+          if (!session) {
+            setErrors({
+              githubRepo: "Please connect GitHub in the sidebar first",
+            });
+            return false;
+          }
+
+          if (!githubValidation || !githubValidation.isValid) {
+            setErrors({
+              githubRepo: "Please verify GitHub repository ownership",
+            });
             return false;
           }
 
@@ -665,6 +695,54 @@ export function CreateChainDialog() {
       setTickerAvailable(null);
       const available = await checkTickerAvailability(upperTicker);
       setTickerAvailable(available);
+    }
+  };
+
+  // GitHub validation function
+  const validateGitHubRepo = async (url: string) => {
+    if (!session?.accessToken || !isValidGitHubUrl(url)) {
+      setGithubValidation(null);
+      return;
+    }
+
+    setIsValidatingGithub(true);
+    setGithubValidation(null);
+
+    try {
+      const result = await validateGitHubOwnership(
+        url,
+        session.accessToken as string
+      );
+      setGithubValidation(result);
+    } catch (error) {
+      setGithubValidation({
+        isValid: false,
+        error: "Failed to validate repository",
+      });
+    } finally {
+      setIsValidatingGithub(false);
+    }
+  };
+
+  // Handle GitHub URL change with debounced validation
+  const handleGitHubUrlChange = (url: string) => {
+    updateFormData({ githubRepo: url });
+
+    // Clear existing timeout
+    if (githubValidationTimeout) {
+      clearTimeout(githubValidationTimeout);
+    }
+
+    // Reset validation when URL changes
+    setGithubValidation(null);
+
+    // Validate if user is logged in and URL is valid
+    if (session?.accessToken && isValidGitHubUrl(url)) {
+      // Debounce validation by 500ms
+      const timeoutId = setTimeout(() => {
+        validateGitHubRepo(url);
+      }, 500);
+      setGithubValidationTimeout(timeoutId);
     }
   };
 
@@ -1190,18 +1268,55 @@ export function CreateChainDialog() {
                     <Github className="h-4 w-4" />
                     GitHub Repository *
                   </Label>
-                  <Input
-                    id="githubRepo"
-                    placeholder="https://github.com/username/repo"
-                    value={formData.githubRepo}
-                    onChange={(e) =>
-                      updateFormData({ githubRepo: e.target.value })
-                    }
-                    className={errors.githubRepo ? "border-destructive" : ""}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="githubRepo"
+                      placeholder="https://github.com/username/repo"
+                      value={formData.githubRepo}
+                      onChange={(e) => handleGitHubUrlChange(e.target.value)}
+                      className={`pr-10 ${
+                        errors.githubRepo ? "border-destructive" : ""
+                      }`}
+                    />
+                    {/* Validation status icon */}
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      {isValidatingGithub ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                      ) : githubValidation ? (
+                        githubValidation.isValid ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <AlertCircle className="h-4 w-4 text-red-500" />
+                        )
+                      ) : null}
+                    </div>
+                  </div>
+
+                  {/* Validation messages */}
+                  {githubValidation && !githubValidation.isValid && (
+                    <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      You don't own that project
+                    </p>
+                  )}
+
+                  {githubValidation && githubValidation.isValid && (
+                    <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Repository verified
+                    </p>
+                  )}
+
                   {errors.githubRepo && (
                     <p className="text-xs text-destructive mt-1">
                       {errors.githubRepo}
+                    </p>
+                  )}
+
+                  {!session && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Connect GitHub in the sidebar to validate repository
+                      ownership
                     </p>
                   )}
                 </div>
