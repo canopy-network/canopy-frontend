@@ -45,6 +45,12 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useCreateChainDialog } from "@/lib/stores/use-create-chain-dialog";
+import { useTemplatesStore, useChainsStore } from "@/lib/stores";
+import {
+  TEMPLATE_CATEGORY_COLORS,
+  COMPLEXITY_LEVEL_COLORS,
+} from "@/types/templates";
+import { chainsApi } from "@/lib/api";
 
 // ============================================================================
 // VALIDATION SCHEMAS
@@ -98,33 +104,11 @@ const step1Schema = z.object({
     .optional(),
 });
 
-const templateParamsSchema = z.discriminatedUnion("template", [
-  z.object({
-    template: z.literal("rust"),
-    tokenSupply: z.number().min(1000000).max(1000000000000),
-    decimals: z.number().min(6).max(18),
-  }),
-  z.object({
-    template: z.literal("kotlin"),
-    tokenSupply: z.number().min(1000000).max(1000000000000),
-    decimals: z.number().min(6).max(18),
-  }),
-  z.object({
-    template: z.literal("go"),
-    tokenSupply: z.number().min(1000000).max(1000000000000),
-    decimals: z.number().min(6).max(18),
-  }),
-  z.object({
-    template: z.literal("selenium"),
-    tokenSupply: z.number().min(1000000).max(1000000000000),
-    decimals: z.number().min(6).max(18),
-  }),
-  z.object({
-    template: z.literal("javascript"),
-    tokenSupply: z.number().min(1000000).max(1000000000000),
-    decimals: z.number().min(6).max(18),
-  }),
-]);
+const templateParamsSchema = z.object({
+  template: z.string().uuid("Please select a valid template"),
+  tokenSupply: z.number().min(1000000).max(1000000000000),
+  decimals: z.number().min(6).max(18),
+});
 
 const step3Schema = z.object({
   githubRepo: z
@@ -171,36 +155,8 @@ const step6Schema = z.object({
 });
 
 // ============================================================================
-// TEMPLATES
+// TEMPLATES - Now loaded from API via store
 // ============================================================================
-
-const templates = [
-  {
-    id: "rust",
-    name: "Rust",
-    estimatedCost: "100 CNPY",
-  },
-  {
-    id: "kotlin",
-    name: "Kotlin",
-    estimatedCost: "100 CNPY",
-  },
-  {
-    id: "go",
-    name: "Go",
-    estimatedCost: "100 CNPY",
-  },
-  {
-    id: "selenium",
-    name: "Selenium",
-    estimatedCost: "100 CNPY",
-  },
-  {
-    id: "javascript",
-    name: "JavaScript",
-    estimatedCost: "100 CNPY",
-  },
-];
 
 // ============================================================================
 // API STUBS
@@ -215,13 +171,7 @@ async function checkTickerAvailability(ticker: string): Promise<boolean> {
   return true; // Stub: always available
 }
 
-async function getTemplates() {
-  // TODO: Implement actual API call
-  // const response = await fetch('/api/templates');
-  // return response.json();
-  console.log("Fetching templates");
-  return templates;
-}
+// getTemplates is no longer needed as we use the store
 
 async function uploadFile(
   file: File
@@ -258,22 +208,7 @@ async function getBondingCurveQuote(
   };
 }
 
-async function createProject(
-  data: any
-): Promise<{ projectId: string; txData?: any }> {
-  // TODO: Implement actual API call
-  // const response = await fetch('/api/projects', {
-  //   method: 'POST',
-  //   body: JSON.stringify(data),
-  // });
-  // return response.json();
-  console.log("Creating project:", data);
-  await new Promise((resolve) => setTimeout(resolve, 1500));
-  return {
-    projectId: "project-" + Date.now(),
-    txData: null,
-  };
-}
+// Removed - now using chainsApi directly
 
 // ============================================================================
 // WALLET STUBS
@@ -325,8 +260,6 @@ async function checkAllowance(userAddress: string): Promise<number> {
 // TYPES
 // ============================================================================
 
-type TemplateId = "rust" | "kotlin" | "go" | "selenium" | "javascript";
-
 interface FormData {
   // Step 1
   chainName: string;
@@ -334,7 +267,7 @@ interface FormData {
   description: string;
 
   // Step 2
-  template: TemplateId | "";
+  template: string; // Template ID (UUID)
   tokenSupply: string;
   decimals: string;
   governance?: boolean;
@@ -375,6 +308,15 @@ interface FormData {
 
 export function CreateChainDialog() {
   const { isOpen, setOpen } = useCreateChainDialog();
+  const {
+    templates,
+    getActiveTemplates,
+    getTemplateById,
+    isLoading: templatesLoading,
+  } = useTemplatesStore();
+  const { createChain } = useChainsStore();
+  const activeTemplates = getActiveTemplates();
+
   const [step, setStep] = useState(1);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -487,13 +429,11 @@ export function CreateChainDialog() {
             return false;
           }
 
-          const params: any = {
+          const params = {
             template: formData.template,
             tokenSupply: Number(formData.tokenSupply),
             decimals: Number(formData.decimals),
           };
-
-          // All language templates use the same base parameters
 
           const result = templateParamsSchema.safeParse(params);
 
@@ -605,66 +545,78 @@ export function CreateChainDialog() {
         return;
       }
 
-      // Upload files
-      let logoUrl = "";
-      let videoUrl = "";
-      let bannerUrl = "";
-
-      if (formData.logo) {
-        const result = await uploadFile(formData.logo);
-        logoUrl = result.url;
+      // Get selected template for defaults
+      const selectedTemplate = getTemplateById(formData.template);
+      if (!selectedTemplate) {
+        setErrors({ submit: "Selected template not found" });
+        setIsLoading(false);
+        return;
       }
 
-      if (formData.promoVideo) {
-        const result = await uploadFile(formData.promoVideo);
-        videoUrl = result.url;
-      }
+      // Upload files (these would be URLs in real implementation)
+      // For now, we'll skip file uploads as they're not in the API spec
+      // let logoUrl = "";
+      // let videoUrl = "";
+      // let bannerUrl = "";
 
-      if (formData.banner) {
-        const result = await uploadFile(formData.banner);
-        bannerUrl = result.url;
-      }
+      // if (formData.logo) {
+      //   const result = await uploadFile(formData.logo);
+      //   logoUrl = result.url;
+      // }
 
-      // Prepare project data
-      const projectData = {
-        chainName: formData.chainName,
-        ticker: formData.ticker,
-        description: formData.description,
-        template: formData.template,
-        tokenSupply: Number(formData.tokenSupply),
-        decimals: Number(formData.decimals),
-        githubRepo: formData.githubRepo,
-        website: formData.website,
-        whitepaper: formData.whitepaper,
-        twitterUrl: formData.twitterUrl,
-        telegramUrl: formData.telegramUrl,
-        logoUrl,
-        videoUrl,
-        bannerUrl,
-        launchDate: formData.launchImmediately
-          ? new Date()
-          : new Date(formData.launchDate),
-        launchImmediately: formData.launchImmediately,
+      // Prepare chain data according to API spec
+      const chainData = {
+        chain_name: formData.chainName,
+        token_symbol: formData.ticker,
+        chain_description: formData.description,
+        template_id: formData.template,
+        consensus_mechanism: selectedTemplate.default_consensus,
+        token_total_supply: Number(formData.tokenSupply),
+        // Use template defaults for other fields
+        graduation_threshold: 50000.0,
+        creation_fee_cnpy: 100.0,
+        initial_cnpy_reserve: 10000.0,
+        initial_token_supply: Math.floor(Number(formData.tokenSupply) * 0.8), // 80% of total supply
+        bonding_curve_slope: 0.00000001,
+        validator_min_stake: 1000.0,
+        creator_initial_purchase_cnpy: 0, // No initial purchase for now
       };
 
-      // Check allowance and approve if needed
-      const userAddress = "0x0000000000000000000000000000000000000000"; // TODO: Get from wallet
-      const totalCost = 100; // Only creation fee, no pre-purchase
-      const allowance = await checkAllowance(userAddress);
+      // TODO: Store additional metadata (github, website, etc.) separately
+      // These fields are collected in the form but not part of the chain creation API
+      console.log("Additional metadata to store separately:", {
+        github_repo: formData.githubRepo,
+        website: formData.website,
+        whitepaper: formData.whitepaper,
+        twitter_url: formData.twitterUrl,
+        telegram_url: formData.telegramUrl,
+        scheduled_launch: formData.launchImmediately
+          ? new Date().toISOString()
+          : formData.launchDate,
+      });
 
-      if (allowance < totalCost) {
-        await approveCNPY(totalCost);
-      }
+      console.log("Creating chain with data:", chainData);
 
-      // Create project
-      const result = await createProject(projectData);
+      // Create chain via API
+      const result = await createChain(chainData);
 
-      // Send transaction if needed
-      if (result.txData) {
-        await sendCreateChainTransaction(result.txData);
-      }
+      console.log("Chain created successfully:", result);
 
-      console.log("Project created successfully:", result.projectId);
+      // TODO: Check allowance and approve if needed (for on-chain operations)
+      // const userAddress = "0x0000000000000000000000000000000000000000"; // TODO: Get from wallet
+      // const totalCost = 100; // Only creation fee, no pre-purchase
+      // const allowance = await checkAllowance(userAddress);
+      // if (allowance < totalCost) {
+      //   await approveCNPY(totalCost);
+      // }
+
+      // TODO: Send transaction if needed (for on-chain deployment)
+      // await sendCreateChainTransaction(result);
+
+      // Show success message
+      alert(
+        `Chain "${result.chain_name}" created successfully! (Status: ${result.status})`
+      );
 
       // Reset and close
       setOpen(false);
@@ -690,9 +642,11 @@ export function CreateChainDialog() {
         launchImmediately: false,
         riskAcknowledgment: false,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating chain:", error);
-      setErrors({ submit: "Failed to create chain. Please try again." });
+      const errorMessage =
+        error?.message || "Failed to create chain. Please try again.";
+      setErrors({ submit: errorMessage });
     } finally {
       setIsLoading(false);
     }
@@ -1047,92 +1001,171 @@ export function CreateChainDialog() {
                 </p>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-3">
-                {templates.map((template) => (
-                  <Card
-                    key={template.id}
-                    className={`cursor-pointer transition-all ${
-                      formData.template === template.id
-                        ? "ring-2 ring-primary shadow-md"
-                        : "hover:bg-accent/50"
-                    }`}
-                    onClick={() =>
-                      updateFormData({ template: template.id as TemplateId })
-                    }
-                  >
-                    <CardHeader>
-                      <CardTitle className="text-base">
-                        {template.name}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          Est. Cost:
-                        </span>
-                        <span className="font-medium">
-                          {template.estimatedCost}
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-
-              {formData.template && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">
-                      Chain Parameters
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div>
-                        <Label htmlFor="tokenSupply">Token Supply *</Label>
-                        <Input
-                          id="tokenSupply"
-                          type="number"
-                          placeholder="1000000000"
-                          value={formData.tokenSupply}
-                          onChange={(e) =>
-                            updateFormData({ tokenSupply: e.target.value })
-                          }
-                          className={
-                            errors.tokenSupply ? "border-destructive" : ""
-                          }
-                        />
-                        {errors.tokenSupply && (
-                          <p className="text-xs text-destructive mt-1">
-                            {errors.tokenSupply}
-                          </p>
-                        )}
-                      </div>
-
-                      <div>
-                        <Label htmlFor="decimals">Decimals *</Label>
-                        <Select
-                          value={formData.decimals}
-                          onValueChange={(value) =>
-                            updateFormData({ decimals: value })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {[6, 8, 12, 18].map((d) => (
-                              <SelectItem key={d} value={d.toString()}>
-                                {d} decimals
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+              {templatesLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center space-y-2">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
+                    <p className="text-sm text-muted-foreground">
+                      Loading templates...
+                    </p>
+                  </div>
+                </div>
+              ) : activeTemplates.length === 0 ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center space-y-2">
+                    <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto" />
+                    <p className="text-sm text-muted-foreground">
+                      No templates available. Please try again later.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {activeTemplates.map((template) => (
+                    <Card
+                      key={template.id}
+                      className={`cursor-pointer transition-all ${
+                        formData.template === template.id
+                          ? "ring-2 ring-primary shadow-md"
+                          : "hover:bg-accent/50"
+                      }`}
+                      onClick={() => updateFormData({ template: template.id })}
+                    >
+                      <CardHeader>
+                        <div className="flex items-start justify-between gap-2">
+                          <CardTitle className="text-base">
+                            {template.template_name}
+                          </CardTitle>
+                          <Badge
+                            variant="secondary"
+                            className={
+                              COMPLEXITY_LEVEL_COLORS[template.complexity_level]
+                            }
+                          >
+                            {template.complexity_level}
+                          </Badge>
+                        </div>
+                        <CardDescription className="line-clamp-2">
+                          {template.template_description}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            Language:
+                          </span>
+                          <span className="font-medium">
+                            {template.supported_language}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            Est. Time:
+                          </span>
+                          <span className="font-medium">
+                            {template.estimated_deployment_time_minutes}min
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            Category:
+                          </span>
+                          <Badge
+                            variant="secondary"
+                            className={
+                              TEMPLATE_CATEGORY_COLORS[
+                                template.template_category
+                              ]
+                            }
+                          >
+                            {template.template_category}
+                          </Badge>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               )}
+
+              {formData.template &&
+                (() => {
+                  const selectedTemplate = getTemplateById(formData.template);
+                  return selectedTemplate ? (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">
+                          Chain Parameters
+                        </CardTitle>
+                        <CardDescription>
+                          Configure parameters for{" "}
+                          {selectedTemplate.template_name}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="p-3 bg-muted rounded-lg space-y-1">
+                          <p className="text-sm font-medium">
+                            Template Defaults:
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            • Consensus: {selectedTemplate.default_consensus}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            • Default Supply:{" "}
+                            {selectedTemplate.default_token_supply.toLocaleString()}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            • Validators:{" "}
+                            {selectedTemplate.default_validator_count}
+                          </p>
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div>
+                            <Label htmlFor="tokenSupply">Token Supply *</Label>
+                            <Input
+                              id="tokenSupply"
+                              type="number"
+                              placeholder={selectedTemplate.default_token_supply.toString()}
+                              value={formData.tokenSupply}
+                              onChange={(e) =>
+                                updateFormData({ tokenSupply: e.target.value })
+                              }
+                              className={
+                                errors.tokenSupply ? "border-destructive" : ""
+                              }
+                            />
+                            {errors.tokenSupply && (
+                              <p className="text-xs text-destructive mt-1">
+                                {errors.tokenSupply}
+                              </p>
+                            )}
+                          </div>
+
+                          <div>
+                            <Label htmlFor="decimals">Decimals *</Label>
+                            <Select
+                              value={formData.decimals}
+                              onValueChange={(value) =>
+                                updateFormData({ decimals: value })
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {[6, 8, 12, 18].map((d) => (
+                                  <SelectItem key={d} value={d.toString()}>
+                                    {d} decimals
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : null;
+                })()}
             </div>
           )}
 
@@ -1402,10 +1435,7 @@ export function CreateChainDialog() {
                         Template
                       </Label>
                       <p className="font-medium">
-                        {
-                          templates.find((t) => t.id === formData.template)
-                            ?.name
-                        }
+                        {getTemplateById(formData.template)?.template_name}
                       </p>
                     </div>
                     <div>
