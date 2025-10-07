@@ -6,6 +6,7 @@ import { WalletProvider } from "@/components/wallet/wallet-provider";
 import { Sidebar } from "@/components/layout/sidebar";
 import { CreateChainDialog } from "@/components/launchpad/create-chain-dialog";
 import { TemplatesInitializer } from "@/components/providers/templates-initializer";
+import { AuthSessionProvider } from "@/components/providers/session-provider";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -25,16 +26,18 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={inter.className}>
-        <WalletProvider>
-          <TemplatesInitializer />
-          <div className="flex h-screen bg-background">
-            <Sidebar />
-            <main className="flex-1 overflow-auto">
-              <Suspense fallback={null}>{children}</Suspense>
-            </main>
-          </div>
-          <CreateChainDialog />
-        </WalletProvider>
+        <AuthSessionProvider>
+          <WalletProvider>
+            <TemplatesInitializer />
+            <div className="flex h-screen bg-background">
+              <Sidebar />
+              <main className="flex-1 overflow-auto">
+                <Suspense fallback={null}>{children}</Suspense>
+              </main>
+            </div>
+            <CreateChainDialog />
+          </WalletProvider>
+        </AuthSessionProvider>
       </body>
     </html>
   );

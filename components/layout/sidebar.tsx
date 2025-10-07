@@ -5,11 +5,13 @@ import { WalletConnectButton } from "@/components/wallet/wallet-connect-button";
 import { EmailAuth } from "@/components/auth/email-auth";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, Github } from "lucide-react";
 import { useCreateChainDialog } from "@/lib/stores/use-create-chain-dialog";
+import { signIn, signOut, useSession } from "next-auth/react";
 
 export function Sidebar() {
   const { open } = useCreateChainDialog();
+  const { data: session, status } = useSession();
 
   return (
     <div className="flex h-full w-64 flex-col bg-[#0e0e0e] border-r border-[#2a2a2a]">
@@ -53,6 +55,41 @@ export function Sidebar() {
       <div className="border-t border-[#2a2a2a] p-4 space-y-3">
         <EmailAuth />
         <WalletConnectButton />
+
+        {/* GitHub Login Button - Temporary */}
+        <div className="space-y-2">
+          {session ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 p-2 bg-[#1a1a1a] rounded-lg">
+                <img
+                  src={session.user?.image || ""}
+                  alt={session.user?.name || ""}
+                  className="w-6 h-6 rounded-full"
+                />
+                <span className="text-sm text-white truncate">
+                  {session.user?.name || session.user?.email}
+                </span>
+              </div>
+              <Button
+                onClick={() => signOut()}
+                variant="outline"
+                size="sm"
+                className="w-full text-xs"
+              >
+                Sign Out
+              </Button>
+            </div>
+          ) : (
+            <Button
+              onClick={() => signIn("github")}
+              variant="outline"
+              className="w-full justify-start gap-2 bg-transparent hover:bg-[#1a1a1a] text-white border-[#2a2a2a]"
+            >
+              <Github className="h-4 w-4" />
+              Connect GitHub
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
