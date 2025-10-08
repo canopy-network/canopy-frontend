@@ -1,17 +1,21 @@
 "use client";
 
+import { useState } from "react";
 import { MainNav } from "@/components/navigation/main-nav";
 import { WalletConnectButton } from "@/components/wallet/wallet-connect-button";
-import { EmailAuth } from "@/components/auth/email-auth";
+import { LoginDialog } from "@/components/auth/login-dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Plus, Github } from "lucide-react";
+import { Search, Plus, Github, Mail } from "lucide-react";
 import { useCreateChainDialog } from "@/lib/stores/use-create-chain-dialog";
 import { signIn, signOut, useSession } from "next-auth/react";
+import { useAuthStore } from "@/lib/stores/auth-store";
 
 export function Sidebar() {
   const { open } = useCreateChainDialog();
   const { data: session, status } = useSession();
+  const { user, isAuthenticated } = useAuthStore();
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
 
   return (
     <div className="flex h-full w-64 flex-col bg-[#0e0e0e] border-r border-[#2a2a2a]">
@@ -53,7 +57,37 @@ export function Sidebar() {
       </div>
 
       <div className="border-t border-[#2a2a2a] p-4 space-y-3">
-        <EmailAuth />
+        {/* Email Authentication */}
+        {isAuthenticated && user ? (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 p-2 bg-[#1a1a1a] rounded-lg">
+              <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center">
+                <span className="text-primary-foreground text-xs font-bold">
+                  {user.email.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <span className="text-sm text-white truncate">{user.email}</span>
+            </div>
+            <Button
+              onClick={() => setLoginDialogOpen(true)}
+              variant="outline"
+              size="sm"
+              className="w-full text-xs"
+            >
+              Manage Account
+            </Button>
+          </div>
+        ) : (
+          <Button
+            onClick={() => setLoginDialogOpen(true)}
+            className="w-full gap-2 bg-transparent hover:bg-[#1a1a1a] text-white border border-[#2a2a2a] font-medium"
+            variant="outline"
+          >
+            <Mail className="h-4 w-4" />
+            Login
+          </Button>
+        )}
+
         <WalletConnectButton />
 
         {/* GitHub Login Button - Temporary */}
@@ -91,6 +125,9 @@ export function Sidebar() {
           )}
         </div>
       </div>
+
+      {/* Login Dialog */}
+      <LoginDialog open={loginDialogOpen} onOpenChange={setLoginDialogOpen} />
     </div>
   );
 }

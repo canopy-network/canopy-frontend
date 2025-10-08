@@ -215,7 +215,6 @@ export function LaunchpadDashboard() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Header */}
       <div className="border-b border-[#2a2a2a] bg-[#0a0a0a]">
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
@@ -223,10 +222,6 @@ export function LaunchpadDashboard() {
               <h1 className="text-3xl font-bold text-white mb-2">
                 Launchpad Dashboard
               </h1>
-              <p className="text-gray-400">
-                Discover and invest in the next generation of blockchain
-                projects
-              </p>
             </div>
             <div className="flex items-center gap-4">
               <Button
@@ -331,7 +326,7 @@ export function LaunchpadDashboard() {
             </div>
           )}
         </div>
-        {filteredChains.length}
+
         <Tabs
           value={activeTab}
           onValueChange={setActiveTab}

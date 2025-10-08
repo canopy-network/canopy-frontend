@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { ArrowRight, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { ChainWithUI } from "@/lib/stores/chains-store";
+import { VirtualPool } from "@/types/chains";
 import { formatKilo } from "@/lib/utils";
 /**
  * Props interface for the ProjectCard component
@@ -17,11 +18,17 @@ import { formatKilo } from "@/lib/utils";
 export interface ProjectCardProps {
   /** Complete project data object containing all information needed for display */
   project: ChainWithUI;
+  /** Virtual pool data for trading metrics and progress calculation */
+  virtualPool?: VirtualPool;
   /** Callback function triggered when the buy button is clicked */
   onBuyClick: (project: ChainWithUI) => void;
 }
 
-export const ProjectCard = ({ project, onBuyClick }: ProjectCardProps) => {
+export const ProjectCard = ({
+  project,
+  virtualPool,
+  onBuyClick,
+}: ProjectCardProps) => {
   const [avatar, setAvatar] = useState<string>("");
 
   useEffect(() => {
@@ -33,6 +40,21 @@ export const ProjectCard = ({ project, onBuyClick }: ProjectCardProps) => {
       setAvatar("https://picsum.photos/536/354");
     }
   }, [project.creator]);
+
+  // Calculate metrics from virtual pool data
+  const progress = virtualPool
+    ? Math.min(
+        (virtualPool.cnpy_reserve / project.graduation_threshold) * 100,
+        100
+      )
+    : project.progress || 0;
+
+  const currentRaised = virtualPool?.cnpy_reserve || 45000;
+  const priceChange = virtualPool?.price_24h_change_percent || 24;
+  const volume24h = virtualPool?.volume_24h_cnpy || 1200.5;
+  const marketCap = virtualPool?.market_cap_usd || 45000;
+  const fdv = virtualPool?.market_cap_usd || 45000; // Using market_cap_usd as FDV for now
+  const uniqueTraders = virtualPool?.unique_traders || 23;
 
   return (
     <>
@@ -86,18 +108,17 @@ export const ProjectCard = ({ project, onBuyClick }: ProjectCardProps) => {
 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    {/* TODO: whats up with the graduantion tresshold and what is left to graduate? */}
                     <Progress
-                      value={project.progress}
+                      value={progress}
                       className="w-32 h-2 bg-[#2a2a2a]"
                     />
                     <span className="text-sm text-muted-foreground font-medium">
-                      {formatKilo(45000)}/
+                      {formatKilo(currentRaised)}/
                       {formatKilo(project.graduation_threshold)}
                     </span>
                     <span className="text-sm text-primary font-semibold flex items-center gap-1">
                       <TrendingUp className="h-3 w-3" />
-                      24%
+                      {priceChange.toFixed(1)}%
                     </span>
                   </div>
                 </div>
@@ -115,12 +136,13 @@ export const ProjectCard = ({ project, onBuyClick }: ProjectCardProps) => {
       </Card>
       <div className="mt-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          {/* TODO: This here shows the amount of holders */}
           <div className="flex items-center gap-2">
             <div className="h-6 w-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
               <span className="text-white text-xs font-bold">A</span>
             </div>
-            <span className="text-sm text-muted-foreground">23k</span>
+            <span className="text-sm text-muted-foreground">
+              {formatKilo(uniqueTraders)}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">By</span>
@@ -138,15 +160,21 @@ export const ProjectCard = ({ project, onBuyClick }: ProjectCardProps) => {
         <div className="flex items-center gap-6 text-sm">
           <div className="text-center">
             <div className="text-muted-foreground">VOL (24h)</div>
-            <div className="text-white font-semibold">${(1e5).toFixed(1)}B</div>
+            <div className="text-white font-semibold">
+              ${(volume24h / 1e6).toFixed(1)}M
+            </div>
           </div>
           <div className="text-center">
             <div className="text-muted-foreground">MCap</div>
-            <div className="text-white font-semibold">${(1e3).toFixed(2)}B</div>
+            <div className="text-white font-semibold">
+              ${(marketCap / 1e6).toFixed(1)}M
+            </div>
           </div>
           <div className="text-center">
             <div className="text-muted-foreground">FDV</div>
-            <div className="text-white font-semibold">${(1e3).toFixed(1)}B</div>
+            <div className="text-white font-semibold">
+              ${(fdv / 1e6).toFixed(1)}M
+            </div>
           </div>
         </div>
       </div>
