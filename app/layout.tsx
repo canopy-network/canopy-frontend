@@ -7,7 +7,11 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { CreateChainDialog } from "@/components/launchpad/create-chain-dialog";
 import { TemplatesInitializer } from "@/components/providers/templates-initializer";
 import { AuthSessionProvider } from "@/components/providers/session-provider";
+import { StoreProvider } from "@/components/providers/store-provider";
 import "./globals.css";
+
+// Force dynamic rendering for the entire app
+export const dynamic = "force-dynamic";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -27,16 +31,18 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className={inter.className}>
         <AuthSessionProvider>
-          <WalletProvider>
-            <TemplatesInitializer />
-            <div className="flex h-screen bg-background">
-              <Sidebar />
-              <main className="flex-1 overflow-auto">
-                <Suspense fallback={null}>{children}</Suspense>
-              </main>
-            </div>
-            <CreateChainDialog />
-          </WalletProvider>
+          <StoreProvider>
+            <WalletProvider>
+              <TemplatesInitializer />
+              <div className="flex h-screen bg-background">
+                <Sidebar />
+                <main className="flex-1 overflow-auto">
+                  <Suspense fallback={null}>{children}</Suspense>
+                </main>
+              </div>
+              <CreateChainDialog />
+            </WalletProvider>
+          </StoreProvider>
         </AuthSessionProvider>
       </body>
     </html>

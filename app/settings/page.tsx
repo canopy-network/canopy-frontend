@@ -1,5 +1,8 @@
 "use client";
 
+// Force SSR for this page
+export const dynamic = "force-dynamic";
+
 import {
   Card,
   CardContent,

@@ -147,11 +147,14 @@ function getAuthHeaders(): Record<string, string> {
   }
 
   // In production, get from auth store or localStorage
-  const userId = localStorage.getItem("user_id");
-  if (userId) {
-    return {
-      "X-User-ID": userId,
-    };
+  // Check if we're in a browser environment before accessing localStorage
+  if (typeof window !== "undefined") {
+    const userId = localStorage.getItem("user_id");
+    if (userId) {
+      return {
+        "X-User-ID": userId,
+      };
+    }
   }
 
   return {};

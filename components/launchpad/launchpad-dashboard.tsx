@@ -200,10 +200,12 @@ export function LaunchpadDashboard() {
 
   // Show onboarding on first visit
   useEffect(() => {
-    const hasSeenOnboarding = localStorage.getItem("hasSeenOnboarding");
-    if (!hasSeenOnboarding) {
-      setShowOnboarding(true);
-      localStorage.setItem("hasSeenOnboarding", "true");
+    if (typeof window !== "undefined") {
+      const hasSeenOnboarding = localStorage.getItem("hasSeenOnboarding");
+      if (!hasSeenOnboarding) {
+        setShowOnboarding(true);
+        localStorage.setItem("hasSeenOnboarding", "true");
+      }
     }
   }, []);
 

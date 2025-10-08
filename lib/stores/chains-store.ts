@@ -632,6 +632,7 @@ export const useChainsStore = create<ChainsState>()(
           filters: state.filters,
           pagination: state.pagination,
         }),
+        skipHydration: true, // Skip hydration on SSR
       }
     ),
     { name: "ChainsStore" }

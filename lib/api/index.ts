@@ -55,16 +55,7 @@ export {
 } from "./templates";
 
 // Authentication API
-export {
-  authApi,
-  authenticateUser,
-  sendCodeAndGetCode,
-  isValidEmail,
-  isValidCode,
-  authenticateWithValidation,
-  getAuthStatus,
-  clearAuth,
-} from "./auth";
+export { sendEmailCode, verifyCode } from "./auth";
 
 // Health API
 export {

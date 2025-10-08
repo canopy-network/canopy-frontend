@@ -9,6 +9,20 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  output: 'standalone',
+  experimental: {
+    serverComponentsExternalPackages: ['zustand'],
+  },
+  // Force SSR for all pages - disable static generation
+  trailingSlash: false,
+  generateEtags: false,
+  // Disable static optimization completely
+  generateBuildId: async () => {
+    return 'build-' + Date.now()
+  },
+  // Force all pages to be dynamic
+  skipTrailingSlashRedirect: true,
+  skipMiddlewareUrlNormalize: true,
 }
 
 export default nextConfig

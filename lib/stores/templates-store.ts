@@ -305,6 +305,7 @@ export const useTemplatesStore = create<TemplatesState>()(
           templates: state.templates,
           filters: state.filters,
         }),
+        skipHydration: true, // Skip hydration on SSR
       }
     ),
     { name: "TemplatesStore" }
