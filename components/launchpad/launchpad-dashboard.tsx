@@ -11,6 +11,7 @@ import { BondingCurveChart } from "./bonding-curve-chart";
 import { OnboardingGuide } from "./onboarding-guide";
 import { SmallProjectCard } from "./small-project-card";
 import { ProjectCard } from "./project-card";
+import { RecentsProjectsCarousel } from "./recents-projects-carousel";
 import { ChainWithUI } from "@/lib/stores/chains-store";
 import { Plus, Filter, BookOpen, RefreshCw, AlertCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -121,13 +122,6 @@ const fallbackProjects: ChainWithUI[] = [
   } as unknown as ChainWithUI,
 ];
 
-const SAMPLE_CHART_DATA = [
-  { time: "2024-01-01", value: 0.1 },
-  { time: "2024-01-02", value: 0.12 },
-  { time: "2024-01-03", value: 0.15 },
-  { time: "2024-01-04", value: 0.18 },
-  { time: "2024-01-05", value: 0.22 },
-];
 export function LaunchpadDashboard() {
   const { open: openCreateChainDialog } = useCreateChainDialog();
   const [selectedProject, setSelectedProject] = useState<ChainWithUI | null>(
@@ -280,48 +274,17 @@ export function LaunchpadDashboard() {
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
-        {/* Featured Project Section */}
+        {/* Recent Projects Carousel */}
         <div className="mb-12">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-white">Featured Project</h2>
-            <div className="flex items-center gap-2">
-              <Button
-                variant={activeTab === "all" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setActiveTab("all")}
-                className="border-[#2a2a2a] text-white hover:bg-[#1a1a1a] bg-transparent font-medium"
-              >
-                Active{" "}
-                <Badge className="ml-1 bg-primary text-black font-semibold">
-                  {displayProjects.filter((p) => p.status === "active").length}
-                </Badge>
-              </Button>
-              <Button
-                variant={activeTab === "graduated" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setActiveTab("graduated")}
-                className="border-[#2a2a2a] text-white hover:bg-[#1a1a1a] bg-transparent font-medium"
-              >
-                Graduated{" "}
-                <Badge className="ml-1 bg-green-500 text-white font-semibold">
-                  {
-                    displayProjects.filter((p) => p.status === "graduated")
-                      .length
-                  }
-                </Badge>
-              </Button>
-            </div>
-          </div>
-
           {chains.length > 0 ? (
-            <ProjectCard
-              project={{ ...chains[0], chartData: SAMPLE_CHART_DATA }}
+            <RecentsProjectsCarousel
+              projects={chains}
               onBuyClick={handleBuyClick}
             />
           ) : (
             <div className="text-center py-12">
               <p className="text-gray-400 text-lg">
-                No featured project available
+                No recent projects available
               </p>
             </div>
           )}

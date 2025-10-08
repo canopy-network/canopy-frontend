@@ -22,12 +22,15 @@ export interface ProjectCardProps {
   virtualPool?: VirtualPool;
   /** Callback function triggered when the buy button is clicked */
   onBuyClick: (project: ChainWithUI) => void;
+  /** Historical price data points for rendering price charts and trend analysis */
+  chartData: any[];
 }
 
 export const ProjectCard = ({
   project,
   virtualPool,
   onBuyClick,
+  chartData,
 }: ProjectCardProps) => {
   const [avatar, setAvatar] = useState<string>("");
 
@@ -127,7 +130,10 @@ export const ProjectCard = ({
 
             <div className="h-64 bg-[#0a0a0a] rounded-xl p-4 flex items-center justify-center border border-[#1a1a1a]">
               <div className="w-full h-full relative">
-                <LaunchpadProjectChart data={project.chartData} isDark={true} />
+                <LaunchpadProjectChart
+                  data={project.chartData || []}
+                  isDark={true}
+                />
                 <ArrowRight className="absolute top-4 right-4 h-6 w-6 text-muted-foreground" />
               </div>
             </div>
