@@ -4,7 +4,7 @@ import { Inter } from "next/font/google";
 import { Suspense } from "react";
 import { WalletProvider } from "@/components/wallet/wallet-provider";
 import { Sidebar } from "@/components/layout/sidebar";
-import { CreateChainDialog } from "@/components/launchpad/create-chain-dialog";
+import { CreateChainWizard } from "@/components/launchpad/create-chain-wizard";
 import { TemplatesInitializer } from "@/components/providers/templates-initializer";
 import { AuthSessionProvider } from "@/components/providers/session-provider";
 import { StoreProvider } from "@/components/providers/store-provider";
@@ -40,7 +40,7 @@ export default function RootLayout({
                   <Suspense fallback={null}>{children}</Suspense>
                 </main>
               </div>
-              <CreateChainDialog />
+              <CreateChainWizard />
             </WalletProvider>
           </StoreProvider>
         </AuthSessionProvider>
