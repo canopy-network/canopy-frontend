@@ -1,60 +1,104 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { ArrowUpDown, Settings, Info, Zap } from "lucide-react"
+import { useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { ArrowUpDown, Settings, Info, Zap } from "lucide-react";
 
 interface Token {
-  symbol: string
-  name: string
-  balance: string
-  price: number
-  icon: string
+  symbol: string;
+  name: string;
+  balance: string;
+  price: number;
+  icon: string;
 }
 
 const tokens: Token[] = [
-  { symbol: "CNPY", name: "Canopy", balance: "1,234.56", price: 0.42, icon: "🌳" },
-  { symbol: "DEFI", name: "DeFi Chain Alpha", balance: "567.89", price: 1.25, icon: "🔷" },
-  { symbol: "GAME", name: "GameFi Universe", balance: "890.12", price: 0.85, icon: "🎮" },
-  { symbol: "SUPPLY", name: "Supply Chain Pro", balance: "345.67", price: 2.1, icon: "📦" },
-  { symbol: "ETH", name: "Ethereum", balance: "2.45", price: 2450.0, icon: "Ξ" },
-  { symbol: "USDC", name: "USD Coin", balance: "5,678.90", price: 1.0, icon: "💵" },
-]
+  {
+    symbol: "CNPY",
+    name: "Canopy",
+    balance: "1,234.56",
+    price: 0.42,
+    icon: "🌳",
+  },
+  {
+    symbol: "DEFI",
+    name: "DeFi Chain Alpha",
+    balance: "567.89",
+    price: 1.25,
+    icon: "🔷",
+  },
+  {
+    symbol: "GAME",
+    name: "GameFi Universe",
+    balance: "890.12",
+    price: 0.85,
+    icon: "🎮",
+  },
+  {
+    symbol: "SUPPLY",
+    name: "Supply Chain Pro",
+    balance: "345.67",
+    price: 2.1,
+    icon: "📦",
+  },
+  {
+    symbol: "ETH",
+    name: "Ethereum",
+    balance: "2.45",
+    price: 2450.0,
+    icon: "Ξ",
+  },
+  {
+    symbol: "USDC",
+    name: "USD Coin",
+    balance: "5,678.90",
+    price: 1.0,
+    icon: "💵",
+  },
+];
 
 export function SwapInterface() {
-  const [fromToken, setFromToken] = useState(tokens[0])
-  const [toToken, setToToken] = useState(tokens[1])
-  const [fromAmount, setFromAmount] = useState("")
-  const [toAmount, setToAmount] = useState("")
-  const [slippage, setSlippage] = useState("0.5")
+  const [fromToken, setFromToken] = useState(tokens[0]);
+  const [toToken, setToToken] = useState(tokens[1]);
+  const [fromAmount, setFromAmount] = useState("");
+  const [toAmount, setToAmount] = useState("");
+  const [slippage, setSlippage] = useState("0.5");
 
   const handleSwapTokens = () => {
-    const temp = fromToken
-    setFromToken(toToken)
-    setToToken(temp)
-    setFromAmount(toAmount)
-    setToAmount(fromAmount)
-  }
+    const temp = fromToken;
+    setFromToken(toToken);
+    setToToken(temp);
+    setFromAmount(toAmount);
+    setToAmount(fromAmount);
+  };
 
   const calculateToAmount = (amount: string) => {
-    if (!amount || isNaN(Number(amount))) return ""
-    const fromValue = Number(amount) * fromToken.price
-    const toValue = fromValue / toToken.price
-    return (toValue * 0.997).toFixed(6) // 0.3% fee
-  }
+    if (!amount || isNaN(Number(amount))) return "";
+    const fromValue = Number(amount) * fromToken.price;
+    const toValue = fromValue / toToken.price;
+    return (toValue * 0.997).toFixed(6); // 0.3% fee
+  };
 
   const handleFromAmountChange = (value: string) => {
-    setFromAmount(value)
-    setToAmount(calculateToAmount(value))
-  }
+    setFromAmount(value);
+    setToAmount(calculateToAmount(value));
+  };
 
-  const priceImpact = fromAmount ? ((Number(fromAmount) * fromToken.price) / 1000000) * 100 : 0
-  const fee = fromAmount ? (Number(fromAmount) * 0.003).toFixed(6) : "0"
+  const priceImpact = fromAmount
+    ? ((Number(fromAmount) * fromToken.price) / 1000000) * 100
+    : 0;
+  const fee = fromAmount ? (Number(fromAmount) * 0.003).toFixed(6) : "0";
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
@@ -66,7 +110,9 @@ export function SwapInterface() {
               <ArrowUpDown className="h-5 w-5" />
               Swap Tokens
             </CardTitle>
-            <CardDescription>Trade tokens through CNPY hub pools with optimal routing</CardDescription>
+            <CardDescription>
+              Trade tokens through CNPY hub pools with optimal routing
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* From Token */}
@@ -81,7 +127,10 @@ export function SwapInterface() {
                     className="text-lg"
                   />
                 </div>
-                <Button variant="outline" className="min-w-32 gap-2 bg-transparent">
+                <Button
+                  variant="outline"
+                  className="min-w-32 gap-2 bg-transparent"
+                >
                   <span className="text-lg">{fromToken.icon}</span>
                   {fromToken.symbol}
                 </Button>
@@ -94,7 +143,12 @@ export function SwapInterface() {
 
             {/* Swap Button */}
             <div className="flex justify-center">
-              <Button variant="outline" size="icon" onClick={handleSwapTokens} className="rounded-full bg-transparent">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleSwapTokens}
+                className="rounded-full bg-transparent"
+              >
                 <ArrowUpDown className="h-4 w-4" />
               </Button>
             </div>
@@ -104,9 +158,17 @@ export function SwapInterface() {
               <Label>To</Label>
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <Input placeholder="0.0" value={toAmount} readOnly className="text-lg bg-muted" />
+                  <Input
+                    placeholder="0.0"
+                    value={toAmount}
+                    readOnly
+                    className="text-lg bg-muted"
+                  />
                 </div>
-                <Button variant="outline" className="min-w-32 gap-2 bg-transparent">
+                <Button
+                  variant="outline"
+                  className="min-w-32 gap-2 bg-transparent"
+                >
                   <span className="text-lg">{toToken.icon}</span>
                   {toToken.symbol}
                 </Button>
@@ -124,7 +186,13 @@ export function SwapInterface() {
               <div className="space-y-3 p-4 bg-muted rounded-lg">
                 <div className="flex justify-between text-sm">
                   <span>Price Impact</span>
-                  <span className={priceImpact > 3 ? "text-destructive" : "text-muted-foreground"}>
+                  <span
+                    className={
+                      priceImpact > 3
+                        ? "text-destructive"
+                        : "text-muted-foreground"
+                    }
+                  >
                     {priceImpact.toFixed(2)}%
                   </span>
                 </div>
@@ -147,7 +215,11 @@ export function SwapInterface() {
               </div>
             )}
 
-            <Button className="w-full" size="lg" disabled={!fromAmount || Number(fromAmount) <= 0}>
+            <Button
+              className="w-full"
+              size="lg"
+              disabled={!fromAmount || Number(fromAmount) <= 0}
+            >
               {!fromAmount ? "Enter Amount" : "Swap Tokens"}
             </Button>
           </CardContent>
@@ -231,5 +303,5 @@ export function SwapInterface() {
         </Card>
       </div>
     </div>
-  )
+  );
 }
