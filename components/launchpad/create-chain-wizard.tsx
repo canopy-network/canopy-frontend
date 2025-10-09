@@ -324,7 +324,8 @@ const WIZARD_STEPS = [
   {
     number: 2,
     title: "Template / GitHub",
-    description: "Select template or import from GitHub",
+    description: "Choose your blockchain template",
+    subtitle: "How templates works",
   },
   { number: 3, title: "Main Info", description: "Basic chain information" },
   {
@@ -365,6 +366,7 @@ export function CreateChainWizard() {
   const [launchType, setLaunchType] = useState<"quick" | "advanced" | null>(
     null
   );
+  const [showAllTemplates, setShowAllTemplates] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [tickerAvailable, setTickerAvailable] = useState<boolean | null>(null);
@@ -419,6 +421,7 @@ export function CreateChainWizard() {
     if (!isOpen) {
       setStep(0);
       setLaunchType(null);
+      setShowAllTemplates(false);
       setErrors({});
       setFormData({
         chainName: "",
@@ -443,6 +446,13 @@ export function CreateChainWizard() {
       });
     }
   }, [isOpen]);
+
+  // Reset showAllTemplates when leaving step 2
+  useEffect(() => {
+    if (step !== 2) {
+      setShowAllTemplates(false);
+    }
+  }, [step]);
 
   const updateFormData = (updates: Partial<FormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }));
@@ -831,1107 +841,1034 @@ export function CreateChainWizard() {
           <X className="h-5 w-5" />
         </button>
 
-        {/* Step 0: Initial Chain Name Screen */}
-        {step === 0 && (
-          <div className="flex h-full">
-            {/* Left side - Empty slate background (will hold image later) */}
-            <div className="flex-1 bg-slate-100 relative">
-              {/* Logo */}
-              <div className="flex items-center gap-2 absolute top-8 left-8 text-black">
-                <Rocket className="h-6 w-6" />
-                <span className="text-lg font-bold">CANOPY</span>
-              </div>
-            </div>
-
-            {/* Right side - Content */}
-            <div className="flex-1 flex items-center justify-center bg-background">
-              <div className="max-w-xl w-full px-12">
-                <div className="mb-8">
-                  <h1 className="text-4xl font-bold mb-4">
-                    Launch Your Blockchain
-                  </h1>
-                  <div className="text-lg text-muted-foreground mb-2">
-                    We have made launching a new blockchain easy and
-                    straightforward, even for those with no coding experience.
-                    So relax and follow the steps.
-                  </div>
-                  <button className="text-pink-500 hover:text-pink-600 inline-flex items-center gap-1 text-sm font-medium">
-                    <HelpCircle className="h-4 w-4" />
-                    How the process works
-                  </button>
-                </div>
-
-                <div className="space-y-6">
-                  <div>
-                    <Label
-                      htmlFor="initialChainName"
-                      className="text-base mb-2 block"
-                    >
-                      Chain Name
-                    </Label>
-                    <Input
-                      id="initialChainName"
-                      placeholder="MyGameChain"
-                      value={formData.chainName}
-                      onChange={(e) =>
-                        updateFormData({ chainName: e.target.value })
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleInitialContinue();
-                      }}
-                      className={`h-14 text-lg ${
-                        errors.chainName ? "border-destructive" : ""
-                      }`}
-                    />
-                    {errors.chainName && (
-                      <p className="text-sm text-destructive mt-2">
-                        {errors.chainName}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex justify-end">
-                    <WizardContinueButton onClick={handleInitialContinue} />
-                  </div>
+        <div className="flex h-full overflow-auto w-full">
+          {/* Step 0: Initial Chain Name Screen */}
+          {step === 0 && (
+            <>
+              {/* Left side - Empty slate background (will hold image later) */}
+              <div className="flex-1 bg-slate-100 relative">
+                {/* Logo */}
+                <div className="flex items-center gap-2 absolute top-8 left-8 text-black">
+                  <Rocket className="h-6 w-6" />
+                  <span className="text-lg font-bold">CANOPY</span>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
 
-        {/* Steps 1-7: Wizard with Sidebar */}
-        {step >= 1 && step <= 7 && (
-          <div className="flex h-full">
-            {/* Sidebar */}
-            <div className="w-80 bg-muted/30 p-8 flex flex-col">
-              {/* Logo */}
-              <div className="flex items-center gap-2 mb-12">
-                <Rocket className="h-6 w-6" />
-                <span className="text-lg font-bold">CANOPY</span>
-              </div>
-
-              {/* Steps List */}
-              <nav className="space-y-6 flex-1">
-                {WIZARD_STEPS.map((wizardStep) => (
-                  <div
-                    key={wizardStep.number}
-                    className={`transition-colors ${
-                      step === wizardStep.number
-                        ? "text-pink-500 font-medium"
-                        : step > wizardStep.number
-                        ? "text-foreground"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    <div className="text-sm">
-                      {String(wizardStep.number).padStart(2, "0")}.{" "}
-                      {wizardStep.title}
+              {/* Right side - Content */}
+              <div className="flex-1 flex items-center justify-center bg-background">
+                <div className="max-w-xl w-full px-12">
+                  <div className="mb-8">
+                    <h1 className="text-4xl font-bold mb-4">
+                      Launch Your Blockchain
+                    </h1>
+                    <div className="text-lg text-muted-foreground mb-2">
+                      We have made launching a new blockchain easy and
+                      straightforward, even for those with no coding experience.
+                      So relax and follow the steps.
                     </div>
-                  </div>
-                ))}
-              </nav>
-            </div>
-
-            {/* Main Content */}
-            <div className="flex-1 overflow-auto">
-              <div className="max-w-4xl mx-auto p-12">
-                <DialogHeader className="mb-8">
-                  <DialogTitle className="text-3xl font-bold">
-                    {WIZARD_STEPS[step - 1]?.title}
-                  </DialogTitle>
-                  <DialogDescription className="text-base flex items-center gap-2">
-                    {WIZARD_STEPS[step - 1]?.description}
-                    <button className="text-pink-500 hover:text-pink-600 inline-flex items-center gap-1">
+                    <button className="text-pink-500 hover:text-pink-600 inline-flex items-center gap-1 text-sm font-medium">
                       <HelpCircle className="h-4 w-4" />
                       How the process works
                     </button>
-                  </DialogDescription>
-                </DialogHeader>
+                  </div>
 
-                <div className="space-y-8">
-                  {errors.submit && (
-                    <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm flex items-center gap-2">
-                      <AlertCircle className="h-4 w-4" />
-                      {errors.submit}
-                    </div>
-                  )}
-
-                  {/* Step 1: Launch Type */}
-                  {step === 1 && (
-                    <div className="space-y-6">
-                      <div className="grid gap-6">
-                        {/* Quick Launch Option */}
-                        <Card
-                          className={`cursor-pointer transition-all hover:shadow-md ${
-                            launchType === "quick"
-                              ? "ring-2 ring-primary shadow-md"
-                              : ""
-                          }`}
-                          onClick={() => setLaunchType("quick")}
-                        >
-                          <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-purple-600">
-                              <Zap className="h-5 w-5" />
-                              <span className="italic">QUICK LAUNCH</span>
-                            </CardTitle>
-                            <CardDescription className="text-base">
-                              No coding required. Perfect for first time
-                              launchers.
-                            </CardDescription>
-                          </CardHeader>
-                          <CardContent className="space-y-2">
-                            <div className="flex items-start gap-2 text-sm">
-                              <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                              <div>
-                                <span className="font-medium">
-                                  Pre-built templates
-                                </span>
-                                <button className="ml-1 text-pink-500 hover:text-pink-600">
-                                  <HelpCircle className="h-3 w-3 inline" />
-                                </button>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm">
-                              <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
-                              <span className="font-medium">
-                                No coding required
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm">
-                              <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
-                              <span className="font-medium">
-                                5-10 min setup
-                              </span>
-                            </div>
-                          </CardContent>
-                        </Card>
-
-                        {/* Advanced Launch Option */}
-                        <Card
-                          className={`cursor-pointer transition-all hover:shadow-md ${
-                            launchType === "advanced"
-                              ? "ring-2 ring-primary shadow-md"
-                              : ""
-                          }`}
-                          onClick={() => setLaunchType("advanced")}
-                        >
-                          <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-orange-600">
-                              <Cog className="h-5 w-5" />
-                              <span className="italic">ADVANCED LAUNCH</span>
-                            </CardTitle>
-                            <CardDescription className="text-base">
-                              Import code from GitHub. Perfect for custom
-                              applications.
-                            </CardDescription>
-                          </CardHeader>
-                          <CardContent className="space-y-2">
-                            <div className="flex items-center gap-2 text-sm">
-                              <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
-                              <span className="font-medium">
-                                Full customization
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm">
-                              <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
-                              <span className="font-medium">
-                                Advanced Configuration
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm">
-                              <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
-                              <span className="font-medium">
-                                Auto-Upgrade System
-                              </span>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 2: Template / GitHub */}
-                  {step === 2 && (
-                    <div className="space-y-6">
-                      {templatesLoading ? (
-                        <div className="flex items-center justify-center py-12">
-                          <div className="text-center space-y-2">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
-                            <p className="text-sm text-muted-foreground">
-                              Loading templates...
-                            </p>
-                          </div>
-                        </div>
-                      ) : activeTemplates.length === 0 ? (
-                        <div className="flex items-center justify-center py-12">
-                          <div className="text-center space-y-2">
-                            <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto" />
-                            <p className="text-sm text-muted-foreground">
-                              No templates available. Please try again later.
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                          {activeTemplates.map((template) => (
-                            <Card
-                              key={template.id}
-                              className={`cursor-pointer transition-all ${
-                                formData.template === template.id
-                                  ? "ring-2 ring-primary shadow-md"
-                                  : "hover:bg-accent/50"
-                              }`}
-                              onClick={() =>
-                                updateFormData({ template: template.id })
-                              }
-                            >
-                              <CardHeader>
-                                <div className="flex items-start justify-between gap-2">
-                                  <CardTitle className="text-base">
-                                    {template.template_name}
-                                  </CardTitle>
-                                  <Badge
-                                    variant="secondary"
-                                    className={
-                                      COMPLEXITY_LEVEL_COLORS[
-                                        template.complexity_level
-                                      ]
-                                    }
-                                  >
-                                    {template.complexity_level}
-                                  </Badge>
-                                </div>
-                                <CardDescription className="line-clamp-2">
-                                  {template.template_description}
-                                </CardDescription>
-                              </CardHeader>
-                              <CardContent className="space-y-2">
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="text-muted-foreground">
-                                    Language:
-                                  </span>
-                                  <span className="font-medium">
-                                    {template.supported_language}
-                                  </span>
-                                </div>
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="text-muted-foreground">
-                                    Est. Time:
-                                  </span>
-                                  <span className="font-medium">
-                                    {template.estimated_deployment_time_minutes}
-                                    min
-                                  </span>
-                                </div>
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="text-muted-foreground">
-                                    Category:
-                                  </span>
-                                  <Badge
-                                    variant="secondary"
-                                    className={
-                                      TEMPLATE_CATEGORY_COLORS[
-                                        template.template_category
-                                      ]
-                                    }
-                                  >
-                                    {template.template_category}
-                                  </Badge>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
+                  <div className="space-y-6">
+                    <div>
+                      <Label
+                        htmlFor="initialChainName"
+                        className="text-base mb-2 block"
+                      >
+                        Chain Name
+                      </Label>
+                      <Input
+                        id="initialChainName"
+                        placeholder="MyGameChain"
+                        value={formData.chainName}
+                        onChange={(e) =>
+                          updateFormData({ chainName: e.target.value })
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleInitialContinue();
+                        }}
+                        className={`h-14 text-lg ${
+                          errors.chainName ? "border-destructive" : ""
+                        }`}
+                      />
+                      {errors.chainName && (
+                        <p className="text-sm text-destructive mt-2">
+                          {errors.chainName}
+                        </p>
                       )}
-
-                      {formData.template &&
-                        (() => {
-                          const selectedTemplate = getTemplateById(
-                            formData.template
-                          );
-                          return selectedTemplate ? (
-                            <Card>
-                              <CardHeader>
-                                <CardTitle className="text-base">
-                                  Chain Parameters
-                                </CardTitle>
-                                <CardDescription>
-                                  Configure parameters for{" "}
-                                  {selectedTemplate.template_name}
-                                </CardDescription>
-                              </CardHeader>
-                              <CardContent className="space-y-4">
-                                <div className="p-3 bg-muted rounded-lg space-y-1">
-                                  <p className="text-sm font-medium">
-                                    Template Defaults:
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    • Consensus:{" "}
-                                    {selectedTemplate.default_consensus}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    • Default Supply:{" "}
-                                    {selectedTemplate.default_token_supply.toLocaleString()}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    • Validators:{" "}
-                                    {selectedTemplate.default_validator_count}
-                                  </p>
-                                </div>
-
-                                <div className="grid gap-4 md:grid-cols-2">
-                                  <div>
-                                    <Label htmlFor="tokenSupply">
-                                      Token Supply *
-                                    </Label>
-                                    <Input
-                                      id="tokenSupply"
-                                      type="number"
-                                      placeholder={selectedTemplate.default_token_supply.toString()}
-                                      value={formData.tokenSupply}
-                                      onChange={(e) =>
-                                        updateFormData({
-                                          tokenSupply: e.target.value,
-                                        })
-                                      }
-                                      className={
-                                        errors.tokenSupply
-                                          ? "border-destructive"
-                                          : ""
-                                      }
-                                    />
-                                    {errors.tokenSupply && (
-                                      <p className="text-xs text-destructive mt-1">
-                                        {errors.tokenSupply}
-                                      </p>
-                                    )}
-                                  </div>
-
-                                  <div>
-                                    <Label htmlFor="decimals">Decimals *</Label>
-                                    <Select
-                                      value={formData.decimals}
-                                      onValueChange={(value) =>
-                                        updateFormData({ decimals: value })
-                                      }
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {[6, 8, 12, 18].map((d) => (
-                                          <SelectItem
-                                            key={d}
-                                            value={d.toString()}
-                                          >
-                                            {d} decimals
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ) : null;
-                        })()}
                     </div>
-                  )}
 
-                  {/* Step 3: Main Info */}
-                  {step === 3 && (
-                    <div className="space-y-6">
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div>
-                          <Label htmlFor="ticker">Ticker Symbol *</Label>
-                          <div className="relative">
-                            <Input
-                              id="ticker"
-                              placeholder="AWSM"
-                              value={formData.ticker}
-                              onChange={(e) =>
-                                handleTickerChange(e.target.value)
-                              }
-                              className={
-                                errors.ticker ? "border-destructive" : ""
-                              }
-                              maxLength={8}
-                            />
-                            {tickerAvailable === true && (
-                              <CheckCircle2 className="absolute right-3 top-3 h-4 w-4 text-green-500" />
-                            )}
-                            {tickerAvailable === false && (
-                              <AlertCircle className="absolute right-3 top-3 h-4 w-4 text-destructive" />
-                            )}
-                          </div>
-                          {errors.ticker && (
-                            <p className="text-xs text-destructive mt-1">
-                              {errors.ticker}
-                            </p>
-                          )}
-                          {tickerAvailable === false && !errors.ticker && (
-                            <p className="text-xs text-destructive mt-1">
-                              Ticker already taken
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="md:col-span-2">
-                          <Label htmlFor="description">
-                            Tagline * (Keep it short and punchy)
-                          </Label>
-                          <Textarea
-                            id="description"
-                            placeholder="e.g., Twitter for crypto, or DeFi for the masses"
-                            value={formData.description}
-                            onChange={(e) =>
-                              updateFormData({ description: e.target.value })
-                            }
-                            className={
-                              errors.description ? "border-destructive" : ""
-                            }
-                            rows={3}
-                          />
-                          <div className="flex justify-between mt-1">
-                            {errors.description && (
-                              <p className="text-xs text-destructive">
-                                {errors.description}
-                              </p>
-                            )}
-                            <p className="text-xs text-muted-foreground ml-auto">
-                              {formData.description.length}/250
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 4: Branding & Media */}
-                  {step === 4 && (
-                    <div className="space-y-6">
-                      <div className="grid gap-6 md:grid-cols-3">
-                        {/* Logo Upload */}
-                        <div>
-                          <Label htmlFor="logo">
-                            Logo * (Square, ≥1000×1000px, ≤15MB)
-                          </Label>
-                          <div className="border-2 border-dashed border-border rounded-lg p-4 text-center hover:bg-accent/50 transition-colors">
-                            {formData.logo ? (
-                              <div className="space-y-2">
-                                <img
-                                  src={URL.createObjectURL(formData.logo)}
-                                  alt="Logo preview"
-                                  className="w-24 h-24 rounded-lg object-cover border mx-auto"
-                                />
-                                <p className="text-sm text-muted-foreground">
-                                  {formData.logo.name}
-                                </p>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => updateFormData({ logo: null })}
-                                >
-                                  Remove
-                                </Button>
-                              </div>
-                            ) : (
-                              <div className="space-y-2">
-                                <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
-                                <p className="text-sm text-muted-foreground">
-                                  Drop your logo here
-                                </p>
-                                <Input
-                                  id="logo"
-                                  type="file"
-                                  accept="image/jpeg,image/png,image/gif"
-                                  onChange={(e) =>
-                                    updateFormData({
-                                      logo: e.target.files?.[0] || null,
-                                    })
-                                  }
-                                  className="hidden"
-                                />
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    document.getElementById("logo")?.click()
-                                  }
-                                >
-                                  Choose Logo
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                          {errors.logo && (
-                            <p className="text-xs text-destructive mt-1">
-                              {errors.logo}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Video Upload */}
-                        <div>
-                          <Label htmlFor="promoVideo">
-                            Promo Video (MP4, ≤30MB)
-                          </Label>
-                          <div className="border-2 border-dashed border-border rounded-lg p-4 text-center hover:bg-accent/50 transition-colors">
-                            {formData.promoVideo ? (
-                              <div className="space-y-2">
-                                <FileText className="h-8 w-8 mx-auto text-muted-foreground" />
-                                <p className="text-sm text-muted-foreground">
-                                  {formData.promoVideo.name}
-                                </p>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    updateFormData({ promoVideo: null })
-                                  }
-                                >
-                                  Remove
-                                </Button>
-                              </div>
-                            ) : (
-                              <div className="space-y-2">
-                                <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
-                                <p className="text-sm text-muted-foreground">
-                                  Drop video here
-                                </p>
-                                <Input
-                                  id="promoVideo"
-                                  type="file"
-                                  accept="video/mp4"
-                                  onChange={(e) =>
-                                    updateFormData({
-                                      promoVideo: e.target.files?.[0] || null,
-                                    })
-                                  }
-                                  className="hidden"
-                                />
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    document
-                                      .getElementById("promoVideo")
-                                      ?.click()
-                                  }
-                                >
-                                  Choose Video
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                          {errors.promoVideo && (
-                            <p className="text-xs text-destructive mt-1">
-                              {errors.promoVideo}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Banner Upload */}
-                        <div>
-                          <Label htmlFor="banner">
-                            Banner (16:9 ratio, ≤15MB)
-                          </Label>
-                          <div className="border-2 border-dashed border-border rounded-lg p-4 text-center hover:bg-accent/50 transition-colors">
-                            {formData.banner ? (
-                              <div className="space-y-2">
-                                <img
-                                  src={URL.createObjectURL(formData.banner)}
-                                  alt="Banner preview"
-                                  className="w-full h-20 rounded-lg object-cover border"
-                                />
-                                <p className="text-sm text-muted-foreground">
-                                  {formData.banner.name}
-                                </p>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    updateFormData({ banner: null })
-                                  }
-                                >
-                                  Remove
-                                </Button>
-                              </div>
-                            ) : (
-                              <div className="space-y-2">
-                                <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
-                                <p className="text-sm text-muted-foreground">
-                                  Drop banner here
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  Recommended: 1920×1080px
-                                </p>
-                                <Input
-                                  id="banner"
-                                  type="file"
-                                  accept="image/jpeg,image/png"
-                                  onChange={(e) =>
-                                    updateFormData({
-                                      banner: e.target.files?.[0] || null,
-                                    })
-                                  }
-                                  className="hidden"
-                                />
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    document.getElementById("banner")?.click()
-                                  }
-                                >
-                                  Choose Banner
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                          {errors.banner && (
-                            <p className="text-xs text-destructive mt-1">
-                              {errors.banner}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 5: Links & Documentation */}
-                  {step === 5 && (
-                    <div className="space-y-6">
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div>
-                          <Label
-                            htmlFor="githubRepo"
-                            className="flex items-center gap-2"
-                          >
-                            <Github className="h-4 w-4" />
-                            GitHub Repository *
-                          </Label>
-                          <div className="relative">
-                            <Input
-                              id="githubRepo"
-                              placeholder="https://github.com/username/repo"
-                              value={formData.githubRepo}
-                              onChange={(e) =>
-                                handleGitHubUrlChange(e.target.value)
-                              }
-                              className={`pr-10 ${
-                                errors.githubRepo ? "border-destructive" : ""
-                              }`}
-                            />
-                            {/* Validation status icon */}
-                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                              {isValidatingGithub ? (
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                              ) : githubValidation ? (
-                                githubValidation.isValid ? (
-                                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                ) : (
-                                  <AlertCircle className="h-4 w-4 text-red-500" />
-                                )
-                              ) : null}
-                            </div>
-                          </div>
-
-                          {/* Validation messages */}
-                          {githubValidation && !githubValidation.isValid && (
-                            <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                              <AlertCircle className="h-3 w-3" />
-                              You don't own that project
-                            </p>
-                          )}
-
-                          {githubValidation && githubValidation.isValid && (
-                            <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
-                              <CheckCircle2 className="h-3 w-3" />
-                              Repository verified
-                            </p>
-                          )}
-
-                          {errors.githubRepo && (
-                            <p className="text-xs text-destructive mt-1">
-                              {errors.githubRepo}
-                            </p>
-                          )}
-
-                          {!session && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Connect GitHub in the sidebar to validate
-                              repository ownership
-                            </p>
-                          )}
-                        </div>
-
-                        <div>
-                          <Label
-                            htmlFor="website"
-                            className="flex items-center gap-2"
-                          >
-                            <Globe className="h-4 w-4" />
-                            Website *
-                          </Label>
-                          <Input
-                            id="website"
-                            placeholder="https://mychain.com"
-                            value={formData.website}
-                            onChange={(e) =>
-                              updateFormData({ website: e.target.value })
-                            }
-                            className={
-                              errors.website ? "border-destructive" : ""
-                            }
-                          />
-                          {errors.website && (
-                            <p className="text-xs text-destructive mt-1">
-                              {errors.website}
-                            </p>
-                          )}
-                        </div>
-
-                        <div>
-                          <Label
-                            htmlFor="whitepaper"
-                            className="flex items-center gap-2"
-                          >
-                            <FileText className="h-4 w-4" />
-                            Whitepaper URL
-                          </Label>
-                          <Input
-                            id="whitepaper"
-                            placeholder="https://docs.mychain.com/whitepaper.pdf"
-                            value={formData.whitepaper}
-                            onChange={(e) =>
-                              updateFormData({ whitepaper: e.target.value })
-                            }
-                            className={
-                              errors.whitepaper ? "border-destructive" : ""
-                            }
-                          />
-                          {errors.whitepaper && (
-                            <p className="text-xs text-destructive mt-1">
-                              {errors.whitepaper}
-                            </p>
-                          )}
-                        </div>
-
-                        <div>
-                          <Label htmlFor="whitepaperFile">
-                            Or Upload Whitepaper (PDF, ≤15MB)
-                          </Label>
-                          <Input
-                            id="whitepaperFile"
-                            type="file"
-                            accept=".pdf"
-                            onChange={(e) =>
-                              updateFormData({
-                                whitepaperFile: e.target.files?.[0] || null,
-                              })
-                            }
-                          />
-                        </div>
-
-                        <div>
-                          <Label
-                            htmlFor="twitterUrl"
-                            className="flex items-center gap-2"
-                          >
-                            <Twitter className="h-4 w-4" />
-                            Twitter / X
-                          </Label>
-                          <Input
-                            id="twitterUrl"
-                            placeholder="https://x.com/mychain"
-                            value={formData.twitterUrl}
-                            onChange={(e) =>
-                              updateFormData({ twitterUrl: e.target.value })
-                            }
-                            className={
-                              errors.twitterUrl ? "border-destructive" : ""
-                            }
-                          />
-                          {errors.twitterUrl && (
-                            <p className="text-xs text-destructive mt-1">
-                              {errors.twitterUrl}
-                            </p>
-                          )}
-                        </div>
-
-                        <div>
-                          <Label htmlFor="telegramUrl">Telegram</Label>
-                          <Input
-                            id="telegramUrl"
-                            placeholder="https://t.me/mychain"
-                            value={formData.telegramUrl}
-                            onChange={(e) =>
-                              updateFormData({ telegramUrl: e.target.value })
-                            }
-                            className={
-                              errors.telegramUrl ? "border-destructive" : ""
-                            }
-                          />
-                          {errors.telegramUrl && (
-                            <p className="text-xs text-destructive mt-1">
-                              {errors.telegramUrl}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 6: Launch Settings */}
-                  {step === 6 && (
-                    <div className="space-y-6">
-                      <Card>
-                        <CardContent className="pt-6">
-                          <div className="flex items-center justify-between mb-4">
-                            <div>
-                              <Label
-                                htmlFor="launchImmediately"
-                                className="text-base"
-                              >
-                                Launch Immediately
-                              </Label>
-                              <p className="text-sm text-muted-foreground">
-                                Chain goes live right after creation
-                              </p>
-                            </div>
-                            <Switch
-                              id="launchImmediately"
-                              checked={formData.launchImmediately}
-                              onCheckedChange={(checked) =>
-                                updateFormData({ launchImmediately: checked })
-                              }
-                            />
-                          </div>
-
-                          {!formData.launchImmediately && (
-                            <div className="space-y-4 pt-4 border-t">
-                              <div>
-                                <Label
-                                  htmlFor="launchDate"
-                                  className="flex items-center gap-2"
-                                >
-                                  <Calendar className="h-4 w-4" />
-                                  Launch Date & Time *
-                                </Label>
-                                <Input
-                                  id="launchDate"
-                                  type="datetime-local"
-                                  value={formData.launchDate}
-                                  onChange={(e) =>
-                                    updateFormData({
-                                      launchDate: e.target.value,
-                                    })
-                                  }
-                                  className={
-                                    errors.launchDate
-                                      ? "border-destructive"
-                                      : ""
-                                  }
-                                  min={new Date(Date.now() + 10 * 60 * 1000)
-                                    .toISOString()
-                                    .slice(0, 16)}
-                                />
-                                {errors.launchDate && (
-                                  <p className="text-xs text-destructive mt-1">
-                                    {errors.launchDate}
-                                  </p>
-                                )}
-                              </div>
-
-                              <div>
-                                <Label htmlFor="timezone">Timezone</Label>
-                                <Input
-                                  id="timezone"
-                                  value={formData.timezone}
-                                  disabled
-                                  className="bg-muted"
-                                />
-                              </div>
-
-                              {formData.launchDate && (
-                                <div className="p-4 bg-muted rounded-lg">
-                                  <p className="text-sm font-medium mb-1">
-                                    Scheduled Launch
-                                  </p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {new Date(
-                                      formData.launchDate
-                                    ).toLocaleString(undefined, {
-                                      dateStyle: "full",
-                                      timeStyle: "long",
-                                    })}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    </div>
-                  )}
-
-                  {/* Step 7: Review & Payment */}
-                  {step === 7 && (
-                    <div className="space-y-6">
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
-                            <Code className="h-5 w-5" />
-                            {formData.chainName}
-                          </CardTitle>
-                          <CardDescription>{formData.ticker}</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          <p className="text-sm">{formData.description}</p>
-
-                          <Separator />
-
-                          <div className="grid gap-3 md:grid-cols-2 text-sm">
-                            <div>
-                              <Label className="text-xs font-medium text-muted-foreground">
-                                Template
-                              </Label>
-                              <p className="font-medium">
-                                {
-                                  getTemplateById(formData.template)
-                                    ?.template_name
-                                }
-                              </p>
-                            </div>
-                            <div>
-                              <Label className="text-xs font-medium text-muted-foreground">
-                                Token Supply
-                              </Label>
-                              <p className="font-medium">
-                                {Number(formData.tokenSupply).toLocaleString()}
-                              </p>
-                            </div>
-                            <div>
-                              <Label className="text-xs font-medium text-muted-foreground">
-                                Decimals
-                              </Label>
-                              <p className="font-medium">{formData.decimals}</p>
-                            </div>
-                            <div>
-                              <Label className="text-xs font-medium text-muted-foreground">
-                                Website
-                              </Label>
-                              <p className="font-medium truncate">
-                                {formData.website}
-                              </p>
-                            </div>
-                            <div>
-                              <Label className="text-xs font-medium text-muted-foreground">
-                                GitHub
-                              </Label>
-                              <p className="font-medium truncate">
-                                {formData.githubRepo}
-                              </p>
-                            </div>
-                            <div>
-                              <Label className="text-xs font-medium text-muted-foreground">
-                                Launch
-                              </Label>
-                              <p className="font-medium">
-                                {formData.launchImmediately
-                                  ? "Immediately"
-                                  : new Date(
-                                      formData.launchDate
-                                    ).toLocaleDateString()}
-                              </p>
-                            </div>
-                          </div>
-
-                          <Separator />
-
-                          <div className="space-y-3">
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">
-                                Creation Fee
-                              </span>
-                              <span className="font-medium">100 CNPY</span>
-                            </div>
-                            <Separator />
-                            <div className="flex justify-between font-medium">
-                              <span>Total Cost</span>
-                              <span className="text-lg">100 CNPY</span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-900">
-                            <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
-                            <div className="space-y-1 text-sm">
-                              <p className="font-medium text-amber-900 dark:text-amber-100">
-                                Risk Acknowledgment
-                              </p>
-                              <p className="text-amber-800 dark:text-amber-200">
-                                Tokens launch in a virtual bonding curve pool.
-                                There is no external liquidity guarantee. Chain
-                                parameters are immutable after creation.
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2 pt-2">
-                            <Switch
-                              id="riskAcknowledgment"
-                              checked={formData.riskAcknowledgment}
-                              onCheckedChange={(checked) =>
-                                updateFormData({ riskAcknowledgment: checked })
-                              }
-                            />
-                            <Label
-                              htmlFor="riskAcknowledgment"
-                              className="text-sm cursor-pointer"
-                            >
-                              I understand and acknowledge the risks
-                            </Label>
-                          </div>
-                          {errors.riskAcknowledgment && (
-                            <p className="text-xs text-destructive">
-                              {errors.riskAcknowledgment}
-                            </p>
-                          )}
-                        </CardContent>
-                      </Card>
-                    </div>
-                  )}
-
-                  {/* Navigation Buttons */}
-                  <div className="flex items-center justify-between pt-8 border-t">
-                    <WizardBackButton
-                      onClick={handleBack}
-                      disabled={step === 1 || isLoading}
-                    />
-                    <div className="flex gap-3">
-                      {step < 7 ? (
-                        <WizardContinueButton
-                          onClick={handleNext}
-                          disabled={isLoading || (step === 1 && !launchType)}
-                        />
-                      ) : (
-                        <Button
-                          onClick={handleSubmit}
-                          disabled={isLoading || !formData.riskAcknowledgment}
-                          size="lg"
-                          className="px-8"
-                        >
-                          {isLoading ? "Creating..." : "Create Chain"}
-                        </Button>
-                      )}
+                    <div className="flex justify-end">
+                      <WizardContinueButton onClick={handleInitialContinue} />
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
+            </>
+          )}
+
+          {/* Steps 1-7: Wizard with Sidebar */}
+          {step >= 1 && step <= 7 && (
+            <>
+              {/* Sidebar */}
+              <div className="w-80 bg-muted/30 p-8 flex flex-col">
+                {/* Logo */}
+                <div className="flex items-center gap-2 mb-12">
+                  <Rocket className="h-6 w-6" />
+                  <span className="text-lg font-bold">CANOPY</span>
+                </div>
+
+                {/* Steps List */}
+                <nav className="space-y-6 flex-1">
+                  {WIZARD_STEPS.map((wizardStep) => (
+                    <div
+                      key={wizardStep.number}
+                      className={`transition-colors ${
+                        step === wizardStep.number
+                          ? "text-pink-500 font-medium"
+                          : step > wizardStep.number
+                          ? "text-foreground"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      <div className="text-sm">
+                        {String(wizardStep.number).padStart(2, "0")}.{" "}
+                        {wizardStep.title}
+                      </div>
+                    </div>
+                  ))}
+                </nav>
+              </div>
+
+              {/* Main Content */}
+              <div className="flex-1 overflow-auto">
+                <div className="max-w-4xl mx-auto p-12">
+                  <DialogHeader className="mb-8">
+                    <DialogTitle className="text-3xl font-bold">
+                      {step === 2
+                        ? WIZARD_STEPS[step - 1]?.description
+                        : WIZARD_STEPS[step - 1]?.title}
+                    </DialogTitle>
+                    <DialogDescription className="text-base flex items-center gap-2">
+                      {step === 2 ? (
+                        <button className="text-pink-500 hover:text-pink-600 inline-flex items-center gap-1">
+                          <HelpCircle className="h-4 w-4" />
+                          {WIZARD_STEPS[step - 1]?.subtitle}
+                        </button>
+                      ) : (
+                        <>
+                          {WIZARD_STEPS[step - 1]?.description}
+                          <button className="text-pink-500 hover:text-pink-600 inline-flex items-center gap-1">
+                            <HelpCircle className="h-4 w-4" />
+                            How the process works
+                          </button>
+                        </>
+                      )}
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-8">
+                    {errors.submit && (
+                      <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4" />
+                        {errors.submit}
+                      </div>
+                    )}
+
+                    {/* Step 1: Launch Type */}
+                    {step === 1 && (
+                      <div className="space-y-6">
+                        <div className="grid gap-6">
+                          {/* Quick Launch Option */}
+                          <Card
+                            className={`cursor-pointer transition-all hover:shadow-md ${
+                              launchType === "quick"
+                                ? "ring-2 ring-primary shadow-md"
+                                : ""
+                            }`}
+                            onClick={() => setLaunchType("quick")}
+                          >
+                            <CardHeader>
+                              <CardTitle className="flex items-center gap-2 text-purple-600">
+                                <Zap className="h-5 w-5" />
+                                <span className="italic">QUICK LAUNCH</span>
+                              </CardTitle>
+                              <CardDescription className="text-base">
+                                No coding required. Perfect for first time
+                                launchers.
+                              </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-2">
+                              <div className="flex items-start gap-2 text-sm">
+                                <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                                <div>
+                                  <span className="font-medium">
+                                    Pre-built templates
+                                  </span>
+                                  <button className="ml-1 text-pink-500 hover:text-pink-600">
+                                    <HelpCircle className="h-3 w-3 inline" />
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 text-sm">
+                                <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                                <span className="font-medium">
+                                  No coding required
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 text-sm">
+                                <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                                <span className="font-medium">
+                                  5-10 min setup
+                                </span>
+                              </div>
+                            </CardContent>
+                          </Card>
+
+                          {/* Advanced Launch Option */}
+                          <Card
+                            className={`cursor-pointer transition-all hover:shadow-md ${
+                              launchType === "advanced"
+                                ? "ring-2 ring-primary shadow-md"
+                                : ""
+                            }`}
+                            onClick={() => setLaunchType("advanced")}
+                          >
+                            <CardHeader>
+                              <CardTitle className="flex items-center gap-2 text-orange-600">
+                                <Cog className="h-5 w-5" />
+                                <span className="italic">ADVANCED LAUNCH</span>
+                              </CardTitle>
+                              <CardDescription className="text-base">
+                                Import code from GitHub. Perfect for custom
+                                applications.
+                              </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-2">
+                              <div className="flex items-center gap-2 text-sm">
+                                <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                                <span className="font-medium">
+                                  Full customization
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 text-sm">
+                                <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                                <span className="font-medium">
+                                  Advanced Configuration
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 text-sm">
+                                <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                                <span className="font-medium">
+                                  Auto-Upgrade System
+                                </span>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Step 2: Template / GitHub */}
+                    {step === 2 && (
+                      <div className="space-y-6">
+                        {templatesLoading ? (
+                          <div className="flex items-center justify-center py-12">
+                            <div className="text-center space-y-2">
+                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
+                              <p className="text-sm text-muted-foreground">
+                                Loading templates...
+                              </p>
+                            </div>
+                          </div>
+                        ) : activeTemplates.length === 0 ? (
+                          <div className="flex items-center justify-center py-12">
+                            <div className="text-center space-y-2">
+                              <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto" />
+                              <p className="text-sm text-muted-foreground">
+                                No templates available. Please try again later.
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="space-y-4">
+                              {(showAllTemplates
+                                ? activeTemplates
+                                : activeTemplates.slice(0, 3)
+                              ).map((template, index) => {
+                                const colors = [
+                                  "text-purple-600",
+                                  "text-blue-500",
+                                  "text-red-500",
+                                ];
+                                const color = colors[index % colors.length];
+
+                                return (
+                                  <div
+                                    key={template.id}
+                                    className={`border-2 rounded-lg p-6 cursor-pointer transition-all ${
+                                      formData.template === template.id
+                                        ? "border-pink-500 bg-pink-50/50"
+                                        : "border-gray-300 hover:border-gray-400"
+                                    }`}
+                                    onClick={() =>
+                                      updateFormData({ template: template.id })
+                                    }
+                                  >
+                                    <h3
+                                      className={`text-xl font-semibold italic mb-3 ${color}`}
+                                    >
+                                      {template.template_name}
+                                    </h3>
+
+                                    <div className="flex items-start justify-between">
+                                      <div className="flex-1">
+                                        <p className="text-sm text-muted-foreground mb-1">
+                                          Best for:
+                                        </p>
+                                        <p className="font-semibold">
+                                          {template.template_category}
+                                        </p>
+                                      </div>
+
+                                      <div className="flex-1 text-right">
+                                        <p className="text-sm text-muted-foreground">
+                                          {template.template_description}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            {activeTemplates.length > 3 && (
+                              <button
+                                onClick={() =>
+                                  setShowAllTemplates(!showAllTemplates)
+                                }
+                                className="flex items-center gap-2 text-sm font-medium hover:underline mx-auto"
+                              >
+                                <span className="text-xl">
+                                  {showAllTemplates ? "−" : "+"}
+                                </span>
+                                {showAllTemplates
+                                  ? "Show fewer templates"
+                                  : "See all templates"}
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Step 3: Main Info */}
+                    {step === 3 && (
+                      <div className="space-y-6">
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div>
+                            <Label htmlFor="ticker">Ticker Symbol *</Label>
+                            <div className="relative">
+                              <Input
+                                id="ticker"
+                                placeholder="AWSM"
+                                value={formData.ticker}
+                                onChange={(e) =>
+                                  handleTickerChange(e.target.value)
+                                }
+                                className={
+                                  errors.ticker ? "border-destructive" : ""
+                                }
+                                maxLength={8}
+                              />
+                              {tickerAvailable === true && (
+                                <CheckCircle2 className="absolute right-3 top-3 h-4 w-4 text-green-500" />
+                              )}
+                              {tickerAvailable === false && (
+                                <AlertCircle className="absolute right-3 top-3 h-4 w-4 text-destructive" />
+                              )}
+                            </div>
+                            {errors.ticker && (
+                              <p className="text-xs text-destructive mt-1">
+                                {errors.ticker}
+                              </p>
+                            )}
+                            {tickerAvailable === false && !errors.ticker && (
+                              <p className="text-xs text-destructive mt-1">
+                                Ticker already taken
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="md:col-span-2">
+                            <Label htmlFor="description">
+                              Tagline * (Keep it short and punchy)
+                            </Label>
+                            <Textarea
+                              id="description"
+                              placeholder="e.g., Twitter for crypto, or DeFi for the masses"
+                              value={formData.description}
+                              onChange={(e) =>
+                                updateFormData({ description: e.target.value })
+                              }
+                              className={
+                                errors.description ? "border-destructive" : ""
+                              }
+                              rows={3}
+                            />
+                            <div className="flex justify-between mt-1">
+                              {errors.description && (
+                                <p className="text-xs text-destructive">
+                                  {errors.description}
+                                </p>
+                              )}
+                              <p className="text-xs text-muted-foreground ml-auto">
+                                {formData.description.length}/250
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Step 4: Branding & Media */}
+                    {step === 4 && (
+                      <div className="space-y-6">
+                        <div className="grid gap-6 md:grid-cols-3">
+                          {/* Logo Upload */}
+                          <div>
+                            <Label htmlFor="logo">
+                              Logo * (Square, ≥1000×1000px, ≤15MB)
+                            </Label>
+                            <div className="border-2 border-dashed border-border rounded-lg p-4 text-center hover:bg-accent/50 transition-colors">
+                              {formData.logo ? (
+                                <div className="space-y-2">
+                                  <img
+                                    src={URL.createObjectURL(formData.logo)}
+                                    alt="Logo preview"
+                                    className="w-24 h-24 rounded-lg object-cover border mx-auto"
+                                  />
+                                  <p className="text-sm text-muted-foreground">
+                                    {formData.logo.name}
+                                  </p>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      updateFormData({ logo: null })
+                                    }
+                                  >
+                                    Remove
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="space-y-2">
+                                  <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
+                                  <p className="text-sm text-muted-foreground">
+                                    Drop your logo here
+                                  </p>
+                                  <Input
+                                    id="logo"
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/gif"
+                                    onChange={(e) =>
+                                      updateFormData({
+                                        logo: e.target.files?.[0] || null,
+                                      })
+                                    }
+                                    className="hidden"
+                                  />
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      document.getElementById("logo")?.click()
+                                    }
+                                  >
+                                    Choose Logo
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                            {errors.logo && (
+                              <p className="text-xs text-destructive mt-1">
+                                {errors.logo}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Video Upload */}
+                          <div>
+                            <Label htmlFor="promoVideo">
+                              Promo Video (MP4, ≤30MB)
+                            </Label>
+                            <div className="border-2 border-dashed border-border rounded-lg p-4 text-center hover:bg-accent/50 transition-colors">
+                              {formData.promoVideo ? (
+                                <div className="space-y-2">
+                                  <FileText className="h-8 w-8 mx-auto text-muted-foreground" />
+                                  <p className="text-sm text-muted-foreground">
+                                    {formData.promoVideo.name}
+                                  </p>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      updateFormData({ promoVideo: null })
+                                    }
+                                  >
+                                    Remove
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="space-y-2">
+                                  <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
+                                  <p className="text-sm text-muted-foreground">
+                                    Drop video here
+                                  </p>
+                                  <Input
+                                    id="promoVideo"
+                                    type="file"
+                                    accept="video/mp4"
+                                    onChange={(e) =>
+                                      updateFormData({
+                                        promoVideo: e.target.files?.[0] || null,
+                                      })
+                                    }
+                                    className="hidden"
+                                  />
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      document
+                                        .getElementById("promoVideo")
+                                        ?.click()
+                                    }
+                                  >
+                                    Choose Video
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                            {errors.promoVideo && (
+                              <p className="text-xs text-destructive mt-1">
+                                {errors.promoVideo}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Banner Upload */}
+                          <div>
+                            <Label htmlFor="banner">
+                              Banner (16:9 ratio, ≤15MB)
+                            </Label>
+                            <div className="border-2 border-dashed border-border rounded-lg p-4 text-center hover:bg-accent/50 transition-colors">
+                              {formData.banner ? (
+                                <div className="space-y-2">
+                                  <img
+                                    src={URL.createObjectURL(formData.banner)}
+                                    alt="Banner preview"
+                                    className="w-full h-20 rounded-lg object-cover border"
+                                  />
+                                  <p className="text-sm text-muted-foreground">
+                                    {formData.banner.name}
+                                  </p>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      updateFormData({ banner: null })
+                                    }
+                                  >
+                                    Remove
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="space-y-2">
+                                  <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
+                                  <p className="text-sm text-muted-foreground">
+                                    Drop banner here
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Recommended: 1920×1080px
+                                  </p>
+                                  <Input
+                                    id="banner"
+                                    type="file"
+                                    accept="image/jpeg,image/png"
+                                    onChange={(e) =>
+                                      updateFormData({
+                                        banner: e.target.files?.[0] || null,
+                                      })
+                                    }
+                                    className="hidden"
+                                  />
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      document.getElementById("banner")?.click()
+                                    }
+                                  >
+                                    Choose Banner
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                            {errors.banner && (
+                              <p className="text-xs text-destructive mt-1">
+                                {errors.banner}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Step 5: Links & Documentation */}
+                    {step === 5 && (
+                      <div className="space-y-6">
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div>
+                            <Label
+                              htmlFor="githubRepo"
+                              className="flex items-center gap-2"
+                            >
+                              <Github className="h-4 w-4" />
+                              GitHub Repository *
+                            </Label>
+                            <div className="relative">
+                              <Input
+                                id="githubRepo"
+                                placeholder="https://github.com/username/repo"
+                                value={formData.githubRepo}
+                                onChange={(e) =>
+                                  handleGitHubUrlChange(e.target.value)
+                                }
+                                className={`pr-10 ${
+                                  errors.githubRepo ? "border-destructive" : ""
+                                }`}
+                              />
+                              {/* Validation status icon */}
+                              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                {isValidatingGithub ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                                ) : githubValidation ? (
+                                  githubValidation.isValid ? (
+                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                  ) : (
+                                    <AlertCircle className="h-4 w-4 text-red-500" />
+                                  )
+                                ) : null}
+                              </div>
+                            </div>
+
+                            {/* Validation messages */}
+                            {githubValidation && !githubValidation.isValid && (
+                              <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                                <AlertCircle className="h-3 w-3" />
+                                You don't own that project
+                              </p>
+                            )}
+
+                            {githubValidation && githubValidation.isValid && (
+                              <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                                <CheckCircle2 className="h-3 w-3" />
+                                Repository verified
+                              </p>
+                            )}
+
+                            {errors.githubRepo && (
+                              <p className="text-xs text-destructive mt-1">
+                                {errors.githubRepo}
+                              </p>
+                            )}
+
+                            {!session && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Connect GitHub in the sidebar to validate
+                                repository ownership
+                              </p>
+                            )}
+                          </div>
+
+                          <div>
+                            <Label
+                              htmlFor="website"
+                              className="flex items-center gap-2"
+                            >
+                              <Globe className="h-4 w-4" />
+                              Website *
+                            </Label>
+                            <Input
+                              id="website"
+                              placeholder="https://mychain.com"
+                              value={formData.website}
+                              onChange={(e) =>
+                                updateFormData({ website: e.target.value })
+                              }
+                              className={
+                                errors.website ? "border-destructive" : ""
+                              }
+                            />
+                            {errors.website && (
+                              <p className="text-xs text-destructive mt-1">
+                                {errors.website}
+                              </p>
+                            )}
+                          </div>
+
+                          <div>
+                            <Label
+                              htmlFor="whitepaper"
+                              className="flex items-center gap-2"
+                            >
+                              <FileText className="h-4 w-4" />
+                              Whitepaper URL
+                            </Label>
+                            <Input
+                              id="whitepaper"
+                              placeholder="https://docs.mychain.com/whitepaper.pdf"
+                              value={formData.whitepaper}
+                              onChange={(e) =>
+                                updateFormData({ whitepaper: e.target.value })
+                              }
+                              className={
+                                errors.whitepaper ? "border-destructive" : ""
+                              }
+                            />
+                            {errors.whitepaper && (
+                              <p className="text-xs text-destructive mt-1">
+                                {errors.whitepaper}
+                              </p>
+                            )}
+                          </div>
+
+                          <div>
+                            <Label htmlFor="whitepaperFile">
+                              Or Upload Whitepaper (PDF, ≤15MB)
+                            </Label>
+                            <Input
+                              id="whitepaperFile"
+                              type="file"
+                              accept=".pdf"
+                              onChange={(e) =>
+                                updateFormData({
+                                  whitepaperFile: e.target.files?.[0] || null,
+                                })
+                              }
+                            />
+                          </div>
+
+                          <div>
+                            <Label
+                              htmlFor="twitterUrl"
+                              className="flex items-center gap-2"
+                            >
+                              <Twitter className="h-4 w-4" />
+                              Twitter / X
+                            </Label>
+                            <Input
+                              id="twitterUrl"
+                              placeholder="https://x.com/mychain"
+                              value={formData.twitterUrl}
+                              onChange={(e) =>
+                                updateFormData({ twitterUrl: e.target.value })
+                              }
+                              className={
+                                errors.twitterUrl ? "border-destructive" : ""
+                              }
+                            />
+                            {errors.twitterUrl && (
+                              <p className="text-xs text-destructive mt-1">
+                                {errors.twitterUrl}
+                              </p>
+                            )}
+                          </div>
+
+                          <div>
+                            <Label htmlFor="telegramUrl">Telegram</Label>
+                            <Input
+                              id="telegramUrl"
+                              placeholder="https://t.me/mychain"
+                              value={formData.telegramUrl}
+                              onChange={(e) =>
+                                updateFormData({ telegramUrl: e.target.value })
+                              }
+                              className={
+                                errors.telegramUrl ? "border-destructive" : ""
+                              }
+                            />
+                            {errors.telegramUrl && (
+                              <p className="text-xs text-destructive mt-1">
+                                {errors.telegramUrl}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Step 6: Launch Settings */}
+                    {step === 6 && (
+                      <div className="space-y-6">
+                        <Card>
+                          <CardContent className="pt-6">
+                            <div className="flex items-center justify-between mb-4">
+                              <div>
+                                <Label
+                                  htmlFor="launchImmediately"
+                                  className="text-base"
+                                >
+                                  Launch Immediately
+                                </Label>
+                                <p className="text-sm text-muted-foreground">
+                                  Chain goes live right after creation
+                                </p>
+                              </div>
+                              <Switch
+                                id="launchImmediately"
+                                checked={formData.launchImmediately}
+                                onCheckedChange={(checked) =>
+                                  updateFormData({ launchImmediately: checked })
+                                }
+                              />
+                            </div>
+
+                            {!formData.launchImmediately && (
+                              <div className="space-y-4 pt-4 border-t">
+                                <div>
+                                  <Label
+                                    htmlFor="launchDate"
+                                    className="flex items-center gap-2"
+                                  >
+                                    <Calendar className="h-4 w-4" />
+                                    Launch Date & Time *
+                                  </Label>
+                                  <Input
+                                    id="launchDate"
+                                    type="datetime-local"
+                                    value={formData.launchDate}
+                                    onChange={(e) =>
+                                      updateFormData({
+                                        launchDate: e.target.value,
+                                      })
+                                    }
+                                    className={
+                                      errors.launchDate
+                                        ? "border-destructive"
+                                        : ""
+                                    }
+                                    min={new Date(Date.now() + 10 * 60 * 1000)
+                                      .toISOString()
+                                      .slice(0, 16)}
+                                  />
+                                  {errors.launchDate && (
+                                    <p className="text-xs text-destructive mt-1">
+                                      {errors.launchDate}
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div>
+                                  <Label htmlFor="timezone">Timezone</Label>
+                                  <Input
+                                    id="timezone"
+                                    value={formData.timezone}
+                                    disabled
+                                    className="bg-muted"
+                                  />
+                                </div>
+
+                                {formData.launchDate && (
+                                  <div className="p-4 bg-muted rounded-lg">
+                                    <p className="text-sm font-medium mb-1">
+                                      Scheduled Launch
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                      {new Date(
+                                        formData.launchDate
+                                      ).toLocaleString(undefined, {
+                                        dateStyle: "full",
+                                        timeStyle: "long",
+                                      })}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </div>
+                    )}
+
+                    {/* Step 7: Review & Payment */}
+                    {step === 7 && (
+                      <div className="space-y-6">
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                              <Code className="h-5 w-5" />
+                              {formData.chainName}
+                            </CardTitle>
+                            <CardDescription>{formData.ticker}</CardDescription>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <p className="text-sm">{formData.description}</p>
+
+                            <Separator />
+
+                            <div className="grid gap-3 md:grid-cols-2 text-sm">
+                              <div>
+                                <Label className="text-xs font-medium text-muted-foreground">
+                                  Template
+                                </Label>
+                                <p className="font-medium">
+                                  {
+                                    getTemplateById(formData.template)
+                                      ?.template_name
+                                  }
+                                </p>
+                              </div>
+                              <div>
+                                <Label className="text-xs font-medium text-muted-foreground">
+                                  Token Supply
+                                </Label>
+                                <p className="font-medium">
+                                  {Number(
+                                    formData.tokenSupply
+                                  ).toLocaleString()}
+                                </p>
+                              </div>
+                              <div>
+                                <Label className="text-xs font-medium text-muted-foreground">
+                                  Decimals
+                                </Label>
+                                <p className="font-medium">
+                                  {formData.decimals}
+                                </p>
+                              </div>
+                              <div>
+                                <Label className="text-xs font-medium text-muted-foreground">
+                                  Website
+                                </Label>
+                                <p className="font-medium truncate">
+                                  {formData.website}
+                                </p>
+                              </div>
+                              <div>
+                                <Label className="text-xs font-medium text-muted-foreground">
+                                  GitHub
+                                </Label>
+                                <p className="font-medium truncate">
+                                  {formData.githubRepo}
+                                </p>
+                              </div>
+                              <div>
+                                <Label className="text-xs font-medium text-muted-foreground">
+                                  Launch
+                                </Label>
+                                <p className="font-medium">
+                                  {formData.launchImmediately
+                                    ? "Immediately"
+                                    : new Date(
+                                        formData.launchDate
+                                      ).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+
+                            <Separator />
+
+                            <div className="space-y-3">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">
+                                  Creation Fee
+                                </span>
+                                <span className="font-medium">100 CNPY</span>
+                              </div>
+                              <Separator />
+                              <div className="flex justify-between font-medium">
+                                <span>Total Cost</span>
+                                <span className="text-lg">100 CNPY</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-900">
+                              <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                              <div className="space-y-1 text-sm">
+                                <p className="font-medium text-amber-900 dark:text-amber-100">
+                                  Risk Acknowledgment
+                                </p>
+                                <p className="text-amber-800 dark:text-amber-200">
+                                  Tokens launch in a virtual bonding curve pool.
+                                  There is no external liquidity guarantee.
+                                  Chain parameters are immutable after creation.
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 pt-2">
+                              <Switch
+                                id="riskAcknowledgment"
+                                checked={formData.riskAcknowledgment}
+                                onCheckedChange={(checked) =>
+                                  updateFormData({
+                                    riskAcknowledgment: checked,
+                                  })
+                                }
+                              />
+                              <Label
+                                htmlFor="riskAcknowledgment"
+                                className="text-sm cursor-pointer"
+                              >
+                                I understand and acknowledge the risks
+                              </Label>
+                            </div>
+                            {errors.riskAcknowledgment && (
+                              <p className="text-xs text-destructive">
+                                {errors.riskAcknowledgment}
+                              </p>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </div>
+                    )}
+
+                    {/* Navigation Buttons */}
+                    <div className="flex items-center justify-between pt-8 border-t">
+                      <WizardBackButton
+                        onClick={handleBack}
+                        disabled={step === 1 || isLoading}
+                      />
+                      <div className="flex gap-3">
+                        {step < 7 ? (
+                          <WizardContinueButton
+                            onClick={handleNext}
+                            disabled={isLoading || (step === 1 && !launchType)}
+                          />
+                        ) : (
+                          <Button
+                            onClick={handleSubmit}
+                            disabled={isLoading || !formData.riskAcknowledgment}
+                            size="lg"
+                            className="px-8"
+                          >
+                            {isLoading ? "Creating..." : "Create Chain"}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
