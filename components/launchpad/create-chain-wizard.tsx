@@ -71,6 +71,7 @@ import {
   isValidGitHubUrl,
   type GitHubValidationResult,
 } from "@/lib/api/github";
+import { uploadLogo, uploadGallery, uploadWhitepaper } from "@/lib/api/media";
 import { useSession } from "next-auth/react";
 import { WizardBackButton } from "./wizard-back-button";
 import { WizardContinueButton } from "./wizard-continue-button";
@@ -196,23 +197,7 @@ async function checkTickerAvailability(ticker: string): Promise<boolean> {
 
 // getTemplates is no longer needed as we use the store
 
-async function uploadFile(
-  file: File
-): Promise<{ url: string; mime: string; width?: number; height?: number }> {
-  // TODO: Implement actual file upload
-  // const formData = new FormData();
-  // formData.append('file', file);
-  // const response = await fetch('/api/uploads', { method: 'POST', body: formData });
-  // return response.json();
-  console.log("Uploading file:", file.name);
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-  return {
-    url: URL.createObjectURL(file),
-    mime: file.type,
-    width: 1000,
-    height: 1000,
-  };
-}
+// uploadFile function removed - now using uploadLogo, uploadGallery, uploadWhitepaper from @/lib/api/media
 
 async function getBondingCurveQuote(
   amountInCNPY: number
@@ -680,16 +665,40 @@ export function CreateChainWizard() {
         return;
       }
 
-      // Upload files (these would be URLs in real implementation)
-      // For now, we'll skip file uploads as they're not in the API spec
-      // let logoUrl = "";
-      // let videoUrl = "";
-      // let bannerUrl = "";
+      // Upload files to AWS S3
+      let logoUrl = "";
+      const galleryUrls: string[] = [];
+      let whitepaperUrl = formData.whitepaper; // Keep URL if provided
 
-      // if (formData.logo) {
-      //   const result = await uploadFile(formData.logo);
-      //   logoUrl = result.url;
-      // }
+      // Upload logo if present
+      if (formData.logo) {
+        const logoResult = await uploadLogo(formData.ticker, formData.logo);
+        if (logoResult.success && logoResult.urls && logoResult.urls.length > 0) {
+          logoUrl = logoResult.urls[0].url;
+        } else {
+          throw new Error(`Failed to upload logo: ${logoResult.error}`);
+        }
+      }
+
+      // Upload gallery images if present
+      if (formData.gallery.length > 0) {
+        const galleryResult = await uploadGallery(formData.ticker, formData.gallery);
+        if (galleryResult.success && galleryResult.urls) {
+          galleryUrls.push(...galleryResult.urls.map((r) => r.url));
+        } else {
+          throw new Error(`Failed to upload gallery: ${galleryResult.error}`);
+        }
+      }
+
+      // Upload whitepaper file if present (takes precedence over URL)
+      if (formData.whitepaperFile) {
+        const paperResult = await uploadWhitepaper(formData.ticker, formData.whitepaperFile);
+        if (paperResult.success && paperResult.urls && paperResult.urls.length > 0) {
+          whitepaperUrl = paperResult.urls[0].url;
+        } else {
+          throw new Error(`Failed to upload whitepaper: ${paperResult.error}`);
+        }
+      }
 
       // Prepare chain data according to API spec
       const chainData = {
@@ -714,12 +723,14 @@ export function CreateChainWizard() {
       console.log("Additional metadata to store separately:", {
         github_repo: formData.githubRepo,
         website: formData.website,
-        whitepaper: formData.whitepaper,
+        whitepaper: whitepaperUrl,
         twitter_url: formData.twitterUrl,
         telegram_url: formData.telegramUrl,
         scheduled_launch: formData.launchImmediately
           ? new Date().toISOString()
           : formData.launchDate,
+        logo_url: logoUrl,
+        gallery_urls: galleryUrls,
       });
 
       console.log("Creating chain with data:", chainData);
