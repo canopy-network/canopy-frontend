@@ -2,13 +2,15 @@ import type React from "react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Suspense } from "react";
-import { WalletProvider } from "@/components/wallet/wallet-provider";
+import { useWallet, WalletProvider } from "@/components/wallet/wallet-provider";
+import { WalletPopup } from "@/components/wallet/wallet-popup";
 import { Sidebar } from "@/components/layout/sidebar";
-import { CreateChainDialog } from "@/components/launchpad/create-chain-dialog";
+import { CreateChainWizard } from "@/components/launchpad/create-chain-wizard";
 import { TemplatesInitializer } from "@/components/providers/templates-initializer";
 import { AuthSessionProvider } from "@/components/providers/session-provider";
 import { StoreProvider } from "@/components/providers/store-provider";
 import "./globals.css";
+import { Header } from "@/components/layout/header";
 
 // Force dynamic rendering for the entire app
 export const dynamic = "force-dynamic";
@@ -37,10 +39,12 @@ export default function RootLayout({
               <div className="flex h-screen bg-background">
                 <Sidebar />
                 <main className="flex-1 overflow-auto">
+                  <Header />
                   <Suspense fallback={null}>{children}</Suspense>
                 </main>
               </div>
-              <CreateChainDialog />
+              <CreateChainWizard />
+              <WalletPopup />
             </WalletProvider>
           </StoreProvider>
         </AuthSessionProvider>

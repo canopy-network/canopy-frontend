@@ -192,11 +192,12 @@ export function useLaunchpadDashboard({
       case "pending_launch":
         filtered = filtered.filter((p) => p.status === "pending");
         break;
+      case "draft":
+        filtered = filtered.filter((p) => p.status === "pending");
+        break;
       default:
-        // Show all active and graduated projects
-        filtered = filtered.filter(
-          (p) => p.status === "active" || p.status === "graduated"
-        );
+        // Show all projects when "all" is selected
+        // No additional filtering needed
         break;
     }
 
@@ -265,11 +266,12 @@ export function useLaunchpadDashboard({
         status = "virtual_active";
         break;
       case "favorites":
-        // For now, just show all - favorites would need user preference storage
-        status = undefined;
+        // For now, just show graduated projects as favorites
+        status = "graduated";
         break;
+      case "all":
       default:
-        status = undefined;
+        status = undefined; // Show all projects
         break;
     }
     setFilters({ status: status as any });

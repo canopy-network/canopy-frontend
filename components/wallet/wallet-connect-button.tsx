@@ -5,14 +5,14 @@ import { useWallet } from "./wallet-provider";
 import { Wallet, Loader2 } from "lucide-react";
 
 export function WalletConnectButton() {
-  const { currentAccount, isConnecting, connectWallet, disconnectWallet } =
+  const { currentAccount, isConnecting, connectWallet, togglePopup } =
     useWallet();
 
   if (currentAccount) {
     return (
       <Button
         variant="outline"
-        onClick={disconnectWallet}
+        onClick={togglePopup}
         className="gap-2 bg-transparent border-[#2a2a2a] text-white hover:bg-[#1a1a1a] w-full justify-start"
       >
         <Wallet className="h-4 w-4" />

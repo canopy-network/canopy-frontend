@@ -67,6 +67,18 @@ export {
   monitorApiHealth,
 } from "./health";
 
+// Media Upload API
+export {
+  uploadMedia,
+  uploadSingleFile,
+  uploadLogo,
+  uploadGallery,
+  uploadWhitepaper,
+  type FileCategory,
+  type UploadResult,
+  type UploadResponse,
+} from "./media";
+
 // ============================================================================
 // CONVENIENCE RE-EXPORTS
 // ============================================================================

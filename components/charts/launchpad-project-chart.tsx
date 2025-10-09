@@ -47,8 +47,10 @@ export const LaunchpadProjectChart = ({
       lineWidth: 2,
     });
 
-    series.setData(data);
-    chart.timeScale().fitContent();
+    if (data && data.length > 0) {
+      series.setData(data);
+      chart.timeScale().fitContent();
+    }
 
     const handleResize = () => {
       if (chartContainerRef.current) {

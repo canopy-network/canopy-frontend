@@ -85,6 +85,31 @@ canopy-superapp-design-exploration/
 └── public/              # Static assets
 ```
 
+### Media Handling
+
+Media assets are stored in AWS S3, with URLs saved to the database for later retrival. The S3 bucket contains three folders: `branding`, `media`, and `papers`.
+
+**File Naming Convention:**
+- All files are identified using the chain's ticker name in uppercase (e.g., `ATOM`, `OSMO`)
+
+**Folder Specifications:**
+
+**Papers:**
+- Format: PDF only
+- Contains whitepapers and technical documentation
+- Maximum file size: 3MB
+
+**Branding:**
+- Formats: SVG, PNG, WebP, JPEG, GIF
+- Maximum resolution: 1200×1200 pixels
+- Maximum file size: 3MB
+
+**Media:**
+- Formats: SVG, PNG, WebP, JPEG, GIF
+- Maximum file size: 3MB
+- Supports multiple images per chain, numbered sequentially (e.g., `ATOM_1.png`, `ATOM_2.png`)
+
+
 ### Architecture TL;DR
 
 - **Feature-based organization**: Each feature (Launchpad, AMM, Explorer, etc.) has its own components folder
