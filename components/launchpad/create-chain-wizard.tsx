@@ -30,6 +30,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import {
   Rocket,
   Code,
@@ -47,6 +54,9 @@ import {
   Cog,
   X,
   HelpCircle,
+  Target,
+  ChevronDown,
+  Clock,
 } from "lucide-react";
 import { useCreateChainDialog } from "@/lib/stores/use-create-chain-dialog";
 import { useTemplatesStore, useChainsStore } from "@/lib/stores";
@@ -281,6 +291,7 @@ interface FormData {
 
   // Step 2
   template: string; // Template ID (UUID)
+  tokenName: string;
   tokenSupply: string;
   decimals: string;
   governance?: boolean;
@@ -303,15 +314,18 @@ interface FormData {
 
   // Step 4
   logo: File | null;
-  promoVideo: File | null;
-  banner: File | null;
+  chainDescription: string;
+  gallery: File[];
 
   // Step 5
   launchDate: string;
+  launchTime: string;
   timezone: string;
   launchImmediately: boolean;
 
   // Step 6
+  initialPurchaseAmount: string;
+  graduationThreshold: number;
   riskAcknowledgment: boolean;
 }
 
@@ -327,11 +341,15 @@ const WIZARD_STEPS = [
     description: "Choose your blockchain template",
     subtitle: "How templates works",
   },
-  { number: 3, title: "Main Info", description: "Basic chain information" },
+  {
+    number: 3,
+    title: "Main Info",
+    description: "Configure your chain & token",
+  },
   {
     number: 4,
     title: "Branding & Media",
-    description: "Visual assets and branding",
+    description: "Add your branding",
   },
   {
     number: 5,
@@ -341,9 +359,13 @@ const WIZARD_STEPS = [
   {
     number: 6,
     title: "Launch Settings",
-    description: "Configure launch parameters",
+    description: "Launch settings",
   },
-  { number: 7, title: "Review & Payment", description: "Review and confirm" },
+  {
+    number: 7,
+    title: "Review & Payment",
+    description: "Review your configuration",
+  },
 ];
 
 // ============================================================================
@@ -367,6 +389,7 @@ export function CreateChainWizard() {
     null
   );
   const [showAllTemplates, setShowAllTemplates] = useState(false);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [tickerAvailable, setTickerAvailable] = useState<boolean | null>(null);
@@ -391,6 +414,7 @@ export function CreateChainWizard() {
 
     // Step 2
     template: "",
+    tokenName: "",
     tokenSupply: "1000000000",
     decimals: "18",
 
@@ -404,15 +428,18 @@ export function CreateChainWizard() {
 
     // Step 4
     logo: null,
-    promoVideo: null,
-    banner: null,
+    chainDescription: "",
+    gallery: [],
 
     // Step 5
     launchDate: "",
+    launchTime: "",
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    launchImmediately: false,
+    launchImmediately: true,
 
     // Step 6
+    initialPurchaseAmount: "",
+    graduationThreshold: 50000,
     riskAcknowledgment: false,
   });
 
@@ -428,6 +455,7 @@ export function CreateChainWizard() {
         ticker: "",
         description: "",
         template: "",
+        tokenName: "",
         tokenSupply: "1000000000",
         decimals: "18",
         githubRepo: "",
@@ -437,11 +465,14 @@ export function CreateChainWizard() {
         twitterUrl: "",
         telegramUrl: "",
         logo: null,
-        promoVideo: null,
-        banner: null,
+        chainDescription: "",
+        gallery: [],
         launchDate: "",
+        launchTime: "",
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        launchImmediately: false,
+        launchImmediately: true,
+        initialPurchaseAmount: "",
+        graduationThreshold: 50000,
         riskAcknowledgment: false,
       });
     }
@@ -451,6 +482,13 @@ export function CreateChainWizard() {
   useEffect(() => {
     if (step !== 2) {
       setShowAllTemplates(false);
+    }
+  }, [step]);
+
+  // Reset datePickerOpen when leaving step 6
+  useEffect(() => {
+    if (step !== 6) {
+      setDatePickerOpen(false);
     }
   }, [step]);
 
@@ -599,19 +637,7 @@ export function CreateChainWizard() {
 
         case 7: {
           // Step 7: Review & Payment
-          const result = step6Schema.safeParse({
-            riskAcknowledgment: formData.riskAcknowledgment,
-          });
-
-          if (!result.success) {
-            const newErrors: Record<string, string> = {};
-            result.error.errors.forEach((err) => {
-              newErrors[err.path[0] as string] = err.message;
-            });
-            setErrors(newErrors);
-            return false;
-          }
-
+          // No validation required for review step
           return true;
         }
 
@@ -727,6 +753,7 @@ export function CreateChainWizard() {
         ticker: "",
         description: "",
         template: "",
+        tokenName: "",
         tokenSupply: "1000000000",
         decimals: "18",
         githubRepo: "",
@@ -736,11 +763,14 @@ export function CreateChainWizard() {
         twitterUrl: "",
         telegramUrl: "",
         logo: null,
-        promoVideo: null,
-        banner: null,
+        chainDescription: "",
+        gallery: [],
         launchDate: "",
+        launchTime: "",
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        launchImmediately: false,
+        launchImmediately: true,
+        initialPurchaseAmount: "",
+        graduationThreshold: 50000,
         riskAcknowledgment: false,
       });
     } catch (error: any) {
@@ -1169,262 +1199,307 @@ export function CreateChainWizard() {
                     {/* Step 3: Main Info */}
                     {step === 3 && (
                       <div className="space-y-6">
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <div>
-                            <Label htmlFor="ticker">Ticker Symbol *</Label>
-                            <div className="relative">
+                        {/* Chain Name - Read Only */}
+                        <div className="border-2 rounded-lg p-6">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-base font-normal">
+                              Chain Name
+                            </Label>
+                            <span className="text-base font-medium">
+                              {formData.chainName}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Token Name */}
+                        <div className="border-2 rounded-lg p-6">
+                          <div className="flex items-center justify-between gap-4">
+                            <Label
+                              htmlFor="tokenName"
+                              className="text-base font-normal whitespace-nowrap"
+                            >
+                              Token name
+                            </Label>
+                            <Input
+                              id="tokenName"
+                              placeholder="GAME"
+                              value={formData.tokenName}
+                              onChange={(e) =>
+                                updateFormData({ tokenName: e.target.value })
+                              }
+                              className={`text-right border-0 shadow-none focus-visible:ring-0 text-base font-medium ${
+                                errors.tokenName ? "text-destructive" : ""
+                              }`}
+                            />
+                          </div>
+                          {errors.tokenName && (
+                            <p className="text-xs text-destructive mt-2">
+                              {errors.tokenName}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Ticker */}
+                        <div className="border-2 rounded-lg p-6">
+                          <div className="flex items-center justify-between gap-4">
+                            <Label
+                              htmlFor="ticker"
+                              className="text-base font-normal whitespace-nowrap"
+                            >
+                              Ticker
+                            </Label>
+                            <div className="relative flex-1">
                               <Input
                                 id="ticker"
-                                placeholder="AWSM"
+                                placeholder="GAME"
                                 value={formData.ticker}
                                 onChange={(e) =>
-                                  handleTickerChange(e.target.value)
+                                  handleTickerChange(
+                                    e.target.value.toUpperCase()
+                                  )
                                 }
-                                className={
-                                  errors.ticker ? "border-destructive" : ""
-                                }
+                                className={`text-right border-0 shadow-none focus-visible:ring-0 text-base font-medium pr-8 ${
+                                  errors.ticker ? "text-destructive" : ""
+                                }`}
                                 maxLength={8}
                               />
                               {tickerAvailable === true && (
-                                <CheckCircle2 className="absolute right-3 top-3 h-4 w-4 text-green-500" />
+                                <CheckCircle2 className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
                               )}
                               {tickerAvailable === false && (
-                                <AlertCircle className="absolute right-3 top-3 h-4 w-4 text-destructive" />
+                                <AlertCircle className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-destructive" />
                               )}
                             </div>
-                            {errors.ticker && (
-                              <p className="text-xs text-destructive mt-1">
-                                {errors.ticker}
-                              </p>
-                            )}
-                            {tickerAvailable === false && !errors.ticker && (
-                              <p className="text-xs text-destructive mt-1">
-                                Ticker already taken
-                              </p>
-                            )}
                           </div>
+                          {errors.ticker && (
+                            <p className="text-xs text-destructive mt-2">
+                              {errors.ticker}
+                            </p>
+                          )}
+                          {tickerAvailable === false && !errors.ticker && (
+                            <p className="text-xs text-destructive mt-2">
+                              Ticker already taken
+                            </p>
+                          )}
+                        </div>
 
-                          <div className="md:col-span-2">
-                            <Label htmlFor="description">
-                              Tagline * (Keep it short and punchy)
+                        {/* Token Supply */}
+                        <div className="border-2 rounded-lg p-6">
+                          <div className="flex items-center justify-between gap-4">
+                            <Label
+                              htmlFor="tokenSupply"
+                              className="text-base font-normal whitespace-nowrap"
+                            >
+                              Token Supply
                             </Label>
-                            <Textarea
-                              id="description"
-                              placeholder="e.g., Twitter for crypto, or DeFi for the masses"
-                              value={formData.description}
+                            <Input
+                              id="tokenSupply"
+                              placeholder="1,000,000,000"
+                              value={formData.tokenSupply}
                               onChange={(e) =>
-                                updateFormData({ description: e.target.value })
+                                updateFormData({ tokenSupply: e.target.value })
                               }
-                              className={
-                                errors.description ? "border-destructive" : ""
-                              }
-                              rows={3}
+                              className={`text-right border-0 shadow-none focus-visible:ring-0 text-base font-medium ${
+                                errors.tokenSupply ? "text-destructive" : ""
+                              }`}
                             />
-                            <div className="flex justify-between mt-1">
-                              {errors.description && (
-                                <p className="text-xs text-destructive">
-                                  {errors.description}
-                                </p>
-                              )}
-                              <p className="text-xs text-muted-foreground ml-auto">
-                                {formData.description.length}/250
-                              </p>
-                            </div>
                           </div>
+                          {errors.tokenSupply && (
+                            <p className="text-xs text-destructive mt-2">
+                              {errors.tokenSupply}
+                            </p>
+                          )}
+                          <p className="text-sm text-muted-foreground mt-4">
+                            The total number of tokens that will ever exist.
+                          </p>
                         </div>
                       </div>
                     )}
 
                     {/* Step 4: Branding & Media */}
                     {step === 4 && (
-                      <div className="space-y-6">
-                        <div className="grid gap-6 md:grid-cols-3">
-                          {/* Logo Upload */}
-                          <div>
-                            <Label htmlFor="logo">
-                              Logo * (Square, ≥1000×1000px, ≤15MB)
-                            </Label>
-                            <div className="border-2 border-dashed border-border rounded-lg p-4 text-center hover:bg-accent/50 transition-colors">
+                      <div className="space-y-12">
+                        {/* Logo Section */}
+                        <div>
+                          <h3 className="text-2xl font-semibold mb-2">Logo</h3>
+                          <p className="text-muted-foreground mb-6">
+                            This appears in wallets, explorers, and trading
+                            interfaces.
+                          </p>
+                          <div className="flex items-start gap-6">
+                            {/* Logo Upload Box */}
+                            <div
+                              className="w-40 h-40 border-2 border-dashed border-border rounded-lg flex items-center justify-center bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
+                              onClick={() =>
+                                document.getElementById("logo")?.click()
+                              }
+                            >
                               {formData.logo ? (
-                                <div className="space-y-2">
-                                  <img
-                                    src={URL.createObjectURL(formData.logo)}
-                                    alt="Logo preview"
-                                    className="w-24 h-24 rounded-lg object-cover border mx-auto"
-                                  />
-                                  <p className="text-sm text-muted-foreground">
-                                    {formData.logo.name}
-                                  </p>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                      updateFormData({ logo: null })
-                                    }
-                                  >
-                                    Remove
-                                  </Button>
-                                </div>
+                                <img
+                                  src={URL.createObjectURL(formData.logo)}
+                                  alt="Logo preview"
+                                  className="w-full h-full rounded-lg object-cover"
+                                />
                               ) : (
-                                <div className="space-y-2">
-                                  <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
-                                  <p className="text-sm text-muted-foreground">
-                                    Drop your logo here
-                                  </p>
-                                  <Input
-                                    id="logo"
-                                    type="file"
-                                    accept="image/jpeg,image/png,image/gif"
-                                    onChange={(e) =>
-                                      updateFormData({
-                                        logo: e.target.files?.[0] || null,
-                                      })
-                                    }
-                                    className="hidden"
-                                  />
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                      document.getElementById("logo")?.click()
-                                    }
-                                  >
-                                    Choose Logo
-                                  </Button>
-                                </div>
+                                <Upload className="h-8 w-8 text-muted-foreground" />
+                              )}
+                              <Input
+                                id="logo"
+                                type="file"
+                                accept="image/png,image/jpeg"
+                                onChange={(e) =>
+                                  updateFormData({
+                                    logo: e.target.files?.[0] || null,
+                                  })
+                                }
+                                className="hidden"
+                              />
+                            </div>
+                            {/* Upload Instructions */}
+                            <div className="flex-1">
+                              <button
+                                onClick={() =>
+                                  document.getElementById("logo")?.click()
+                                }
+                                className="text-base font-medium underline hover:no-underline mb-2 block"
+                              >
+                                Upload from device
+                              </button>
+                              <p className="text-sm text-muted-foreground">
+                                1000×1000 pixels recommended. PNG or JPG file.
+                              </p>
+                              {formData.logo && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    updateFormData({ logo: null });
+                                  }}
+                                  className="mt-3"
+                                >
+                                  Remove
+                                </Button>
                               )}
                             </div>
-                            {errors.logo && (
-                              <p className="text-xs text-destructive mt-1">
-                                {errors.logo}
-                              </p>
-                            )}
+                          </div>
+                          {errors.logo && (
+                            <p className="text-xs text-destructive mt-2">
+                              {errors.logo}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Describe your chain Section */}
+                        <div>
+                          <h3 className="text-2xl font-semibold mb-6">
+                            Describe your chain
+                          </h3>
+                          <div className="border-2 rounded-lg p-6">
+                            <Label
+                              htmlFor="chainDescription"
+                              className="text-base font-semibold mb-4 block"
+                            >
+                              What does your chain do?
+                            </Label>
+                            <Textarea
+                              id="chainDescription"
+                              placeholder="A short explanation of what your blockchain does"
+                              value={formData.chainDescription}
+                              onChange={(e) =>
+                                updateFormData({
+                                  chainDescription: e.target.value,
+                                })
+                              }
+                              className="min-h-[120px] resize-none border-0 shadow-none focus-visible:ring-0 p-0 text-muted-foreground placeholder:text-muted-foreground/50"
+                              rows={5}
+                            />
+                          </div>
+                          {errors.chainDescription && (
+                            <p className="text-xs text-destructive mt-2">
+                              {errors.chainDescription}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Gallery Section */}
+                        <div>
+                          <h3 className="text-2xl font-semibold mb-2">
+                            Gallery
+                          </h3>
+                          <p className="text-muted-foreground mb-6">
+                            This will help your chain stand out and build trust
+                            among others. We recommend adding at least three
+                            images or videos.
+                          </p>
+                          <div
+                            className="border-2 border-dashed border-border rounded-lg p-16 flex flex-col items-center justify-center bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
+                            onClick={() =>
+                              document.getElementById("gallery")?.click()
+                            }
+                          >
+                            <Upload className="h-10 w-10 text-muted-foreground mb-4" />
+                            <p className="text-base text-foreground">
+                              Upload from your device.
+                            </p>
+                            <Input
+                              id="gallery"
+                              type="file"
+                              accept="image/png,image/jpeg,video/mp4"
+                              multiple
+                              onChange={(e) => {
+                                const files = Array.from(e.target.files || []);
+                                updateFormData({
+                                  gallery: [...formData.gallery, ...files],
+                                });
+                              }}
+                              className="hidden"
+                            />
                           </div>
 
-                          {/* Video Upload */}
-                          <div>
-                            <Label htmlFor="promoVideo">
-                              Promo Video (MP4, ≤30MB)
-                            </Label>
-                            <div className="border-2 border-dashed border-border rounded-lg p-4 text-center hover:bg-accent/50 transition-colors">
-                              {formData.promoVideo ? (
-                                <div className="space-y-2">
-                                  <FileText className="h-8 w-8 mx-auto text-muted-foreground" />
-                                  <p className="text-sm text-muted-foreground">
-                                    {formData.promoVideo.name}
-                                  </p>
+                          {/* Gallery Preview */}
+                          {formData.gallery.length > 0 && (
+                            <div className="mt-6 grid grid-cols-3 gap-4">
+                              {formData.gallery.map((file, index) => (
+                                <div
+                                  key={index}
+                                  className="relative group aspect-video border-2 rounded-lg overflow-hidden"
+                                >
+                                  {file.type.startsWith("image/") ? (
+                                    <img
+                                      src={URL.createObjectURL(file)}
+                                      alt={`Gallery ${index + 1}`}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-muted">
+                                      <FileText className="h-8 w-8 text-muted-foreground" />
+                                    </div>
+                                  )}
                                   <Button
-                                    variant="outline"
+                                    variant="destructive"
                                     size="sm"
-                                    onClick={() =>
-                                      updateFormData({ promoVideo: null })
-                                    }
+                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const newGallery =
+                                        formData.gallery.filter(
+                                          (_, i) => i !== index
+                                        );
+                                      updateFormData({ gallery: newGallery });
+                                    }}
                                   >
-                                    Remove
+                                    <X className="h-4 w-4" />
                                   </Button>
                                 </div>
-                              ) : (
-                                <div className="space-y-2">
-                                  <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
-                                  <p className="text-sm text-muted-foreground">
-                                    Drop video here
-                                  </p>
-                                  <Input
-                                    id="promoVideo"
-                                    type="file"
-                                    accept="video/mp4"
-                                    onChange={(e) =>
-                                      updateFormData({
-                                        promoVideo: e.target.files?.[0] || null,
-                                      })
-                                    }
-                                    className="hidden"
-                                  />
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                      document
-                                        .getElementById("promoVideo")
-                                        ?.click()
-                                    }
-                                  >
-                                    Choose Video
-                                  </Button>
-                                </div>
-                              )}
+                              ))}
                             </div>
-                            {errors.promoVideo && (
-                              <p className="text-xs text-destructive mt-1">
-                                {errors.promoVideo}
-                              </p>
-                            )}
-                          </div>
-
-                          {/* Banner Upload */}
-                          <div>
-                            <Label htmlFor="banner">
-                              Banner (16:9 ratio, ≤15MB)
-                            </Label>
-                            <div className="border-2 border-dashed border-border rounded-lg p-4 text-center hover:bg-accent/50 transition-colors">
-                              {formData.banner ? (
-                                <div className="space-y-2">
-                                  <img
-                                    src={URL.createObjectURL(formData.banner)}
-                                    alt="Banner preview"
-                                    className="w-full h-20 rounded-lg object-cover border"
-                                  />
-                                  <p className="text-sm text-muted-foreground">
-                                    {formData.banner.name}
-                                  </p>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                      updateFormData({ banner: null })
-                                    }
-                                  >
-                                    Remove
-                                  </Button>
-                                </div>
-                              ) : (
-                                <div className="space-y-2">
-                                  <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
-                                  <p className="text-sm text-muted-foreground">
-                                    Drop banner here
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    Recommended: 1920×1080px
-                                  </p>
-                                  <Input
-                                    id="banner"
-                                    type="file"
-                                    accept="image/jpeg,image/png"
-                                    onChange={(e) =>
-                                      updateFormData({
-                                        banner: e.target.files?.[0] || null,
-                                      })
-                                    }
-                                    className="hidden"
-                                  />
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                      document.getElementById("banner")?.click()
-                                    }
-                                  >
-                                    Choose Banner
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
-                            {errors.banner && (
-                              <p className="text-xs text-destructive mt-1">
-                                {errors.banner}
-                              </p>
-                            )}
-                          </div>
+                          )}
+                          {errors.gallery && (
+                            <p className="text-xs text-destructive mt-2">
+                              {errors.gallery}
+                            </p>
+                          )}
                         </div>
                       </div>
                     )}
@@ -1615,253 +1690,404 @@ export function CreateChainWizard() {
 
                     {/* Step 6: Launch Settings */}
                     {step === 6 && (
-                      <div className="space-y-6">
-                        <Card>
-                          <CardContent className="pt-6">
-                            <div className="flex items-center justify-between mb-4">
-                              <div>
-                                <Label
-                                  htmlFor="launchImmediately"
-                                  className="text-base"
-                                >
-                                  Launch Immediately
-                                </Label>
-                                <p className="text-sm text-muted-foreground">
-                                  Chain goes live right after creation
-                                </p>
-                              </div>
-                              <Switch
-                                id="launchImmediately"
+                      <div className="space-y-12">
+                        {/* Graduation Threshold Section */}
+                        <div>
+                          <div className="flex items-center gap-3 mb-3">
+                            <Target className="h-6 w-6 text-muted-foreground" />
+                            <h3 className="text-lg font-medium text-muted-foreground">
+                              Graduation Threshold
+                            </h3>
+                          </div>
+                          <p className="text-base">
+                            Your chain becomes real at:{" "}
+                            <span className="font-semibold">
+                              ${formData.graduationThreshold.toLocaleString()}
+                            </span>
+                          </p>
+                        </div>
+
+                        {/* Initial Purchase Section */}
+                        <div>
+                          <div className="flex items-center gap-3 mb-3">
+                            <DollarSign className="h-6 w-6 text-muted-foreground" />
+                            <h3 className="text-lg font-medium text-muted-foreground">
+                              Initial Purchase (Optional)
+                            </h3>
+                          </div>
+                          <div className="mb-6">
+                            <p className="text-base mb-1">
+                              Buy tokens to show confidence.{" "}
+                              <button className="text-pink-500 hover:text-pink-600 inline-flex items-center gap-1">
+                                <HelpCircle className="h-4 w-4" />
+                                Why should I buy?
+                              </button>
+                            </p>
+                          </div>
+
+                          <div className="border-2 rounded-lg p-6">
+                            <Label
+                              htmlFor="initialPurchaseAmount"
+                              className="text-base font-semibold mb-4 block"
+                            >
+                              Amount in CNPY
+                            </Label>
+                            <Input
+                              id="initialPurchaseAmount"
+                              type="number"
+                              placeholder="0000"
+                              value={formData.initialPurchaseAmount}
+                              onChange={(e) =>
+                                updateFormData({
+                                  initialPurchaseAmount: e.target.value,
+                                })
+                              }
+                              className="border-0 shadow-none focus-visible:ring-0 p-0 text-base text-muted-foreground placeholder:text-muted-foreground/50"
+                            />
+                          </div>
+
+                          {formData.initialPurchaseAmount &&
+                            parseFloat(formData.initialPurchaseAmount) > 0 && (
+                              <p className="text-base italic mt-4">
+                                You'll receive ~
+                                {Math.floor(
+                                  parseFloat(formData.initialPurchaseAmount) *
+                                    0.25
+                                ).toLocaleString()}{" "}
+                                {formData.ticker || "tokens"}
+                              </p>
+                            )}
+                        </div>
+
+                        {/* Launch Schedule Section */}
+                        <div>
+                          <div className="flex items-center gap-3 mb-6">
+                            <Calendar className="h-6 w-6 text-muted-foreground" />
+                            <h3 className="text-lg font-medium text-muted-foreground">
+                              Launch Schedule
+                            </h3>
+                          </div>
+
+                          <div className="space-y-4">
+                            {/* Launch now checkbox */}
+                            <div className="flex items-center space-x-3">
+                              <Checkbox
+                                id="launchNow"
                                 checked={formData.launchImmediately}
-                                onCheckedChange={(checked) =>
-                                  updateFormData({ launchImmediately: checked })
+                                onCheckedChange={(checked: boolean) =>
+                                  updateFormData({
+                                    launchImmediately: !!checked,
+                                  })
                                 }
                               />
+                              <Label
+                                htmlFor="launchNow"
+                                className="text-base font-normal cursor-pointer"
+                              >
+                                Launch now
+                              </Label>
                             </div>
 
+                            {/* Schedule for later checkbox */}
+                            <div className="flex items-center space-x-3">
+                              <Checkbox
+                                id="scheduleLater"
+                                checked={!formData.launchImmediately}
+                                onCheckedChange={(checked: boolean) =>
+                                  updateFormData({
+                                    launchImmediately: !checked,
+                                  })
+                                }
+                              />
+                              <Label
+                                htmlFor="scheduleLater"
+                                className="text-base font-normal cursor-pointer"
+                              >
+                                Schedule for later
+                              </Label>
+                            </div>
+
+                            {/* Date and Time Pickers - shown when Schedule for later is checked */}
                             {!formData.launchImmediately && (
-                              <div className="space-y-4 pt-4 border-t">
-                                <div>
+                              <div className="flex gap-4 pt-4">
+                                {/* Date Picker */}
+                                <div className="flex flex-col gap-3 flex-1">
                                   <Label
-                                    htmlFor="launchDate"
-                                    className="flex items-center gap-2"
+                                    htmlFor="date-picker"
+                                    className="text-base font-normal"
                                   >
-                                    <Calendar className="h-4 w-4" />
-                                    Launch Date & Time *
+                                    Date
                                   </Label>
-                                  <Input
-                                    id="launchDate"
-                                    type="datetime-local"
-                                    value={formData.launchDate}
-                                    onChange={(e) =>
-                                      updateFormData({
-                                        launchDate: e.target.value,
-                                      })
-                                    }
-                                    className={
-                                      errors.launchDate
-                                        ? "border-destructive"
-                                        : ""
-                                    }
-                                    min={new Date(Date.now() + 10 * 60 * 1000)
-                                      .toISOString()
-                                      .slice(0, 16)}
-                                  />
+                                  <Popover
+                                    open={datePickerOpen}
+                                    onOpenChange={setDatePickerOpen}
+                                  >
+                                    <PopoverTrigger asChild>
+                                      <Button
+                                        variant="outline"
+                                        id="date-picker"
+                                        className="w-full justify-between font-normal h-11"
+                                      >
+                                        {formData.launchDate
+                                          ? new Date(
+                                              formData.launchDate
+                                            ).toLocaleDateString()
+                                          : "Select date"}
+                                        <ChevronDown className="h-4 w-4" />
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent
+                                      className="w-auto p-0"
+                                      align="start"
+                                    >
+                                      <CalendarComponent
+                                        mode="single"
+                                        selected={
+                                          formData.launchDate
+                                            ? new Date(formData.launchDate)
+                                            : undefined
+                                        }
+                                        onSelect={(date: Date | undefined) => {
+                                          if (date) {
+                                            updateFormData({
+                                              launchDate: date
+                                                .toISOString()
+                                                .split("T")[0],
+                                            });
+                                            setDatePickerOpen(false);
+                                          }
+                                        }}
+                                        disabled={(date: Date) => {
+                                          const today = new Date();
+                                          today.setHours(0, 0, 0, 0);
+                                          return date < today;
+                                        }}
+                                        initialFocus
+                                      />
+                                    </PopoverContent>
+                                  </Popover>
                                   {errors.launchDate && (
-                                    <p className="text-xs text-destructive mt-1">
+                                    <p className="text-xs text-destructive">
                                       {errors.launchDate}
                                     </p>
                                   )}
                                 </div>
 
-                                <div>
-                                  <Label htmlFor="timezone">Timezone</Label>
-                                  <Input
-                                    id="timezone"
-                                    value={formData.timezone}
-                                    disabled
-                                    className="bg-muted"
-                                  />
-                                </div>
-
-                                {formData.launchDate && (
-                                  <div className="p-4 bg-muted rounded-lg">
-                                    <p className="text-sm font-medium mb-1">
-                                      Scheduled Launch
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">
-                                      {new Date(
-                                        formData.launchDate
-                                      ).toLocaleString(undefined, {
-                                        dateStyle: "full",
-                                        timeStyle: "long",
-                                      })}
-                                    </p>
+                                {/* Time Picker */}
+                                <div className="flex flex-col gap-3 flex-1">
+                                  <Label
+                                    htmlFor="time-picker"
+                                    className="text-base font-normal"
+                                  >
+                                    Time
+                                  </Label>
+                                  <div className="relative">
+                                    <Input
+                                      type="time"
+                                      id="time-picker"
+                                      value={formData.launchTime}
+                                      onChange={(e) =>
+                                        updateFormData({
+                                          launchTime: e.target.value,
+                                        })
+                                      }
+                                      className="h-11"
+                                    />
+                                    <Clock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                                   </div>
-                                )}
+                                </div>
                               </div>
                             )}
-                          </CardContent>
-                        </Card>
+                          </div>
+                        </div>
                       </div>
                     )}
 
                     {/* Step 7: Review & Payment */}
                     {step === 7 && (
-                      <div className="space-y-6">
-                        <Card>
-                          <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                              <Code className="h-5 w-5" />
-                              {formData.chainName}
-                            </CardTitle>
-                            <CardDescription>{formData.ticker}</CardDescription>
-                          </CardHeader>
-                          <CardContent className="space-y-4">
-                            <p className="text-sm">{formData.description}</p>
+                      <div className="space-y-8">
+                        {/* Chain Details Section */}
+                        <div>
+                          <h3 className="text-lg font-medium text-muted-foreground mb-6">
+                            Chain Details
+                          </h3>
+                          <div className="space-y-3">
+                            <div className="flex items-baseline">
+                              <span className="text-base">Name:</span>
+                              <span className="ml-2 font-semibold">
+                                {formData.chainName}
+                              </span>
+                            </div>
+                            <div className="flex items-baseline">
+                              <span className="text-base">Token:</span>
+                              <span className="ml-2 font-semibold">
+                                {formData.ticker}
+                              </span>
+                            </div>
+                            <div className="flex items-baseline">
+                              <span className="text-base">Supply:</span>
+                              <span className="ml-2 font-semibold">
+                                {Number(formData.tokenSupply).toLocaleString()}{" "}
+                                {formData.ticker}
+                              </span>
+                            </div>
+                            <div className="flex items-baseline">
+                              <span className="text-base">Template:</span>
+                              <span className="ml-2 font-semibold">
+                                {getTemplateById(formData.template)
+                                  ?.template_name || "N/A"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
 
+                        <Separator />
+
+                        {/* Launch Settings Section */}
+                        <div>
+                          <h3 className="text-lg font-medium text-muted-foreground mb-6">
+                            Launch Settings
+                          </h3>
+                          <div className="space-y-3">
+                            <div className="flex items-baseline">
+                              <span className="text-base">Graduation:</span>
+                              <span className="ml-2 font-semibold">
+                                ${formData.graduationThreshold.toLocaleString()}{" "}
+                                market cap
+                              </span>
+                            </div>
+                            <div className="flex items-baseline">
+                              <span className="text-base">Initial Buy:</span>
+                              <span className="ml-2 font-semibold">
+                                {formData.initialPurchaseAmount || "0"} CNPY
+                              </span>
+                            </div>
+                            <div className="flex items-baseline">
+                              <span className="text-base">Schedule:</span>
+                              <span className="ml-2 font-semibold">
+                                {formData.launchImmediately
+                                  ? "Launch now"
+                                  : formData.launchDate && formData.launchTime
+                                  ? `${new Date(
+                                      formData.launchDate
+                                    ).toLocaleDateString("en-US", {
+                                      month: "long",
+                                      day: "numeric",
+                                      year: "numeric",
+                                    })} - ${formData.launchTime}`
+                                  : "Launch now"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Payment Summary */}
+                        <div className="border-2 rounded-lg p-6 space-y-6">
+                          <h3 className="text-lg font-medium text-muted-foreground">
+                            Payment Summary
+                          </h3>
+
+                          <div className="space-y-4">
+                            <div className="flex items-baseline justify-between">
+                              <span className="text-base">Creation Fee:</span>
+                              <span className="font-semibold">100 CNPY</span>
+                            </div>
+                            <div className="flex items-baseline justify-between">
+                              <span className="text-base">
+                                Initial Purchase:
+                              </span>
+                              <span className="font-semibold">
+                                {formData.initialPurchaseAmount || "0"} CNPY
+                              </span>
+                            </div>
                             <Separator />
-
-                            <div className="grid gap-3 md:grid-cols-2 text-sm">
-                              <div>
-                                <Label className="text-xs font-medium text-muted-foreground">
-                                  Template
-                                </Label>
-                                <p className="font-medium">
-                                  {
-                                    getTemplateById(formData.template)
-                                      ?.template_name
-                                  }
-                                </p>
-                              </div>
-                              <div>
-                                <Label className="text-xs font-medium text-muted-foreground">
-                                  Token Supply
-                                </Label>
-                                <p className="font-medium">
-                                  {Number(
-                                    formData.tokenSupply
-                                  ).toLocaleString()}
-                                </p>
-                              </div>
-                              <div>
-                                <Label className="text-xs font-medium text-muted-foreground">
-                                  Decimals
-                                </Label>
-                                <p className="font-medium">
-                                  {formData.decimals}
-                                </p>
-                              </div>
-                              <div>
-                                <Label className="text-xs font-medium text-muted-foreground">
-                                  Website
-                                </Label>
-                                <p className="font-medium truncate">
-                                  {formData.website}
-                                </p>
-                              </div>
-                              <div>
-                                <Label className="text-xs font-medium text-muted-foreground">
-                                  GitHub
-                                </Label>
-                                <p className="font-medium truncate">
-                                  {formData.githubRepo}
-                                </p>
-                              </div>
-                              <div>
-                                <Label className="text-xs font-medium text-muted-foreground">
-                                  Launch
-                                </Label>
-                                <p className="font-medium">
-                                  {formData.launchImmediately
-                                    ? "Immediately"
-                                    : new Date(
-                                        formData.launchDate
-                                      ).toLocaleDateString()}
-                                </p>
-                              </div>
+                            <div className="flex items-baseline justify-between">
+                              <span className="text-base font-semibold">
+                                Total:
+                              </span>
+                              <span className="font-semibold">
+                                {100 +
+                                  parseFloat(
+                                    formData.initialPurchaseAmount || "0"
+                                  )}{" "}
+                                CNPY (~$
+                                {(
+                                  (100 +
+                                    parseFloat(
+                                      formData.initialPurchaseAmount || "0"
+                                    )) *
+                                  2
+                                ).toFixed(0)}
+                                )
+                              </span>
                             </div>
+                          </div>
 
-                            <Separator />
-
-                            <div className="space-y-3">
-                              <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                  Creation Fee
-                                </span>
-                                <span className="font-medium">100 CNPY</span>
-                              </div>
-                              <Separator />
-                              <div className="flex justify-between font-medium">
-                                <span>Total Cost</span>
-                                <span className="text-lg">100 CNPY</span>
-                              </div>
+                          {/* Important Notice */}
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-2">
+                              <AlertCircle className="h-5 w-5" />
+                              <span className="font-semibold">Important</span>
                             </div>
+                            <ul className="space-y-2 ml-7 list-disc">
+                              <li className="text-sm">
+                                Starts as virtual chain (test mode)
+                              </li>
+                              <li className="text-sm">
+                                Becomes real at $50k market cap
+                              </li>
+                              <li className="text-sm">
+                                Settings cannot be changed later
+                              </li>
+                            </ul>
+                          </div>
+                        </div>
 
-                            <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-900">
-                              <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
-                              <div className="space-y-1 text-sm">
-                                <p className="font-medium text-amber-900 dark:text-amber-100">
-                                  Risk Acknowledgment
-                                </p>
-                                <p className="text-amber-800 dark:text-amber-200">
-                                  Tokens launch in a virtual bonding curve pool.
-                                  There is no external liquidity guarantee.
-                                  Chain parameters are immutable after creation.
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-2 pt-2">
-                              <Switch
-                                id="riskAcknowledgment"
-                                checked={formData.riskAcknowledgment}
-                                onCheckedChange={(checked) =>
-                                  updateFormData({
-                                    riskAcknowledgment: checked,
-                                  })
-                                }
-                              />
-                              <Label
-                                htmlFor="riskAcknowledgment"
-                                className="text-sm cursor-pointer"
-                              >
-                                I understand and acknowledge the risks
-                              </Label>
-                            </div>
-                            {errors.riskAcknowledgment && (
-                              <p className="text-xs text-destructive">
-                                {errors.riskAcknowledgment}
-                              </p>
-                            )}
-                          </CardContent>
-                        </Card>
+                        {errors.submit && (
+                          <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm flex items-center gap-2">
+                            <AlertCircle className="h-4 w-4" />
+                            {errors.submit}
+                          </div>
+                        )}
                       </div>
                     )}
 
                     {/* Navigation Buttons */}
-                    <div className="flex items-center justify-between pt-8 border-t">
-                      <WizardBackButton
-                        onClick={handleBack}
-                        disabled={step === 1 || isLoading}
-                      />
-                      <div className="flex gap-3">
-                        {step < 7 ? (
+                    <div className="flex flex-col gap-4 pt-8 border-t">
+                      {step < 7 ? (
+                        <div className="flex items-center justify-between">
+                          <WizardBackButton
+                            onClick={handleBack}
+                            disabled={step === 1 || isLoading}
+                          />
                           <WizardContinueButton
                             onClick={handleNext}
                             disabled={isLoading || (step === 1 && !launchType)}
                           />
-                        ) : (
+                        </div>
+                      ) : (
+                        <>
                           <Button
                             onClick={handleSubmit}
-                            disabled={isLoading || !formData.riskAcknowledgment}
+                            disabled={isLoading}
                             size="lg"
-                            className="px-8"
+                            className="w-full"
                           >
-                            {isLoading ? "Creating..." : "Create Chain"}
+                            {isLoading
+                              ? "Processing..."
+                              : "Connect Wallet & Pay"}
                           </Button>
-                        )}
-                      </div>
+                          <Button
+                            variant="outline"
+                            onClick={handleBack}
+                            disabled={isLoading}
+                            size="lg"
+                            className="w-full"
+                          >
+                            Back
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
