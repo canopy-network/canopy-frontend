@@ -22,7 +22,7 @@ jobs:
         env:
           DEPLOY_PATH: canopy-frontend
           NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }} # Explicitly reference it
-          NEXTAUTH_SECRET: ${{ vars.NEXTAUTH_SECRET }} # Explicitly reference it
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }} # Explicitly reference it
         with:
           host: ${{ secrets.SSH_DEPLOY_HOST }}
           username: ${{ secrets.SSH_DEPLOY_USERNAME }}
