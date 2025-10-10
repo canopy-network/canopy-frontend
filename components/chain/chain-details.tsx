@@ -23,6 +23,8 @@ import {
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
 import { BondingCurveChart } from "@/components/launchpad/bonding-curve-chart";
+
+import { ChainDetailsHeader } from "@/components/chain/chain-details-header";
 import {
   LineChart,
   Line,
@@ -34,9 +36,6 @@ import {
 } from "recharts";
 import {
   TrendingUp,
-  Share2,
-  Star,
-  Bell,
   ChevronDown,
   ChevronUp,
   ArrowRight,
@@ -47,6 +46,7 @@ import {
 } from "lucide-react";
 import { ChainWithUI } from "@/lib/stores/chains-store";
 import { VirtualPool } from "@/types/chains";
+import { ChainDetailChart } from "@/components/charts/chain-detail-chart";
 
 interface ChainDetailsProps {
   chain: ChainWithUI;
@@ -54,26 +54,12 @@ interface ChainDetailsProps {
 }
 
 export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [isPriceAlertSet, setIsPriceAlertSet] = useState(false);
   const [showBondingCurve, setShowBondingCurve] = useState(false);
   const [buyAmount, setBuyAmount] = useState("0");
   const [purchaseType, setPurchaseType] = useState("one-time");
 
   const copyAddress = () => {
     navigator.clipboard.writeText(chain.chain_id || "");
-  };
-
-  const shareProject = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: chain.chain_name,
-        text: chain.chain_description,
-        url: window.location.href,
-      });
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-    }
   };
 
   // Use actual chain chart data
@@ -85,69 +71,36 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
     price: point.value,
   }));
 
-  return (
-    <div className="flex flex-col h-full  max-w-8xl mx-auto">
-      {/* Header */}
-      <div className="border-b border-gray-800 p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-sm">
-                {chain.token_symbol?.charAt(0) || "₿"}
-              </span>
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-white">
-                {chain.chain_name}
-              </h1>
-              <p className="text-sm text-gray-400">{chain.token_symbol}</p>
-            </div>
-          </div>
+  const test_data = [
+    { value: 0.015, time: 1640995200 }, // High start
+    { value: 0.012, time: 1641000000 }, // Initial drop
+    { value: 0.008, time: 1641004800 }, // Significant drop
+    { value: 0.006, time: 1641009600 }, // Lower point
+    { value: 0.007, time: 1641014400 }, // Small recovery
+    { value: 0.005, time: 1641019200 }, // Another drop
+    { value: 0.008, time: 1641024000 }, // Upward movement
+    { value: 0.009, time: 1641028800 }, // Continuing up
+    { value: 0.011, time: 1641033600 }, // Building momentum
+    { value: 0.013, time: 1641038400 }, // Strong upward trend
+    { value: 0.016, time: 1641043200 }, // Approaching peak
+    { value: 0.018, time: 1641048000 }, // Sharp peak
+    { value: 0.012, time: 1641052800 }, // Sharp drop after peak
+    { value: 0.009, time: 1641057600 }, // Lower fluctuations
+    { value: 0.01, time: 1641062400 }, // Small recovery
+    { value: 0.008, time: 1641067200 }, // Drop again
+    { value: 0.011, time: 1641072000 }, // Final small peak
+    { value: 0.009, time: 1641076800 }, // End lower
+  ];
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsFollowing(!isFollowing)}
-              className={`${
-                isFollowing
-                  ? "bg-green-500 text-white border-green-500"
-                  : "bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700"
-              }`}
-            >
-              <Star
-                className={`h-4 w-4 mr-1 ${isFollowing ? "fill-current" : ""}`}
-              />
-              {isFollowing ? "Following" : "Follow"}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsPriceAlertSet(!isPriceAlertSet)}
-              className={`${
-                isPriceAlertSet
-                  ? "bg-blue-500 text-white border-blue-500"
-                  : "bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700"
-              }`}
-            >
-              <Bell
-                className={`h-4 w-4 mr-1 ${
-                  isPriceAlertSet ? "fill-current" : ""
-                }`}
-              />
-              Price Alert
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={shareProject}
-              className="bg-green-500 text-white border-green-500 hover:bg-green-600"
-            >
-              <Share2 className="h-4 w-4 mr-1" />
-              Share
-            </Button>
-          </div>
-        </div>
+  return (
+    <>
+      {/* Header */}
+      <main id="chain-details" className="w-full max-w-6xl mx-auto">
+        <ChainDetailsHeader chain={chain} />
+
+        <section className="mt-4">
+          <ChainDetailChart data={test_data} />
+        </section>
 
         {/* Navigation Tabs */}
         <div className="mt-4">
@@ -408,7 +361,7 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
 
                 {/* Right Column - Trading */}
                 <div className="space-y-6">
-                  {/* Buy/Sell Section */}
+                  {/* Buy/Sell main */}
                   <Card className="bg-gray-900 border-gray-800">
                     <CardContent className="p-6">
                       <Tabs defaultValue="buy" className="w-full">
@@ -593,28 +546,7 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
             </TabsContent>
           </Tabs>
         </div>
-      </div>
-
-      {/* Bonding Curve Modal */}
-      {showBondingCurve && (
-        <BondingCurveChart
-          project={{
-            id: chain.id,
-            name: chain.chain_name,
-            description: chain.chain_description,
-            creator: chain.creator?.display_name || "Unknown",
-            progress: chain.progress,
-            raised: chain.raised,
-            target: chain.target,
-            participants: chain.participants,
-            timeLeft: chain.timeLeft,
-            status: chain.status,
-            bondingCurve: chain.bondingCurve,
-          }}
-          isOpen={showBondingCurve}
-          onClose={() => setShowBondingCurve(false)}
-        />
-      )}
-    </div>
+      </main>
+    </>
   );
 }
