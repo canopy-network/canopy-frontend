@@ -1,0 +1,131 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: # Allow manual triggering
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false # Don't cancel deployments in progress
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: DO
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          DEPLOY_PATH: canopy-frontend
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}  # Explicitly reference it
+        with:
+          host: ${{ secrets.SSH_DEPLOY_HOST }}
+          username: ${{ secrets.SSH_DEPLOY_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_DEPLOY_PORT || 22 }}
+          timeout: 10m
+          command_timeout: 10m
+          script_stop: true # Stop on first error
+          envs: DEPLOY_PATH,NEXT_PUBLIC_API_URL  # Pass both vars (comma-separated)
+          script: |
+            set -euo pipefail # Exit on error, undefined vars, pipe failures
+            
+            # Color output for better readability
+            RED='\033[0;31m'
+            GREEN='\033[0;32m'
+            YELLOW='\033[1;33m'
+            NC='\033[0m' # No Color
+            
+            set
+            echo API: $NEXT_PUBLIC_API_URL
+
+            echo -e "${GREEN}=== Starting Deployment ===${NC}"
+            echo "Timestamp: $(date '+%Y-%m-%d %H:%M:%S')"
+            echo "Commit: ${{ github.sha }}"
+            echo "Triggered by: ${{ github.actor }}"
+            
+            # Ensure we're in the correct directory
+            if [ ! -d "$HOME/$DEPLOY_PATH" ]; then
+              echo -e "${RED}Error: Directory $HOME/$DEPLOY_PATH does not exist${NC}"
+              exit 1
+            fi
+            
+            cd "$HOME/$DEPLOY_PATH"
+            echo -e "${GREEN}Working directory: $(pwd)${NC}"
+            
+            git fetch --all
+            git reset --hard origin/main
+
+            # Check if docker-compose is installed
+            if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
+              echo -e "${RED}Error: docker-compose is not installed${NC}"
+              exit 1
+            fi
+            
+            # Use 'docker compose' (v2) if available, otherwise fall back to 'docker-compose' (v1)
+            if docker compose version &> /dev/null; then
+              DOCKER_COMPOSE="docker compose"
+            else
+              DOCKER_COMPOSE="docker-compose"
+            fi
+            
+            echo -e "${YELLOW}=== Stopping services ===${NC}"
+            # Use docker-compose down instead of make for more control
+            $DOCKER_COMPOSE stop canopy-frontend || echo "Service not running"
+            
+            # Build the Docker image with environment variables
+            echo -e "${YELLOW}=== Building Docker image ===${NC}"
+            echo "Using API URL: $NEXT_PUBLIC_API_URL"
+            if ! NEXT_PUBLIC_API_URL="$NEXT_PUBLIC_API_URL" $DOCKER_COMPOSE build --no-cache canopy-frontend; then
+              echo -e "${RED}Error: Docker build failed${NC}"
+              exit 1
+            fi
+            
+            # Start the service
+            echo -e "${YELLOW}=== Starting services ===${NC}"
+            if ! $DOCKER_COMPOSE up -d canopy-frontend; then
+              echo -e "${RED}Error: Failed to start service${NC}"
+              exit 1
+            fi
+            
+            # Clean up old images
+            echo -e "${YELLOW}=== Cleaning up old images ===${NC}"
+            docker image prune -f --filter "until=72h" || true
+            
+            # Show final status
+            echo -e "${GREEN}=== Deployment completed successfully ===${NC}"
+            echo "Service status:"
+            $DOCKER_COMPOSE ps canopy-frontend
+            
+            echo ""
+            echo "Recent logs:"
+            $DOCKER_COMPOSE logs --tail=20 canopy-frontend
+            
+            echo ""
+            echo -e "${GREEN}Deployment finished at: $(date '+%Y-%m-%d %H:%M:%S')${NC}"
+      
+      - name: Deployment status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "✅ Deployment successful"
+          else
+            echo "❌ Deployment failed"
+            exit 1
+          fi
+      
+      - name: Notify on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🔴 Deployment failed! Check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.'
+            })
