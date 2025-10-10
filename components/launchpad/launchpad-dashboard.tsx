@@ -16,7 +16,6 @@ import { RecentsProjectsCarousel } from "./recents-projects-carousel";
 import { ChainWithUI } from "@/lib/stores/chains-store";
 import { Plus, Filter, BookOpen, RefreshCw, AlertCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { VirtualPoolTest } from "../debug/virtual-pool-test";
 
 // Mock data for fallback when API is not available
 const fallbackProjects: ChainWithUI[] = [

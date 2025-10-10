@@ -2,7 +2,7 @@ import type React from "react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Suspense } from "react";
-import { useWallet, WalletProvider } from "@/components/wallet/wallet-provider";
+import { WalletProvider } from "@/components/wallet/wallet-provider";
 import { WalletPopup } from "@/components/wallet/wallet-popup";
 import { Sidebar } from "@/components/layout/sidebar";
 import { CreateChainWizard } from "@/components/launchpad/create-chain-wizard";
