@@ -23,7 +23,7 @@ export const ChainDetailChart = ({
     layout: {
       background: {
         type: ColorType.Solid,
-        color: "transparent",
+        color: "transparent", // Black background
       },
       attributionLogo: false,
     },
@@ -32,12 +32,12 @@ export const ChainDetailChart = ({
     grid: {
       vertLines: {
         visible: true,
-        color: "#374151",
+        color: "#333333", // Lighter gray for black background
         style: 1, // Dotted lines
       },
       horzLines: {
         visible: true,
-        color: "#374151",
+        color: "#333333", // Lighter gray for black background
         style: 1, // Dotted lines
       },
     },
@@ -58,6 +58,7 @@ export const ChainDetailChart = ({
         return date.toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
+          hour12: true, // Show AM/PM
         });
       },
     },
@@ -70,6 +71,7 @@ export const ChainDetailChart = ({
     relativeGradient: false,
     lastPriceAnimation: 1,
     crosshairMarkerVisible: false,
+    color: "#1dd13a",
     priceLineVisible: false,
     crosshairMarkerBorderColor: "red",
   };
@@ -197,16 +199,56 @@ export const ChainDetailChart = ({
     });
     chart.timeScale().fitContent();
 
+    // Force style the time scale labels after chart is created
+    const styleTimeLabels = () => {
+      const timeAxisElements = chartContainerRef.current?.querySelectorAll(
+        '.tv-lightweight-charts__time-axis, .tv-lightweight-charts__time-axis *, [class*="time-axis"], [class*="time"]'
+      );
+      timeAxisElements?.forEach((element) => {
+        (element as HTMLElement).style.color = "#ff4444";
+        (element as HTMLElement).style.fontSize = "12px";
+      });
+    };
+
+    // Try multiple times to catch the elements
+    setTimeout(styleTimeLabels, 100);
+    setTimeout(styleTimeLabels, 500);
+    setTimeout(styleTimeLabels, 1000);
+
+    // Use MutationObserver to catch when elements are added
+    const observer = new MutationObserver(() => {
+      styleTimeLabels();
+    });
+
+    if (chartContainerRef.current) {
+      observer.observe(chartContainerRef.current, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+      });
+    }
+
     const handleResize = () => {
       if (chartContainerRef.current) {
         chart.applyOptions({ width: chartContainerRef.current.clientWidth });
       }
     };
 
+    chart.applyOptions({
+      layout: {
+        textColor: "rgba(255, 255, 255, 0.5)",
+      },
+    });
+
+    // Apply time scale styling after chart is created
+    chart.timeScale().applyOptions({
+      borderVisible: false,
+    });
     window.addEventListener("resize", handleResize);
 
     return () => {
       window.removeEventListener("resize", handleResize);
+      observer.disconnect();
       chart.remove();
     };
   }, [data]);
@@ -214,6 +256,31 @@ export const ChainDetailChart = ({
   return (
     <div className="w-full h-full relative">
       <style jsx>{`
+        /* Style the time scale labels to be red on black background */
+        :global(.tv-lightweight-charts__time-axis) {
+          color: #ff4444 !important;
+          font-size: 12px !important;
+        }
+        :global(
+            .tv-lightweight-charts__time-axis
+              .tv-lightweight-charts__time-axis__tick
+          ) {
+          color: #ff4444 !important;
+        }
+        :global(
+            .tv-lightweight-charts__time-axis
+              .tv-lightweight-charts__time-axis__tick-text
+          ) {
+          color: #ff4444 !important;
+        }
+        :global([class*="time-axis"]),
+        :global([class*="time-axis"] *),
+        :global(div[class*="time"]),
+        :global(span[class*="time"]) {
+          color: #ff4444 !important;
+          font-size: 12px !important;
+        }
+        /* Chart tooltip styling */
         .chart-tooltip {
           position: absolute;
           z-index: 1000;
@@ -233,17 +300,6 @@ export const ChainDetailChart = ({
         .chart-tooltip-date {
           color: #9ca3af;
           font-size: 11px;
-        }
-        /* Style the time scale labels */
-        :global(.tv-lightweight-charts__time-axis) {
-          color: #9ca3af !important;
-          font-size: 12px !important;
-        }
-        :global(
-            .tv-lightweight-charts__time-axis
-              .tv-lightweight-charts__time-axis__tick
-          ) {
-          color: #9ca3af !important;
         }
       `}</style>
       <div ref={chartContainerRef} className="w-full h-full" />

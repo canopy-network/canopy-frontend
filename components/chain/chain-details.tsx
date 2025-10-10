@@ -57,6 +57,7 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
   const [showBondingCurve, setShowBondingCurve] = useState(false);
   const [buyAmount, setBuyAmount] = useState("0");
   const [purchaseType, setPurchaseType] = useState("one-time");
+  const [selectedTimeframe, setSelectedTimeframe] = useState("1D");
 
   const copyAddress = () => {
     navigator.clipboard.writeText(chain.chain_id || "");
@@ -98,7 +99,26 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
       <main id="chain-details" className="w-full max-w-6xl mx-auto">
         <ChainDetailsHeader chain={chain} />
 
-        <section className="mt-4">
+        <section className="bg-white/[0.1] rounded-lg p-4">
+          {/* Timeframe Selection Buttons */}
+          <div className="flex items-center gap-2 mb-4">
+            {["1H", "1D", "1W", "1M", "1Y", "ALL"].map((timeframe) => (
+              <Button
+                key={timeframe}
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedTimeframe(timeframe)}
+                className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                  selectedTimeframe === timeframe
+                    ? "bg-gray-700 text-white"
+                    : "bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700"
+                }`}
+              >
+                {timeframe}
+              </Button>
+            ))}
+          </div>
+
           <ChainDetailChart data={test_data} />
         </section>
 
