@@ -47,7 +47,7 @@ export function SwapInterface({
       {/* From Token */}
       <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-4">
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 ">
             <div className="h-8 w-8 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-lg">
               {fromToken.icon}
             </div>
@@ -70,13 +70,15 @@ export function SwapInterface({
           </Button>
         </div>
 
-        <div className="relative">
+        <div className="relative flex flex-col items-center">
           <Input
             type="text"
             value={fromAmount}
             onChange={(e) => onFromAmountChange(e.target.value)}
             placeholder="$0"
-            className="text-3xl font-semibold bg-transparent border-none p-0 h-auto text-white placeholder:text-gray-600 focus-visible:ring-0"
+            size="wallet"
+            variant="wallet"
+            className="text-center text-[40px] border-none"
           />
           <p className="text-sm text-gray-400 mt-2">
             {fromAmount || "0"} {fromToken.symbol} ↕

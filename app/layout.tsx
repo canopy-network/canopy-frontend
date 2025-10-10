@@ -38,7 +38,7 @@ export default function RootLayout({
               <TemplatesInitializer />
               <div className="flex h-screen bg-background">
                 <Sidebar />
-                <main className="flex-1 overflow-auto">
+                <main className="w-full overflow-x-hidden">
                   <Header />
                   <Suspense fallback={null}>{children}</Suspense>
                 </main>

@@ -1,52 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Breadcrumb,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbSeparator,
-  BreadcrumbPage,
-} from "@/components/ui/breadcrumb";
-import { BondingCurveChart } from "@/components/launchpad/bonding-curve-chart";
-
 import { ChainDetailsHeader } from "@/components/chain/chain-details-header";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-import {
-  TrendingUp,
-  ChevronDown,
-  ChevronUp,
-  ArrowRight,
-  ExternalLink,
-  FileText,
-  Globe,
-  Twitter,
-} from "lucide-react";
 import { ChainWithUI } from "@/lib/stores/chains-store";
 import { VirtualPool } from "@/types/chains";
 import { ChainDetailChart } from "@/components/charts/chain-detail-chart";
+import { WalletContent } from "../wallet/wallet-content";
 
 interface ChainDetailsProps {
   chain: ChainWithUI;
@@ -54,23 +16,7 @@ interface ChainDetailsProps {
 }
 
 export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
-  const [showBondingCurve, setShowBondingCurve] = useState(false);
-  const [buyAmount, setBuyAmount] = useState("0");
-  const [purchaseType, setPurchaseType] = useState("one-time");
   const [selectedTimeframe, setSelectedTimeframe] = useState("1D");
-
-  const copyAddress = () => {
-    navigator.clipboard.writeText(chain.chain_id || "");
-  };
-
-  // Use actual chain chart data
-  const chartData = chain.chartData.map((point, index) => ({
-    time: new Date(point.time).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-    price: point.value,
-  }));
 
   const test_data = [
     { value: 0.015, time: 1640995200 }, // High start
@@ -94,9 +40,9 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
   ];
 
   return (
-    <>
+    <div className="w-full max-w-6xl mx-auto flex gap-4">
       {/* Header */}
-      <main id="chain-details" className="w-full max-w-6xl mx-auto">
+      <main id="chain-details">
         <ChainDetailsHeader chain={chain} />
 
         <section className="chain-details-live-data">
@@ -236,6 +182,10 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
           </Tabs>
         </div>
       </main>
-    </>
+
+      <aside className="w-full max-w-[352px] card h-fit p-4">
+        <WalletContent showBalance={false} />
+      </aside>
+    </div>
   );
 }
