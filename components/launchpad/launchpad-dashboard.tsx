@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useLaunchpadDashboard } from "@/lib/hooks/use-launchpad-dashboard";
 import { useCreateChainDialog } from "@/lib/stores/use-create-chain-dialog";
+import { useChainsStore } from "@/lib/stores/chains-store";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ import { RecentsProjectsCarousel } from "./recents-projects-carousel";
 import { ChainWithUI } from "@/lib/stores/chains-store";
 import { Plus, Filter, BookOpen, RefreshCw, AlertCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { VirtualPoolTest } from "../debug/virtual-pool-test";
 
 // Mock data for fallback when API is not available
 const fallbackProjects: ChainWithUI[] = [
@@ -160,6 +162,9 @@ export function LaunchpadDashboard() {
     includeVirtualPools: true,
   });
 
+  // Get virtual pools from the store for debugging
+  const { virtualPools } = useChainsStore();
+
   // Use fallback data if no projects are loaded
   const displayProjects = chains.length > 0 ? chains : fallbackProjects;
   const displayFilteredProjects =
@@ -205,7 +210,8 @@ export function LaunchpadDashboard() {
 
   useEffect(() => {
     console.log("displayFilteredChains", chains);
-  }, [chains]);
+    console.log("virtualPools", virtualPools);
+  }, [chains, virtualPools]);
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -273,7 +279,7 @@ export function LaunchpadDashboard() {
       )}
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 py-8">
+      <div className="container max-w-5xl mx-auto px-4 py-8">
         {/* Recent Projects Carousel */}
         <div className="mb-12">
           {chains.length > 0 ? (

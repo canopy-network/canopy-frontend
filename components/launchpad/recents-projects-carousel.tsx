@@ -37,7 +37,7 @@ export const RecentsProjectsCarousel = ({
       setCurrentIndex((prevIndex) =>
         prevIndex === displayProjects.length - 1 ? 0 : prevIndex + 1
       );
-    }, 3000);
+    }, 10000);
 
     return () => clearInterval(interval);
   }, [isAutoPlaying, displayProjects.length]);
@@ -94,11 +94,7 @@ export const RecentsProjectsCarousel = ({
       )}
 
       {/* Carousel Container */}
-      <div
-        className="relative overflow-hidden rounded-lg"
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-      >
+      <div className="relative  rounded-lg">
         <div
           className="flex transition-transform duration-500 ease-in-out"
           style={{ transform: `translateX(-${currentIndex * 100}%)` }}
@@ -107,7 +103,14 @@ export const RecentsProjectsCarousel = ({
             const virtualPool = virtualPools[project.id];
 
             return (
-              <div key={project.id} className="w-full flex-shrink-0">
+              <div
+                key={project.id}
+                className={`w-full flex-shrink-0 transition-opacity duration-500 ease-in-out ${
+                  index !== currentIndex
+                    ? "opacity-0 pointer-events-none"
+                    : "opacity-100 pointer-events-auto"
+                }`}
+              >
                 <ProjectCard
                   project={project}
                   virtualPool={virtualPool}
