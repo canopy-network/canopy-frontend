@@ -68,6 +68,17 @@ const tokens: Token[] = [
   },
 ];
 
+/**
+ * @typedef {Object} ButtonProps
+ * @property {string} label
+ * @property {boolean} disabled
+ */
+
+/**
+ * Renders a button.
+ * @param {ButtonProps} props
+ * @returns {HTMLElement}
+ */
 export function SwapInterface() {
   const [fromToken, setFromToken] = useState(tokens[0]);
   const [toToken, setToToken] = useState(tokens[1]);

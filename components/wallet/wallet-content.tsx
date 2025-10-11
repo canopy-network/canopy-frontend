@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useWallet } from "./wallet-provider";
+import type { CanopyWallet, ChainToken } from "@/types/chains";
 import {
   ArrowUpRight,
   ArrowDownLeft,
@@ -16,14 +17,6 @@ import {
   Wallet,
 } from "lucide-react";
 import { SwapInterface } from "./swap-interface";
-
-interface Token {
-  symbol: string;
-  name: string;
-  balance: string;
-  balanceUSD: string;
-  icon: string;
-}
 
 interface ActionButtonProps {
   activeTab: string;
@@ -69,6 +62,10 @@ function ActionButton({ activeTab }: ActionButtonProps) {
   );
 }
 
+/**
+ * Renders the wallet content.
+ * @property {boolean} showBalance - This renders the balance of current account in wallet
+ */
 export function WalletContent({
   showBalance = true,
 }: {
@@ -78,20 +75,60 @@ export function WalletContent({
   const [activeTab, setActiveTab] = useState("buy");
   const [fromAmount, setFromAmount] = useState("");
   const [toAmount, setToAmount] = useState("");
-  const [selectedFromToken, setSelectedFromToken] = useState<Token>({
+
+  // Mock Canopy wallet data
+  const mockCanopyWallet: CanopyWallet = {
+    cnpyAvailableAmount: 100000, // 100,000 CNPY available
+    usdCurrentPrice: 0.05, // 1 CNPY = $0.05 USD
+  };
+
+  // Calculate USD value of available CNPY
+  const totalUsdValue = (
+    mockCanopyWallet.cnpyAvailableAmount * mockCanopyWallet.usdCurrentPrice
+  ).toFixed(2);
+
+  // Define CNPY token
+  const cnpyToken: ChainToken = {
     symbol: "CNPY",
     name: "Canopy",
-    balance: "0",
-    balanceUSD: "$0.00",
+    balance: mockCanopyWallet.cnpyAvailableAmount.toString(),
+    balanceUSD: `$${totalUsdValue}`,
     icon: "🌳",
-  });
-  const [selectedToToken, setSelectedToToken] = useState<Token>({
+  };
+
+  // Define custom chain token (OBNB)
+  const customChainToken: ChainToken = {
     symbol: "OBNB",
     name: "Onchain BNB",
     balance: "0",
     balanceUSD: "$0.00",
     icon: "🔺",
-  });
+  };
+
+  const [selectedFromToken, setSelectedFromToken] =
+    useState<ChainToken>(cnpyToken);
+  const [selectedToToken, setSelectedToToken] =
+    useState<ChainToken>(customChainToken);
+
+  // Update tokens based on active tab
+  useEffect(() => {
+    if (activeTab === "buy") {
+      // Buy: USD → Custom Chain Token (using CNPY)
+      setSelectedFromToken(cnpyToken);
+      setSelectedToToken(customChainToken);
+    } else if (activeTab === "sell") {
+      // Sell: Custom Chain Token → CNPY
+      setSelectedFromToken(customChainToken);
+      setSelectedToToken(cnpyToken);
+    } else if (activeTab === "convert") {
+      // Convert: Keep CNPY → Custom Chain Token
+      setSelectedFromToken(cnpyToken);
+      setSelectedToToken(customChainToken);
+    }
+    // Clear amounts when switching tabs
+    setFromAmount("");
+    setToAmount("");
+  }, [activeTab]);
 
   const handleCopyAddress = () => {
     if (currentAccount?.address) {
@@ -100,16 +137,27 @@ export function WalletContent({
   };
 
   const handleSwapTokens = () => {
+    // Swap the tokens
     const temp = selectedFromToken;
     setSelectedFromToken(selectedToToken);
     setSelectedToToken(temp);
     const tempAmount = fromAmount;
     setFromAmount(toAmount);
     setToAmount(tempAmount);
+
+    // Switch tabs based on current tab
+    if (activeTab === "buy") {
+      setActiveTab("sell");
+    } else if (activeTab === "sell") {
+      setActiveTab("buy");
+    }
   };
 
   const handleUseMax = () => {
-    setFromAmount(selectedFromToken.balance);
+    // Convert CNPY balance to USD: CNPY amount * USD price per CNPY
+    const cnpyBalance = parseFloat(selectedFromToken.balance);
+    const usdAmount = cnpyBalance * mockCanopyWallet.usdCurrentPrice;
+    setFromAmount(usdAmount.toString());
   };
 
   return (
@@ -152,9 +200,9 @@ export function WalletContent({
           {/* Balance Display */}
           <div className="text-center py-4">
             <p className="text-3xl font-bold text-white mb-1">
-              {currentAccount.balance} ETH
+              {mockCanopyWallet.cnpyAvailableAmount.toLocaleString()} CNPY
             </p>
-            <p className="text-sm text-gray-400">≈ $2,469.12</p>
+            <p className="text-sm text-gray-400">≈ ${totalUsdValue}</p>
           </div>
         </div>
       )}
@@ -201,6 +249,8 @@ export function WalletContent({
               onToAmountChange={setToAmount}
               onSwapTokens={handleSwapTokens}
               onUseMax={handleUseMax}
+              cnpyAvailableAmount={mockCanopyWallet.cnpyAvailableAmount}
+              usdCurrentPrice={mockCanopyWallet.usdCurrentPrice}
             />
           </TabsContent>
 
@@ -214,6 +264,8 @@ export function WalletContent({
               onToAmountChange={setToAmount}
               onSwapTokens={handleSwapTokens}
               onUseMax={handleUseMax}
+              cnpyAvailableAmount={mockCanopyWallet.cnpyAvailableAmount}
+              usdCurrentPrice={mockCanopyWallet.usdCurrentPrice}
             />
           </TabsContent>
 
@@ -227,6 +279,8 @@ export function WalletContent({
               onToAmountChange={setToAmount}
               onSwapTokens={handleSwapTokens}
               onUseMax={handleUseMax}
+              cnpyAvailableAmount={mockCanopyWallet.cnpyAvailableAmount}
+              usdCurrentPrice={mockCanopyWallet.usdCurrentPrice}
             />
           </TabsContent>
         </div>
