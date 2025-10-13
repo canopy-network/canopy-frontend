@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChainDetailsHeader } from "@/components/chain/chain-details-header";
-import { ChainWithUI } from "@/lib/stores/chains-store";
+import { ChainWithUI, useChainsStore } from "@/lib/stores/chains-store";
 import { VirtualPool } from "@/types/chains";
 import { ChainDetailChart } from "@/components/charts/chain-detail-chart";
 import { WalletContent } from "../wallet/wallet-content";
@@ -140,6 +140,7 @@ const SAMPLE_CHART_DATA = {
 
 export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
   const [selectedTimeframe, setSelectedTimeframe] = useState("1D");
+  const setCurrentChain = useChainsStore((state) => state.setCurrentChain);
 
   const [chartData, setChartData] = useState<
     {
@@ -147,6 +148,16 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
       time: number;
     }[]
   >(SAMPLE_CHART_DATA["1D"]);
+
+  // Save chain to store when component mounts or chain changes
+  useEffect(() => {
+    setCurrentChain(chain);
+
+    // Cleanup: clear current chain when component unmounts
+    return () => {
+      setCurrentChain(null);
+    };
+  }, [chain, setCurrentChain]);
 
   useEffect(() => {
     const data =
