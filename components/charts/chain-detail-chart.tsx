@@ -13,11 +13,59 @@ import { format } from "date-fns";
 export const ChainDetailChart = ({
   data,
   isDark = true,
+  timeframe = "1D",
 }: {
   data: Array<{ time: string | number; value: number }>;
   isDark?: boolean;
+  timeframe?: string;
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
+
+  // Dynamic time formatter based on timeframe
+  const getTimeFormatter = (timeframe: string) => {
+    return (time: number) => {
+      const date = new Date(time * 1000);
+
+      switch (timeframe) {
+        case "1H":
+          // For 1 hour, show time like "8:05 PM"
+          return date.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          });
+        case "1D":
+          // For 1 day, show time like "8 PM"
+          return date.toLocaleTimeString([], {
+            hour: "2-digit",
+            hour12: true,
+          });
+        case "1W":
+          // For 1 week, show day like "Mon 8PM"
+          return date.toLocaleDateString([], {
+            weekday: "short",
+          });
+        case "1M":
+          // For 1 month, show day like "Oct 15"
+          return date.toLocaleDateString([], {
+            month: "short",
+            day: "numeric",
+          });
+        case "1Y":
+          // For 1 year, show month like "Oct 15"
+          return date.toLocaleDateString([], {
+            month: "short",
+            day: "numeric",
+          });
+        default:
+          return date.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          });
+      }
+    };
+  };
 
   const globalChartOptions = {
     layout: {
@@ -53,17 +101,10 @@ export const ChainDetailChart = ({
       borderVisible: false,
       timeVisible: true,
       secondsVisible: false,
-      tickMarkFormatter: (time: number) => {
-        const date = new Date(time * 1000);
-        return date.toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true, // Show AM/PM
-        });
-      },
+      tickMarkFormatter: getTimeFormatter(timeframe),
     },
-    handleScroll: false,
-    handleScale: false,
+    handleScroll: true, // Enable horizontal scrolling (pan)
+    handleScale: true, // Enable pinch-to-zoom and mouse wheel zoom
   };
 
   const areaSeriesOptions = {
@@ -251,10 +292,13 @@ export const ChainDetailChart = ({
       observer.disconnect();
       chart.remove();
     };
-  }, [data]);
+  }, [data, timeframe]);
 
   return (
-    <div className="w-full h-full relative">
+    <div
+      className="w-full h-full relative"
+      title="Use mouse wheel to zoom, click and drag to pan"
+    >
       <style jsx>{`
         /* Style the time scale labels to be red on black background */
         :global(.tv-lightweight-charts__time-axis) {
