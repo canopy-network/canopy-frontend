@@ -16,7 +16,10 @@ export default async function ChainPage({ params }: ChainPageProps) {
   try {
     // Fetch chain data from our API route
     const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "").trim();
-    const response = await fetch(`${apiUrl}/api/v1/chains/${params.id}`, {
+
+    const requestUrl = `${apiUrl}/api/v1/chains/${params.id}`;
+    console.log("Requesting URL:", requestUrl);
+    const response = await fetch(requestUrl, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
