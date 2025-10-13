@@ -23,6 +23,7 @@ jobs:
           DEPLOY_PATH: canopy-frontend
           NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }} # Explicitly reference it
           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }} # Explicitly reference it
+          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }} # Explicitly reference it
         with:
           host: ${{ secrets.SSH_DEPLOY_HOST }}
           username: ${{ secrets.SSH_DEPLOY_USERNAME }}
@@ -31,7 +32,7 @@ jobs:
           timeout: 10m
           command_timeout: 10m
           script_stop: true # Stop on first error
-          envs: DEPLOY_PATH,NEXT_PUBLIC_API_URL,NEXTAUTH_SECRET # Pass both vars (comma-separated)
+          envs: DEPLOY_PATH,NEXT_PUBLIC_API_URL,NEXTAUTH_SECRET,NEXTAUTH_URL # Pass both vars (comma-separated)
           script: |
             set -euo pipefail # Exit on error, undefined vars, pipe failures
 
