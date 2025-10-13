@@ -2,6 +2,10 @@ import { ChainDetails } from "@/components/chain/chain-details";
 import { convertToChainWithUI } from "@/lib/utils/chain-converter";
 import { notFound } from "next/navigation";
 
+// Force dynamic rendering to ensure params are always fresh
+export const dynamic = "force-dynamic";
+export const dynamicParams = true;
+
 interface ChainPageProps {
   params: {
     id: string;
@@ -14,10 +18,16 @@ interface ApiResponse {
 
 export default async function ChainPage({ params }: ChainPageProps) {
   try {
+    // Decode the chain ID in case it's URL encoded
+    const chainId = decodeURIComponent(params.id);
+
+    console.log("Chain ID from params (raw):", params.id);
+    console.log("Chain ID from params (decoded):", chainId);
+
     // Fetch chain data from our API route
     const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "").trim();
 
-    const requestUrl = `${apiUrl}/api/v1/chains/${params.id}`;
+    const requestUrl = `${apiUrl}/api/v1/chains/${chainId}`;
     console.log("Requesting URL:", requestUrl);
     const response = await fetch(requestUrl, {
       method: "GET",
@@ -47,7 +57,7 @@ export default async function ChainPage({ params }: ChainPageProps) {
     if (!data.data) {
       console.error("API returned no chain data:", {
         responseData: data,
-        chainId: params.id,
+        chainId: chainId,
       });
       notFound();
     }
@@ -65,7 +75,8 @@ export default async function ChainPage({ params }: ChainPageProps) {
       error,
       message: error instanceof Error ? error.message : "Unknown error",
       stack: error instanceof Error ? error.stack : undefined,
-      chainId: params.id,
+      chainId: params?.id || "unknown",
+      rawParamsId: params?.id,
       apiUrl: (process.env.NEXT_PUBLIC_API_URL || "").trim(),
     });
     notFound();
