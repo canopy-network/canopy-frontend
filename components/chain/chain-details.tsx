@@ -161,7 +161,31 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
       <main id="chain-details">
         <ChainDetailsHeader chain={chain} />
 
-        <section className="chain-details-live-data">
+        <section className="chain-details-live-data px-1 border border-white/[0.1] rounded-lg">
+          <div className="flex items-center gap-2 px-3 py-4">
+            <div className="flex flex-col">
+              <span className="text-white/50 text-sm ">Price</span>
+              <span className="text-white/50 text-sm">
+                <span className="text-white font-medium text-3xl mr-1">
+                  25K
+                </span>
+                +$1.93
+              </span>
+            </div>
+
+            <div className="flex flex-col flex-1 ml-auto items-end">
+              <span className="text-white/50 text-sm mb-2">
+                $233.23k until graduation
+              </span>
+              <span className="w-full bg-white/[0.1] rounded-full h-6 overflow-hidden max-w-[220px]">
+                <span
+                  className="bg-gradient-to-r block from-green-500 to-green-400 h-full rounded-full transition-all duration-500"
+                  style={{ width: "35%" }}
+                />
+              </span>
+            </div>
+          </div>
+
           <div
             id="chart-container"
             className="bg-white/[0.1] rounded-lg py-4 px-5 mb-2 relative"
@@ -187,7 +211,7 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
             <ChainDetailChart data={chartData} timeframe={selectedTimeframe} />
           </div>
 
-          <div className="flex items-center justify-between bg-white/[0.1] rounded-lg py-4 px-5">
+          <div className="flex items-center justify-between bg-white/[0.1] rounded-lg py-4 px-5 mb-1">
             <h3 className="text-white font-medium">Live updates</h3>
 
             <div className="flex items-center gap-6 ml-auto">
