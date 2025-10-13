@@ -1,6 +1,7 @@
 import { ChainDetails } from "@/components/chain/chain-details";
 import { convertToChainWithUI } from "@/lib/utils/chain-converter";
 import { notFound } from "next/navigation";
+import axios from "axios";
 
 // Force dynamic rendering to ensure params are always fresh
 export const dynamic = "force-dynamic";
@@ -29,40 +30,27 @@ export default async function ChainPage({ params }: ChainPageProps) {
 
     const requestUrl = `${apiUrl}/api/v1/chains/${chainId}`;
     console.log("Requesting URL:", requestUrl);
-    const response = await fetch(requestUrl, {
-      method: "GET",
+
+    const response = await axios.get<ApiResponse>(requestUrl, {
       headers: {
         "Content-Type": "application/json",
       },
-      // Add cache control for better performance
-      next: { revalidate: 60 }, // Revalidate every 60 seconds
+      timeout: 10000, // 10 second timeout
     });
 
     let chainData;
     let virtualPool = null;
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Failed to fetch chain data:`, {
-        status: response.status,
-        statusText: response.statusText,
-        url: response.url,
-        body: errorText,
-      });
-      notFound();
-    }
-
-    const data: ApiResponse = await response.json();
-
-    if (!data.data) {
+    console.log("Response Status:", response.status);
+    if (!response.data.data) {
       console.error("API returned no chain data:", {
-        responseData: data,
+        responseData: response.data,
         chainId: chainId,
       });
       notFound();
     }
 
-    chainData = data.data;
+    chainData = response.data.data;
 
     //TODO: We need to get rid of the ChainWithUI converter and just use the Chain type for all components
 
@@ -71,14 +59,29 @@ export default async function ChainPage({ params }: ChainPageProps) {
 
     return <ChainDetails chain={chainWithUI} virtualPool={virtualPool} />;
   } catch (error) {
-    console.error("Error fetching chain data:", {
-      error,
-      message: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-      chainId: params?.id || "unknown",
-      rawParamsId: params?.id,
-      apiUrl: (process.env.NEXT_PUBLIC_API_URL || "").trim(),
-    });
+    if (axios.isAxiosError(error)) {
+      // Axios-specific error
+      console.error("Error fetching chain data:", {
+        error: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        chainId: params?.id || "unknown",
+        rawParamsId: params?.id,
+        apiUrl: (process.env.NEXT_PUBLIC_API_URL || "").trim(),
+        requestUrl: error.config?.url,
+      });
+    } else {
+      // Generic error
+      console.error("Error fetching chain data:", {
+        error,
+        message: error instanceof Error ? error.message : "Unknown error",
+        stack: error instanceof Error ? error.stack : undefined,
+        chainId: params?.id || "unknown",
+        rawParamsId: params?.id,
+        apiUrl: (process.env.NEXT_PUBLIC_API_URL || "").trim(),
+      });
+    }
     notFound();
   }
 }
