@@ -11,7 +11,9 @@
 
 export const API_CONFIG = {
   // Base URL for the API
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://app.neochiba.net:3001",
+  baseURL: (
+    process.env.NEXT_PUBLIC_API_URL || "http://app.neochiba.net:3001"
+  ).trim(),
 
   // Development mode settings
   devMode: process.env.NEXT_PUBLIC_DEV_MODE === "true",

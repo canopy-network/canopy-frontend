@@ -15,17 +15,15 @@ interface ApiResponse {
 export default async function ChainPage({ params }: ChainPageProps) {
   try {
     // Fetch chain data from our API route
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/v1/chains/${params.id}`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        // Add cache control for better performance
-        next: { revalidate: 60 }, // Revalidate every 60 seconds
-      }
-    );
+    const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "").trim();
+    const response = await fetch(`${apiUrl}/api/v1/chains/${params.id}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      // Add cache control for better performance
+      next: { revalidate: 60 }, // Revalidate every 60 seconds
+    });
 
     let chainData;
     let virtualPool = null;
@@ -65,7 +63,7 @@ export default async function ChainPage({ params }: ChainPageProps) {
       message: error instanceof Error ? error.message : "Unknown error",
       stack: error instanceof Error ? error.stack : undefined,
       chainId: params.id,
-      apiUrl: process.env.NEXT_PUBLIC_API_URL,
+      apiUrl: (process.env.NEXT_PUBLIC_API_URL || "").trim(),
     });
     notFound();
   }
