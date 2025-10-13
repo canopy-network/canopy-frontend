@@ -41,14 +41,14 @@ const SAMPLE_CHART_DATA = {
   "1H": generateIntradayData(
     Math.floor(Date.now() / 1000) - 3600, // 1 hour ago
     Math.floor(Date.now() / 1000),
-    5, // 5-minute intervals
+    2, // 2-minute intervals (30 data points)
     0.015,
     0.002
   ),
   "1D": generateIntradayData(
     Math.floor(Date.now() / 1000) - 86400, // 1 day ago
     Math.floor(Date.now() / 1000),
-    60, // 1-hour intervals
+    15, // 15-minute intervals (96 data points)
     0.012,
     0.003
   ),
@@ -162,7 +162,10 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
         <ChainDetailsHeader chain={chain} />
 
         <section className="chain-details-live-data">
-          <div className="bg-white/[0.1] rounded-lg py-4 px-5 mb-2">
+          <div
+            id="chart-container"
+            className="bg-white/[0.1] rounded-lg py-4 px-5 mb-2 relative"
+          >
             <div className="flex items-center gap-2 mb-4">
               {(["1H", "1D", "1W", "1M", "1Y"] as const).map((timeframe) => (
                 <Button

@@ -1,12 +1,13 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import {
   createChart,
   ColorType,
   AreaSeries,
   LineWidth,
   LineSeries,
+  IChartApi,
 } from "lightweight-charts";
 import { format } from "date-fns";
 
@@ -20,6 +21,14 @@ export const ChainDetailChart = ({
   timeframe?: string;
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+
+  // Reset chart to default view
+  const handleResetChart = () => {
+    if (chartRef.current) {
+      chartRef.current.timeScale().fitContent();
+    }
+  };
 
   // Dynamic time formatter based on timeframe
   const getTimeFormatter = (timeframe: string) => {
@@ -102,6 +111,9 @@ export const ChainDetailChart = ({
       timeVisible: true,
       secondsVisible: false,
       tickMarkFormatter: getTimeFormatter(timeframe),
+      minBarSpacing: 4, // Minimum spacing between bars (limits zoom out) - prevents extreme zoom out
+      barSpacing: 8, // Initial spacing between bars
+      rightOffset: 5, // Space on the right side
     },
     handleScroll: true, // Enable horizontal scrolling (pan)
     handleScale: true, // Enable pinch-to-zoom and mouse wheel zoom
@@ -124,6 +136,7 @@ export const ChainDetailChart = ({
     chartContainerRef.current.appendChild(toolTip);
 
     const chart = createChart(chartContainerRef.current, globalChartOptions);
+    chartRef.current = chart; // Store chart reference
 
     const series = chart.addSeries(LineSeries, areaSeriesOptions);
 
@@ -291,62 +304,88 @@ export const ChainDetailChart = ({
       window.removeEventListener("resize", handleResize);
       observer.disconnect();
       chart.remove();
+      chartRef.current = null;
     };
   }, [data, timeframe]);
 
   return (
-    <div
-      className="w-full h-full relative"
-      title="Use mouse wheel to zoom, click and drag to pan"
-    >
-      <style jsx>{`
-        /* Style the time scale labels to be red on black background */
-        :global(.tv-lightweight-charts__time-axis) {
-          color: #ff4444 !important;
-          font-size: 12px !important;
-        }
-        :global(
-            .tv-lightweight-charts__time-axis
-              .tv-lightweight-charts__time-axis__tick
-          ) {
-          color: #ff4444 !important;
-        }
-        :global(
-            .tv-lightweight-charts__time-axis
-              .tv-lightweight-charts__time-axis__tick-text
-          ) {
-          color: #ff4444 !important;
-        }
-        :global([class*="time-axis"]),
-        :global([class*="time-axis"] *),
-        :global(div[class*="time"]),
-        :global(span[class*="time"]) {
-          color: #ff4444 !important;
-          font-size: 12px !important;
-        }
-        /* Chart tooltip styling */
-        .chart-tooltip {
-          position: absolute;
-          z-index: 1000;
-          pointer-events: none;
-          background: #1f2937;
-          border: 1px solid #374151;
-          border-radius: 8px;
-          padding: 8px;
-          color: white;
-          font-size: 12px;
-        }
-        .chart-tooltip-value {
-          font-weight: bold;
-          color: white;
-          font-size: 14px;
-        }
-        .chart-tooltip-date {
-          color: #9ca3af;
-          font-size: 11px;
-        }
-      `}</style>
-      <div ref={chartContainerRef} className="w-full h-full" />
-    </div>
+    <>
+      <button
+        id="reset-chart-button"
+        onClick={handleResetChart}
+        className="absolute z-[50] top-4 right-4 bg-white/[0.1] hover:bg-white/[0.2] text-white rounded-md p-2 transition-colors"
+        title="Reset chart view"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+          <path d="M21 3v5h-5" />
+          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+          <path d="M3 21v-5h5" />
+        </svg>
+      </button>
+      <div
+        className="w-full h-full relative"
+        title="Use mouse wheel to zoom, click and drag to pan"
+      >
+        <style jsx>{`
+          /* Style the time scale labels to be red on black background */
+          :global(.tv-lightweight-charts__time-axis) {
+            color: #ff4444 !important;
+            font-size: 12px !important;
+          }
+          :global(
+              .tv-lightweight-charts__time-axis
+                .tv-lightweight-charts__time-axis__tick
+            ) {
+            color: #ff4444 !important;
+          }
+          :global(
+              .tv-lightweight-charts__time-axis
+                .tv-lightweight-charts__time-axis__tick-text
+            ) {
+            color: #ff4444 !important;
+          }
+          :global([class*="time-axis"]),
+          :global([class*="time-axis"] *),
+          :global(div[class*="time"]),
+          :global(span[class*="time"]) {
+            color: #ff4444 !important;
+            font-size: 12px !important;
+          }
+          /* Chart tooltip styling */
+          .chart-tooltip {
+            position: absolute;
+            z-index: 1000;
+            pointer-events: none;
+            background: #1f2937;
+            border: 1px solid #374151;
+            border-radius: 8px;
+            padding: 8px;
+            color: white;
+            font-size: 12px;
+          }
+          .chart-tooltip-value {
+            font-weight: bold;
+            color: white;
+            font-size: 14px;
+          }
+          .chart-tooltip-date {
+            color: #9ca3af;
+            font-size: 11px;
+          }
+        `}</style>
+        <div ref={chartContainerRef} className="w-full h-full" />
+      </div>
+    </>
   );
 };
