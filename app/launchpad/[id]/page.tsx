@@ -31,14 +31,23 @@ export default async function ChainPage({ params }: ChainPageProps) {
     let virtualPool = null;
 
     if (!response.ok) {
-      console.error(`Failed to fetch chain data: ${response.status}`);
+      const errorText = await response.text();
+      console.error(`Failed to fetch chain data:`, {
+        status: response.status,
+        statusText: response.statusText,
+        url: response.url,
+        body: errorText,
+      });
       notFound();
     }
 
     const data: ApiResponse = await response.json();
 
     if (!data.data) {
-      console.error("API returned no chain data");
+      console.error("API returned no chain data:", {
+        responseData: data,
+        chainId: params.id,
+      });
       notFound();
     }
 
@@ -51,7 +60,13 @@ export default async function ChainPage({ params }: ChainPageProps) {
 
     return <ChainDetails chain={chainWithUI} virtualPool={virtualPool} />;
   } catch (error) {
-    console.error("Error fetching chain data:", error);
+    console.error("Error fetching chain data:", {
+      error,
+      message: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : undefined,
+      chainId: params.id,
+      apiUrl: process.env.NEXT_PUBLIC_API_URL,
+    });
     notFound();
   }
 }
