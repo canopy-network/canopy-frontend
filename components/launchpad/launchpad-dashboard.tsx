@@ -214,39 +214,6 @@ export function LaunchpadDashboard() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <div className="border-b border-[#2a2a2a] bg-[#0a0a0a]">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-white mb-2">
-                Launchpad Dashboard
-              </h1>
-            </div>
-            <div className="flex items-center gap-4">
-              <Button
-                onClick={refreshData}
-                variant="outline"
-                size="sm"
-                className="border-[#2a2a2a] text-white hover:bg-[#1a1a1a] bg-transparent font-medium"
-              >
-                <RefreshCw
-                  className={`h-3 w-3 mr-1 ${isLoading ? "animate-spin" : ""}`}
-                />
-                Refresh
-              </Button>
-              <Button
-                onClick={openCreateChainDialog}
-                className="bg-gradient-to-r from-pink-500 to-red-500 hover:from-pink-600 hover:to-red-600 text-white font-semibold px-6 py-2 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
-                disabled={isCreating}
-              >
-                <Plus className="h-4 w-4" />
-                {isCreating ? "Creating..." : "Launch Chain"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Error Display */}
       {error && (
         <div className="container mx-auto px-4 py-4">

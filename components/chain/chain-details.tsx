@@ -1,76 +1,169 @@
 "use client";
 
-import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Breadcrumb,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbSeparator,
-  BreadcrumbPage,
-} from "@/components/ui/breadcrumb";
-import { BondingCurveChart } from "@/components/launchpad/bonding-curve-chart";
-
 import { ChainDetailsHeader } from "@/components/chain/chain-details-header";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-import {
-  TrendingUp,
-  ChevronDown,
-  ChevronUp,
-  ArrowRight,
-  ExternalLink,
-  FileText,
-  Globe,
-  Twitter,
-} from "lucide-react";
-import { ChainWithUI } from "@/lib/stores/chains-store";
+import { ChainWithUI, useChainsStore } from "@/lib/stores/chains-store";
 import { VirtualPool } from "@/types/chains";
 import { ChainDetailChart } from "@/components/charts/chain-detail-chart";
+import { WalletContent } from "../wallet/wallet-content";
 
 interface ChainDetailsProps {
   chain: ChainWithUI;
   virtualPool?: VirtualPool | null;
 }
 
+// Helper function to generate intraday data points
+const generateIntradayData = (
+  startTime: number,
+  endTime: number,
+  intervalMinutes: number,
+  baseValue: number,
+  volatility: number
+): Array<{ value: number; time: number }> => {
+  const data: Array<{ value: number; time: number }> = [];
+  let currentValue = baseValue;
+
+  for (let time = startTime; time <= endTime; time += intervalMinutes * 60) {
+    const randomChange = (Math.random() - 0.5) * volatility;
+    currentValue = Math.max(0.001, currentValue + randomChange);
+    data.push({ value: parseFloat(currentValue.toFixed(6)), time });
+  }
+
+  return data;
+};
+
+// Sample data for different timeframes - all with intraday granularity
+const SAMPLE_CHART_DATA = {
+  "1H": generateIntradayData(
+    Math.floor(Date.now() / 1000) - 3600, // 1 hour ago
+    Math.floor(Date.now() / 1000),
+    2, // 2-minute intervals (30 data points)
+    0.015,
+    0.002
+  ),
+  "1D": generateIntradayData(
+    Math.floor(Date.now() / 1000) - 86400, // 1 day ago
+    Math.floor(Date.now() / 1000),
+    15, // 15-minute intervals (96 data points)
+    0.012,
+    0.003
+  ),
+  "1W": generateIntradayData(
+    Math.floor(Date.now() / 1000) - 604800, // 1 week ago
+    Math.floor(Date.now() / 1000),
+    240, // 4-hour intervals (6 records per day)
+    0.01,
+    0.004
+  ),
+  "1M": (() => {
+    // For 1 month, generate 2+ records per day at different times
+    const data: Array<{ value: number; time: number }> = [];
+    const now = Math.floor(Date.now() / 1000);
+    const monthAgo = now - 30 * 86400; // 30 days ago
+    let currentValue = 0.008;
+
+    for (let day = 0; day < 30; day++) {
+      // Morning record (9 AM)
+      const morningTime = monthAgo + day * 86400 + 9 * 3600;
+      currentValue += (Math.random() - 0.48) * 0.003;
+      currentValue = Math.max(0.002, currentValue);
+      data.push({
+        value: parseFloat(currentValue.toFixed(6)),
+        time: morningTime,
+      });
+
+      // Afternoon record (3 PM)
+      const afternoonTime = monthAgo + day * 86400 + 15 * 3600;
+      currentValue += (Math.random() - 0.48) * 0.003;
+      currentValue = Math.max(0.002, currentValue);
+      data.push({
+        value: parseFloat(currentValue.toFixed(6)),
+        time: afternoonTime,
+      });
+
+      // Evening record (9 PM)
+      const eveningTime = monthAgo + day * 86400 + 21 * 3600;
+      currentValue += (Math.random() - 0.48) * 0.003;
+      currentValue = Math.max(0.002, currentValue);
+      data.push({
+        value: parseFloat(currentValue.toFixed(6)),
+        time: eveningTime,
+      });
+    }
+
+    return data;
+  })(),
+  "1Y": (() => {
+    // For 1 year, generate 2+ records per day at different times
+    const data: Array<{ value: number; time: number }> = [];
+    const now = Math.floor(Date.now() / 1000);
+    const yearAgo = now - 365 * 86400; // 365 days ago
+    let currentValue = 0.003;
+
+    // Sample every 3 days to keep data manageable but still intraday
+    for (let day = 0; day < 365; day += 3) {
+      // Morning record (8 AM)
+      const morningTime = yearAgo + day * 86400 + 8 * 3600;
+      currentValue += (Math.random() - 0.45) * 0.002;
+      currentValue = Math.max(0.001, currentValue);
+      data.push({
+        value: parseFloat(currentValue.toFixed(6)),
+        time: morningTime,
+      });
+
+      // Afternoon record (2 PM)
+      const afternoonTime = yearAgo + day * 86400 + 14 * 3600;
+      currentValue += (Math.random() - 0.45) * 0.002;
+      currentValue = Math.max(0.001, currentValue);
+      data.push({
+        value: parseFloat(currentValue.toFixed(6)),
+        time: afternoonTime,
+      });
+
+      // Night record (8 PM)
+      const nightTime = yearAgo + day * 86400 + 20 * 3600;
+      currentValue += (Math.random() - 0.45) * 0.002;
+      currentValue = Math.max(0.001, currentValue);
+      data.push({
+        value: parseFloat(currentValue.toFixed(6)),
+        time: nightTime,
+      });
+    }
+
+    return data;
+  })(),
+};
+
 export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
-  const [showBondingCurve, setShowBondingCurve] = useState(false);
-  const [buyAmount, setBuyAmount] = useState("0");
-  const [purchaseType, setPurchaseType] = useState("one-time");
   const [selectedTimeframe, setSelectedTimeframe] = useState("1D");
+  const setCurrentChain = useChainsStore((state) => state.setCurrentChain);
 
-  const copyAddress = () => {
-    navigator.clipboard.writeText(chain.chain_id || "");
-  };
+  const [chartData, setChartData] = useState<
+    {
+      value: number;
+      time: number;
+    }[]
+  >(SAMPLE_CHART_DATA["1D"]);
 
-  // Use actual chain chart data
-  const chartData = chain.chartData.map((point, index) => ({
-    time: new Date(point.time).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-    price: point.value,
-  }));
+  // Save chain to store when component mounts or chain changes
+  useEffect(() => {
+    setCurrentChain(chain);
+
+    // Cleanup: clear current chain when component unmounts
+    return () => {
+      setCurrentChain(null);
+    };
+  }, [chain, setCurrentChain]);
+
+  useEffect(() => {
+    const data =
+      SAMPLE_CHART_DATA[selectedTimeframe as keyof typeof SAMPLE_CHART_DATA] ||
+      SAMPLE_CHART_DATA["1D"];
+    setChartData(data);
+  }, [selectedTimeframe]);
 
   const test_data = [
     { value: 0.015, time: 1640995200 }, // High start
@@ -94,15 +187,42 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
   ];
 
   return (
-    <>
+    <div className="w-full max-w-6xl mx-auto flex gap-4">
       {/* Header */}
-      <main id="chain-details" className="w-full max-w-6xl mx-auto">
+      <main id="chain-details">
         <ChainDetailsHeader chain={chain} />
 
-        <section className="chain-details-live-data">
-          <div className="bg-white/[0.1] rounded-lg py-4 px-5 mb-2">
+        <section className="chain-details-live-data px-1 border border-white/[0.1] rounded-lg">
+          <div className="flex items-center gap-2 px-3 py-4">
+            <div className="flex flex-col">
+              <span className="text-white/50 text-sm ">Price</span>
+              <span className="text-white/50 text-sm">
+                <span className="text-white font-medium text-3xl mr-1">
+                  25K
+                </span>
+                +$1.93
+              </span>
+            </div>
+
+            <div className="flex flex-col flex-1 ml-auto items-end">
+              <span className="text-white/50 text-sm mb-2">
+                $233.23k until graduation
+              </span>
+              <span className="w-full bg-white/[0.1] rounded-full h-6 overflow-hidden max-w-[220px]">
+                <span
+                  className="bg-gradient-to-r block from-green-500 to-green-400 h-full rounded-full transition-all duration-500"
+                  style={{ width: "35%" }}
+                />
+              </span>
+            </div>
+          </div>
+
+          <div
+            id="chart-container"
+            className="bg-white/[0.1] rounded-lg py-4 px-5 mb-2 relative"
+          >
             <div className="flex items-center gap-2 mb-4">
-              {["1H", "1D", "1W", "1M", "1Y", "ALL"].map((timeframe) => (
+              {(["1H", "1D", "1W", "1M", "1Y"] as const).map((timeframe) => (
                 <Button
                   key={timeframe}
                   variant="clear"
@@ -119,10 +239,10 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
               ))}
             </div>
 
-            <ChainDetailChart data={test_data} />
+            <ChainDetailChart data={chartData} timeframe={selectedTimeframe} />
           </div>
 
-          <div className="flex items-center justify-between bg-white/[0.1] rounded-lg py-4 px-5">
+          <div className="flex items-center justify-between bg-white/[0.1] rounded-lg py-4 px-5 mb-1">
             <h3 className="text-white font-medium">Live updates</h3>
 
             <div className="flex items-center gap-6 ml-auto">
@@ -236,6 +356,10 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
           </Tabs>
         </div>
       </main>
-    </>
+
+      <aside className="w-full max-w-[352px] card h-fit p-4">
+        <WalletContent showBalance={false} />
+      </aside>
+    </div>
   );
 }

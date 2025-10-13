@@ -52,13 +52,13 @@ export function ChainDetailsHeader({ chain }: ChainDetailsHeaderProps) {
           <div className="flex items-center gap-2 text-sm text-white/50">
             <span>${chain.token_symbol} on</span>
             {/* Inline Secondary Icon */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 whitespace-nowrap">
               <img
                 src=""
                 alt="Chain Symbol"
                 className="w-4 h-4 rounded-full bg-gradient-to-r from-green-200 to-green-400"
               />
-              <span>{chain.chain_name}</span>
+              <span className="whitespace-nowrap">{chain.chain_name}</span>
             </div>
             <span>•</span>
             <span>created 13m ago</span>

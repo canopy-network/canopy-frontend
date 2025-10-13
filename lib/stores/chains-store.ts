@@ -78,7 +78,7 @@ export interface ChainWithUI extends Omit<Chain, "status"> {
 interface ChainsState {
   // Data
   chains: Chain[];
-  currentChain: Chain | null;
+  currentChain: Chain | ChainWithUI | null;
   virtualPools: Record<string, VirtualPool>; // chainId -> pool
   transactions: Record<string, Transaction[]>; // chainId -> transactions
 
@@ -118,7 +118,7 @@ interface ChainsState {
 
   // Utility Actions
   clearError: () => void;
-  setCurrentChain: (chain: Chain | null) => void;
+  setCurrentChain: (chain: Chain | ChainWithUI | null) => void;
   refreshChain: (id: string) => Promise<void>;
 
   // Computed Data

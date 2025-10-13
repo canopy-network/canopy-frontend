@@ -387,3 +387,29 @@ export const CHAIN_STATUS_COLORS: Record<ChainStatus, string> = {
   graduated: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
   failed: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
 } as const;
+
+/**
+ * Chain token is the most atomic data type for a token made for a custom chain.
+ * @property {string} symbol, the symbol of the token
+ * @property {string} name, the name of the token
+ * @property {string} balance, the balance of the token
+ * @property {string} balanceUSD, the balance of the token in USD
+ * @property {string} icon, the icon of the token
+ */
+export interface ChainToken {
+  symbol: string;
+  name: string;
+  balance: string;
+  balanceUSD: string;
+  icon: string;
+}
+
+/**
+ * Canopy wallet interface matching the /api/v1/wallet response
+ * @property {number} cnpyAvailableAmount, the max amount of Canopy available on the wallet
+ * @property {number} usdCurrentPrice, the current price of Canopy but in  Usd
+ */
+export interface CanopyWallet {
+  cnpyAvailableAmount: number;
+  usdCurrentPrice: number;
+}
