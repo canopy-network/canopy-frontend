@@ -80,10 +80,15 @@ jobs:
             # Use docker-compose down instead of make for more control
             $DOCKER_COMPOSE stop canopy-frontend || echo "Service not running"
 
-            # Build the Docker image with environment variables
+            # Clean up to free disk space before building
+            echo -e "${YELLOW}=== Cleaning up Docker resources ===${NC}"
+            docker system prune -af --filter "until=24h" || true
+            docker volume prune -f || true
+
+            # Build the Docker image with environment variables (removed --no-cache for disk space)
             echo -e "${YELLOW}=== Building Docker image ===${NC}"
             echo "Using API URL: $NEXT_PUBLIC_API_URL"
-            if ! NEXT_PUBLIC_API_URL="$NEXT_PUBLIC_API_URL" $DOCKER_COMPOSE build --no-cache canopy-frontend; then
+            if ! NEXT_PUBLIC_API_URL="$NEXT_PUBLIC_API_URL" $DOCKER_COMPOSE build canopy-frontend; then
               echo -e "${RED}Error: Docker build failed${NC}"
               exit 1
             fi
@@ -122,7 +127,7 @@ jobs:
           fi
 
       - name: Notify on failure
-        if: failure()
+        if: failure() && github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
