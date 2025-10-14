@@ -1,7 +1,6 @@
 import { ChainDetails } from "@/components/chain/chain-details";
 import { convertToChainWithUI } from "@/lib/utils/chain-converter";
 import { notFound } from "next/navigation";
-import axios from "axios";
 
 // Force dynamic rendering to ensure params are always fresh
 export const dynamic = "force-dynamic";
@@ -31,31 +30,73 @@ export default async function ChainPage({ params }: ChainPageProps) {
     const requestUrl = `${apiUrl}/api/v1/chains/${chainId}`;
     console.log("Requesting URL:", requestUrl);
     console.log("Chain ID being sent:", chainId);
+    console.log("Server-side fetch starting at:", new Date().toISOString());
 
-    const response = await axios.get<ApiResponse>(requestUrl, {
-      headers: {
-        "Content-Type": "application/json",
-      },
-      params: {
-        // Add any query parameters here if needed
-        // include: ['template', 'creator'], // This would send as include[]=template&include[]=creator
-      },
-      timeout: 30000, // 30 second timeout (increased for production)
-    });
+    // Use Next.js native fetch with proper timeout and error handling
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
     let chainData;
     let virtualPool = null;
 
-    console.log("Response Status:", response.status);
-    if (!response.data.data) {
-      console.error("API returned no chain data:", {
-        responseData: response.data,
-        chainId: chainId,
+    try {
+      const response = await fetch(requestUrl, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        signal: controller.signal,
+        // Next.js fetch options
+        cache: "no-store", // Don't cache during development/testing
       });
-      notFound();
-    }
 
-    chainData = response.data.data;
+      clearTimeout(timeoutId);
+
+      console.log("Response received at:", new Date().toISOString());
+      console.log("Response Status:", response.status);
+      console.log("Response OK:", response.ok);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("API request failed:", {
+          status: response.status,
+          statusText: response.statusText,
+          url: response.url,
+          body: errorText,
+        });
+        notFound();
+      }
+
+      const data: ApiResponse = await response.json();
+
+      if (!data.data) {
+        console.error("API returned no chain data:", {
+          responseData: data,
+          chainId: chainId,
+        });
+        notFound();
+      }
+
+      chainData = data.data;
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+
+      if (fetchError instanceof Error && fetchError.name === "AbortError") {
+        console.error("Request timed out after 30 seconds:", {
+          requestUrl,
+          chainId,
+        });
+      } else {
+        console.error("Fetch error:", {
+          error: fetchError,
+          message:
+            fetchError instanceof Error ? fetchError.message : "Unknown error",
+          requestUrl,
+          chainId,
+        });
+      }
+      throw fetchError;
+    }
 
     //TODO: We need to get rid of the ChainWithUI converter and just use the Chain type for all components
 
@@ -64,29 +105,14 @@ export default async function ChainPage({ params }: ChainPageProps) {
 
     return <ChainDetails chain={chainWithUI} virtualPool={virtualPool} />;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      // Axios-specific error
-      console.error("Error fetching chain data:", {
-        error: error.message,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        chainId: params?.id || "unknown",
-        rawParamsId: params?.id,
-        apiUrl: (process.env.NEXT_PUBLIC_API_URL || "").trim(),
-        requestUrl: error.config?.url,
-      });
-    } else {
-      // Generic error
-      console.error("Error fetching chain data:", {
-        error,
-        message: error instanceof Error ? error.message : "Unknown error",
-        stack: error instanceof Error ? error.stack : undefined,
-        chainId: params?.id || "unknown",
-        rawParamsId: params?.id,
-        apiUrl: (process.env.NEXT_PUBLIC_API_URL || "").trim(),
-      });
-    }
+    console.error("Outer catch - Error in page component:", {
+      error,
+      message: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : undefined,
+      chainId: params?.id || "unknown",
+      rawParamsId: params?.id,
+      apiUrl: (process.env.NEXT_PUBLIC_API_URL || "").trim(),
+    });
     notFound();
   }
 }
