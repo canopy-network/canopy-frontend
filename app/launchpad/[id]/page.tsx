@@ -30,12 +30,17 @@ export default async function ChainPage({ params }: ChainPageProps) {
 
     const requestUrl = `${apiUrl}/api/v1/chains/${chainId}`;
     console.log("Requesting URL:", requestUrl);
+    console.log("Chain ID being sent:", chainId);
 
     const response = await axios.get<ApiResponse>(requestUrl, {
       headers: {
         "Content-Type": "application/json",
       },
-      timeout: 10000, // 10 second timeout
+      params: {
+        // Add any query parameters here if needed
+        // include: ['template', 'creator'], // This would send as include[]=template&include[]=creator
+      },
+      timeout: 30000, // 30 second timeout (increased for production)
     });
 
     let chainData;

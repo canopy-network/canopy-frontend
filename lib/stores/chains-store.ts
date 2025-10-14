@@ -363,6 +363,16 @@ export const useChainsStore = create<ChainsState>()(
         // ============================================================================
 
         fetchChains: async (params) => {
+          const state = get();
+
+          // Prevent concurrent fetches
+          if (state.isLoading) {
+            console.log(
+              "fetchChains: Already fetching, skipping duplicate call"
+            );
+            return;
+          }
+
           set({ isLoading: true, error: null });
           try {
             const response = await chainsApi.getChains({

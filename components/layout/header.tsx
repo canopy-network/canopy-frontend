@@ -55,11 +55,15 @@ export function Header() {
   const searchRef = useRef<HTMLDivElement>(null);
 
   // Fetch chains on mount if not already loaded
+  // BUT: Don't fetch on chain detail pages - they have their own fetch
   useEffect(() => {
-    if (chains.length === 0) {
+    const isDetailPage =
+      pathname.startsWith("/launchpad/") && pathname.split("/").length > 2;
+
+    if (chains.length === 0 && !isDetailPage) {
       fetchChains();
     }
-  }, [chains.length, fetchChains]);
+  }, [chains.length, fetchChains, pathname]);
 
   // Handle click outside to close search
   useEffect(() => {
