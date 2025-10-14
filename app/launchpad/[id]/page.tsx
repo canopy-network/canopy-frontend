@@ -25,9 +25,21 @@ export default async function ChainPage({ params }: ChainPageProps) {
     console.log("Chain ID from params (decoded):", chainId);
 
     // Fetch chain data from our API route
-    const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "").trim();
+    // Use different URLs for server-side vs client-side
+    // Server-side: Use localhost or internal network URL
+    // Client-side: Use public URL
+    const isServer = typeof window === "undefined";
+    const apiUrl = isServer
+      ? (
+          process.env.INTERNAL_API_URL ||
+          process.env.NEXT_PUBLIC_API_URL ||
+          "http://localhost:3001"
+        ).trim()
+      : (process.env.NEXT_PUBLIC_API_URL || "").trim();
 
     const requestUrl = `${apiUrl}/api/v1/chains/${chainId}`;
+    console.log("Environment:", isServer ? "SERVER" : "CLIENT");
+    console.log("Using API URL:", apiUrl);
     console.log("Requesting URL:", requestUrl);
     console.log("Chain ID being sent:", chainId);
     console.log("Server-side fetch starting at:", new Date().toISOString());
