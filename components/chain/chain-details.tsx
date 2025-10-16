@@ -9,6 +9,8 @@ import { ChainWithUI, useChainsStore } from "@/lib/stores/chains-store";
 import { VirtualPool } from "@/types/chains";
 import { ChainDetailChart } from "@/components/charts/chain-detail-chart";
 import { WalletContent } from "../wallet/wallet-content";
+import { BlockExplorerTable } from "./block-explorer-table";
+import { HoldersTable } from "./holders-table";
 
 interface ChainDetailsProps {
   chain: ChainWithUI;
@@ -187,9 +189,9 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
   ];
 
   return (
-    <div className="w-full max-w-6xl mx-auto flex gap-4">
+    <div className="w-full max-w-7xl mx-auto flex gap-4">
       {/* Header */}
-      <main id="chain-details">
+      <main id="chain-details" className="flex-1 min-w-0">
         <ChainDetailsHeader chain={chain} />
 
         <section className="chain-details-live-data px-1 border border-white/[0.1] rounded-lg">
@@ -263,101 +265,98 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
         </section>
 
         {/* Navigation Tabs */}
-        <div className="mt-4">
-          <Tabs defaultValue="overview" className="w-full gap-4">
-            <TabsList variant="clear" className="flex justify-start gap-2">
-              {[
-                {
-                  value: "overview",
-                  label: "Overview",
-                },
-                {
-                  value: "project",
-                  label: "Project Information",
-                },
-                {
-                  value: "code",
-                  label: "Code",
-                },
-                {
-                  value: "explorer",
-                  label: "Block Explorer",
-                },
-              ].map((tab) => (
-                <TabsTrigger key={tab.value} value={tab.value} variant="clear">
-                  {tab.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+        <Tabs defaultValue="holders" className="w-full gap-4 mt-4">
+          <TabsList variant="clear" className="flex justify-start gap-2">
+            {[
+              {
+                value: "overview",
+                label: "Overview",
+              },
+              {
+                value: "holders",
+                label: "Holders",
+              },
+              {
+                value: "code",
+                label: "Code",
+              },
+              {
+                value: "explorer",
+                label: "Block Explorer",
+              },
+            ].map((tab) => (
+              <TabsTrigger key={tab.value} value={tab.value} variant="clear">
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
-            <TabsContent value="overview">
-              <Card>
-                <div className="flex items-center gap-4 mb-4">
-                  <a
-                    href="#"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-3 py-1.5 bg-[#2a2a2a] hover:bg-[#3a3a3a] rounded-lg text-sm transition-colors"
-                  >
-                    <span>🌐</span>
-                  </a>
+          <TabsContent value="overview">
+            <Card>
+              <div className="flex items-center gap-4 mb-4">
+                <a
+                  href="#"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-3 py-1.5 bg-[#2a2a2a] hover:bg-[#3a3a3a] rounded-lg text-sm transition-colors"
+                >
+                  <span>🌐</span>
+                </a>
 
-                  <a
-                    href="#"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-3 py-1.5 bg-[#2a2a2a] hover:bg-[#3a3a3a] rounded-lg text-sm transition-colors"
-                  >
-                    <span>𝕏</span>
-                    <span>3.3k</span>
-                  </a>
+                <a
+                  href="#"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-3 py-1.5 bg-[#2a2a2a] hover:bg-[#3a3a3a] rounded-lg text-sm transition-colors"
+                >
+                  <span>𝕏</span>
+                  <span>3.3k</span>
+                </a>
 
-                  <a
-                    href="#"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-3 py-1.5 bg-[#2a2a2a] hover:bg-[#3a3a3a] rounded-lg text-sm transition-colors"
-                  >
-                    <span>⭐</span>
-                    <span>23 stars</span>
-                  </a>
-                </div>
-                <h2 className="text-xl font-semibold mb-3">
-                  Token Chain Project: Revolutionizing Digital Asset Management
-                </h2>
-                <p className="text-[#737373] leading-relaxed">
-                  Introducing the Token Chain Project, a revolutionary platform
-                  designed to enhance the way digital assets are managed,
-                  traded, and secured. Built on cutting-edge blockchain
-                  technology, this project aims to provide users with a seamless
-                  and secure experience for managing their cryptocurrency
-                  portfolios.
-                </p>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="project">
-              <div className="text-center py-8 text-gray-400">
-                Project information coming soon...
+                <a
+                  href="#"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-3 py-1.5 bg-[#2a2a2a] hover:bg-[#3a3a3a] rounded-lg text-sm transition-colors"
+                >
+                  <span>⭐</span>
+                  <span>23 stars</span>
+                </a>
               </div>
-            </TabsContent>
+              <h2 className="text-xl font-semibold mb-3">
+                Token Chain Project: Revolutionizing Digital Asset Management
+              </h2>
+              <p className="text-[#737373] leading-relaxed">
+                Introducing the Token Chain Project, a revolutionary platform
+                designed to enhance the way digital assets are managed, traded,
+                and secured. Built on cutting-edge blockchain technology, this
+                project aims to provide users with a seamless and secure
+                experience for managing their cryptocurrency portfolios.
+              </p>
+            </Card>
+          </TabsContent>
 
-            <TabsContent value="code">
-              <div className="text-center py-8 text-gray-400">
-                Code repository coming soon...
-              </div>
-            </TabsContent>
+          <TabsContent value="holders">
+            <Card className="p-6">
+              <HoldersTable />
+            </Card>
+          </TabsContent>
 
-            <TabsContent value="explorer">
-              <div className="text-center py-8 text-gray-400">
-                Block explorer coming soon...
-              </div>
-            </TabsContent>
-          </Tabs>
-        </div>
+          <TabsContent value="code">
+            <div className="text-center py-8 text-gray-400">
+              Code repository coming soon...
+            </div>
+          </TabsContent>
+
+          <TabsContent value="explorer">
+            <Card className="p-6">
+              <BlockExplorerTable />
+            </Card>
+          </TabsContent>
+        </Tabs>
       </main>
 
-      <aside className="w-full max-w-[352px] card h-fit p-4">
+      <aside className="w-[352px] flex-shrink-0 card h-fit p-4">
         <WalletContent showBalance={false} />
       </aside>
     </div>

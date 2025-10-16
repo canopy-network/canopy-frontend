@@ -86,13 +86,13 @@ const ENABLE_VALIDATION = false;
 const step1Schema = z.object({
   chainName: z
     .string()
-    .min(3, "Chain name must be at least 3 characters")
+    .min(4, "Chain name must be at least 4 characters")
     .max(40, "Chain name must be at most 40 characters"),
   ticker: z
     .string()
-    .min(2, "Ticker must be at least 2 characters")
-    .max(8, "Ticker must be at most 8 characters")
-    .regex(/^[A-Z]+$/, "Ticker must be uppercase letters only"),
+    .min(3, "Ticker must be at least 3 characters")
+    .max(6, "Ticker must be at most 6 characters")
+    .regex(/^[A-Z0-9]+$/, "Ticker must be uppercase letters and numbers only"),
   description: z
     .string()
     .min(10, "Description must be at least 10 characters")
@@ -528,14 +528,55 @@ export function CreateChainWizard() {
         }
 
         case 3: {
-          // Step 3: Main Info (ticker, description)
+          // Step 3: Main Info (token name, ticker, token supply, description)
+          const newErrors: Record<string, string> = {};
+
+          // Validate token name
+          if (!formData.tokenName) {
+            newErrors.tokenName = "Token name is required";
+          } else {
+            const validTokenNameRegex = /^[a-zA-Z0-9:() ]+$/;
+            if (!validTokenNameRegex.test(formData.tokenName)) {
+              newErrors.tokenName =
+                "Only letters, numbers, spaces, : and () are allowed";
+            }
+          }
+
+          // Validate ticker
           if (!formData.ticker) {
-            setErrors({ ticker: "Ticker is required" });
-            return false;
+            newErrors.ticker = "Ticker is required";
+          } else {
+            const validTickerRegex = /^[A-Z0-9]+$/;
+            if (!validTickerRegex.test(formData.ticker)) {
+              newErrors.ticker = "Only letters and numbers are allowed";
+            } else if (formData.ticker.length < 3) {
+              newErrors.ticker = "Ticker must be at least 3 characters";
+            } else if (formData.ticker.length > 6) {
+              newErrors.ticker = "Ticker must be maximum 6 characters";
+            }
+          }
+
+          // Validate token supply
+          if (!formData.tokenSupply) {
+            newErrors.tokenSupply = "Token supply is required";
+          } else {
+            const numericValue = parseFloat(formData.tokenSupply);
+            if (isNaN(numericValue)) {
+              newErrors.tokenSupply = "Invalid number format";
+            } else if (numericValue < 0) {
+              newErrors.tokenSupply = "Cannot be a negative amount";
+            } else if (numericValue <= 1) {
+              newErrors.tokenSupply = "Must be more than 1";
+            }
           }
 
           if (!formData.description) {
-            setErrors({ description: "Description is required" });
+            newErrors.description = "Description is required";
+          }
+
+          // If there are validation errors, set them and return false
+          if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
             return false;
           }
 
@@ -673,7 +714,11 @@ export function CreateChainWizard() {
       // Upload logo if present
       if (formData.logo) {
         const logoResult = await uploadLogo(formData.ticker, formData.logo);
-        if (logoResult.success && logoResult.urls && logoResult.urls.length > 0) {
+        if (
+          logoResult.success &&
+          logoResult.urls &&
+          logoResult.urls.length > 0
+        ) {
           logoUrl = logoResult.urls[0].url;
         } else {
           throw new Error(`Failed to upload logo: ${logoResult.error}`);
@@ -682,7 +727,10 @@ export function CreateChainWizard() {
 
       // Upload gallery images if present
       if (formData.gallery.length > 0) {
-        const galleryResult = await uploadGallery(formData.ticker, formData.gallery);
+        const galleryResult = await uploadGallery(
+          formData.ticker,
+          formData.gallery
+        );
         if (galleryResult.success && galleryResult.urls) {
           galleryUrls.push(...galleryResult.urls.map((r) => r.url));
         } else {
@@ -692,8 +740,15 @@ export function CreateChainWizard() {
 
       // Upload whitepaper file if present (takes precedence over URL)
       if (formData.whitepaperFile) {
-        const paperResult = await uploadWhitepaper(formData.ticker, formData.whitepaperFile);
-        if (paperResult.success && paperResult.urls && paperResult.urls.length > 0) {
+        const paperResult = await uploadWhitepaper(
+          formData.ticker,
+          formData.whitepaperFile
+        );
+        if (
+          paperResult.success &&
+          paperResult.urls &&
+          paperResult.urls.length > 0
+        ) {
           whitepaperUrl = paperResult.urls[0].url;
         } else {
           throw new Error(`Failed to upload whitepaper: ${paperResult.error}`);
@@ -794,19 +849,144 @@ export function CreateChainWizard() {
     }
   };
 
+  // Validate and handle chain name change
   const handleChainNameChange = (name: string) => {
-    updateFormData({ chainName: name });
+    // Allow only alphanumeric characters, spaces, colons, and parentheses
+    const validChainNameRegex = /^[a-zA-Z0-9:() ]*$/;
+
+    if (validChainNameRegex.test(name)) {
+      updateFormData({ chainName: name });
+      // Clear error if valid format
+      if (errors.chainName) {
+        const newErrors = { ...errors };
+        delete newErrors.chainName;
+        setErrors(newErrors);
+      }
+
+      // Check minimum length
+      if (name.trim().length > 0 && name.trim().length < 4) {
+        setErrors({
+          ...errors,
+          chainName: "Chain name must be at least 4 characters",
+        });
+      }
+    } else {
+      // Set error for invalid characters
+      setErrors({
+        ...errors,
+        chainName: "Only letters, numbers, spaces, : and () are allowed",
+      });
+    }
   };
 
-  // Check ticker availability with debounce
+  // Validate and handle token name change
+  const handleTokenNameChange = (tokenName: string) => {
+    // Allow only alphanumeric characters, spaces, colons, and parentheses
+    const validTokenNameRegex = /^[a-zA-Z0-9:() ]*$/;
+
+    if (validTokenNameRegex.test(tokenName)) {
+      updateFormData({ tokenName });
+      // Clear error if valid
+      if (errors.tokenName) {
+        const newErrors = { ...errors };
+        delete newErrors.tokenName;
+        setErrors(newErrors);
+      }
+    } else {
+      // Set error for invalid characters
+      setErrors({
+        ...errors,
+        tokenName: "Only letters, numbers, spaces, : and () are allowed",
+      });
+    }
+  };
+
+  // Check ticker availability with debounce and validate format
   const handleTickerChange = async (ticker: string) => {
     const upperTicker = ticker.toUpperCase();
+
+    // Allow only alphanumeric characters (letters and numbers, no special characters)
+    const validTickerRegex = /^[A-Z0-9]*$/;
+
+    if (!validTickerRegex.test(upperTicker)) {
+      setErrors({ ...errors, ticker: "Only letters and numbers are allowed" });
+      return;
+    }
+
+    // Check maximum length
+    if (upperTicker.length > 6) {
+      setErrors({ ...errors, ticker: "Ticker must be maximum 6 characters" });
+      return;
+    }
+
     updateFormData({ ticker: upperTicker });
 
-    if (upperTicker.length >= 2) {
+    // Validate length requirements
+    if (upperTicker.length > 0 && upperTicker.length < 3) {
+      setErrors({ ...errors, ticker: "Ticker must be at least 3 characters" });
+      return;
+    }
+
+    // Clear error if valid format
+    if (errors.ticker) {
+      const newErrors = { ...errors };
+      delete newErrors.ticker;
+      setErrors(newErrors);
+    }
+
+    if (upperTicker.length >= 3) {
       setTickerAvailable(null);
       const available = await checkTickerAvailability(upperTicker);
       setTickerAvailable(available);
+    }
+  };
+
+  // Validate and handle token supply change
+  const handleTokenSupplyChange = (tokenSupply: string) => {
+    // Allow empty string (user is clearing the field)
+    if (tokenSupply === "") {
+      updateFormData({ tokenSupply });
+      return;
+    }
+
+    // Allow only numbers and one decimal point
+    const validSupplyRegex = /^[0-9]*\.?[0-9]*$/;
+
+    if (!validSupplyRegex.test(tokenSupply)) {
+      setErrors({
+        ...errors,
+        tokenSupply: "Only numbers and decimals are allowed",
+      });
+      return;
+    }
+
+    // Update the value
+    updateFormData({ tokenSupply });
+
+    // Validate the numeric value
+    const numericValue = parseFloat(tokenSupply);
+
+    if (tokenSupply && !isNaN(numericValue)) {
+      if (numericValue < 0) {
+        setErrors({ ...errors, tokenSupply: "Cannot be a negative amount" });
+      } else if (numericValue <= 1 && numericValue !== 0) {
+        setErrors({ ...errors, tokenSupply: "Must be more than 1" });
+      } else if (numericValue === 0) {
+        setErrors({ ...errors, tokenSupply: "Must be more than 1" });
+      } else {
+        // Clear error if valid
+        const newErrors = { ...errors };
+        delete newErrors.tokenSupply;
+        setErrors(newErrors);
+      }
+    } else if (tokenSupply) {
+      // If there's text but it's not a valid number
+      setErrors({ ...errors, tokenSupply: "Invalid number format" });
+    } else {
+      // Clear error if field is empty
+      const newErrors = { ...errors };
+      delete newErrors.tokenSupply;
+      setErrors(newErrors);
     }
   };
 
@@ -860,10 +1040,26 @@ export function CreateChainWizard() {
 
   // Handle initial chain name continue
   const handleInitialContinue = () => {
-    if (!formData.chainName.trim()) {
+    const trimmedName = formData.chainName.trim();
+
+    if (!trimmedName) {
       setErrors({ chainName: "Please enter a chain name" });
       return;
     }
+
+    if (trimmedName.length < 4) {
+      setErrors({ chainName: "Chain name must be at least 4 characters" });
+      return;
+    }
+
+    const validChainNameRegex = /^[a-zA-Z0-9:() ]+$/;
+    if (!validChainNameRegex.test(trimmedName)) {
+      setErrors({
+        chainName: "Only letters, numbers, spaces, : and () are allowed",
+      });
+      return;
+    }
+
     setErrors({});
     setStep(1);
   };
@@ -925,9 +1121,7 @@ export function CreateChainWizard() {
                         id="initialChainName"
                         placeholder="MyGameChain"
                         value={formData.chainName}
-                        onChange={(e) =>
-                          updateFormData({ chainName: e.target.value })
-                        }
+                        onChange={(e) => handleChainNameChange(e.target.value)}
                         onKeyDown={(e) => {
                           if (e.key === "Enter") handleInitialContinue();
                         }}
@@ -1236,7 +1430,7 @@ export function CreateChainWizard() {
                               placeholder="GAME"
                               value={formData.tokenName}
                               onChange={(e) =>
-                                updateFormData({ tokenName: e.target.value })
+                                handleTokenNameChange(e.target.value)
                               }
                               className={`text-right border-0 shadow-none focus-visible:ring-0 text-base font-medium ${
                                 errors.tokenName ? "text-destructive" : ""
@@ -1272,7 +1466,7 @@ export function CreateChainWizard() {
                                 className={`text-right border-0 shadow-none focus-visible:ring-0 text-base font-medium pr-8 ${
                                   errors.ticker ? "text-destructive" : ""
                                 }`}
-                                maxLength={8}
+                                maxLength={6}
                               />
                               {tickerAvailable === true && (
                                 <CheckCircle2 className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
@@ -1307,8 +1501,9 @@ export function CreateChainWizard() {
                               id="tokenSupply"
                               placeholder="1,000,000,000"
                               value={formData.tokenSupply}
+                              type="number"
                               onChange={(e) =>
-                                updateFormData({ tokenSupply: e.target.value })
+                                handleTokenSupplyChange(e.target.value)
                               }
                               className={`text-right border-0 shadow-none focus-visible:ring-0 text-base font-medium ${
                                 errors.tokenSupply ? "text-destructive" : ""
@@ -1902,6 +2097,19 @@ export function CreateChainWizard() {
                                           launchTime: e.target.value,
                                         })
                                       }
+                                      onFocus={(e) => {
+                                        // Programmatically open the time picker on focus
+                                        try {
+                                          (
+                                            e.target as HTMLInputElement
+                                          ).showPicker?.();
+                                        } catch (error) {
+                                          // showPicker() may not be supported in all browsers
+                                          console.log(
+                                            "Time picker not supported"
+                                          );
+                                        }
+                                      }}
                                       className="h-11"
                                     />
                                     <Clock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
