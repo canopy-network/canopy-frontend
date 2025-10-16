@@ -24,5 +24,5 @@ const nextConfig = {
   skipTrailingSlashRedirect: true,
   skipMiddlewareUrlNormalize: true,
 }
-
+//Dummy
 export default nextConfig

@@ -55,11 +55,32 @@ export function Header() {
   const searchRef = useRef<HTMLDivElement>(null);
 
   // Fetch chains on mount if not already loaded
+  // BUT: Don't fetch on chain detail pages - they have their own fetch
   useEffect(() => {
-    if (chains.length === 0) {
+    const pathSegments = pathname.split("/").filter(Boolean);
+    const isDetailPage =
+      pathname.startsWith("/launchpad/") && pathSegments.length >= 2;
+
+    console.log("[Header] useEffect triggered:", {
+      pathname,
+      pathSegments,
+      isDetailPage,
+      chainsLength: chains.length,
+      willFetch: chains.length === 0 && !isDetailPage,
+    });
+
+    if (chains.length === 0 && !isDetailPage) {
+      console.log("[Header] Calling fetchChains()");
       fetchChains();
+    } else {
+      console.log(
+        "[Header] Skipping fetchChains - isDetailPage:",
+        isDetailPage,
+        "chains.length:",
+        chains.length
+      );
     }
-  }, [chains.length, fetchChains]);
+  }, [chains.length, fetchChains, pathname]);
 
   // Handle click outside to close search
   useEffect(() => {

@@ -9,7 +9,6 @@ import { ChainWithUI, useChainsStore } from "@/lib/stores/chains-store";
 import { VirtualPool } from "@/types/chains";
 import { ChainDetailChart } from "@/components/charts/chain-detail-chart";
 import { WalletContent } from "../wallet/wallet-content";
-import { ChartDataPoint } from "@/types/launchpad";
 
 interface ChainDetailsProps {
   chain: ChainWithUI;
@@ -165,6 +164,27 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
       SAMPLE_CHART_DATA["1D"];
     setChartData(data);
   }, [selectedTimeframe]);
+
+  const test_data = [
+    { value: 0.015, time: 1640995200 }, // High start
+    { value: 0.012, time: 1641000000 }, // Initial drop
+    { value: 0.008, time: 1641004800 }, // Significant drop
+    { value: 0.006, time: 1641009600 }, // Lower point
+    { value: 0.007, time: 1641014400 }, // Small recovery
+    { value: 0.005, time: 1641019200 }, // Another drop
+    { value: 0.008, time: 1641024000 }, // Upward movement
+    { value: 0.009, time: 1641028800 }, // Continuing up
+    { value: 0.011, time: 1641033600 }, // Building momentum
+    { value: 0.013, time: 1641038400 }, // Strong upward trend
+    { value: 0.016, time: 1641043200 }, // Approaching peak
+    { value: 0.018, time: 1641048000 }, // Sharp peak
+    { value: 0.012, time: 1641052800 }, // Sharp drop after peak
+    { value: 0.009, time: 1641057600 }, // Lower fluctuations
+    { value: 0.01, time: 1641062400 }, // Small recovery
+    { value: 0.008, time: 1641067200 }, // Drop again
+    { value: 0.011, time: 1641072000 }, // Final small peak
+    { value: 0.009, time: 1641076800 }, // End lower
+  ];
 
   return (
     <div className="w-full max-w-6xl mx-auto flex gap-4">
