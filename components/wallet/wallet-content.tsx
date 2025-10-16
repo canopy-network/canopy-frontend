@@ -17,6 +17,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { SwapInterface } from "./swap-interface";
+import { TokenSelector } from "./token-selector";
 
 interface ActionButtonProps {
   activeTab: string;
@@ -62,10 +63,6 @@ function ActionButton({ activeTab }: ActionButtonProps) {
   );
 }
 
-/**
- * Renders the wallet content.
- * @property {boolean} showBalance - This renders the balance of current account in wallet
- */
 export function WalletContent({
   showBalance = true,
 }: {
@@ -76,18 +73,15 @@ export function WalletContent({
   const [fromAmount, setFromAmount] = useState("");
   const [toAmount, setToAmount] = useState("");
 
-  // Mock Canopy wallet data
   const mockCanopyWallet: CanopyWallet = {
-    cnpyAvailableAmount: 100000, // 100,000 CNPY available
-    usdCurrentPrice: 0.05, // 1 CNPY = $0.05 USD
+    cnpyAvailableAmount: 100000,
+    usdCurrentPrice: 0.05,
   };
 
-  // Calculate USD value of available CNPY
   const totalUsdValue = (
     mockCanopyWallet.cnpyAvailableAmount * mockCanopyWallet.usdCurrentPrice
   ).toFixed(2);
 
-  // Define CNPY token
   const cnpyToken: ChainToken = {
     symbol: "CNPY",
     name: "Canopy",
@@ -96,12 +90,11 @@ export function WalletContent({
     icon: "🌳",
   };
 
-  // Define custom chain token (OBNB)
   const customChainToken: ChainToken = {
     symbol: "OBNB",
     name: "Onchain BNB",
-    balance: "0",
-    balanceUSD: "$0.00",
+    balance: "50",
+    balanceUSD: "$15,000.00",
     icon: "🔺",
   };
 
@@ -110,25 +103,108 @@ export function WalletContent({
   const [selectedToToken, setSelectedToToken] =
     useState<ChainToken>(customChainToken);
 
-  // Update tokens based on active tab
+  const [selectedConvertToken, setSelectedConvertToken] =
+    useState<ChainToken | null>(null);
+
+  const availableTokens: ChainToken[] = [
+    {
+      symbol: "ETH",
+      name: "Ethereum",
+      balance: "2.5",
+      balanceUSD: "$6,250.00",
+      icon: "💎",
+    },
+    {
+      symbol: "BTC",
+      name: "Bitcoin",
+      balance: "0.15",
+      balanceUSD: "$9,750.00",
+      icon: "₿",
+    },
+    {
+      symbol: "USDC",
+      name: "USD Coin",
+      balance: "1000",
+      balanceUSD: "$1,000.00",
+      icon: "💵",
+    },
+    {
+      symbol: "OBNB",
+      name: "Onchain BNB",
+      balance: "50",
+      balanceUSD: "$15,000.00",
+      icon: "🔺",
+    },
+    {
+      symbol: "MATIC",
+      name: "Polygon",
+      balance: "500",
+      balanceUSD: "$450.00",
+      icon: "🟣",
+    },
+  ];
+
+  const getTokenPrice = (symbol: string): number => {
+    const prices: Record<string, number> = {
+      CNPY: mockCanopyWallet.usdCurrentPrice,
+      ETH: 2500,
+      BTC: 65000,
+      USDC: 1,
+      OBNB: 300,
+      MATIC: 0.9,
+    };
+    return prices[symbol] || mockCanopyWallet.usdCurrentPrice;
+  };
+
   useEffect(() => {
     if (activeTab === "buy") {
-      // Buy: USD → Custom Chain Token (using CNPY)
       setSelectedFromToken(cnpyToken);
       setSelectedToToken(customChainToken);
     } else if (activeTab === "sell") {
-      // Sell: Custom Chain Token → CNPY
       setSelectedFromToken(customChainToken);
       setSelectedToToken(cnpyToken);
     } else if (activeTab === "convert") {
-      // Convert: Keep CNPY → Custom Chain Token
       setSelectedFromToken(cnpyToken);
       setSelectedToToken(customChainToken);
     }
-    // Clear amounts when switching tabs
     setFromAmount("");
     setToAmount("");
   }, [activeTab]);
+
+  useEffect(() => {
+    if (!fromAmount || fromAmount === "0" || fromAmount === "") {
+      setToAmount("0");
+      return;
+    }
+
+    const amount = parseFloat(fromAmount);
+    if (isNaN(amount)) {
+      setToAmount("0");
+      return;
+    }
+
+    if (activeTab === "buy") {
+      const fromPrice = getTokenPrice(selectedFromToken.symbol);
+      const toPrice = getTokenPrice(selectedToToken.symbol);
+      const toValue = (amount * fromPrice) / toPrice;
+      setToAmount(
+        toValue.toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 6,
+        })
+      );
+    } else if (activeTab === "sell") {
+      const fromPrice = getTokenPrice(selectedFromToken.symbol);
+      const toPrice = getTokenPrice(selectedToToken.symbol);
+      const toValue = (amount * fromPrice) / toPrice;
+      setToAmount(
+        toValue.toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })
+      );
+    }
+  }, [fromAmount, activeTab, selectedFromToken, selectedToToken]);
 
   const handleCopyAddress = () => {
     if (currentAccount?.address) {
@@ -137,7 +213,6 @@ export function WalletContent({
   };
 
   const handleSwapTokens = () => {
-    // Swap the tokens
     const temp = selectedFromToken;
     setSelectedFromToken(selectedToToken);
     setSelectedToToken(temp);
@@ -145,7 +220,6 @@ export function WalletContent({
     setFromAmount(toAmount);
     setToAmount(tempAmount);
 
-    // Switch tabs based on current tab
     if (activeTab === "buy") {
       setActiveTab("sell");
     } else if (activeTab === "sell") {
@@ -154,15 +228,17 @@ export function WalletContent({
   };
 
   const handleUseMax = () => {
-    // Convert CNPY balance to USD: CNPY amount * USD price per CNPY
-    const cnpyBalance = parseFloat(selectedFromToken.balance);
-    const usdAmount = cnpyBalance * mockCanopyWallet.usdCurrentPrice;
-    setFromAmount(usdAmount.toString());
+    if (activeTab === "buy") {
+      const cnpyBalance = parseFloat(selectedFromToken.balance);
+      const usdAmount = cnpyBalance * mockCanopyWallet.usdCurrentPrice;
+      setFromAmount(usdAmount.toString());
+    } else if (activeTab === "sell") {
+      setFromAmount(selectedFromToken.balance);
+    }
   };
 
   return (
     <>
-      {/* Header */}
       {currentAccount && showBalance && (
         <div className="p-6 pb-4 border-b border-[#2a2a2a]">
           <div className="flex items-center justify-between mb-4">
@@ -197,7 +273,6 @@ export function WalletContent({
             </div>
           </div>
 
-          {/* Balance Display */}
           <div className="text-center py-4">
             <p className="text-3xl font-bold text-white mb-1">
               {mockCanopyWallet.cnpyAvailableAmount.toLocaleString()} CNPY
@@ -207,7 +282,6 @@ export function WalletContent({
         </div>
       )}
 
-      {/* Tabs */}
       <Tabs
         value={activeTab}
         onValueChange={setActiveTab}
@@ -237,7 +311,6 @@ export function WalletContent({
           </TabsTrigger>
         </TabsList>
 
-        {/* Tab Content */}
         <div className="">
           <TabsContent value="buy" className="mt-0">
             <SwapInterface
@@ -270,30 +343,33 @@ export function WalletContent({
           </TabsContent>
 
           <TabsContent value="convert" className="mt-0">
-            <SwapInterface
-              fromToken={selectedFromToken}
-              toToken={selectedToToken}
-              fromAmount={fromAmount}
-              toAmount={toAmount}
-              onFromAmountChange={setFromAmount}
-              onToAmountChange={setToAmount}
-              onSwapTokens={handleSwapTokens}
-              onUseMax={handleUseMax}
-              cnpyAvailableAmount={mockCanopyWallet.cnpyAvailableAmount}
-              usdCurrentPrice={mockCanopyWallet.usdCurrentPrice}
+            <TokenSelector
+              availableTokens={availableTokens}
+              selectedToken={selectedConvertToken}
+              onSelectToken={setSelectedConvertToken}
+              cnpyPrice={mockCanopyWallet.usdCurrentPrice}
             />
           </TabsContent>
         </div>
       </Tabs>
 
-      {/* Action Button - Only show if wallet is connected */}
-      {currentAccount && (
+      {currentAccount && activeTab !== "convert" && (
         <div className="">
           <ActionButton activeTab={activeTab} />
         </div>
       )}
 
-      {/* Connect Wallet Button - Only show if not connected */}
+      {currentAccount && activeTab === "convert" && selectedConvertToken && (
+        <div className="">
+          <Button
+            className="w-full h-12 text-base font-medium rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white"
+            onClick={() => console.log("Convert clicked")}
+          >
+            Convert to CNPY
+          </Button>
+        </div>
+      )}
+
       {!currentAccount && (
         <div className="">
           <Button

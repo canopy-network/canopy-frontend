@@ -37,26 +37,26 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // setIsSubmitting(true);
-    // setLocalError(null);
-    // setError(null);
+    setIsSubmitting(true);
+    setLocalError(null);
+    setError(null);
 
-    // try {
-    //   const response = await sendEmailCode(email);
+    try {
+      const response = await sendEmailCode(email);
 
-    //   // Store dev code if available
-    //   if (response.data.code) {
-    //     setDevCode(response.data.code);
-    //   }
-    setStep("code");
-    //   setResendTimer(30); // Start 30-second countdown
-    // } catch (error: any) {
-    //   setLocalError(
-    //     error.message || "Failed to send verification code. Please try again."
-    //   );
-    // } finally {
-    setIsSubmitting(false);
-    // }
+      // Store dev code if available
+      if (response.data.code) {
+        setDevCode(response.data.code);
+      }
+      setStep("code");
+      setResendTimer(30); // Start 30-second countdown
+    } catch (error: any) {
+      setLocalError(
+        error.message || "Failed to send verification code. Please try again."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleResendCode = async () => {

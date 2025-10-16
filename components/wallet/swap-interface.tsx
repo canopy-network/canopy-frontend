@@ -25,21 +25,6 @@ interface SwapInterfaceProps {
   usdCurrentPrice: number;
 }
 
-/**
- * Controlled component for perfomring crypto swaps. Needs to be wrapped in a parent component to be used.
- *
- * @param {Token} fromToken, the token to be swapped from
- * @param {Token} toToken, the token to be swapped to
- * @param {number} cnpyAvailableAmount, the max amount of Canopy available on the wallet
- * @param {number} usdCurrentPrice, the current price of Canopy but in  Usd
- * @param {string} fromAmount, the amount of the from token to be swapped
- * @param {string} toAmount, the amount of the to token to be swapped
- * @param {Function} onFromAmountChange, the function to be called when the from amount changes
- * @param {Function} onToAmountChange, the function to be called when the to amount changes
- * @param {Function} onSwapTokens, the function to be called when the tokens are swapped
- * @param {Function} onUseMax, the function to be called when the max amount is used
- * @param {boolean} showBalance, this renders the balance of current account is wallet
- */
 export function SwapInterface({
   fromToken,
   toToken,
@@ -54,26 +39,19 @@ export function SwapInterface({
 }: SwapInterfaceProps) {
   const exchangeRate = "1.00086";
 
-  // Format number with commas and dollar sign
   const formatCurrency = (value: string): string => {
-    // Remove everything except digits and decimal point
     const numericValue = value.replace(/[^\d.]/g, "");
 
-    // Handle empty input
     if (!numericValue) return "$0";
 
-    // Split into integer and decimal parts
     const parts = numericValue.split(".");
     let integerPart = parts[0];
     const decimalPart = parts[1];
 
-    // Remove leading zeros but keep at least one zero if value is 0
     integerPart = integerPart.replace(/^0+/, "") || "0";
 
-    // Add commas to integer part
     const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
-    // Combine with decimal part if it exists
     const formatted =
       decimalPart !== undefined
         ? `$${formattedInteger}.${decimalPart}`
@@ -82,39 +60,95 @@ export function SwapInterface({
     return formatted;
   };
 
-  // Parse formatted currency back to numeric string
   const parseCurrency = (formatted: string): string => {
     return formatted.replace(/[$,]/g, "");
   };
 
+  const isBuyMode = fromToken.symbol === "CNPY";
+
   const handleFromAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value;
-    const numericValue = parseCurrency(inputValue);
-    onFromAmountChange(numericValue);
+
+    if (isBuyMode) {
+      const numericValue = parseCurrency(inputValue);
+      onFromAmountChange(numericValue);
+    } else {
+      const value = inputValue;
+      if (value === "" || /^\d*\.?\d*$/.test(value)) {
+        onFromAmountChange(value);
+      }
+    }
   };
 
-  // Calculate CNPY amount based on USD input
-  const calculateCnpyAmount = (usdAmount: string): string => {
+  const getTokenPrice = (symbol: string): number => {
+    const prices: Record<string, number> = {
+      CNPY: usdCurrentPrice,
+      ETH: 2500,
+      BTC: 65000,
+      USDC: 1,
+      OBNB: 300,
+      MATIC: 0.9,
+    };
+    return prices[symbol] || usdCurrentPrice;
+  };
+
+  const calculateTokenFromUsd = (
+    usdAmount: string,
+    tokenSymbol: string
+  ): string => {
     if (!usdAmount || usdAmount === "0") return "0";
     const usdValue = parseFloat(usdAmount);
     if (isNaN(usdValue)) return "0";
 
-    // Calculate CNPY: USD / price per CNPY
-    const cnpyAmount = usdValue / usdCurrentPrice;
+    const tokenPrice = getTokenPrice(tokenSymbol);
+    const tokenAmount = usdValue / tokenPrice;
 
-    // Format with commas and up to 2 decimal places
-    return cnpyAmount.toLocaleString("en-US", {
+    return tokenAmount.toLocaleString("en-US", {
       minimumFractionDigits: 0,
+      maximumFractionDigits: 6,
+    });
+  };
+
+  const calculateUsdFromToken = (
+    tokenAmount: string,
+    tokenSymbol: string
+  ): string => {
+    if (!tokenAmount || tokenAmount === "0") return "0";
+    const amount = parseFloat(tokenAmount);
+    if (isNaN(amount)) return "0";
+
+    const tokenPrice = getTokenPrice(tokenSymbol);
+    const usdValue = amount * tokenPrice;
+
+    return usdValue.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
   };
 
-  const displayFromAmount = fromAmount ? formatCurrency(fromAmount) : "$0";
-  const calculatedCnpyAmount = calculateCnpyAmount(fromAmount);
+  const calculatePreview = (): string => {
+    if (!fromAmount || fromAmount === "0") return "0";
+
+    if (isBuyMode) {
+      return calculateTokenFromUsd(fromAmount, toToken.symbol);
+    } else {
+      return calculateUsdFromToken(fromAmount, fromToken.symbol);
+    }
+  };
+
+  const displayFromAmount = isBuyMode
+    ? fromAmount
+      ? formatCurrency(fromAmount)
+      : "$0"
+    : fromAmount || "0";
+
+  const previewAmount = calculatePreview();
+  const previewText = isBuyMode
+    ? `${previewAmount} ${toToken.symbol} ↕`
+    : `$${previewAmount} ↕`;
 
   return (
     <div className="space-y-3">
-      {/* From Token */}
       <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-4 relative">
         <div className="flex items-center justify-between ">
           <div className="flex items-center gap-2 ">
@@ -145,14 +179,12 @@ export function SwapInterface({
             type="text"
             value={displayFromAmount}
             onChange={handleFromAmountChange}
-            placeholder="$0"
+            placeholder={isBuyMode ? "$0" : "0"}
             size="wallet"
             variant="wallet"
             className="text-center text-[40px] border-none px-0"
           />
-          <p className="text-sm text-gray-400 mt-2">
-            {calculatedCnpyAmount} {fromToken.symbol} ↕
-          </p>
+          <p className="text-sm text-gray-400 mt-2">{previewText}</p>
         </div>
 
         <div
@@ -170,7 +202,6 @@ export function SwapInterface({
         </div>
       </div>
 
-      {/* To Token */}
       <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-4 flex items-center justify-between mb-3 flex-col w-full">
         <div className="flex items-center gap-2 w-full">
           <div className="min-h-8 min-w-8 rounded-full bg-gradient-to-br from-pink-500 to-orange-500 flex items-center justify-center text-lg">
@@ -198,7 +229,6 @@ export function SwapInterface({
         </div>
       </div>
 
-      {/* Exchange Rate */}
       <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
         <RefreshCw className="h-4 w-4" />
         <span>
