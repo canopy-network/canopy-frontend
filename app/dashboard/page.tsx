@@ -66,6 +66,13 @@ const features = [
     href: "/explorer",
   },
   {
+    title: "This is a test",
+    description:
+      "Trade with CNPY-paired liquidity pools and earn fees as a liquidity provider.",
+    icon: ArrowUpDown,
+    href: "/amm",
+  },
+  {
     title: "AMM Hub",
     description:
       "Trade with CNPY-paired liquidity pools and earn fees as a liquidity provider.",
