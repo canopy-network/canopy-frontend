@@ -102,10 +102,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
     try {
       const response = await verifyCode(email, code);
 
-      setUser({
-        email: response.data.email,
-        token: response.data.token,
-      });
+      setUser(response.data.user);
       setStep("authenticated");
       setCode("");
       setDevCode(null);
