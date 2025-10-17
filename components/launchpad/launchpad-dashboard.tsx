@@ -14,8 +14,33 @@ import { SmallProjectCard } from "./small-project-card";
 import { ProjectCard } from "./project-card";
 import { RecentsProjectsCarousel } from "./recents-projects-carousel";
 import { ChainWithUI } from "@/lib/stores/chains-store";
-import { Plus, Filter, BookOpen, RefreshCw, AlertCircle } from "lucide-react";
+import {
+  Plus,
+  Filter,
+  BookOpen,
+  RefreshCw,
+  AlertCircle,
+  Home,
+  Calendar,
+  TrendingUp,
+  Heart,
+  LucideIcon,
+} from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+// Tab configuration
+interface TabConfig {
+  value: string;
+  label: string;
+  icon: LucideIcon;
+}
+
+const tabsConfig: TabConfig[] = [
+  { value: "all", label: "All", icon: Home },
+  { value: "pending_launch", label: "Scheduled", icon: Calendar },
+  { value: "virtual_active", label: "Trending", icon: TrendingUp },
+  { value: "graduated", label: "Favorites", icon: Heart },
+];
 
 // Mock data for fallback when API is not available
 const fallbackProjects: ChainWithUI[] = [
@@ -207,11 +232,6 @@ export function LaunchpadDashboard() {
     }
   }, []);
 
-  useEffect(() => {
-    console.log("displayFilteredChains", chains);
-    console.log("virtualPools", virtualPools);
-  }, [chains, virtualPools]);
-
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Error Display */}
@@ -247,7 +267,7 @@ export function LaunchpadDashboard() {
       {/* Main Content */}
       <div className="container max-w-5xl mx-auto px-4 py-8">
         {/* Recent Projects Carousel */}
-        <div className="mb-12">
+        <div className="mb-6 lg:mb-12">
           {chains.length > 0 ? (
             <RecentsProjectsCarousel
               projects={chains}
@@ -267,38 +287,30 @@ export function LaunchpadDashboard() {
           onValueChange={setActiveTab}
           className="min-h-[400px]"
         >
-          <div className="flex items-center justify-between">
-            <TabsList className="bg-[#1a1a1a] border border-[#2a2a2a] p-1">
-              <TabsTrigger
-                value="all"
-                className="data-[state=active]:bg-white data-[state=active]:text-black data-[state=inactive]:text-gray-400 data-[state=inactive]:hover:text-white font-medium transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="h-4 w-4 bg-white rounded-sm" />
-                  All
-                </div>
-              </TabsTrigger>
-              <TabsTrigger
-                value="scheduled"
-                className="data-[state=active]:bg-white data-[state=active]:text-black data-[state=inactive]:text-gray-400 data-[state=inactive]:hover:text-white font-medium transition-colors"
-              >
-                Scheduled
-              </TabsTrigger>
-              <TabsTrigger
-                value="trending"
-                className="data-[state=active]:bg-white data-[state=active]:text-black data-[state=inactive]:text-gray-400 data-[state=inactive]:hover:text-white font-medium transition-colors"
-              >
-                Trending
-              </TabsTrigger>
-              <TabsTrigger
-                value="favorites"
-                className="data-[state=active]:bg-white data-[state=active]:text-black data-[state=inactive]:text-gray-400 data-[state=inactive]:hover:text-white font-medium transition-colors"
-              >
-                Favorites
-              </TabsTrigger>
-            </TabsList>
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-4">
+            <div className="overflow-x-auto w-full lg:w-auto -mx-4 px-4 lg:mx-0 lg:px-0">
+              <TabsList className="bg-transparent border-none p-0 gap-4 mb-0 inline-flex">
+                {tabsConfig.map((tab) => {
+                  const Icon = tab.icon;
+                  return (
+                    <TabsTrigger
+                      key={tab.value}
+                      value={tab.value}
+                      className="primary-tab-button whitespace-nowrap"
+                    >
+                      <div className="flex items-center gap-2">
+                        {activeTab === tab.value && (
+                          <Icon className="w-4 h-4" />
+                        )}
+                        {tab.label}
+                      </div>
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
+            </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 w-full lg:w-auto">
               {/* TODO: Dropdown is not working as expected. */}
               <Dropdown
                 options={categoryOptions}
@@ -354,59 +366,51 @@ export function LaunchpadDashboard() {
             )}
           </TabsContent>
 
-          <TabsContent value="scheduled" className="space-y-4">
+          <TabsContent value="pending_launch" className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredChains
-                .filter((p) => p.status === "pending")
-                .map((project) => (
-                  <SmallProjectCard
-                    key={project.id}
-                    project={project}
-                    href={`/launchpad/${project.id}`}
-                  />
-                ))}
+              {filteredChains.map((project) => (
+                <SmallProjectCard
+                  key={project.id}
+                  project={project}
+                  href={`/launchpad/${project.id}`}
+                />
+              ))}
             </div>
-            {filteredChains.filter((p) => p.status === "pending").length ===
-              0 && (
+            {filteredChains.length === 0 && (
               <div className="text-center py-12">
                 <p className="text-gray-400 text-lg">No scheduled projects</p>
               </div>
             )}
           </TabsContent>
 
-          <TabsContent value="trending" className="space-y-4">
+          <TabsContent value="virtual_active" className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredChains
-                .filter((p) => p.status === "active")
-                .map((project) => (
-                  <SmallProjectCard
-                    key={project.id}
-                    project={project}
-                    href={`/launchpad/${project.id}`}
-                  />
-                ))}
+              {filteredChains.map((project) => (
+                <SmallProjectCard
+                  key={project.id}
+                  project={project}
+                  href={`/launchpad/${project.id}`}
+                />
+              ))}
             </div>
-            {filteredChains.filter((p) => p.status === "active").length ===
-              0 && (
+            {filteredChains.length === 0 && (
               <div className="text-center py-12">
                 <p className="text-gray-400 text-lg">No trending projects</p>
               </div>
             )}
           </TabsContent>
 
-          <TabsContent value="favorites" className="space-y-4">
+          <TabsContent value="graduated" className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredChains
-                .filter((p) => p.is_graduated)
-                .map((project) => (
-                  <SmallProjectCard
-                    key={project.id}
-                    project={project}
-                    href={`/launchpad/${project.id}`}
-                  />
-                ))}
+              {filteredChains.map((project) => (
+                <SmallProjectCard
+                  key={project.id}
+                  project={project}
+                  href={`/launchpad/${project.id}`}
+                />
+              ))}
             </div>
-            {filteredChains.filter((p) => p.is_graduated).length === 0 && (
+            {filteredChains.length === 0 && (
               <div className="text-center py-12">
                 <p className="text-gray-400 text-lg">No favorite projects</p>
               </div>

@@ -17,6 +17,9 @@ export function Sidebar() {
   const { user, isAuthenticated } = useAuthStore();
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
 
+  // User is considered logged in if either email auth or GitHub auth is active
+  const isLoggedIn = isAuthenticated || !!session;
+
   return (
     <div className="flex h-full w-64 flex-col bg-[#0e0e0e] border-r border-[#2a2a2a]">
       <div className="flex h-16 items-center border-b border-[#2a2a2a] px-6">
@@ -42,18 +45,20 @@ export function Sidebar() {
         </div>
       </div>
 
-      <div className="px-4 py-2 border-b border-[#2a2a2a]">
-        <Button
-          className="w-full justify-start gap-2 bg-transparent hover:bg-[#1a1a1a] text-white border-none font-medium"
-          onClick={open}
-        >
-          <Plus className="h-4 w-4" />
-          Create chain
-        </Button>
-      </div>
+      {isLoggedIn && (
+        <div className="px-4 py-2 border-b border-[#2a2a2a]">
+          <Button
+            className="w-full justify-start gap-2 bg-transparent hover:bg-[#1a1a1a] text-white border-none font-medium"
+            onClick={open}
+          >
+            <Plus className="h-4 w-4" />
+            Create chain
+          </Button>
+        </div>
+      )}
 
       <div className="flex-1 overflow-auto p-4">
-        <MainNav />
+        <MainNav isAuthenticated={isLoggedIn} />
       </div>
 
       <div className="border-t border-[#2a2a2a] p-4 space-y-3">
@@ -88,42 +93,44 @@ export function Sidebar() {
           </Button>
         )}
 
-        <WalletConnectButton />
+        {isLoggedIn && <WalletConnectButton />}
 
-        {/* GitHub Login Button - Temporary */}
-        <div className="space-y-2">
-          {session ? (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 p-2 bg-[#1a1a1a] rounded-lg">
-                <img
-                  src={session.user?.image || ""}
-                  alt={session.user?.name || ""}
-                  className="w-6 h-6 rounded-full"
-                />
-                <span className="text-sm text-white truncate">
-                  {session.user?.name || session.user?.email}
-                </span>
-              </div>
+        {/* GitHub Login Button - Only show if logged in */}
+        {isLoggedIn && (
+          <div className="space-y-2">
+            {session ? (
+              <>
+                <div className="flex items-center gap-2 p-2 bg-[#1a1a1a] rounded-lg">
+                  <img
+                    src={session.user?.image || ""}
+                    alt={session.user?.name || ""}
+                    className="w-6 h-6 rounded-full"
+                  />
+                  <span className="text-sm text-white truncate">
+                    {session.user?.name || session.user?.email}
+                  </span>
+                </div>
+                <Button
+                  onClick={() => signOut()}
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-xs"
+                >
+                  Sign Out
+                </Button>
+              </>
+            ) : (
               <Button
-                onClick={() => signOut()}
+                onClick={() => signIn("github")}
                 variant="outline"
-                size="sm"
-                className="w-full text-xs"
+                className="w-full justify-start gap-2 bg-transparent hover:bg-[#1a1a1a] text-white border-[#2a2a2a]"
               >
-                Sign Out
+                <Github className="h-4 w-4" />
+                Connect GitHub
               </Button>
-            </div>
-          ) : (
-            <Button
-              onClick={() => signIn("github")}
-              variant="outline"
-              className="w-full justify-start gap-2 bg-transparent hover:bg-[#1a1a1a] text-white border-[#2a2a2a]"
-            >
-              <Github className="h-4 w-4" />
-              Connect GitHub
-            </Button>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Login Dialog */}

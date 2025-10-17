@@ -256,24 +256,16 @@ export function useLaunchpadDashboard({
   };
 
   const setActiveTab = (tab: string) => {
-    // Map tab values to chain statuses
+    // Tab values now directly correspond to status values
     let status: string | undefined;
-    switch (tab) {
-      case "scheduled":
-        status = "pending_launch";
-        break;
-      case "trending":
-        status = "virtual_active";
-        break;
-      case "favorites":
-        // For now, just show graduated projects as favorites
-        status = "graduated";
-        break;
-      case "all":
-      default:
-        status = undefined; // Show all projects
-        break;
+
+    if (tab === "all") {
+      status = undefined; // Show all projects
+    } else {
+      // Use the tab value directly as the status
+      status = tab;
     }
+
     setFilters({ status: status as any });
   };
 

@@ -212,10 +212,8 @@ export const ChainDetailChart = ({
         // time will be in the same format that we supplied to setData.
         // thus it will be a Unix timestamp
         const date = param.time as number;
-        console.log({ param });
         toolTip.style.display = "block";
         const data = param.seriesData.get(series) as any;
-        console.log({ data });
         const price = data?.value || data?.close || 0;
         toolTip.innerHTML = `<div class="chart-tooltip-value">
           $${price.toFixed(6)}
