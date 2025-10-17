@@ -267,7 +267,7 @@ export function LaunchpadDashboard() {
       {/* Main Content */}
       <div className="container max-w-5xl mx-auto px-4 py-8">
         {/* Recent Projects Carousel */}
-        <div className="mb-12">
+        <div className="mb-6 lg:mb-12">
           {chains.length > 0 ? (
             <RecentsProjectsCarousel
               projects={chains}
@@ -287,26 +287,30 @@ export function LaunchpadDashboard() {
           onValueChange={setActiveTab}
           className="min-h-[400px]"
         >
-          <div className="flex items-center justify-between">
-            <TabsList className="bg-transparent border-none p-0 gap-4 mb-4">
-              {tabsConfig.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <TabsTrigger
-                    key={tab.value}
-                    value={tab.value}
-                    className="primary-tab-button"
-                  >
-                    <div className="flex items-center gap-2">
-                      {activeTab === tab.value && <Icon className="w-4 h-4" />}
-                      {tab.label}
-                    </div>
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-4">
+            <div className="overflow-x-auto w-full lg:w-auto -mx-4 px-4 lg:mx-0 lg:px-0">
+              <TabsList className="bg-transparent border-none p-0 gap-4 mb-0 inline-flex">
+                {tabsConfig.map((tab) => {
+                  const Icon = tab.icon;
+                  return (
+                    <TabsTrigger
+                      key={tab.value}
+                      value={tab.value}
+                      className="primary-tab-button whitespace-nowrap"
+                    >
+                      <div className="flex items-center gap-2">
+                        {activeTab === tab.value && (
+                          <Icon className="w-4 h-4" />
+                        )}
+                        {tab.label}
+                      </div>
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
+            </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 w-full lg:w-auto">
               {/* TODO: Dropdown is not working as expected. */}
               <Dropdown
                 options={categoryOptions}

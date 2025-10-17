@@ -103,7 +103,7 @@ export const ProjectCard = ({
       <Card
         padding="lg"
         size="lg"
-        className="bg-gradient-to-br from-[#1a1a1a] to-[#2a2a2a] border-[#2a2a2a] hover:from-[#2a2a2a] hover:to-[#3a3a3a] transition-all duration-300 h-[342px]"
+        className="bg-gradient-to-br from-[#1a1a1a] to-[#2a2a2a] border-[#2a2a2a] hover:from-[#2a2a2a] hover:to-[#3a3a3a] transition-all duration-300 lg:h-[342px]"
       >
         <div className="grid md:grid-cols-2 gap-8 items-center">
           <div className="space-y-6">
@@ -114,17 +114,17 @@ export const ProjectCard = ({
                   {project.chain_name.charAt(0).toUpperCase()}
                 </span>
               </div>
-              <Link href={`/launchpad/${project.id}`}>
-                <div className="flex items-center gap-2 mb-1">
-                  <h2 className="text-2xl font-bold text-white">
+              <Link href={`/launchpad/${project.id}`} className="text-left">
+                <div className="flex lg:items-center gap-2 mb-1 flex-col md:flex-row text-left">
+                  <h2 className="text-2xl font-bold text-white text-left">
                     {project.chain_name}
                   </h2>
 
-                  <Badge className="bg-[#2a2a2a] text-white border-[#3a3a3a]">
+                  <Badge className="bg-[#2a2a2a] text-white border-[#3a3a3a] text-left">
                     ${project.token_symbol}
                   </Badge>
                 </div>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground text-left">
                   {project.creator?.display_name} · Published{" "}
                   {new Date(project.created_at).toLocaleDateString()}
                 </p>
@@ -166,8 +166,8 @@ export const ProjectCard = ({
           </div>
         </div>
       </Card>
-      <div className="mt-6 flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="mt-6 flex items-center justify-between flex-col-reverse md:flex-row md:items-center gap-4 lg:gap-3">
+        <div className="flex items-center gap-4 w-full md:w-auto">
           <div className="flex items-center gap-2">
             <div className="h-6 w-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
               <span className="text-white text-xs font-bold">A</span>
@@ -189,8 +189,8 @@ export const ProjectCard = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-6 text-sm">
-          <div className="text-center">
+        <div className="flex items-center gap-6 text-sm w-full md:w-auto">
+          <div className=" text-left lg:text-center">
             <div className="text-muted-foreground">VOL (24h)</div>
             <div className="text-white font-semibold">
               $
@@ -201,7 +201,7 @@ export const ProjectCard = ({
                 : volume24h.toFixed(0)}
             </div>
           </div>
-          <div className="text-center">
+          <div className=" text-left lg:text-center">
             <div className="text-muted-foreground">MCap</div>
             <div className="text-white font-semibold">
               $
@@ -212,7 +212,7 @@ export const ProjectCard = ({
                 : marketCap.toFixed(0)}
             </div>
           </div>
-          <div className="text-center">
+          <div className=" text-left lg:text-center">
             <div className="text-muted-foreground">FDV</div>
             <div className="text-white font-semibold">
               $

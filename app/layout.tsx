@@ -36,11 +36,16 @@ export default function RootLayout({
           <StoreProvider>
             <WalletProvider>
               <TemplatesInitializer />
-              <div className="flex h-screen bg-background">
-                <Sidebar />
-                <main className="w-full overflow-x-hidden">
+              <div className="flex h-screen bg-background overflow-hidden">
+                {/* Desktop Sidebar - hidden on mobile */}
+                <div className="hidden lg:block">
+                  <Sidebar />
+                </div>
+                <main className="w-full overflow-x-hidden flex flex-col">
                   <Header />
-                  <Suspense fallback={null}>{children}</Suspense>
+                  <div className="flex-1 overflow-y-auto overflow-x-hidden">
+                    <Suspense fallback={null}>{children}</Suspense>
+                  </div>
                 </main>
               </div>
               <CreateChainWizard />
