@@ -112,7 +112,7 @@ export const SmallProjectCard = ({
   return (
     <Link
       href={href}
-      className="block p-4 bg-gray-800/50 hover:bg-gray-700/50 rounded-xl border border-gray-700/50 hover:border-gray-600/50"
+      className="block p-4 rounded-xl bg-gradient-to-br from-[#1a1a1a] to-[#2a2a2a] border-[#2a2a2a] hover:from-[#2a2a2a] hover:to-[#3a3a3a] transition-all duration-300"
     >
       <div className="flex items-start gap-3">
         {/* Dynamic Project Icon */}

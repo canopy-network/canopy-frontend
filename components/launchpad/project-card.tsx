@@ -100,76 +100,71 @@ export const ProjectCard = ({
 
   return (
     <>
-      <Card className="bg-gradient-to-br from-[#1a1a1a] to-[#2a2a2a] border-[#2a2a2a] hover:from-[#2a2a2a] hover:to-[#3a3a3a] transition-all duration-300 shadow-xl">
-        <CardContent className="p-8">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div className="space-y-6">
-              <div className="flex items-center gap-3">
-                <div className="h-12 w-12 rounded-full bg-gradient-to-br from-pink-500 to-red-500 flex items-center justify-center shadow-lg">
-                  {/* TODO: whats up with the icon/avatar on API response? */}
-                  <span className="text-white font-bold text-lg">
-                    {project.chain_name.charAt(0).toUpperCase()}
+      <Card
+        padding="lg"
+        size="lg"
+        className="bg-gradient-to-br from-[#1a1a1a] to-[#2a2a2a] border-[#2a2a2a] hover:from-[#2a2a2a] hover:to-[#3a3a3a] transition-all duration-300 h-[342px]"
+      >
+        <div className="grid md:grid-cols-2 gap-8 items-center">
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-pink-500 to-red-500 flex items-center justify-center shadow-lg">
+                {/* TODO: whats up with the icon/avatar on API response? */}
+                <span className="text-white font-bold text-lg">
+                  {project.chain_name.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <Link href={`/launchpad/${project.id}`}>
+                <div className="flex items-center gap-2 mb-1">
+                  <h2 className="text-2xl font-bold text-white">
+                    {project.chain_name}
+                  </h2>
+
+                  <Badge className="bg-[#2a2a2a] text-white border-[#3a3a3a]">
+                    ${project.token_symbol}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {project.creator?.display_name} · Published{" "}
+                  {new Date(project.created_at).toLocaleDateString()}
+                </p>
+              </Link>
+            </div>
+
+            <div>
+              <h3 className="text-3xl font-semibold text-white mb-2 leading-tight line-clamp-2">
+                {project.chain_description}
+              </h3>
+              <p className="text-muted-foreground leading-relaxed line-clamp-2">
+                Buy an asset chain company with $700 in assets or not, take
+                everything onchain
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Progress
+                    value={progress}
+                    className="w-32 h-2 bg-[#2a2a2a]"
+                  />
+                  <span className="text-sm text-muted-foreground font-medium">
+                    {formatKilo(currentRaised)}/
+                    {formatKilo(project.graduation_threshold)}
+                  </span>
+                  <span className="text-sm text-primary font-semibold flex items-center gap-1">
+                    <TrendingUp className="h-3 w-3" />
+                    {priceChange.toFixed(1)}%
                   </span>
                 </div>
-                <Link href={`/launchpad/${project.id}`}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h2 className="text-2xl font-bold text-white">
-                      {project.chain_name}
-                    </h2>
-
-                    <Badge className="bg-[#2a2a2a] text-white border-[#3a3a3a]">
-                      ${project.token_symbol}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {project.creator?.display_name} · Published{" "}
-                    {new Date(project.created_at).toLocaleDateString()}
-                  </p>
-                </Link>
               </div>
-
-              <div>
-                <h3 className="text-3xl font-bold text-white mb-2 leading-tight">
-                  {project.chain_description}
-                </h3>
-                <p className="text-muted-foreground leading-relaxed">
-                  Buy an asset chain company with $700 in assets or not, take
-                  everything onchain
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-4">
-                <Link
-                  href={`/launchpad/${project.id}`}
-                  className="w-full text-center bg-primary hover:bg-primary/90 text-black font-semibold py-3 text-lg rounded-lg hover:shadow-xl transition-all duration-200"
-                >
-                  Buy ${project.token_symbol}
-                </Link>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Progress
-                      value={progress}
-                      className="w-32 h-2 bg-[#2a2a2a]"
-                    />
-                    <span className="text-sm text-muted-foreground font-medium">
-                      {formatKilo(currentRaised)}/
-                      {formatKilo(project.graduation_threshold)}
-                    </span>
-                    <span className="text-sm text-primary font-semibold flex items-center gap-1">
-                      <TrendingUp className="h-3 w-3" />
-                      {priceChange.toFixed(1)}%
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="w-full h-full relative">
-              <FeaturelessChart data={sampleChartData} isDark={true} />
             </div>
           </div>
-        </CardContent>
+
+          <div className="w-full h-full relative">
+            <FeaturelessChart data={sampleChartData} isDark={true} />
+          </div>
+        </div>
       </Card>
       <div className="mt-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
