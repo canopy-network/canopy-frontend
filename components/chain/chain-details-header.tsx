@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { Bell, Share2, Globe, Heart } from "lucide-react";
 
 interface ChainDetailsHeaderProps {
@@ -50,16 +51,19 @@ export function ChainDetailsHeader({ chain }: ChainDetailsHeaderProps) {
           </h1>
 
           <div className="flex items-center gap-2 text-sm text-white/50">
-            <span>${chain.token_symbol} on</span>
+            <span>${chain.token_symbol} by</span>
             {/* Inline Secondary Icon */}
-            <div className="flex items-center gap-1 whitespace-nowrap">
+            <Link
+              className="flex items-center gap-1 whitespace-nowrap"
+              href={`/creator/xyz`}
+            >
               <img
                 src=""
                 alt="Chain Symbol"
                 className="w-4 h-4 rounded-full bg-gradient-to-r from-green-200 to-green-400"
               />
-              <span className="whitespace-nowrap">{chain.chain_name}</span>
-            </div>
+              <span className="whitespace-nowrap">[username]</span>
+            </Link>
             <span>•</span>
             <span>created 13m ago</span>
           </div>

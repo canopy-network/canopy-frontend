@@ -9,10 +9,10 @@ const inputVariants = cva(
     variants: {
       variant: {
         default:
-          "border-input focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+          "border-gray-700 focus-visible:border-primary focus-visible:ring-ring/50 focus-visible:ring-[3px]",
         wallet: "border-none focus-visible:outline-none",
         ghost:
-          "border-transparent hover:border-input focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+          "border-transparent hover:border-gray-700 focus-visible:border-primary focus-visible:ring-ring/50 focus-visible:ring-[3px]",
         destructive:
           "border-destructive focus-visible:border-destructive focus-visible:ring-destructive/50 focus-visible:ring-[3px]",
       },

@@ -258,13 +258,38 @@ export function Header() {
     if (segments.length > 1) {
       // For launchpad routes, try to get the chain name from the store
       let label = segments[1];
+      let href: string | undefined = undefined;
+      let isLast = segments.length === 2;
 
       if (mainSection === "launchpad" && currentChain) {
         // Use the chain name from the store if available
         label = currentChain.chain_name || segments[1];
+
+        // If there's a third segment (like /edit), make this breadcrumb clickable
+        if (segments.length > 2) {
+          href = `/launchpad/${segments[1]}`;
+          isLast = false;
+        }
       } else if (segments[1].length > 20) {
         // Truncate long IDs
         label = `${segments[1].substring(0, 20)}...`;
+      }
+
+      breadcrumbs.push({
+        label,
+        href,
+        isLast,
+      });
+    }
+
+    // Third segment (if exists, like /edit)
+    if (segments.length > 2) {
+      const thirdSegment = segments[2];
+      let label = thirdSegment;
+
+      // Capitalize and format the segment
+      if (thirdSegment === "edit") {
+        label = "Edit Chain";
       }
 
       breadcrumbs.push({
@@ -282,7 +307,7 @@ export function Header() {
     <header
       id="superapp-header"
       data-page-type={pageType}
-      className="flex items-center justify-between px-6 py-4 border-b border-white/[0.1]"
+      className="flex items-center justify-between px-6 py-4 border-b border-white/[0.1] relative"
     >
       <div className="flex items-center gap-4">
         {breadcrumbs && (
@@ -399,7 +424,7 @@ export function Header() {
       </div>
 
       <div
-        className="flex items-center gap-2 relative ml-16"
+        className="absolute top-0 bottom-0 right-0 z-50 left-0 mx-auto w-[400px] flex items-center "
         id="homepage-actions"
       >
         {pageType === "home" && (
