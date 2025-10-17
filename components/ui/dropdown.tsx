@@ -84,3 +84,5 @@ export const Dropdown = ({
     </DropdownMenu>
   );
 };
+
+export default Dropdown;

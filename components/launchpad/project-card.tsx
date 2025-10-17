@@ -98,9 +98,6 @@ export const ProjectCard = ({
   // Generate sample chart data based on virtual pool data
   const sampleChartData = generateSampleChartData(virtualPool, project);
 
-  console.log("ProjectCard - Generated chart data:", sampleChartData);
-  console.log("ProjectCard - Data length:", sampleChartData.length);
-
   return (
     <>
       <Card className="bg-gradient-to-br from-[#1a1a1a] to-[#2a2a2a] border-[#2a2a2a] hover:from-[#2a2a2a] hover:to-[#3a3a3a] transition-all duration-300 shadow-xl">

@@ -2,7 +2,7 @@
 
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { Button } from "@/components/ui/button";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -15,7 +15,8 @@ import Link from "next/link";
 import { useChainsStore } from "@/lib/stores/chains-store";
 import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Search, X } from "lucide-react";
+import clsx from "clsx";
 
 // Page type definitions
 export type PageType =
@@ -46,6 +47,7 @@ export function Header() {
   const { togglePopup } = useWallet();
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const currentChain = useChainsStore((state) => state.currentChain);
   const chains = useChainsStore((state) => state.chains);
   const fetchChains = useChainsStore((state) => state.fetchChains);
@@ -53,6 +55,14 @@ export function Header() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const searchRef = useRef<HTMLDivElement>(null);
+
+  // Homepage search state
+  const [isHomepageSearchOpen, setIsHomepageSearchOpen] = useState(false);
+  const [homepageSearchQuery, setHomepageSearchQuery] = useState("");
+  const homepageSearchRef = useRef<HTMLDivElement>(null);
+
+  // Get current filter from URL
+  const projectStatus = searchParams.get("project_status") || "new";
 
   // Fetch chains on mount if not already loaded
   // BUT: Don't fetch on chain detail pages - they have their own fetch
@@ -103,6 +113,27 @@ export function Header() {
     };
   }, [isSearchOpen]);
 
+  // Handle click outside to close homepage search
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        homepageSearchRef.current &&
+        !homepageSearchRef.current.contains(event.target as Node)
+      ) {
+        setIsHomepageSearchOpen(false);
+        setHomepageSearchQuery("");
+      }
+    };
+
+    if (isHomepageSearchOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isHomepageSearchOpen]);
+
   // Chain search filter
   const filteredChains = searchQuery.trim()
     ? chains
@@ -112,10 +143,34 @@ export function Header() {
         .slice(0, 10)
     : [];
 
+  // Homepage chain search filter
+  const homepageFilteredChains = homepageSearchQuery.trim()
+    ? chains
+        .filter((chain) =>
+          chain.chain_name
+            .toLowerCase()
+            .includes(homepageSearchQuery.toLowerCase())
+        )
+        .slice(0, 10)
+    : [];
+
   const handleChainSelect = (chainId: string) => {
     setIsSearchOpen(false);
     setSearchQuery("");
     router.push(`/launchpad/${chainId}`);
+  };
+
+  const handleHomepageChainSelect = (chainId: string) => {
+    setIsHomepageSearchOpen(false);
+    setHomepageSearchQuery("");
+    router.push(`/launchpad/${chainId}`);
+  };
+
+  // Handle project status filter toggle
+  const handleFilterToggle = (status: "new" | "graduated") => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("project_status", status);
+    router.push(`${pathname}?${params.toString()}`);
   };
 
   // Determine current page type
@@ -342,6 +397,149 @@ export function Header() {
           </Breadcrumb>
         )}
       </div>
+
+      <div
+        className="flex items-center gap-2 relative ml-16"
+        id="homepage-actions"
+      >
+        {pageType === "home" && (
+          <>
+            {/* Search Button & Dropdown */}
+            <div
+              className="absolute top-0 bottom-0  z-50  flex flex-col justify-center"
+              ref={homepageSearchRef}
+            >
+              {/* Search Input Container */}
+              <div
+                className={clsx(
+                  "bg-black rounded-full min-w-10 h-10   flex items-center transition-all overflow-hidden relative",
+                  isHomepageSearchOpen
+                    ? "w-[400px] border-white border"
+                    : "w-[40px]  "
+                )}
+              >
+                {/* Search Icon Button */}
+                <Button
+                  id="search-button"
+                  variant="clear"
+                  size="icon"
+                  className="text-white/70 hover:text-white rounded-full flex-shrink-0 w-10 h-10 hover:border-white/[0.1]"
+                  onClick={() => setIsHomepageSearchOpen(!isHomepageSearchOpen)}
+                >
+                  <Search className="w-5 h-5" />
+                </Button>
+
+                {/* Search Input (visible when open) */}
+                {isHomepageSearchOpen && (
+                  <>
+                    <Input
+                      type="text"
+                      placeholder="Type to search for a chain"
+                      value={homepageSearchQuery}
+                      onChange={(e) => setHomepageSearchQuery(e.target.value)}
+                      variant="ghost"
+                      className="text-white placeholder:text-white/50 flex-1 px-2 h-full focus:outline-none border-none focus:ring-0 focus:border-none"
+                      autoFocus
+                    />
+                    {/* Close Button */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-white/70 hover:text-white hover:bg-white/[0.05] rounded-full flex-shrink-0"
+                      onClick={() => {
+                        setIsHomepageSearchOpen(false);
+                        setHomepageSearchQuery("");
+                      }}
+                    >
+                      <X className="w-5 h-5" />
+                    </Button>
+                  </>
+                )}
+              </div>
+
+              {/* Search Results Dropdown */}
+              {isHomepageSearchOpen && (
+                <div className="absolute top-full right-0 mt-2 w-[400px] bg-[#1a1a1a] border border-white/[0.1] rounded-lg shadow-xl z-50">
+                  <div className="max-h-[400px] overflow-y-auto">
+                    {homepageFilteredChains.length > 0 ? (
+                      homepageFilteredChains.map((chain) => (
+                        <button
+                          key={chain.id}
+                          onClick={() => handleHomepageChainSelect(chain.id)}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.05] transition-colors text-left"
+                        >
+                          <div className="w-10 h-10 rounded-full bg-white/[0.1] flex items-center justify-center flex-shrink-0">
+                            <span className="text-white text-sm font-medium">
+                              {chain.chain_name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-white font-medium truncate">
+                              {chain.chain_name}
+                            </div>
+                            <div className="text-white/50 text-sm">
+                              ${chain.token_symbol}
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-4 py-8 text-center text-white/50">
+                        {homepageSearchQuery.trim()
+                          ? "No chains found"
+                          : "Type to search for a chain"}
+                      </div>
+                    )}
+                  </div>
+
+                  {homepageFilteredChains.length > 0 && (
+                    <div className="border-t border-white/[0.1] p-3">
+                      <Link
+                        href="/"
+                        className="text-white/50 hover:text-white text-sm transition-colors"
+                        onClick={() => {
+                          setIsHomepageSearchOpen(false);
+                          setHomepageSearchQuery("");
+                        }}
+                      >
+                        See all search results
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Toggle Filter Button */}
+            <div className="flex items-center bg-[#2a2a2a] rounded-full p-1 min-w-[280px] ml-12">
+              <button
+                onClick={() => handleFilterToggle("new")}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all w-full ${
+                  projectStatus === "new"
+                    ? "bg-white text-black"
+                    : "text-white/70 hover:text-white"
+                }`}
+              >
+                New
+                {projectStatus === "new" && (
+                  <span className="ml-2 text-black/70">21</span>
+                )}
+              </button>
+              <button
+                onClick={() => handleFilterToggle("graduated")}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all w-full ${
+                  projectStatus === "graduated"
+                    ? "bg-white text-black"
+                    : "text-white/70 hover:text-white"
+                }`}
+              >
+                Graduated
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
       <Button onClick={() => togglePopup()}>Open Wallet</Button>
     </header>
   );

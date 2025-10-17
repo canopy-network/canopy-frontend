@@ -207,11 +207,6 @@ export function LaunchpadDashboard() {
     }
   }, []);
 
-  useEffect(() => {
-    console.log("displayFilteredChains", chains);
-    console.log("virtualPools", virtualPools);
-  }, [chains, virtualPools]);
-
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Error Display */}
