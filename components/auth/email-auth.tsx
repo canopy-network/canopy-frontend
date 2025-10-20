@@ -102,7 +102,7 @@ export function EmailAuth() {
   };
 
   // Authenticated view
-  if (step === "authenticated" && user) {
+  if (step === "authenticated" && user && user.email) {
     return (
       <div className="space-y-2">
         <div className="flex items-center gap-2 p-3 bg-[#1a1a1a] border border-[#2a2a2a] rounded-md">

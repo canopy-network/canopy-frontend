@@ -158,7 +158,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
   };
 
   // Authenticated view
-  if (step === "authenticated" && user) {
+  if (step === "authenticated" && user && user.email) {
     return (
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-md">
