@@ -57,6 +57,23 @@ export {
 // Authentication API
 export { sendEmailCode, verifyCode } from "./auth";
 
+// Users API
+export { updateProfile } from "./users";
+
+// Transactions API
+export {
+  getChainTransactions,
+  type Transaction as ApiTransaction,
+} from "./transactions";
+
+// Price History API
+export {
+  getChainPriceHistory,
+  getTimeRangeForTimeframe,
+  convertOHLCToChartData,
+  type PriceHistoryDataPoint,
+} from "./price-history";
+
 // Health API
 export {
   healthApi,
