@@ -17,6 +17,7 @@ import {
   GetTransactionsParams,
   VirtualPool,
   Transaction,
+  CreateAssetRequest,
 } from "@/types/chains";
 
 // ============================================================================
@@ -98,6 +99,26 @@ export const chainsApi = {
    */
   deleteChain: (id: string) =>
     apiClient.delete<{ message: string }>(`/api/v1/chains/${id}`),
+
+  /**
+   * Create an asset for a chain (logo, banner, screenshot, etc.)
+   *
+   * @param chainId - Chain ID to add the asset to
+   * @param data - Asset creation data
+   * @returns Promise resolving to created asset data
+   *
+   * @example
+   * ```typescript
+   * const asset = await chainsApi.createAsset('chain-id', {
+   *   asset_type: 'logo',
+   *   file_name: 'logo.png',
+   *   file_url: 'https://s3.amazonaws.com/...',
+   *   is_primary: true
+   * });
+   * ```
+   */
+  createAsset: (chainId: string, data: CreateAssetRequest) =>
+    apiClient.post<any>(`/api/v1/chains/${chainId}/assets`, data),
 };
 
 // ============================================================================

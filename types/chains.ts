@@ -349,6 +349,38 @@ export interface GetTransactionsParams {
 }
 
 // ============================================================================
+// ASSET TYPES
+// ============================================================================
+
+/**
+ * Asset type enumeration
+ */
+export type AssetType =
+  | "logo"
+  | "banner"
+  | "screenshot"
+  | "video"
+  | "whitepaper"
+  | "documentation";
+
+/**
+ * Create asset request payload
+ */
+export interface CreateAssetRequest {
+  asset_type: AssetType;
+  file_name: string;
+  file_url: string;
+  file_size_bytes?: number;
+  mime_type?: string;
+  title?: string;
+  description?: string;
+  alt_text?: string;
+  display_order?: number;
+  is_primary?: boolean;
+  is_featured?: boolean;
+}
+
+// ============================================================================
 // UTILITY TYPES
 // ============================================================================
 

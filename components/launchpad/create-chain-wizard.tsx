@@ -706,60 +706,11 @@ export function CreateChainWizard() {
         return;
       }
 
-      // Upload files to AWS S3
-      let logoUrl = "";
-      const galleryUrls: string[] = [];
-      let whitepaperUrl = formData.whitepaper; // Keep URL if provided
-
-      // Upload logo if present
-      if (formData.logo) {
-        const logoResult = await uploadLogo(formData.ticker, formData.logo);
-        if (
-          logoResult.success &&
-          logoResult.urls &&
-          logoResult.urls.length > 0
-        ) {
-          logoUrl = logoResult.urls[0].url;
-        } else {
-          throw new Error(`Failed to upload logo: ${logoResult.error}`);
-        }
-      }
-
-      // Upload gallery images if present
-      if (formData.gallery.length > 0) {
-        const galleryResult = await uploadGallery(
-          formData.ticker,
-          formData.gallery
-        );
-        if (galleryResult.success && galleryResult.urls) {
-          galleryUrls.push(...galleryResult.urls.map((r) => r.url));
-        } else {
-          throw new Error(`Failed to upload gallery: ${galleryResult.error}`);
-        }
-      }
-
-      // Upload whitepaper file if present (takes precedence over URL)
-      if (formData.whitepaperFile) {
-        const paperResult = await uploadWhitepaper(
-          formData.ticker,
-          formData.whitepaperFile
-        );
-        if (
-          paperResult.success &&
-          paperResult.urls &&
-          paperResult.urls.length > 0
-        ) {
-          whitepaperUrl = paperResult.urls[0].url;
-        } else {
-          throw new Error(`Failed to upload whitepaper: ${paperResult.error}`);
-        }
-      }
-
       // Prepare chain data according to API spec
       const chainData = {
         chain_name: formData.chainName,
         token_symbol: formData.ticker,
-        chain_description: formData.description,
+        chain_description: formData.chainDescription || formData.description,
         template_id: formData.template,
         consensus_mechanism: selectedTemplate.default_consensus,
         token_total_supply: Number(formData.tokenSupply),
@@ -773,27 +724,138 @@ export function CreateChainWizard() {
         creator_initial_purchase_cnpy: 0, // No initial purchase for now
       };
 
-      // TODO: Store additional metadata (github, website, etc.) separately
-      // These fields are collected in the form but not part of the chain creation API
-      console.log("Additional metadata to store separately:", {
-        github_repo: formData.githubRepo,
-        website: formData.website,
-        whitepaper: whitepaperUrl,
-        twitter_url: formData.twitterUrl,
-        telegram_url: formData.telegramUrl,
-        scheduled_launch: formData.launchImmediately
-          ? new Date().toISOString()
-          : formData.launchDate,
-        logo_url: logoUrl,
-        gallery_urls: galleryUrls,
-      });
-
       console.log("Creating chain with data:", chainData);
 
       // Create chain via API
       const result = await createChain(chainData);
 
       console.log("Chain created successfully:", result);
+
+      // Only upload files and create assets if chain was created successfully
+      if (result.id) {
+        // Upload and create logo asset
+        if (formData.logo) {
+          try {
+            console.log("Uploading logo...");
+            const logoResult = await uploadLogo(formData.ticker, formData.logo);
+            if (
+              logoResult.success &&
+              logoResult.urls &&
+              logoResult.urls.length > 0
+            ) {
+              const logoUrl = logoResult.urls[0].url;
+              await chainsApi.createAsset(result.id, {
+                asset_type: "logo",
+                file_name: formData.logo.name,
+                file_url: logoUrl,
+                file_size_bytes: formData.logo.size,
+                mime_type: formData.logo.type,
+                is_primary: true,
+                is_featured: true,
+              });
+              console.log("Logo uploaded and asset created successfully");
+            } else {
+              console.error(`Failed to upload logo: ${logoResult.error}`);
+            }
+          } catch (error) {
+            console.error("Failed to upload/create logo asset:", error);
+          }
+        }
+
+        // Upload and create gallery screenshot assets
+        if (formData.gallery.length > 0) {
+          try {
+            console.log("Uploading gallery images...");
+            const galleryResult = await uploadGallery(
+              formData.ticker,
+              formData.gallery
+            );
+            if (galleryResult.success && galleryResult.urls) {
+              for (let i = 0; i < galleryResult.urls.length; i++) {
+                const galleryFile = formData.gallery[i];
+                const galleryUrl = galleryResult.urls[i].url;
+                try {
+                  await chainsApi.createAsset(result.id, {
+                    asset_type: "screenshot",
+                    file_name: galleryFile.name,
+                    file_url: galleryUrl,
+                    file_size_bytes: galleryFile.size,
+                    mime_type: galleryFile.type,
+                    display_order: i,
+                    is_featured: i === 0,
+                  });
+                  console.log(`Gallery asset ${i + 1} created successfully`);
+                } catch (error) {
+                  console.error(
+                    `Failed to create gallery asset ${i + 1}:`,
+                    error
+                  );
+                }
+              }
+            } else {
+              console.error(`Failed to upload gallery: ${galleryResult.error}`);
+            }
+          } catch (error) {
+            console.error("Failed to upload/create gallery assets:", error);
+          }
+        }
+
+        // Upload and create whitepaper asset
+        if (formData.whitepaperFile) {
+          try {
+            console.log("Uploading whitepaper...");
+            const paperResult = await uploadWhitepaper(
+              formData.ticker,
+              formData.whitepaperFile
+            );
+            if (
+              paperResult.success &&
+              paperResult.urls &&
+              paperResult.urls.length > 0
+            ) {
+              const whitepaperUrl = paperResult.urls[0].url;
+              await chainsApi.createAsset(result.id, {
+                asset_type: "whitepaper",
+                file_name: formData.whitepaperFile.name,
+                file_url: whitepaperUrl,
+                file_size_bytes: formData.whitepaperFile.size,
+                mime_type: formData.whitepaperFile.type,
+              });
+              console.log("Whitepaper uploaded and asset created successfully");
+            } else {
+              console.error(
+                `Failed to upload whitepaper: ${paperResult.error}`
+              );
+            }
+          } catch (error) {
+            console.error("Failed to upload/create whitepaper asset:", error);
+          }
+        } else if (formData.whitepaper) {
+          // If whitepaper URL was provided instead of file upload
+          try {
+            await chainsApi.createAsset(result.id, {
+              asset_type: "whitepaper",
+              file_name: "whitepaper.pdf",
+              file_url: formData.whitepaper,
+            });
+            console.log("Whitepaper URL asset created successfully");
+          } catch (error) {
+            console.error("Failed to create whitepaper URL asset:", error);
+          }
+        }
+      }
+
+      // TODO: Store additional metadata (github, website, etc.) separately
+      // These fields are collected in the form but not part of the chain creation API
+      console.log("Additional metadata to store separately:", {
+        github_repo: formData.githubRepo,
+        website: formData.website,
+        twitter_url: formData.twitterUrl,
+        telegram_url: formData.telegramUrl,
+        scheduled_launch: formData.launchImmediately
+          ? new Date().toISOString()
+          : formData.launchDate,
+      });
 
       // TODO: Check allowance and approve if needed (for on-chain operations)
       // const userAddress = "0x0000000000000000000000000000000000000000"; // TODO: Get from wallet
