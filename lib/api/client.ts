@@ -142,7 +142,7 @@ function getAuthHeaders(): Record<string, string> {
   // In development, use mock user ID
   if (API_CONFIG.devMode && API_CONFIG.mockAuth) {
     return {
-      "X-User-ID": API_CONFIG.mockUserId,
+      // "X-User-ID": API_CONFIG.mockUserId,
     };
   }
 
@@ -152,7 +152,7 @@ function getAuthHeaders(): Record<string, string> {
     const userId = localStorage.getItem("user_id");
     if (userId) {
       return {
-        "X-User-ID": userId,
+        // "X-User-ID": userId,
       };
     }
   }

@@ -31,6 +31,39 @@ export interface AuthState {
   logout: () => void;
 }
 
+/**
+ * Helper function to get persisted auth data from localStorage
+ * Useful for debugging and verification
+ */
+export function getPersistedAuthData() {
+  if (typeof window === "undefined") return null;
+
+  const stored = localStorage.getItem("canopy-auth-storage");
+  if (!stored) return null;
+
+  try {
+    const parsed = JSON.parse(stored);
+    return parsed.state;
+  } catch (error) {
+    console.error("Failed to parse persisted auth data:", error);
+    return null;
+  }
+}
+
+/**
+ * Log current persisted auth data to console
+ */
+export function logPersistedAuthData() {
+  const data = getPersistedAuthData();
+  console.log("📊 Current persisted auth data:", data);
+  console.log(
+    "📋 User fields stored:",
+    data?.user ? Object.keys(data.user) : []
+  );
+  console.log("📝 Full user object:", data?.user);
+  return data;
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
@@ -46,11 +79,30 @@ export const useAuthStore = create<AuthState>()(
         if (user?.id) {
           setUserId(user.id);
         }
+
+        // Log full user object being stored
+        console.log("📝 Storing full user object in auth store:", user);
+        console.log("📦 User fields being persisted:", Object.keys(user || {}));
+
         set({
           user,
           isAuthenticated: true,
           error: null,
         });
+
+        // Verify persistence
+        setTimeout(() => {
+          const stored = localStorage.getItem("canopy-auth-storage");
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            console.log("✅ Verified data persisted to localStorage:", {
+              userFieldCount: Object.keys(parsed.state?.user || {}).length,
+              hasUser: !!parsed.state?.user,
+              userId: parsed.state?.user?.id,
+              userEmail: parsed.state?.user?.email,
+            });
+          }
+        }, 100);
       },
 
       clearUser: () => {

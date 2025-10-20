@@ -102,10 +102,25 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
     try {
       const response = await verifyCode(email, code);
 
-      setUser({
-        email: response.data.email,
-        token: response.data.token,
+      // Log the full user data received from API
+      console.log("Full user data from API:", response.data.user);
+
+      // Save the full user object from the API response
+      setUser(response.data.user);
+
+      // Verify the data was stored
+      console.log("User stored successfully. Data includes:", {
+        id: response.data.user.id,
+        email: response.data.user.email,
+        wallet_address: response.data.user.wallet_address,
+        username: response.data.user.username,
+        display_name: response.data.user.display_name,
+        is_verified: response.data.user.is_verified,
+        verification_tier: response.data.user.verification_tier,
+        reputation_score: response.data.user.reputation_score,
+        // ... all other fields are also stored
       });
+
       setStep("authenticated");
       setCode("");
       setDevCode(null);

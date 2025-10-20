@@ -17,6 +17,15 @@ export function Sidebar() {
   const { user, isAuthenticated } = useAuthStore();
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
 
+  console.log("🔍 Sidebar - Auth State:", {
+    user,
+    isAuthenticated,
+    session,
+    status,
+    userFields: user ? Object.keys(user) : [],
+    hasCompleteUserData: user ? Object.keys(user).length > 0 : false,
+  });
+
   // User is considered logged in if either email auth or GitHub auth is active
   const isLoggedIn = isAuthenticated || !!session;
 

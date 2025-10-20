@@ -1,16 +1,22 @@
 import { NextAuthOptions } from "next-auth";
 import GitHubProvider from "next-auth/providers/github";
-import type { User } from "@/types/api";
+import type { User as ApiUser } from "@/types/api";
 
+// Extend the default NextAuth types to support both GitHub and email auth
 declare module "next-auth" {
   interface Session {
     accessToken?: string;
-    user?: User;
+    user?: {
+      // NextAuth default fields (for GitHub auth)
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+    } & Partial<ApiUser>; // API user fields (for email auth)
   }
 
   interface JWT {
     accessToken?: string;
-    user?: User;
+    user?: ApiUser;
   }
 }
 
@@ -34,7 +40,7 @@ export const authOptions: NextAuthOptions = {
       }
       // Persist user data to the token
       if (user) {
-        token.user = user as User;
+        token.user = user as ApiUser;
       }
       return token;
     },
@@ -42,7 +48,7 @@ export const authOptions: NextAuthOptions = {
       // Send properties to the client
       session.accessToken = token.accessToken as string;
       if (token.user) {
-        session.user = token.user as User;
+        session.user = { ...session.user, ...token.user };
       }
       return session;
     },
