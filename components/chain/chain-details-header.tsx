@@ -43,7 +43,7 @@ export function ChainDetailsHeader({ chain }: ChainDetailsHeaderProps) {
       >
         <img
           src=""
-          alt="Chain Icon"
+          alt=""
           className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-gradient-to-r from-green-300 to-green-500 flex-shrink-0"
         />
 
@@ -62,8 +62,8 @@ export function ChainDetailsHeader({ chain }: ChainDetailsHeaderProps) {
             >
               <img
                 src=""
-                alt="Chain Symbol"
-                className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-gradient-to-r from-green-200 to-green-400 flex-shrink-0"
+                alt=""
+                className="w-4 h-4 sm:w-4 sm:h-4 rounded-full bg-gradient-to-r from-green-200 to-green-400 flex-shrink-0"
               />
               <span className="whitespace-nowrap truncate max-w-[100px] sm:max-w-none">
                 [username]
