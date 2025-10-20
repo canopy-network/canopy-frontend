@@ -9,7 +9,13 @@ import {
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, Copy, Check, TrendingUp, TrendingDown } from "lucide-react";
+import {
+  ArrowUpDown,
+  Copy,
+  Check,
+  TrendingUp,
+  TrendingDown,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -201,9 +207,7 @@ export const columns: ColumnDef<ApiTransaction>[] = [
     },
     cell: ({ row }: { row: any }) => {
       const amount = row.getValue("cnpy_amount") as number;
-      return (
-        <div className="text-white font-mono">{amount.toFixed(4)}</div>
-      );
+      return <div className="text-white font-mono">{amount.toFixed(4)}</div>;
     },
   },
   {
@@ -249,9 +253,7 @@ export const columns: ColumnDef<ApiTransaction>[] = [
     },
     cell: ({ row }: { row: any }) => {
       const price = row.getValue("price_per_token_cnpy") as number;
-      return (
-        <div className="text-white font-mono">{price.toFixed(8)}</div>
-      );
+      return <div className="text-white font-mono">{price.toFixed(8)}</div>;
     },
   },
   {
@@ -273,9 +275,7 @@ export const columns: ColumnDef<ApiTransaction>[] = [
     },
     cell: ({ row }: { row: any }) => {
       const fee = row.getValue("trading_fee_cnpy") as number;
-      return (
-        <div className="text-white font-mono">{fee.toFixed(6)}</div>
-      );
+      return <div className="text-white font-mono">{fee.toFixed(6)}</div>;
     },
   },
 ];
@@ -300,13 +300,25 @@ export function BlockExplorerTable({ chainId }: BlockExplorerTableProps) {
       setLoading(true);
       setError(null);
 
+      console.log("Fetching transactions for chain:", chainId, {
+        page: currentPage,
+        limit: pageSize,
+      });
+
       const response = await getChainTransactions(chainId, {
         page: currentPage,
         limit: pageSize,
       });
 
+      console.log("Transactions response received:", response);
+      console.log("Response data:", response.data);
+      console.log("Response pagination:", response.pagination);
+
       if (response.data) {
+        console.log("Setting transactions:", response.data.length, "items");
         setTransactions(response.data);
+      } else {
+        console.log("No data in response");
       }
 
       if (response.pagination) {

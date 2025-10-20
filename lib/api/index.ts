@@ -66,6 +66,14 @@ export {
   type Transaction as ApiTransaction,
 } from "./transactions";
 
+// Price History API
+export {
+  getChainPriceHistory,
+  getTimeRangeForTimeframe,
+  convertOHLCToChartData,
+  type PriceHistoryDataPoint,
+} from "./price-history";
+
 // Health API
 export {
   healthApi,

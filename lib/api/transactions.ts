@@ -54,10 +54,24 @@ export async function getChainTransactions(
 ): Promise<PaginatedResponse<Transaction>> {
   const url = `/api/v1/chains/${chainId}/transactions`;
 
-  // The API returns the paginated response directly (data + pagination at root level)
-  // The apiClient wraps it in ApiResponse, so response.data contains the PaginatedResponse
-  const response = await apiClient.get<any>(url, params);
+  // The API returns: { data: [...], pagination: {...} } at the root level
+  // But apiClient.get wraps it as ApiResponse<T> = { data: T }
+  // So we get: { data: { data: [...], pagination: {...} } }
+  // We need to access response.data to get the actual paginated response
+  const response: any = await apiClient.get<any>(url, params);
 
-  // The response.data contains both data array and pagination object
-  return response.data as PaginatedResponse<Transaction>;
+  console.log("Raw API response:", response);
+
+  // If response.data exists and has the paginated structure, return it
+  // Otherwise, response itself might be the paginated structure
+  if (response.data && Array.isArray(response.data.data)) {
+    console.log("Response has nested data structure");
+    return response.data as PaginatedResponse<Transaction>;
+  } else if (Array.isArray(response.data)) {
+    console.log("Response.data is the array directly");
+    return response as PaginatedResponse<Transaction>;
+  }
+
+  console.log("Returning response as-is");
+  return response as PaginatedResponse<Transaction>;
 }

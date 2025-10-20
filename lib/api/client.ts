@@ -198,9 +198,12 @@ export class ApiClient {
     // Request interceptor - Add auth headers
     this.axiosInstance.interceptors.request.use(
       (config: InternalAxiosRequestConfig) => {
-        // Add authentication headers
-        const authHeaders = getAuthHeaders();
-        Object.assign(config.headers, authHeaders);
+        // Add authentication headers only for PUT and POST operations
+        const method = config.method?.toUpperCase();
+        if (method === "PUT" || method === "POST") {
+          const authHeaders = getAuthHeaders();
+          Object.assign(config.headers, authHeaders);
+        }
 
         // Add request timestamp for debugging
         (config as any).metadata = { startTime: Date.now() };
