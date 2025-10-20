@@ -77,28 +77,28 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
   }, [selectedTimeframe, chain.id]);
 
   return (
-    <div className="w-full max-w-7xl mx-auto flex gap-4">
+    <div className="w-full max-w-7xl mx-auto lg:flex gap-4">
       {/* Header */}
       <main id="chain-details" className="flex-1 min-w-0">
         <ChainDetailsHeader chain={chain} />
 
         <section className="chain-details-live-data px-1 border border-white/[0.1] rounded-lg">
-          <div className="flex items-center gap-2 px-3 py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-2 px-3 py-4">
             <div className="flex flex-col">
               <span className="text-white/50 text-sm ">Price</span>
               <span className="text-white/50 text-sm">
-                <span className="text-white font-medium text-3xl mr-1">
+                <span className="text-white font-medium text-2xl sm:text-3xl mr-1">
                   25K
                 </span>
                 +$1.93
               </span>
             </div>
 
-            <div className="flex flex-col flex-1 ml-auto items-end">
-              <span className="text-white/50 text-sm mb-2">
+            <div className="flex flex-col flex-1 sm:ml-auto sm:items-end">
+              <span className="text-white/50 text-xs sm:text-sm mb-2">
                 $233.23k until graduation
               </span>
-              <span className="w-full bg-white/[0.1] rounded-full h-6 overflow-hidden max-w-[220px]">
+              <span className="w-full bg-white/[0.1] rounded-full h-6 overflow-hidden sm:max-w-[220px]">
                 <span
                   className="bg-gradient-to-r block from-green-500 to-green-400 h-full rounded-full transition-all duration-500"
                   style={{ width: "35%" }}
@@ -109,10 +109,10 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
 
           <div
             id="chart-container"
-            className="bg-white/[0.1] rounded-lg py-4 px-5 mb-2 relative"
+            className="bg-white/[0.1] rounded-lg py-4 px-3 sm:px-5 mb-2 relative"
           >
-            <div className="flex items-center justify-between gap-2 mb-4">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+              <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
                 {(["1H", "1D", "1W", "1M", "1Y"] as const).map((timeframe) => (
                   <Button
                     key={timeframe}
@@ -120,7 +120,7 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
                     size="sm"
                     onClick={() => setSelectedTimeframe(timeframe)}
                     disabled={loadingChart}
-                    className={`px-3 py-1 text-sm text-white/[.50] font-medium rounded-md transition-colors ${
+                    className={`px-2 sm:px-3 py-1 text-xs sm:text-sm text-white/[.50] font-medium rounded-md transition-colors ${
                       selectedTimeframe === timeframe
                         ? "bg-white/[.1] hover:bg-white/[.2] text-white"
                         : ""
@@ -131,7 +131,9 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
                 ))}
               </div>
               {loadingChart && (
-                <span className="text-sm text-white/50">Loading...</span>
+                <span className="text-xs sm:text-sm text-white/50">
+                  Loading...
+                </span>
               )}
             </div>
 
@@ -151,21 +153,35 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
             )}
           </div>
 
-          <div className="flex items-center justify-between bg-white/[0.1] rounded-lg py-4 px-5 mb-1">
-            <h3 className="text-white font-medium">Live updates</h3>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white/[0.1] rounded-lg py-4 px-3 sm:px-5 mb-1">
+            <h3 className="text-white font-medium text-sm sm:text-base">
+              Live updates
+            </h3>
 
-            <div className="flex items-center gap-6 ml-auto">
+            <div className="flex items-center gap-3 sm:gap-6 flex-wrap sm:ml-auto">
               <div className="text-left">
-                <span className="text-white/[0.5] text-sm mr-1">VOL (24h)</span>
-                <span className="text-white font-medium text-base">$1.8B</span>
+                <span className="text-white/[0.5] text-xs sm:text-sm mr-1">
+                  VOL (24h)
+                </span>
+                <span className="text-white font-medium text-sm sm:text-base">
+                  $1.8B
+                </span>
               </div>
               <div className="text-left">
-                <span className="text-white/[0.5] text-sm mr-1">MCap</span>
-                <span className="text-white font-medium text-base">$2.8B</span>
+                <span className="text-white/[0.5] text-xs sm:text-sm mr-1">
+                  MCap
+                </span>
+                <span className="text-white font-medium text-sm sm:text-base">
+                  $2.8B
+                </span>
               </div>
               <div className="text-left">
-                <span className="text-white/[0.5] text-sm mr-1">FDV</span>
-                <span className="text-white font-medium text-base">$3.8B</span>
+                <span className="text-white/[0.5] text-xs sm:text-sm mr-1">
+                  FDV
+                </span>
+                <span className="text-white font-medium text-sm sm:text-base">
+                  $3.8B
+                </span>
               </div>
             </div>
           </div>
