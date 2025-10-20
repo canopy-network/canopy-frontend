@@ -11,10 +11,11 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { User } from "@/types/api";
-import { setUserId, clearUserId } from "@/lib/api/client";
 
-export type AuthUser = User;
+export interface AuthUser {
+  email: string;
+  token?: string;
+}
 
 export interface AuthState {
   // State
@@ -41,25 +42,18 @@ export const useAuthStore = create<AuthState>()(
       error: null,
 
       // Actions
-      setUser: (user) => {
-        // Store user ID in localStorage for API authentication
-        if (user?.id) {
-          setUserId(user.id);
-        }
+      setUser: (user) =>
         set({
           user,
           isAuthenticated: true,
           error: null,
-        });
-      },
+        }),
 
-      clearUser: () => {
-        clearUserId();
+      clearUser: () =>
         set({
           user: null,
           isAuthenticated: false,
-        });
-      },
+        }),
 
       setLoading: (isLoading) =>
         set({
@@ -71,14 +65,12 @@ export const useAuthStore = create<AuthState>()(
           error,
         }),
 
-      logout: () => {
-        clearUserId();
+      logout: () =>
         set({
           user: null,
           isAuthenticated: false,
           error: null,
-        });
-      },
+        }),
     }),
     {
       name: "canopy-auth-storage",

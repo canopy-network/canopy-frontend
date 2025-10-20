@@ -11,133 +11,16 @@ import { ChainDetailChart } from "@/components/charts/chain-detail-chart";
 import { WalletContent } from "../wallet/wallet-content";
 import { BlockExplorerTable } from "./block-explorer-table";
 import { HoldersTable } from "./holders-table";
+import {
+  getChainPriceHistory,
+  getTimeRangeForTimeframe,
+  convertOHLCToChartData,
+} from "@/lib/api";
 
 interface ChainDetailsProps {
   chain: ChainWithUI;
   virtualPool?: VirtualPool | null;
 }
-
-// Helper function to generate intraday data points
-const generateIntradayData = (
-  startTime: number,
-  endTime: number,
-  intervalMinutes: number,
-  baseValue: number,
-  volatility: number
-): Array<{ value: number; time: number }> => {
-  const data: Array<{ value: number; time: number }> = [];
-  let currentValue = baseValue;
-
-  for (let time = startTime; time <= endTime; time += intervalMinutes * 60) {
-    const randomChange = (Math.random() - 0.5) * volatility;
-    currentValue = Math.max(0.001, currentValue + randomChange);
-    data.push({ value: parseFloat(currentValue.toFixed(6)), time });
-  }
-
-  return data;
-};
-
-// Sample data for different timeframes - all with intraday granularity
-const SAMPLE_CHART_DATA = {
-  "1H": generateIntradayData(
-    Math.floor(Date.now() / 1000) - 3600, // 1 hour ago
-    Math.floor(Date.now() / 1000),
-    2, // 2-minute intervals (30 data points)
-    0.015,
-    0.002
-  ),
-  "1D": generateIntradayData(
-    Math.floor(Date.now() / 1000) - 86400, // 1 day ago
-    Math.floor(Date.now() / 1000),
-    15, // 15-minute intervals (96 data points)
-    0.012,
-    0.003
-  ),
-  "1W": generateIntradayData(
-    Math.floor(Date.now() / 1000) - 604800, // 1 week ago
-    Math.floor(Date.now() / 1000),
-    240, // 4-hour intervals (6 records per day)
-    0.01,
-    0.004
-  ),
-  "1M": (() => {
-    // For 1 month, generate 2+ records per day at different times
-    const data: Array<{ value: number; time: number }> = [];
-    const now = Math.floor(Date.now() / 1000);
-    const monthAgo = now - 30 * 86400; // 30 days ago
-    let currentValue = 0.008;
-
-    for (let day = 0; day < 30; day++) {
-      // Morning record (9 AM)
-      const morningTime = monthAgo + day * 86400 + 9 * 3600;
-      currentValue += (Math.random() - 0.48) * 0.003;
-      currentValue = Math.max(0.002, currentValue);
-      data.push({
-        value: parseFloat(currentValue.toFixed(6)),
-        time: morningTime,
-      });
-
-      // Afternoon record (3 PM)
-      const afternoonTime = monthAgo + day * 86400 + 15 * 3600;
-      currentValue += (Math.random() - 0.48) * 0.003;
-      currentValue = Math.max(0.002, currentValue);
-      data.push({
-        value: parseFloat(currentValue.toFixed(6)),
-        time: afternoonTime,
-      });
-
-      // Evening record (9 PM)
-      const eveningTime = monthAgo + day * 86400 + 21 * 3600;
-      currentValue += (Math.random() - 0.48) * 0.003;
-      currentValue = Math.max(0.002, currentValue);
-      data.push({
-        value: parseFloat(currentValue.toFixed(6)),
-        time: eveningTime,
-      });
-    }
-
-    return data;
-  })(),
-  "1Y": (() => {
-    // For 1 year, generate 2+ records per day at different times
-    const data: Array<{ value: number; time: number }> = [];
-    const now = Math.floor(Date.now() / 1000);
-    const yearAgo = now - 365 * 86400; // 365 days ago
-    let currentValue = 0.003;
-
-    // Sample every 3 days to keep data manageable but still intraday
-    for (let day = 0; day < 365; day += 3) {
-      // Morning record (8 AM)
-      const morningTime = yearAgo + day * 86400 + 8 * 3600;
-      currentValue += (Math.random() - 0.45) * 0.002;
-      currentValue = Math.max(0.001, currentValue);
-      data.push({
-        value: parseFloat(currentValue.toFixed(6)),
-        time: morningTime,
-      });
-
-      // Afternoon record (2 PM)
-      const afternoonTime = yearAgo + day * 86400 + 14 * 3600;
-      currentValue += (Math.random() - 0.45) * 0.002;
-      currentValue = Math.max(0.001, currentValue);
-      data.push({
-        value: parseFloat(currentValue.toFixed(6)),
-        time: afternoonTime,
-      });
-
-      // Night record (8 PM)
-      const nightTime = yearAgo + day * 86400 + 20 * 3600;
-      currentValue += (Math.random() - 0.45) * 0.002;
-      currentValue = Math.max(0.001, currentValue);
-      data.push({
-        value: parseFloat(currentValue.toFixed(6)),
-        time: nightTime,
-      });
-    }
-
-    return data;
-  })(),
-};
 
 export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
   const [selectedTimeframe, setSelectedTimeframe] = useState("1D");
@@ -148,7 +31,35 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
       value: number;
       time: number;
     }[]
-  >(SAMPLE_CHART_DATA["1D"]);
+  >([]);
+  const [loadingChart, setLoadingChart] = useState(true);
+  const [chartError, setChartError] = useState<string | null>(null);
+
+  // Fetch price history data
+  const fetchPriceHistory = async (timeframe: string) => {
+    try {
+      setLoadingChart(true);
+      setChartError(null);
+
+      const timeRange = getTimeRangeForTimeframe(timeframe);
+      const response = await getChainPriceHistory(chain.id, timeRange);
+
+      if (response.data && response.data.length > 0) {
+        const formattedData = convertOHLCToChartData(response.data);
+        setChartData(formattedData);
+      } else {
+        // No data available for this timeframe
+        setChartData([]);
+        setChartError("No price data available for this timeframe");
+      }
+    } catch (err) {
+      console.error("Failed to fetch price history:", err);
+      setChartError("Failed to load price data");
+      setChartData([]);
+    } finally {
+      setLoadingChart(false);
+    }
+  };
 
   // Save chain to store when component mounts or chain changes
   useEffect(() => {
@@ -160,57 +71,34 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
     };
   }, [chain, setCurrentChain]);
 
+  // Fetch price history when timeframe changes
   useEffect(() => {
-    const data =
-      SAMPLE_CHART_DATA[selectedTimeframe as keyof typeof SAMPLE_CHART_DATA] ||
-      SAMPLE_CHART_DATA["1D"];
-    setChartData(data);
-  }, [selectedTimeframe]);
-
-  const test_data = [
-    { value: 0.015, time: 1640995200 }, // High start
-    { value: 0.012, time: 1641000000 }, // Initial drop
-    { value: 0.008, time: 1641004800 }, // Significant drop
-    { value: 0.006, time: 1641009600 }, // Lower point
-    { value: 0.007, time: 1641014400 }, // Small recovery
-    { value: 0.005, time: 1641019200 }, // Another drop
-    { value: 0.008, time: 1641024000 }, // Upward movement
-    { value: 0.009, time: 1641028800 }, // Continuing up
-    { value: 0.011, time: 1641033600 }, // Building momentum
-    { value: 0.013, time: 1641038400 }, // Strong upward trend
-    { value: 0.016, time: 1641043200 }, // Approaching peak
-    { value: 0.018, time: 1641048000 }, // Sharp peak
-    { value: 0.012, time: 1641052800 }, // Sharp drop after peak
-    { value: 0.009, time: 1641057600 }, // Lower fluctuations
-    { value: 0.01, time: 1641062400 }, // Small recovery
-    { value: 0.008, time: 1641067200 }, // Drop again
-    { value: 0.011, time: 1641072000 }, // Final small peak
-    { value: 0.009, time: 1641076800 }, // End lower
-  ];
+    fetchPriceHistory(selectedTimeframe);
+  }, [selectedTimeframe, chain.id]);
 
   return (
-    <div className="w-full max-w-7xl mx-auto flex gap-4">
+    <div className="w-full max-w-7xl mx-auto lg:flex gap-4">
       {/* Header */}
       <main id="chain-details" className="flex-1 min-w-0">
         <ChainDetailsHeader chain={chain} />
 
         <section className="chain-details-live-data px-1 border border-white/[0.1] rounded-lg">
-          <div className="flex items-center gap-2 px-3 py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-2 px-3 py-4">
             <div className="flex flex-col">
               <span className="text-white/50 text-sm ">Price</span>
               <span className="text-white/50 text-sm">
-                <span className="text-white font-medium text-3xl mr-1">
+                <span className="text-white font-medium text-2xl sm:text-3xl mr-1">
                   25K
                 </span>
                 +$1.93
               </span>
             </div>
 
-            <div className="flex flex-col flex-1 ml-auto items-end">
-              <span className="text-white/50 text-sm mb-2">
+            <div className="flex flex-col flex-1 sm:ml-auto sm:items-end">
+              <span className="text-white/50 text-xs sm:text-sm mb-2">
                 $233.23k until graduation
               </span>
-              <span className="w-full bg-white/[0.1] rounded-full h-6 overflow-hidden max-w-[220px]">
+              <span className="w-full bg-white/[0.1] rounded-full h-6 overflow-hidden sm:max-w-[220px]">
                 <span
                   className="bg-gradient-to-r block from-green-500 to-green-400 h-full rounded-full transition-all duration-500"
                   style={{ width: "35%" }}
@@ -221,44 +109,79 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
 
           <div
             id="chart-container"
-            className="bg-white/[0.1] rounded-lg py-4 px-5 mb-2 relative"
+            className="bg-white/[0.1] rounded-lg py-4 px-3 sm:px-5 mb-2 relative"
           >
-            <div className="flex items-center gap-2 mb-4">
-              {(["1H", "1D", "1W", "1M", "1Y"] as const).map((timeframe) => (
-                <Button
-                  key={timeframe}
-                  variant="clear"
-                  size="sm"
-                  onClick={() => setSelectedTimeframe(timeframe)}
-                  className={`px-3 py-1 text-sm text-white/[.50] font-medium rounded-md transition-colors ${
-                    selectedTimeframe === timeframe
-                      ? "bg-white/[.1] hover:bg-white/[.2] text-white"
-                      : ""
-                  }`}
-                >
-                  {timeframe}
-                </Button>
-              ))}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+              <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                {(["1H", "1D", "1W", "1M", "1Y"] as const).map((timeframe) => (
+                  <Button
+                    key={timeframe}
+                    variant="clear"
+                    size="sm"
+                    onClick={() => setSelectedTimeframe(timeframe)}
+                    disabled={loadingChart}
+                    className={`px-2 sm:px-3 py-1 text-xs sm:text-sm text-white/[.50] font-medium rounded-md transition-colors ${
+                      selectedTimeframe === timeframe
+                        ? "bg-white/[.1] hover:bg-white/[.2] text-white"
+                        : ""
+                    }`}
+                  >
+                    {timeframe}
+                  </Button>
+                ))}
+              </div>
+              {loadingChart && (
+                <span className="text-xs sm:text-sm text-white/50">
+                  Loading...
+                </span>
+              )}
             </div>
 
-            <ChainDetailChart data={chartData} timeframe={selectedTimeframe} />
+            {chartError ? (
+              <div className="flex items-center justify-center h-64 text-white/50">
+                {chartError}
+              </div>
+            ) : chartData.length === 0 && !loadingChart ? (
+              <div className="flex items-center justify-center h-64 text-white/50">
+                No data available for this timeframe
+              </div>
+            ) : (
+              <ChainDetailChart
+                data={chartData}
+                timeframe={selectedTimeframe}
+              />
+            )}
           </div>
 
-          <div className="flex items-center justify-between bg-white/[0.1] rounded-lg py-4 px-5 mb-1">
-            <h3 className="text-white font-medium">Live updates</h3>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white/[0.1] rounded-lg py-4 px-3 sm:px-5 mb-1">
+            <h3 className="text-white font-medium text-sm sm:text-base">
+              Live updates
+            </h3>
 
-            <div className="flex items-center gap-6 ml-auto">
+            <div className="flex items-center gap-3 sm:gap-6 flex-wrap sm:ml-auto">
               <div className="text-left">
-                <span className="text-white/[0.5] text-sm mr-1">VOL (24h)</span>
-                <span className="text-white font-medium text-base">$1.8B</span>
+                <span className="text-white/[0.5] text-xs sm:text-sm mr-1">
+                  VOL (24h)
+                </span>
+                <span className="text-white font-medium text-sm sm:text-base">
+                  $1.8B
+                </span>
               </div>
               <div className="text-left">
-                <span className="text-white/[0.5] text-sm mr-1">MCap</span>
-                <span className="text-white font-medium text-base">$2.8B</span>
+                <span className="text-white/[0.5] text-xs sm:text-sm mr-1">
+                  MCap
+                </span>
+                <span className="text-white font-medium text-sm sm:text-base">
+                  $2.8B
+                </span>
               </div>
               <div className="text-left">
-                <span className="text-white/[0.5] text-sm mr-1">FDV</span>
-                <span className="text-white font-medium text-base">$3.8B</span>
+                <span className="text-white/[0.5] text-xs sm:text-sm mr-1">
+                  FDV
+                </span>
+                <span className="text-white font-medium text-sm sm:text-base">
+                  $3.8B
+                </span>
               </div>
             </div>
           </div>
@@ -350,7 +273,7 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
 
           <TabsContent value="explorer">
             <Card className="p-6">
-              <BlockExplorerTable />
+              <BlockExplorerTable chainId={chain.id} />
             </Card>
           </TabsContent>
         </Tabs>

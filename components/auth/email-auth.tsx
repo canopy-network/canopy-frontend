@@ -35,15 +35,19 @@ export function EmailAuth() {
     try {
       const response = await sendEmailCode(email);
 
-      // Store dev code if available
-      if (response.data.code) {
-        setDevCode(response.data.code);
+      if (response.data) {
+        // Store dev code if available
+        if (response.data.code) {
+          setDevCode(response.data.code);
+        }
+        setStep("code");
+      } else if (response.error) {
+        setLocalError(
+          response.error.message || "Failed to send verification code"
+        );
       }
-      setStep("code");
-    } catch (error: any) {
-      setLocalError(
-        error?.message || "Failed to send verification code. Please try again."
-      );
+    } catch (error) {
+      setLocalError("Failed to send verification code. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -58,14 +62,19 @@ export function EmailAuth() {
     try {
       const response = await verifyCode(email, code);
 
-      setUser(response.data.user);
-      setStep("authenticated");
-      setCode("");
-      setDevCode(null);
-    } catch (error: any) {
-      setLocalError(
-        error?.message || "Failed to verify code. Please try again."
-      );
+      if (response.data) {
+        setUser({
+          email: response.data.email,
+          token: response.data.token,
+        });
+        setStep("authenticated");
+        setCode("");
+        setDevCode(null);
+      } else if (response.error) {
+        setLocalError(response.error.message || "Invalid verification code");
+      }
+    } catch (error) {
+      setLocalError("Failed to verify code. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

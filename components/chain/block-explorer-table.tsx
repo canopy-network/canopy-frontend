@@ -5,12 +5,17 @@ import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, Copy, Check, AlertCircle } from "lucide-react";
+import {
+  ArrowUpDown,
+  Copy,
+  Check,
+  TrendingUp,
+  TrendingDown,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -34,11 +39,24 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
+import { getChainTransactions, type ApiTransaction } from "@/lib/api";
 
 // Function to truncate address: first 6 chars + ... + last 6 chars
 const truncateAddress = (address: string): string => {
   if (address.length <= 12) return address;
   return `${address.slice(0, 6)}...${address.slice(-6)}`;
+};
+
+// Format time ago from ISO timestamp
+const formatTimeAgo = (isoDate: string): string => {
+  const now = new Date();
+  const date = new Date(isoDate);
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  if (seconds < 60) return `${seconds} secs ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} mins ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+  return `${Math.floor(seconds / 86400)} days ago`;
 };
 
 // Copy button component with tooltip
@@ -80,173 +98,55 @@ const CopyAddressButton = ({ address }: { address: string }) => {
   );
 };
 
-export type Transaction = {
-  signature: string;
-  block: number;
-  timeAgo: string;
-  instructions: string[];
-  by: string;
-  value: number;
-  fee: number;
-  status: "success" | "error";
-};
-
-// Base transaction data
-const baseTransactions: Transaction[] = [
+export const columns: ColumnDef<ApiTransaction>[] = [
   {
-    signature: "48fx6ASoBA1RxZvM2kP9QYVPBQSayS4uLokKEj1Uq6N",
-    block: 373806886,
-    timeAgo: "16 secs ago",
-    instructions: ["route"],
-    by: "BWB7Ze1zGM9s1QYVPBQSayS4uLet2uBq8YN9",
-    value: 0.36,
-    fee: 0.000005,
-    status: "success",
-  },
-  {
-    signature: "4yF38TCLFNNgirm2fP9QYVPBQSayS4uLokKEj1Uq6N",
-    block: 373806886,
-    timeAgo: "16 secs ago",
-    instructions: ["fill"],
-    by: "CDg3bPoM219s1QYVPBq5p7s4uo48ayS4uLokKEj1Uq6",
-    value: 0.08993,
-    fee: 0.00001041,
-    status: "success",
-  },
-  {
-    signature: "4LDXVWhssedu3xP9QYVPBQSayS4uLokKEj1Uq6NFjk",
-    block: 373806886,
-    timeAgo: "16 secs ago",
-    instructions: ["route"],
-    by: "HLtnuk5FLQ9s1QYVPBQSamVzccToQZEayS4uLokKEj1",
-    value: 0.0000779,
-    fee: 0.0000779,
-    status: "error",
-  },
-  {
-    signature: "2nsLBLSTmRTuVP9QYVPBQSayS4uLokKEj1Uq6NFjk6",
-    block: 373806886,
-    timeAgo: "16 secs ago",
-    instructions: ["route"],
-    by: "HLtnuk5FLQ9s1QYVPBQSamVzccToQZEayS4uLokKEj1",
-    value: 0.0000779,
-    fee: 0.0000779,
-    status: "error",
-  },
-  {
-    signature: "ekQ85es97dtiB6XP9QYVPBQSayS4uLokKEj1Uq6NFj",
-    block: 373806886,
-    timeAgo: "16 secs ago",
-    instructions: ["route"],
-    by: "HLtnuk5FLQ9s1QYVPBQSamVzccToQZEayS4uLokKEj1",
-    value: 0.0000779,
-    fee: 0.0000779,
-    status: "error",
-  },
-  {
-    signature: "2FXz4EWMktgLgtP9QYVPBQSayS4uLokKEj1Uq6NFjk",
-    block: 373806885,
-    timeAgo: "16 secs ago",
-    instructions: ["setLoadedAccountsDataS..."],
-    by: "9TXFVx8N9d9s1QYVPM3bEXqkR3ZayS4uLokKEj1Uq6N",
-    value: 0.00005001,
-    fee: 0.00005001,
-    status: "error",
-  },
-  {
-    signature: "5ix54FrYZtFW4qQP9QYVPBQSayS4uLokKEj1Uq6NFj",
-    block: 373806885,
-    timeAgo: "16 secs ago",
-    instructions: ["setLoadedAccountsDataS..."],
-    by: "9TXFVx8N9d9s1QYVPM3bEXqkR3ZayS4uLokKEj1Uq6N",
-    value: 0.00005001,
-    fee: 0.00005001,
-    status: "error",
-  },
-  {
-    signature: "36YDkAqtuAe246P9QYVPBQSayS4uLokKEj1Uq6NFjk",
-    block: 373806885,
-    timeAgo: "16 secs ago",
-    instructions: ["route"],
-    by: "FDcMd2X6jt9s1QYVPBXEo2Kejxq5ayS4uLokKEj1Uq6",
-    value: 0.00007602,
-    fee: 0.00007602,
-    status: "error",
-  },
-  {
-    signature: "3xd3QMhjL8rVsQP9QYVPBQSayS4uLokKEj1Uq6NFjk",
-    block: 373806885,
-    timeAgo: "16 secs ago",
-    instructions: ["route"],
-    by: "FDcMd2X6jt9s1QYVPBXEo2Kejxq5ayS4uLokKEj1Uq6",
-    value: 0.00007601,
-    fee: 0.00007601,
-    status: "error",
-  },
-  {
-    signature: "7kL9PmNjT2rVsQP9QYVPBQSayS4uLokKEj1Uq6NFjk",
-    block: 373806884,
-    timeAgo: "18 secs ago",
-    instructions: ["route"],
-    by: "BWB7Ze1zGM9s1QYVPBQSayS4uLet2uBq8YN9",
-    value: 0.24,
-    fee: 0.000005,
-    status: "success",
-  },
-];
-
-// Duplicate data to create 50 entries for pagination
-const mockTransactions: Transaction[] = Array.from(
-  { length: 5 },
-  (_, groupIndex) =>
-    baseTransactions.map((tx, index) => ({
-      ...tx,
-      signature:
-        tx.signature.slice(0, -4) +
-        Math.random().toString(36).substring(2, 6).toUpperCase(),
-      block: tx.block - groupIndex,
-    }))
-).flat();
-
-export const columns: ColumnDef<Transaction>[] = [
-  {
-    accessorKey: "signature",
-    header: "Signature",
+    accessorKey: "id",
+    header: "Transaction ID",
     cell: ({ row }: { row: any }) => {
-      const fullSignature = row.getValue("signature") as string;
-      const truncatedSignature = truncateAddress(fullSignature);
-      const status = row.original.status;
+      const fullId = row.getValue("id") as string;
+      const truncatedId = truncateAddress(fullId);
 
       return (
         <div className="flex items-center gap-2">
-          {status === "error" && (
-            <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
-          )}
           <a
             href="#"
             className="text-blue-400 hover:text-blue-300 transition-colors"
           >
-            {truncatedSignature}
+            {truncatedId}
           </a>
-          <CopyAddressButton address={fullSignature} />
+          <CopyAddressButton address={fullId} />
         </div>
       );
     },
   },
   {
-    accessorKey: "block",
-    header: "Block",
-    cell: ({ row }: { row: any }) => (
-      <a
-        href="#"
-        className="text-blue-400 hover:text-blue-300 transition-colors"
-      >
-        {row.getValue("block")}
-      </a>
-    ),
+    accessorKey: "transaction_type",
+    header: "Type",
+    cell: ({ row }: { row: any }) => {
+      const type = row.getValue("transaction_type") as string;
+      const isBuy = type === "buy";
+
+      return (
+        <Badge
+          variant="secondary"
+          className={`${
+            isBuy
+              ? "bg-green-500/20 text-green-400 border-green-500/30"
+              : "bg-red-500/20 text-red-400 border-red-500/30"
+          } border flex items-center gap-1 w-fit`}
+        >
+          {isBuy ? (
+            <TrendingUp className="h-3 w-3" />
+          ) : (
+            <TrendingDown className="h-3 w-3" />
+          )}
+          {type.toUpperCase()}
+        </Badge>
+      );
+    },
   },
   {
-    accessorKey: "timeAgo",
+    accessorKey: "created_at",
     header: ({ column }: { column: any }) => {
       return (
         <div className="flex items-center gap-1">
@@ -263,42 +163,16 @@ export const columns: ColumnDef<Transaction>[] = [
       );
     },
     cell: ({ row }: { row: any }) => (
-      <div className="text-white/70">{row.getValue("timeAgo")}</div>
+      <div className="text-white/70">
+        {formatTimeAgo(row.getValue("created_at"))}
+      </div>
     ),
   },
   {
-    accessorKey: "instructions",
-    header: "Instructions",
+    accessorKey: "user_id",
+    header: "User",
     cell: ({ row }: { row: any }) => {
-      const instructions = row.getValue("instructions") as string[];
-      return (
-        <div className="flex gap-1 flex-wrap">
-          {instructions.map((instruction, index) => (
-            <Badge
-              key={index}
-              variant="secondary"
-              className="bg-white/10 text-white/90 hover:bg-white/20 text-xs px-2 py-0.5"
-            >
-              {instruction}
-            </Badge>
-          ))}
-          {instructions.length > 1 && (
-            <Badge
-              variant="secondary"
-              className="bg-white/10 text-white/90 hover:bg-white/20 text-xs px-2 py-0.5"
-            >
-              {instructions.length}+
-            </Badge>
-          )}
-        </div>
-      );
-    },
-  },
-  {
-    accessorKey: "by",
-    header: "By",
-    cell: ({ row }: { row: any }) => {
-      const fullAddress = row.getValue("by") as string;
+      const fullAddress = row.getValue("user_id") as string;
       const truncatedAddress = truncateAddress(fullAddress);
 
       return (
@@ -315,11 +189,11 @@ export const columns: ColumnDef<Transaction>[] = [
     },
   },
   {
-    accessorKey: "value",
+    accessorKey: "cnpy_amount",
     header: ({ column }: { column: any }) => {
       return (
         <div className="flex items-center gap-1">
-          <span>Value (SOL)</span>
+          <span>CNPY Amount</span>
           <Button
             variant="ghost"
             size="icon"
@@ -331,16 +205,17 @@ export const columns: ColumnDef<Transaction>[] = [
         </div>
       );
     },
-    cell: ({ row }: { row: any }) => (
-      <div className="text-white font-mono">{row.getValue("value")}</div>
-    ),
+    cell: ({ row }: { row: any }) => {
+      const amount = row.getValue("cnpy_amount") as number;
+      return <div className="text-white font-mono">{amount.toFixed(4)}</div>;
+    },
   },
   {
-    accessorKey: "fee",
+    accessorKey: "token_amount",
     header: ({ column }: { column: any }) => {
       return (
         <div className="flex items-center gap-1">
-          <span>Fee (SOL)</span>
+          <span>Token Amount</span>
           <Button
             variant="ghost"
             size="icon"
@@ -352,30 +227,128 @@ export const columns: ColumnDef<Transaction>[] = [
         </div>
       );
     },
-    cell: ({ row }: { row: any }) => (
-      <div className="text-white font-mono">{row.getValue("fee")}</div>
-    ),
+    cell: ({ row }: { row: any }) => {
+      const amount = row.getValue("token_amount") as number;
+      return (
+        <div className="text-white font-mono">{amount.toLocaleString()}</div>
+      );
+    },
+  },
+  {
+    accessorKey: "price_per_token_cnpy",
+    header: ({ column }: { column: any }) => {
+      return (
+        <div className="flex items-center gap-1">
+          <span>Price</span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-4 w-4 p-0 hover:bg-transparent"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            <ArrowUpDown className="h-3 w-3" />
+          </Button>
+        </div>
+      );
+    },
+    cell: ({ row }: { row: any }) => {
+      const price = row.getValue("price_per_token_cnpy") as number;
+      return <div className="text-white font-mono">{price.toFixed(8)}</div>;
+    },
+  },
+  {
+    accessorKey: "trading_fee_cnpy",
+    header: ({ column }: { column: any }) => {
+      return (
+        <div className="flex items-center gap-1">
+          <span>Fee (CNPY)</span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-4 w-4 p-0 hover:bg-transparent"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            <ArrowUpDown className="h-3 w-3" />
+          </Button>
+        </div>
+      );
+    },
+    cell: ({ row }: { row: any }) => {
+      const fee = row.getValue("trading_fee_cnpy") as number;
+      return <div className="text-white font-mono">{fee.toFixed(6)}</div>;
+    },
   },
 ];
 
-export function BlockExplorerTable() {
+interface BlockExplorerTableProps {
+  chainId: string;
+}
+
+export function BlockExplorerTable({ chainId }: BlockExplorerTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [pagination, setPagination] = React.useState({
-    pageIndex: 0,
-    pageSize: 10,
-  });
+  const [transactions, setTransactions] = React.useState<ApiTransaction[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [pageSize, setPageSize] = React.useState(10);
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [totalPages, setTotalPages] = React.useState(1);
+  const [totalTransactions, setTotalTransactions] = React.useState(0);
+
+  // Fetch transactions
+  const fetchTransactions = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      console.log("Fetching transactions for chain:", chainId, {
+        page: currentPage,
+        limit: pageSize,
+      });
+
+      const response = await getChainTransactions(chainId, {
+        page: currentPage,
+        limit: pageSize,
+      });
+
+      console.log("Transactions response received:", response);
+      console.log("Response data:", response.data);
+      console.log("Response pagination:", response.pagination);
+
+      if (response.data) {
+        console.log("Setting transactions:", response.data.length, "items");
+        setTransactions(response.data);
+      } else {
+        console.log("No data in response");
+      }
+
+      if (response.pagination) {
+        setTotalPages(response.pagination.pages);
+        setTotalTransactions(response.pagination.total);
+      }
+    } catch (err) {
+      console.error("Failed to fetch transactions:", err);
+      setError("Failed to load transactions");
+      setTransactions([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [chainId, currentPage, pageSize]);
+
+  // Fetch on mount and when dependencies change
+  React.useEffect(() => {
+    fetchTransactions();
+  }, [fetchTransactions]);
 
   const table = useReactTable({
-    data: mockTransactions,
+    data: transactions,
     columns,
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    onPaginationChange: setPagination,
+    manualPagination: true,
+    pageCount: totalPages,
     state: {
       sorting,
-      pagination,
     },
   });
 
@@ -383,15 +356,24 @@ export function BlockExplorerTable() {
     <div className="w-full space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-medium text-white">Recent Transactions</h2>
+        <h2 className="text-lg font-medium text-white">
+          Recent Transactions
+          {!loading && totalTransactions > 0 && (
+            <span className="text-sm text-white/50 ml-2">
+              ({totalTransactions.toLocaleString()} total)
+            </span>
+          )}
+        </h2>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
             className="bg-white/10 hover:bg-white/20 text-white border-white/20"
+            onClick={fetchTransactions}
+            disabled={loading}
           >
-            <span className="mr-2">📥</span>
-            Export
+            <span className="mr-2">🔄</span>
+            Refresh
           </Button>
         </div>
       </div>
@@ -422,7 +404,25 @@ export function BlockExplorerTable() {
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows?.length ? (
+            {loading ? (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center text-white/50"
+                >
+                  Loading transactions...
+                </TableCell>
+              </TableRow>
+            ) : error ? (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center text-red-400"
+                >
+                  {error}
+                </TableCell>
+              </TableRow>
+            ) : table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row: any) => (
                 <TableRow
                   key={row.id}
@@ -457,22 +457,23 @@ export function BlockExplorerTable() {
         <div className="flex items-center gap-2">
           <span className="text-sm text-white/70">Show</span>
           <Select
-            value={`${table.getState().pagination.pageSize}`}
+            value={`${pageSize}`}
             onValueChange={(value) => {
-              table.setPageSize(Number(value));
+              setPageSize(Number(value));
+              setCurrentPage(1); // Reset to first page when changing page size
             }}
           >
             <SelectTrigger className="h-8 w-[70px] bg-white/10 border-white/20 text-white">
-              <SelectValue placeholder={table.getState().pagination.pageSize} />
+              <SelectValue placeholder={pageSize} />
             </SelectTrigger>
             <SelectContent side="top" className="bg-[#1a1a1a] border-white/20">
-              {[10, 20, 25, 30, 40, 50].map((pageSize) => (
+              {[10, 20, 25, 30, 40, 50].map((size) => (
                 <SelectItem
-                  key={pageSize}
-                  value={`${pageSize}`}
+                  key={size}
+                  value={`${size}`}
                   className="text-white hover:bg-white/10"
                 >
-                  {pageSize}
+                  {size}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -485,8 +486,8 @@ export function BlockExplorerTable() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => table.setPageIndex(0)}
-              disabled={!table.getCanPreviousPage()}
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1 || loading}
               className="bg-white/10 hover:bg-white/20 text-white border-white/20 disabled:opacity-50"
             >
               ⟪
@@ -494,21 +495,20 @@ export function BlockExplorerTable() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1 || loading}
               className="bg-white/10 hover:bg-white/20 text-white border-white/20 disabled:opacity-50"
             >
               ‹
             </Button>
             <span className="text-sm text-white">
-              Page {table.getState().pagination.pageIndex + 1} of{" "}
-              {table.getPageCount()}
+              Page {currentPage} of {totalPages}
             </span>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages || loading}
               className="bg-white/10 hover:bg-white/20 text-white border-white/20 disabled:opacity-50"
             >
               ›
@@ -516,8 +516,8 @@ export function BlockExplorerTable() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-              disabled={!table.getCanNextPage()}
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage >= totalPages || loading}
               className="bg-white/10 hover:bg-white/20 text-white border-white/20 disabled:opacity-50"
             >
               ⟫

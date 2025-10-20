@@ -1,16 +1,9 @@
 import { NextAuthOptions } from "next-auth";
 import GitHubProvider from "next-auth/providers/github";
-import type { User } from "@/types/api";
 
 declare module "next-auth" {
   interface Session {
     accessToken?: string;
-    user?: User;
-  }
-
-  interface JWT {
-    accessToken?: string;
-    user?: User;
   }
 }
 
@@ -27,23 +20,16 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, account, profile, user }) {
+    async jwt({ token, account, profile }) {
       // Persist the OAuth access_token to the token right after signin
       if (account) {
         token.accessToken = account.access_token;
-      }
-      // Persist user data to the token
-      if (user) {
-        token.user = user as User;
       }
       return token;
     },
     async session({ session, token }) {
       // Send properties to the client
       session.accessToken = token.accessToken as string;
-      if (token.user) {
-        session.user = token.user as User;
-      }
       return session;
     },
   },

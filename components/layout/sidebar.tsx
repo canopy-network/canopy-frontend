@@ -66,20 +66,12 @@ export function Sidebar() {
         {isAuthenticated && user ? (
           <div className="space-y-2">
             <div className="flex items-center gap-2 p-2 bg-[#1a1a1a] rounded-lg">
-              {user.email ? (
-                <>
-                  <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center">
-                    <span className="text-primary-foreground text-xs font-bold">
-                      {user.email.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                  <span className="text-sm text-white truncate">
-                    {user.email}
-                  </span>
-                </>
-              ) : (
-                <></>
-              )}
+              <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center">
+                <span className="text-primary-foreground text-xs font-bold">
+                  {user.email.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <span className="text-sm text-white truncate">{user.email}</span>
             </div>
             <Button
               onClick={() => setLoginDialogOpen(true)}

@@ -34,86 +34,100 @@ export function ChainDetailsHeader({ chain }: ChainDetailsHeaderProps) {
   return (
     <div
       id="chain-details-header"
-      className="flex items-center justify-between bg-black p-6"
+      className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-black p-4 sm:p-6"
     >
       {/* Left Information Section */}
-      <div id="chain-details-metadata" className="flex items-center gap-4">
+      <div
+        id="chain-details-metadata"
+        className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1"
+      >
         <img
           src=""
-          alt="Chain Icon"
-          className="w-8 h-8 rounded-full bg-gradient-to-r from-green-300 to-green-500"
+          alt=""
+          className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-gradient-to-r from-green-300 to-green-500 flex-shrink-0"
         />
 
         {/* Title and Subtitle */}
-        <div className="flex flex-col gap-1">
-          <h1 className="text-base font-medium text-white">
+        <div className="flex flex-col gap-1 min-w-0 flex-1">
+          <h1 className="text-base sm:text-base font-medium text-white truncate">
             {chain.chain_name}
           </h1>
 
-          <div className="flex items-center gap-2 text-sm text-white/50">
-            <span>${chain.token_symbol} by</span>
+          <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-white/50 flex-wrap">
+            <span className="whitespace-nowrap">${chain.token_symbol} by</span>
             {/* Inline Secondary Icon */}
             <Link
-              className="flex items-center gap-1 whitespace-nowrap"
+              className="flex items-center gap-1 whitespace-nowrap min-w-0"
               href={`/creator/xyz`}
             >
               <img
                 src=""
-                alt="Chain Symbol"
-                className="w-4 h-4 rounded-full bg-gradient-to-r from-green-200 to-green-400"
+                alt=""
+                className="w-4 h-4 sm:w-4 sm:h-4 rounded-full bg-gradient-to-r from-green-200 to-green-400 flex-shrink-0"
               />
-              <span className="whitespace-nowrap">[username]</span>
+              <span className="whitespace-nowrap truncate max-w-[100px] sm:max-w-none">
+                [username]
+              </span>
             </Link>
-            <span>•</span>
-            <span>created 13m ago</span>
+            <span className="hidden sm:inline">•</span>
+            <span className="whitespace-nowrap hidden sm:inline">
+              created 13m ago
+            </span>
           </div>
         </div>
       </div>
 
       {/* Right Action Button Section */}
-      <div className="flex items-center gap-2" id="chain-details-actions">
+      <div
+        className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0"
+        id="chain-details-actions"
+      >
         <Button
           variant="outline"
           size="sm"
           onClick={() => setIsPriceAlertSet(!isPriceAlertSet)}
-          className={`w-10 h-10 p-0 ${
+          className={`w-9 h-9 sm:w-10 sm:h-10 p-0 ${
             isPriceAlertSet
               ? "bg-purple-500 text-white border-purple-500"
               : "bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700"
           }`}
         >
-          <Bell className="h-4 w-4" />
+          <Bell className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         </Button>
 
-        <div className="flex items-center gap-2 dark:border-input border rounded-md">
+        <div className="flex items-center gap-1.5 sm:gap-2 dark:border-input border rounded-md">
           <Button
             variant="clear"
             size="sm"
             onClick={shareProject}
-            className="w-10 h-10 p-0 bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700"
+            className="w-9 h-9 sm:w-10 sm:h-10 p-0 bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700"
           >
-            <Share2 className="h-4 w-4" />
+            <Share2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </Button>
           <Button
             variant="clear"
             size="sm"
             onClick={openWebsite}
-            className="w-10 h-10 p-0 bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700"
+            className="w-9 h-9 sm:w-10 sm:h-10 p-0 bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700"
           >
-            <Globe className="h-4 w-4" />
+            <Globe className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </Button>
         </div>
         <Button
           variant="outline"
           size="sm"
           onClick={() => setIsLiked(!isLiked)}
-          className={`w-10 h-10 p-0 ${
+          className={`w-9 h-9 sm:w-10 sm:h-10 p-0 ${
             isLiked
               ? "bg-red-500 text-white border-red-500"
               : "bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700"
           }`}
         >
-          <Heart className={`h-4 w-4 ${isLiked ? "fill-current" : ""}`} />
+          <Heart
+            className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${
+              isLiked ? "fill-current" : ""
+            }`}
+          />
         </Button>
       </div>
     </div>

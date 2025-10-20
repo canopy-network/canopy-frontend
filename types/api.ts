@@ -73,37 +73,11 @@ export interface AuthVerifyRequest {
 }
 
 /**
- * User object from authentication
- */
-export interface User {
-  id: string;
-  email: string;
-  wallet_address: string;
-  display_name: string | null;
-  username: string | null;
-  avatar_url: string | null;
-  bio: string | null;
-  github_username: string | null;
-  telegram_handle: string | null;
-  twitter_handle: string | null;
-  website_url: string | null;
-  is_verified: boolean;
-  email_verified_at: string | null;
-  verification_tier: string;
-  reputation_score: number;
-  total_chains_created: number;
-  total_cnpy_invested: number;
-  created_at: string;
-  updated_at: string;
-  last_active_at: string | null;
-}
-
-/**
  * Code verification response
  */
 export interface AuthVerifyResponse {
   message: string;
-  user: User;
+  email: string;
 }
 
 // ============================================================================
