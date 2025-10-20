@@ -350,7 +350,7 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
 
           <TabsContent value="explorer">
             <Card className="p-6">
-              <BlockExplorerTable />
+              <BlockExplorerTable chainId={chain.id} />
             </Card>
           </TabsContent>
         </Tabs>

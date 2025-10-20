@@ -23,11 +23,35 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { User, Bell, Palette, Save, Upload, Camera } from "lucide-react";
+import {
+  User,
+  Bell,
+  Palette,
+  Save,
+  Upload,
+  Camera,
+  Edit2,
+  X,
+  CheckCircle2,
+} from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/lib/stores/auth-store";
+import { updateProfile } from "@/lib/api";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 function SettingsContent() {
+  const user = useAuthStore((state) => state.user);
+  const setUser = useAuthStore((state) => state.setUser);
+
+  console.log({ user });
   const [notifications, setNotifications] = useState({
     email: true,
     push: false,
@@ -42,22 +66,30 @@ function SettingsContent() {
   });
 
   const [profile, setProfile] = useState({
-    username: "canopy_user",
-    bio: "Blockchain enthusiast and DeFi trader",
-    profileImage: "https://picsum.photos/seed/user1/400/400",
+    displayName: user?.display_name || "",
+    username: user?.username || "canopy_user",
+    bio: user?.bio || "Blockchain enthusiast and DeFi trader",
+    profileImage:
+      user?.avatar_url || "https://picsum.photos/seed/user1/400/400",
     bannerImage: "https://picsum.photos/seed/banner2/1400/400",
   });
 
   const [socialLinks, setSocialLinks] = useState({
-    website: "",
-    twitter: "",
-    github: "",
-    telegram: "",
+    website: user?.website_url || "",
+    twitter: user?.twitter_handle || "",
+    github: user?.github_username || "",
+    telegram: user?.telegram_handle || "",
   });
 
   const [backupEmail, setBackupEmail] = useState("");
 
   const [activeSection, setActiveSection] = useState("public-profile");
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const navigationItems = [
     { id: "public-profile", label: "Public profile", icon: User },
@@ -65,6 +97,58 @@ function SettingsContent() {
     { id: "appearance", label: "Appearance", icon: Palette },
     { id: "notifications", label: "Notifications", icon: Bell },
   ];
+
+  const handleSaveProfile = () => {
+    setSaveError(null);
+    setShowConfirmDialog(true);
+  };
+
+  const confirmSaveProfile = async () => {
+    try {
+      setIsSaving(true);
+      setSaveError(null);
+
+      // Prepare the data for the API
+      const updateData = {
+        username: profile.username || undefined,
+        display_name: profile.displayName || undefined,
+        bio: profile.bio || undefined,
+        avatar_url: profile.profileImage || undefined,
+        website_url: socialLinks.website || undefined,
+        twitter_handle: socialLinks.twitter || undefined,
+        github_username: socialLinks.github || undefined,
+        telegram_handle: socialLinks.telegram || undefined,
+      };
+
+      // Call the API
+      const response = await updateProfile(updateData);
+
+      // Update the auth store with the new user data
+      if (response.data?.user) {
+        setUser(response.data.user);
+      }
+
+      // Close dialog and exit edit mode
+      setShowConfirmDialog(false);
+      setIsEditing(false);
+
+      // Show success message
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 5000); // Hide after 5 seconds
+
+      console.log("Profile updated successfully:", response.data?.message);
+    } catch (error: any) {
+      console.error("Failed to update profile:", error);
+      setSaveError(
+        error.message || "Failed to update profile. Please try again."
+      );
+      // Don't close the dialog so user can see the error
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const hasDisplayName = user?.display_name && user.display_name.trim() !== "";
 
   return (
     <div className="min-h-screen px-4">
@@ -74,6 +158,25 @@ function SettingsContent() {
           <div>
             <h1 className="text-2xl font-bold">Settings</h1>
           </div>
+          {activeSection === "public-profile" && (
+            <div>
+              {!isEditing ? (
+                <Button onClick={() => setIsEditing(true)} className="gap-2">
+                  <Edit2 className="h-4 w-4" />
+                  Edit Profile
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => setIsEditing(false)}
+                  variant="outline"
+                  className="gap-2"
+                >
+                  <X className="h-4 w-4" />
+                  Cancel
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -114,6 +217,51 @@ function SettingsContent() {
                   </p>
                 </div>
 
+                {/* Success Alert */}
+                {showSuccess && (
+                  <Card className="border-green-500/50 bg-green-500/10">
+                    <CardContent className="pt-6">
+                      <div className="flex items-start gap-3">
+                        <div className="rounded-full bg-green-500/20 p-2">
+                          <CheckCircle2 className="h-5 w-5 text-green-500" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-green-500 mb-1">
+                            Profile Updated Successfully
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Your public profile has been updated and is now
+                            visible to other users.
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Display Name Warning */}
+                {!hasDisplayName && (
+                  <Card className="border-yellow-500/50 bg-yellow-500/10">
+                    <CardContent className="pt-6">
+                      <div className="flex items-start gap-3">
+                        <div className="rounded-full bg-yellow-500/20 p-2">
+                          <User className="h-5 w-5 text-yellow-500" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-yellow-500 mb-1">
+                            Display Name Required
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            You need to set a display name to have a public
+                            profile. Please add your display name in the Basic
+                            Information section below.
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Profile Picture */}
                 <Card>
                   <CardHeader>
@@ -132,16 +280,22 @@ function SettingsContent() {
                             className="w-full h-full object-cover"
                           />
                         </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="absolute bottom-0 right-0 rounded-full w-10 h-10 p-0"
-                        >
-                          <Camera className="h-4 w-4" />
-                        </Button>
+                        {isEditing && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="absolute bottom-0 right-0 rounded-full w-10 h-10 p-0"
+                          >
+                            <Camera className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                       <div className="space-y-2">
-                        <Button variant="outline" className="gap-2">
+                        <Button
+                          variant="outline"
+                          className="gap-2"
+                          disabled={!isEditing}
+                        >
                           <Upload className="h-4 w-4" />
                           Upload New Picture
                         </Button>
@@ -169,14 +323,16 @@ function SettingsContent() {
                           alt="Banner"
                           className="w-full h-full object-cover"
                         />
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="absolute bottom-4 right-4 gap-2"
-                        >
-                          <Upload className="h-4 w-4" />
-                          Change Banner
-                        </Button>
+                        {isEditing && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="absolute bottom-4 right-4 gap-2"
+                          >
+                            <Upload className="h-4 w-4" />
+                            Change Banner
+                          </Button>
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground">
                         Recommended size: 1400x400px. JPG, PNG or GIF. Max size
@@ -196,6 +352,35 @@ function SettingsContent() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
+                      <Label htmlFor="displayName">
+                        Display Name{" "}
+                        {!hasDisplayName && (
+                          <span className="text-yellow-500">*</span>
+                        )}
+                      </Label>
+                      <Input
+                        id="displayName"
+                        placeholder="Enter display name"
+                        value={profile.displayName}
+                        onChange={(e) =>
+                          setProfile((prev) => ({
+                            ...prev,
+                            displayName: e.target.value,
+                          }))
+                        }
+                        disabled={!isEditing}
+                        className={
+                          !hasDisplayName && isEditing
+                            ? "border-yellow-500"
+                            : ""
+                        }
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Your display name is required for a public profile and
+                        will be shown to other users.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
                       <Label htmlFor="username">Username</Label>
                       <Input
                         id="username"
@@ -207,6 +392,7 @@ function SettingsContent() {
                             username: e.target.value,
                           }))
                         }
+                        disabled={!isEditing}
                       />
                       <p className="text-xs text-muted-foreground">
                         Your username may appear around Canopy where you
@@ -227,6 +413,7 @@ function SettingsContent() {
                         }
                         rows={4}
                         className="resize-none border-gray-700 focus-visible:border-primary"
+                        disabled={!isEditing}
                       />
                       <p className="text-xs text-muted-foreground">
                         Brief description for your profile.
@@ -257,6 +444,7 @@ function SettingsContent() {
                             website: e.target.value,
                           }))
                         }
+                        disabled={!isEditing}
                       />
                     </div>
                     <div className="space-y-2">
@@ -271,6 +459,7 @@ function SettingsContent() {
                             twitter: e.target.value,
                           }))
                         }
+                        disabled={!isEditing}
                       />
                     </div>
                     <div className="space-y-2">
@@ -285,6 +474,7 @@ function SettingsContent() {
                             github: e.target.value,
                           }))
                         }
+                        disabled={!isEditing}
                       />
                     </div>
                     <div className="space-y-2">
@@ -299,18 +489,25 @@ function SettingsContent() {
                             telegram: e.target.value,
                           }))
                         }
+                        disabled={!isEditing}
                       />
                     </div>
                   </CardContent>
                 </Card>
 
                 {/* Save Button */}
-                <div className="flex justify-end">
-                  <Button size="lg" className="gap-2">
-                    <Save className="h-4 w-4" />
-                    Save Public Profile
-                  </Button>
-                </div>
+                {isEditing && (
+                  <div className="flex justify-end">
+                    <Button
+                      size="lg"
+                      className="gap-2"
+                      onClick={handleSaveProfile}
+                    >
+                      <Save className="h-4 w-4" />
+                      Save Public Profile
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -590,6 +787,43 @@ function SettingsContent() {
           </main>
         </div>
       </div>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Profile Update</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to update your public profile? This will
+              change how others see your information on Canopy.
+            </DialogDescription>
+          </DialogHeader>
+          {saveError && (
+            <div className="rounded-md bg-red-500/10 border border-red-500/50 p-3">
+              <p className="text-sm text-red-500">{saveError}</p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowConfirmDialog(false)}
+              disabled={isSaving}
+            >
+              Cancel
+            </Button>
+            <Button onClick={confirmSaveProfile} disabled={isSaving}>
+              {isSaving ? (
+                <>
+                  <span className="mr-2">Saving...</span>
+                  <span className="animate-spin">⏳</span>
+                </>
+              ) : (
+                "Yes, Update Profile"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

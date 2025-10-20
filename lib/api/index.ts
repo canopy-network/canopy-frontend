@@ -57,6 +57,15 @@ export {
 // Authentication API
 export { sendEmailCode, verifyCode } from "./auth";
 
+// Users API
+export { updateProfile } from "./users";
+
+// Transactions API
+export {
+  getChainTransactions,
+  type Transaction as ApiTransaction,
+} from "./transactions";
+
 // Health API
 export {
   healthApi,
