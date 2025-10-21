@@ -19,12 +19,13 @@ export type AuthUser = User;
 export interface AuthState {
   // State
   user: AuthUser | null;
+  token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
 
   // Actions
-  setUser: (user: AuthUser) => void;
+  setUser: (user: AuthUser, token?: string) => void;
   clearUser: () => void;
   setLoading: (isLoading: boolean) => void;
   setError: (error: string | null) => void;
@@ -55,12 +56,7 @@ export function getPersistedAuthData() {
  */
 export function logPersistedAuthData() {
   const data = getPersistedAuthData();
-  console.log("📊 Current persisted auth data:", data);
-  console.log(
-    "📋 User fields stored:",
-    data?.user ? Object.keys(data.user) : []
-  );
-  console.log("📝 Full user object:", data?.user);
+
   return data;
 }
 
@@ -69,23 +65,32 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       // Initial state
       user: null,
+      token: null,
       isAuthenticated: false,
       isLoading: false,
       error: null,
 
       // Actions
-      setUser: (user) => {
+      setUser: (user, token) => {
         // Store user ID in localStorage for API authentication
         if (user?.id) {
           setUserId(user.id);
         }
 
+        // Store token in localStorage if provided
+        if (token) {
+          localStorage.setItem("auth_token", token);
+          console.log("🔑 Authorization token stored");
+        }
+
         // Log full user object being stored
         console.log("📝 Storing full user object in auth store:", user);
         console.log("📦 User fields being persisted:", Object.keys(user || {}));
+        console.log("🎫 Token available:", !!token);
 
         set({
           user,
+          token,
           isAuthenticated: true,
           error: null,
         });
@@ -98,6 +103,7 @@ export const useAuthStore = create<AuthState>()(
             console.log("✅ Verified data persisted to localStorage:", {
               userFieldCount: Object.keys(parsed.state?.user || {}).length,
               hasUser: !!parsed.state?.user,
+              hasToken: !!parsed.state?.token,
               userId: parsed.state?.user?.id,
               userEmail: parsed.state?.user?.email,
             });
@@ -107,8 +113,10 @@ export const useAuthStore = create<AuthState>()(
 
       clearUser: () => {
         clearUserId();
+        localStorage.removeItem("auth_token");
         set({
           user: null,
+          token: null,
           isAuthenticated: false,
         });
       },
@@ -125,8 +133,10 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         clearUserId();
+        localStorage.removeItem("auth_token");
         set({
           user: null,
+          token: null,
           isAuthenticated: false,
           error: null,
         });
@@ -136,6 +146,7 @@ export const useAuthStore = create<AuthState>()(
       name: "canopy-auth-storage",
       partialize: (state) => ({
         user: state.user,
+        token: state.token,
         isAuthenticated: state.isAuthenticated,
       }),
     }

@@ -18,6 +18,7 @@
  */
 export interface ApiResponse<T> {
   data: T;
+  token?: string; // Authorization token from response headers
 }
 
 /**

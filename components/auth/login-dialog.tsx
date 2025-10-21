@@ -13,6 +13,7 @@ import {
 import { Loader2, Mail, CheckCircle2, LogOut, ArrowLeft } from "lucide-react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { sendEmailCode, verifyCode } from "@/lib/api/auth";
+import axios from "axios";
 
 type AuthStep = "initial" | "email" | "code" | "authenticated";
 
@@ -100,26 +101,25 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
     setError(null);
 
     try {
-      const response = await verifyCode(email, code);
+      const response = await axios.post(
+        `http://app.neochiba.net:3001/api/v1/auth/verify`,
+        {
+          email,
+          code,
+        }
+      );
 
-      // Log the full user data received from API
-      console.log("Full user data from API:", response.data.user);
+      // Extract token from Authorization header
+      const authHeader =
+        response.headers["authorization"] || response.headers["Authorization"];
+      const token = authHeader ? authHeader.replace("Bearer ", "") : null;
 
-      // Save the full user object from the API response
-      setUser(response.data.user);
+      console.log("Token from header:", { token, authHeader });
 
-      // Verify the data was stored
-      console.log("User stored successfully. Data includes:", {
-        id: response.data.user.id,
-        email: response.data.user.email,
-        wallet_address: response.data.user.wallet_address,
-        username: response.data.user.username,
-        display_name: response.data.user.display_name,
-        is_verified: response.data.user.is_verified,
-        verification_tier: response.data.user.verification_tier,
-        reputation_score: response.data.user.reputation_score,
-        // ... all other fields are also stored
-      });
+      sessionStorage.setItem("auth_token", authHeader);
+
+      // Save the full user object and token from the API response
+      setUser(response.data.user, authHeader);
 
       setStep("authenticated");
       setCode("");
