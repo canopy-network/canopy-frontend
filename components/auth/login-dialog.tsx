@@ -36,6 +36,13 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
   const [resendTimer, setResendTimer] = useState(0);
   const [isResending, setIsResending] = useState(false);
 
+  // Sync step with authentication state when dialog opens
+  useEffect(() => {
+    if (open) {
+      setStep(isAuthenticated ? "authenticated" : "initial");
+    }
+  }, [open, isAuthenticated]);
+
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -101,6 +108,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
     setError(null);
 
     try {
+      console.log("🟢 [LoginDialog] Verifying code...");
       const response = await axios.post(
         `http://app.neochiba.net:3001/api/v1/auth/verify`,
         {
@@ -114,12 +122,9 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
         response.headers["authorization"] || response.headers["Authorization"];
       const token = authHeader ? authHeader.replace("Bearer ", "") : null;
 
-      console.log("Token from header:", { token, authHeader });
-
-      sessionStorage.setItem("auth_token", authHeader);
-
       // Save the full user object and token from the API response
-      setUser(response.data.user, authHeader);
+      // The auth store will handle storing to localStorage
+      setUser(response.data.data.user, authHeader);
 
       setStep("authenticated");
       setCode("");
@@ -129,6 +134,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
         onOpenChange(false);
       }, 1000);
     } catch (error: any) {
+      console.error("🔴 [LoginDialog] Verification failed:", error);
       setLocalError(
         error.message || "Failed to verify code. Please try again."
       );
@@ -160,8 +166,10 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
-      // Reset form when closing
-      setStep("initial");
+      // Reset form when closing, but preserve auth state
+      if (!isAuthenticated) {
+        setStep("initial");
+      }
       setEmail("");
       setCode("");
       setLocalError(null);
