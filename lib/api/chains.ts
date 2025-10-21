@@ -142,7 +142,7 @@ export const virtualPoolsApi = {
    * ```
    */
   getVirtualPool: (chainId: string) =>
-    apiClient.get<VirtualPool>(`/api/v1/chains/${chainId}/virtual-pool`),
+    apiClient.get<VirtualPool>(`/api/v1/virtual-pools/${chainId}`),
 
   /**
    * Get transaction history for a chain's virtual pool

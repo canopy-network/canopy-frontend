@@ -83,11 +83,6 @@ export const useAuthStore = create<AuthState>()(
           console.log("🔑 Authorization token stored");
         }
 
-        // Log full user object being stored
-        console.log("📝 Storing full user object in auth store:", user);
-        console.log("📦 User fields being persisted:", Object.keys(user || {}));
-        console.log("🎫 Token available:", !!token);
-
         set({
           user,
           token,
