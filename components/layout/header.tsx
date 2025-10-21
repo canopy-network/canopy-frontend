@@ -95,24 +95,9 @@ export function Header() {
     const isDetailPage =
       pathname.startsWith("/launchpad/") && pathSegments.length >= 2;
 
-    console.log("[Header] useEffect triggered:", {
-      pathname,
-      pathSegments,
-      isDetailPage,
-      chainsLength: chains.length,
-      willFetch: chains.length === 0 && !isDetailPage,
-    });
-
     if (chains.length === 0 && !isDetailPage) {
-      console.log("[Header] Calling fetchChains()");
       fetchChains();
     } else {
-      console.log(
-        "[Header] Skipping fetchChains - isDetailPage:",
-        isDetailPage,
-        "chains.length:",
-        chains.length
-      );
     }
   }, [chains.length, fetchChains, pathname]);
 
