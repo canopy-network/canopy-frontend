@@ -124,7 +124,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
 
       // Save the full user object and token from the API response
       // The auth store will handle storing to localStorage
-      setUser(response.data.data.user, authHeader);
+      setUser(response.data.data.user, token);
 
       setStep("authenticated");
       setCode("");
