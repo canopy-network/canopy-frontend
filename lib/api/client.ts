@@ -198,9 +198,14 @@ export class ApiClient {
     // Request interceptor - Add auth headers
     this.axiosInstance.interceptors.request.use(
       (config: InternalAxiosRequestConfig) => {
-        // Add authentication headers only for PUT and POST operations
+        // Add authentication headers for all mutation operations
         const method = config.method?.toUpperCase();
-        if (method === "PUT" || method === "POST") {
+        if (
+          method === "PUT" ||
+          method === "POST" ||
+          method === "PATCH" ||
+          method === "DELETE"
+        ) {
           const authHeaders = getAuthHeaders();
           Object.assign(config.headers, authHeaders);
         }

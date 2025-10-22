@@ -4,7 +4,6 @@ import { convertToChainWithUI } from "@/lib/utils/chain-converter";
 import { useState } from "react";
 import { useEffect } from "react";
 import { notFound } from "next/navigation";
-import { chainsApi } from "@/lib/api/chains";
 
 // Force dynamic rendering to ensure params are always fresh
 export const dynamic = "force-dynamic";
@@ -151,7 +150,7 @@ export default function ChainPage({ params }: ChainPageProps) {
         // Client-side fetch - use public API URL
         const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "").trim();
 
-        const requestUrl = `${apiUrl}/api/v1/chains/${chainId}`;
+        const requestUrl = `${apiUrl}/api/v1/chains/${chainId}?include=assets,creator,template`;
         console.log("Environment: CLIENT");
         console.log("Using API URL:", apiUrl);
         console.log("Requesting URL:", requestUrl);
@@ -204,24 +203,24 @@ export default function ChainPage({ params }: ChainPageProps) {
             return;
           }
 
-          const assets = await chainsApi.getChainAssets(chainId);
-
           chainData = data.data;
 
-          if (assets.data.length > 0) {
-            let branding = assets.data.find(
+          // Process assets if included in the response
+          if (chainData.assets && Array.isArray(chainData.assets)) {
+            const logoAsset = chainData.assets.find(
               (asset: any) => asset.asset_type === "logo"
-            )?.file_url;
-            let banner = assets.data.find(
+            );
+            const bannerAsset = chainData.assets.find(
               (asset: any) =>
                 asset.asset_type === "banner" ||
-                asset.asset_type === "screenshot"
-            )?.file_url;
+                asset.asset_type === "screenshot" ||
+                asset.asset_type === "media"
+            );
 
             chainData = {
               ...chainData,
-              branding,
-              banner,
+              branding: logoAsset?.file_url,
+              banner: bannerAsset?.file_url,
             };
           }
         } catch (fetchError) {

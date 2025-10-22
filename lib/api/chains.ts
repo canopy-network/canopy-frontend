@@ -63,7 +63,8 @@ export const chainsApi = {
    * const chain = await chainsApi.getChain('chain-id');
    * ```
    */
-  getChain: (id: string) => apiClient.get<Chain>(`/api/v1/chains/${id}`),
+  getChain: (id: string, params?: { include?: string }) =>
+    apiClient.get<Chain>(`/api/v1/chains/${id}`, params),
 
   /**
    * Create a new chain
@@ -133,6 +134,28 @@ export const chainsApi = {
    */
   createAsset: (chainId: string, data: CreateAssetRequest) =>
     apiClient.post<any>(`/api/v1/chains/${chainId}/assets`, data),
+
+  /**
+   * Update an existing chain asset
+   *
+   * @param chainId - Chain ID
+   * @param assetId - Asset ID to update
+   * @param data - Updated asset data
+   * @returns Promise resolving to updated asset data
+   *
+   * @example
+   * ```typescript
+   * const asset = await chainsApi.updateAsset('chain-id', 'asset-id', {
+   *   file_url: 'https://s3.amazonaws.com/new-logo.png',
+   *   is_primary: true
+   * });
+   * ```
+   */
+  updateAsset: (
+    chainId: string,
+    assetId: string,
+    data: Partial<CreateAssetRequest>
+  ) => apiClient.put<any>(`/api/v1/chains/${chainId}/assets/${assetId}`, data),
 };
 
 // ============================================================================

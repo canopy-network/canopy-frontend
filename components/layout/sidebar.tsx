@@ -20,6 +20,8 @@ export function Sidebar() {
   // User is considered logged in if either email auth or GitHub auth is active
   const isLoggedIn = isAuthenticated || !!session;
 
+  console.log("🟢 [Sidebar] user:", user);
+
   return (
     <div className="flex h-full w-64 flex-col bg-[#0e0e0e] border-r border-[#2a2a2a]">
       <div className="flex h-16 items-center border-b border-[#2a2a2a] px-6">

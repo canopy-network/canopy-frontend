@@ -71,7 +71,7 @@ export default function Dashboard() {
   const { user } = useAuthStore();
 
   useEffect(() => {
-    fetchChains({});
+    fetchChains({ include: "assets" });
   }, [fetchChains]);
 
   // Filter chains to only show those created by the current user

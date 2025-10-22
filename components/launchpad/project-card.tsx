@@ -168,6 +168,7 @@ export const ProjectCard = ({
       </Card>
       <div className="mt-6 flex items-center justify-between flex-col-reverse md:flex-row md:items-center gap-4 lg:gap-3">
         <div className="flex items-center gap-4 w-full md:w-auto">
+          {/* TODO: Show unique traders count */}
           <div className="flex items-center gap-2">
             <div className="h-6 w-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
               <span className="text-white text-xs font-bold">A</span>
@@ -178,14 +179,22 @@ export const ProjectCard = ({
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">By</span>
-            <div className="flex -space-x-2">
+            <Link
+              href={`/creator/${project.creator?.wallet_address}`}
+              className="flex items-center gap-2"
+            >
               <div className="h-6 w-6 rounded-full bg-gradient-to-br from-green-500 to-blue-500 border-2 border-[#1a1a1a] overflow-hidden">
-                <img src={avatar} alt="Avatar" width={24} height={24} />
+                <img
+                  src={project.creator?.avatar_url || ""}
+                  alt="Avatar"
+                  width={24}
+                  height={24}
+                />
               </div>
-            </div>
-            <span className="text-sm text-white font-medium">
-              {project.creator?.username || project.creator?.display_name}
-            </span>
+              <span className="text-sm text-white font-medium">
+                {project.creator?.username || project.creator?.display_name}
+              </span>
+            </Link>
           </div>
         </div>
 

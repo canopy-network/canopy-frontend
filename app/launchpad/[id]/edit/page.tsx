@@ -38,9 +38,11 @@ import {
   Twitch,
 } from "lucide-react";
 import Link from "next/link";
-import { Chain } from "@/types/chains";
+import { Chain, ChainAsset } from "@/types/chains";
 import { cn } from "@/lib/utils";
 import { useChainsStore } from "@/lib/stores/chains-store";
+import { chainsApi } from "@/lib/api/chains";
+import { uploadLogo, uploadGallery } from "@/lib/api/media";
 
 // Force dynamic rendering
 export const dynamic = "force-dynamic";
@@ -78,6 +80,17 @@ export default function EditChainPage({ params }: EditChainPageProps) {
   const [launchDate, setLaunchDate] = useState<Date | undefined>(undefined);
   const [launchNow, setLaunchNow] = useState(false);
 
+  // Asset state - track existing assets
+  const [existingAssets, setExistingAssets] = useState<ChainAsset[]>([]);
+  const [existingLogoAsset, setExistingLogoAsset] = useState<ChainAsset | null>(
+    null
+  );
+  const [existingBannerAsset, setExistingBannerAsset] =
+    useState<ChainAsset | null>(null);
+  const [existingGalleryAssets, setExistingGalleryAssets] = useState<
+    ChainAsset[]
+  >([]);
+
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -86,7 +99,7 @@ export default function EditChainPage({ params }: EditChainPageProps) {
       try {
         const chainId = decodeURIComponent(params.id);
         const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "").trim();
-        const requestUrl = `${apiUrl}/api/v1/chains/${chainId}`;
+        const requestUrl = `${apiUrl}/api/v1/chains/${chainId}?include=assets,creator`;
 
         console.log("Fetching chain for edit:", requestUrl);
 
@@ -117,15 +130,54 @@ export default function EditChainPage({ params }: EditChainPageProps) {
           return;
         }
 
-        setChain(data.data);
+        const chainData = data.data;
+
+        setChain(chainData);
         // Set current chain in store for breadcrumb
-        setCurrentChain(data.data);
+        setCurrentChain(chainData);
         // Initialize form with existing data
-        setChainDescription(data.data.chain_description || "");
-        if (data.data.scheduled_launch_time) {
-          setLaunchDate(new Date(data.data.scheduled_launch_time));
+        setChainDescription(chainData.chain_description || "");
+        if (chainData.scheduled_launch_time) {
+          setLaunchDate(new Date(chainData.scheduled_launch_time));
         }
-        // TODO: Load image and social URLs from chain metadata when available
+
+        // Process included assets (if available from the include parameter)
+        if (chainData.assets && Array.isArray(chainData.assets)) {
+          setExistingAssets(chainData.assets);
+
+          // Find logo asset
+          const logoAsset = chainData.assets.find(
+            (asset) => asset.asset_type === "logo"
+          );
+          if (logoAsset) {
+            setExistingLogoAsset(logoAsset);
+            setLogoPreview(logoAsset.file_url);
+          }
+
+          // Find banner asset (first banner/screenshot/media)
+          const bannerAsset = chainData.assets.find(
+            (asset) =>
+              asset.asset_type === "banner" ||
+              asset.asset_type === "screenshot" ||
+              asset.asset_type === "media"
+          );
+          if (bannerAsset) {
+            setExistingBannerAsset(bannerAsset);
+          }
+
+          // Find all gallery/media assets (media, screenshot, banner types)
+          const galleryAssets = chainData.assets.filter(
+            (asset) =>
+              asset.asset_type === "media" ||
+              asset.asset_type === "screenshot" ||
+              asset.asset_type === "banner"
+          );
+          setExistingGalleryAssets(galleryAssets);
+
+          console.log("Loaded existing assets from include:", chainData.assets);
+          console.log("Existing gallery assets:", galleryAssets);
+        }
+
         setLoading(false);
       } catch (error) {
         console.error("Error fetching chain:", error);
@@ -194,8 +246,88 @@ export default function EditChainPage({ params }: EditChainPageProps) {
     setError(null);
 
     try {
+      const chainId = chain.id;
+
+      // Step 1: Upload logo to S3 if a new one is selected
+      if (logo) {
+        console.log("Uploading logo to S3...");
+        const logoUploadResult = await uploadLogo(chain.token_symbol, logo);
+
+        if (!logoUploadResult.success || !logoUploadResult.urls?.[0]) {
+          throw new Error(logoUploadResult.error || "Failed to upload logo");
+        }
+
+        const logoUrl = logoUploadResult.urls[0].url;
+        console.log("Logo uploaded successfully:", logoUrl);
+
+        // Create or update logo asset
+        const logoAssetData = {
+          asset_type: "logo" as const,
+          file_name: logo.name,
+          file_url: logoUrl,
+          file_size_bytes: logo.size,
+          mime_type: logo.type,
+          is_primary: true,
+          is_featured: true,
+          is_active: true,
+        };
+
+        if (existingLogoAsset) {
+          // Update existing logo asset
+          console.log("Updating existing logo asset...");
+          await chainsApi.updateAsset(
+            chainId,
+            existingLogoAsset.id,
+            logoAssetData
+          );
+        } else {
+          // Create new logo asset
+          console.log("Creating new logo asset...");
+          await chainsApi.createAsset(chainId, logoAssetData);
+        }
+      }
+
+      // Step 2: Upload gallery files to S3 if any are selected
+      if (gallery.length > 0) {
+        console.log("Uploading gallery files to S3...");
+        const galleryUploadResult = await uploadGallery(
+          chain.token_symbol,
+          gallery
+        );
+
+        if (!galleryUploadResult.success || !galleryUploadResult.urls) {
+          throw new Error(
+            galleryUploadResult.error || "Failed to upload gallery"
+          );
+        }
+
+        console.log("Gallery uploaded successfully:", galleryUploadResult.urls);
+
+        // Create assets for each uploaded gallery file
+        for (let i = 0; i < galleryUploadResult.urls.length; i++) {
+          const uploadedFile = galleryUploadResult.urls[i];
+          const originalFile = gallery[i];
+
+          const galleryAssetData = {
+            asset_type: "media" as const,
+            file_name: uploadedFile.originalName,
+            file_url: uploadedFile.url,
+            file_size_bytes: originalFile.size,
+            mime_type: originalFile.type,
+            is_primary: false,
+            is_featured: true,
+            is_active: true,
+            display_order: existingGalleryAssets.length + i,
+          };
+
+          // Always create new gallery assets
+          await chainsApi.createAsset(chainId, galleryAssetData);
+        }
+      }
+
+      // Step 3: Update chain metadata
       const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "").trim();
-      const requestUrl = `${apiUrl}/api/v1/chains/${chain.id}`;
+      const requestUrl = `${apiUrl}/api/v1/chains/${chainId}`;
 
       const updateData: any = {
         chain_description: chainDescription,
@@ -208,10 +340,11 @@ export default function EditChainPage({ params }: EditChainPageProps) {
         updateData.scheduled_launch_time = launchDate.toISOString();
       }
 
-      // TODO: Add image and social URLs to metadata when backend supports it
-      // TODO: Upload logo and gallery files to media API
-      // For now, we'll just update the description and launch date
+      //TODO: PATCH chain update has not been implemented yet.
+      setIsEditMode(false);
+      return console.log({ "Stud updating chain": updateData });
 
+      console.log("Updating chain metadata...");
       const response = await fetch(requestUrl, {
         method: "PATCH",
         headers: {
@@ -225,9 +358,11 @@ export default function EditChainPage({ params }: EditChainPageProps) {
         throw new Error(`Failed to update chain: ${errorText}`);
       }
 
+      console.log("Chain updated successfully!");
+
       // Exit edit mode and redirect to the chain detail page
       setIsEditMode(false);
-      router.push(`/launchpad/${chain.id}`);
+      router.push(`/launchpad/${chainId}`);
     } catch (error) {
       console.error("Error saving chain:", error);
       setError(
@@ -246,7 +381,8 @@ export default function EditChainPage({ params }: EditChainPageProps) {
       }
       setLaunchNow(false);
       setLogo(null);
-      setLogoPreview("");
+      // Reset logo preview to existing asset if available
+      setLogoPreview(existingLogoAsset?.file_url || "");
       setGallery([]);
     }
     setIsEditMode(false);
@@ -482,11 +618,41 @@ export default function EditChainPage({ params }: EditChainPageProps) {
               </div>
 
               {/* Gallery Preview */}
-              {gallery.length > 0 && (
+              {(existingGalleryAssets.length > 0 || gallery.length > 0) && (
                 <div className="mt-6 grid grid-cols-3 gap-4">
+                  {/* Existing gallery assets */}
+                  {existingGalleryAssets.map((asset, index) => (
+                    <div
+                      key={`existing-${asset.id}`}
+                      className="relative group aspect-video border-2 rounded-lg overflow-hidden"
+                    >
+                      {asset.mime_type.startsWith("image/") ? (
+                        <img
+                          src={asset.file_url}
+                          alt={asset.file_name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : asset.mime_type.startsWith("video/") ? (
+                        <video
+                          src={asset.file_url}
+                          className="w-full h-full object-cover"
+                          controls
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-muted">
+                          <FileText className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
+                        Saved
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Newly selected gallery files */}
                   {gallery.map((file, index) => (
                     <div
-                      key={index}
+                      key={`new-${index}`}
                       className="relative group aspect-video border-2 rounded-lg overflow-hidden"
                     >
                       {file.type.startsWith("image/") ? (
@@ -494,6 +660,12 @@ export default function EditChainPage({ params }: EditChainPageProps) {
                           src={URL.createObjectURL(file)}
                           alt={`Gallery ${index + 1}`}
                           className="w-full h-full object-cover"
+                        />
+                      ) : file.type.startsWith("video/") ? (
+                        <video
+                          src={URL.createObjectURL(file)}
+                          className="w-full h-full object-cover"
+                          controls
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-muted">
@@ -516,6 +688,9 @@ export default function EditChainPage({ params }: EditChainPageProps) {
                           <X className="h-4 w-4" />
                         </Button>
                       )}
+                      <div className="absolute bottom-2 left-2 bg-primary/80 text-white text-xs px-2 py-1 rounded">
+                        New
+                      </div>
                     </div>
                   ))}
                 </div>

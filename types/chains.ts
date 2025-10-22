@@ -342,6 +342,7 @@ export interface GetChainsParams {
   status?: ChainStatus;
   creator?: string;
   template_id?: string;
+  include?: string; // Comma-separated: template,creator,assets,virtual_pool,repository,social_links
   page?: number;
   limit?: number;
 }
@@ -367,6 +368,7 @@ export type AssetType =
   | "logo"
   | "banner"
   | "screenshot"
+  | "media"
   | "video"
   | "whitepaper"
   | "documentation";

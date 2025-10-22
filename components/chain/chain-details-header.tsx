@@ -7,6 +7,15 @@ interface ChainDetailsHeaderProps {
   chain: {
     chain_name: string;
     token_symbol: string;
+    token_total_supply: number;
+    branding?: string;
+    banner?: string;
+    creator?: {
+      display_name?: string;
+      avatar_url?: string;
+      wallet_address?: string;
+    };
+    created_at?: string;
   };
 }
 
@@ -41,11 +50,19 @@ export function ChainDetailsHeader({ chain }: ChainDetailsHeaderProps) {
         id="chain-details-metadata"
         className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1"
       >
-        <img
-          src=""
-          alt=""
-          className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-gradient-to-r from-green-300 to-green-500 flex-shrink-0"
-        />
+        {chain.branding ? (
+          <img
+            src={chain.branding}
+            alt={`${chain.chain_name} logo`}
+            className="w-10 h-10 sm:w-8 sm:h-8 rounded-full object-cover flex-shrink-0"
+          />
+        ) : (
+          <div className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-gradient-to-r from-green-300 to-green-500 flex items-center justify-center flex-shrink-0">
+            <span className="text-white font-bold text-sm">
+              {chain.chain_name.charAt(0).toUpperCase()}
+            </span>
+          </div>
+        )}
 
         {/* Title and Subtitle */}
         <div className="flex flex-col gap-1 min-w-0 flex-1">
@@ -56,23 +73,39 @@ export function ChainDetailsHeader({ chain }: ChainDetailsHeaderProps) {
           <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-white/50 flex-wrap">
             <span className="whitespace-nowrap">${chain.token_symbol} by</span>
             {/* Inline Secondary Icon */}
-            <Link
-              className="flex items-center gap-1 whitespace-nowrap min-w-0"
-              href={`/creator/xyz`}
-            >
-              <img
-                src=""
-                alt=""
-                className="w-4 h-4 sm:w-4 sm:h-4 rounded-full bg-gradient-to-r from-green-200 to-green-400 flex-shrink-0"
-              />
-              <span className="whitespace-nowrap truncate max-w-[100px] sm:max-w-none">
-                [username]
-              </span>
-            </Link>
-            <span className="hidden sm:inline">•</span>
-            <span className="whitespace-nowrap hidden sm:inline">
-              created 13m ago
-            </span>
+            {chain.creator && (
+              <Link
+                className="flex items-center gap-1 whitespace-nowrap min-w-0"
+                href={`/creator/${chain.creator.wallet_address || "unknown"}`}
+              >
+                {chain.creator.avatar_url ? (
+                  <img
+                    src={chain.creator.avatar_url}
+                    alt={chain.creator.display_name || "Creator"}
+                    className="w-4 h-4 sm:w-4 sm:h-4 rounded-full object-cover flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-4 h-4 sm:w-4 sm:h-4 rounded-full bg-gradient-to-r from-green-200 to-green-400 flex-shrink-0" />
+                )}
+                <span className="whitespace-nowrap truncate max-w-[100px] sm:max-w-none">
+                  {chain.creator.display_name ||
+                    (chain.creator.wallet_address
+                      ? `${chain.creator.wallet_address.slice(
+                          0,
+                          6
+                        )}...${chain.creator.wallet_address.slice(-4)}`
+                      : "Unknown")}
+                </span>
+              </Link>
+            )}
+            {chain.created_at && (
+              <>
+                <span className="hidden sm:inline">•</span>
+                <span className="whitespace-nowrap hidden sm:inline">
+                  created {new Date(chain.created_at).toLocaleDateString()}
+                </span>
+              </>
+            )}
           </div>
         </div>
       </div>

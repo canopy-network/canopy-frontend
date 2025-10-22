@@ -106,7 +106,7 @@ interface ChainsState {
 
   // Actions
   fetchChains: (params?: GetChainsParams) => Promise<void>;
-  fetchChain: (id: string) => Promise<void>;
+  fetchChain: (id: string, include?: string) => Promise<void>;
   fetchVirtualPool: (chainId: string) => Promise<void>;
   fetchTransactions: (chainId: string) => Promise<void>;
   createChain: (data: CreateChainRequest) => Promise<Chain>;
@@ -434,10 +434,13 @@ export const useChainsStore = create<ChainsState>()(
           }
         },
 
-        fetchChain: async (id) => {
+        fetchChain: async (id, include?: string) => {
           set({ isLoading: true, error: null });
           try {
-            const response = await chainsApi.getChain(id);
+            const response = await chainsApi.getChain(
+              id,
+              include ? { include } : undefined
+            );
 
             // Process assets to extract branding and banner
             const processedChain = processChainAssets(response.data);
