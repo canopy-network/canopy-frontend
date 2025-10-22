@@ -104,6 +104,15 @@ export interface Chain {
 
   /** Creator information (included when requested) */
   creator?: Creator;
+
+  /** Assets associated with the chain (included when requested) */
+  assets?: ChainAsset[];
+
+  /** Logo/branding URL (computed from assets) */
+  branding?: string;
+
+  /** Banner/screenshot URL (computed from assets) */
+  banner?: string;
 }
 
 // ============================================================================
@@ -331,9 +340,8 @@ export interface CreateChainRequest {
  */
 export interface GetChainsParams {
   status?: ChainStatus;
-  created_by?: string;
+  creator?: string;
   template_id?: string;
-  include?: string[];
   page?: number;
   limit?: number;
 }
@@ -362,6 +370,31 @@ export type AssetType =
   | "video"
   | "whitepaper"
   | "documentation";
+
+/**
+ * Chain asset from API response
+ */
+export interface ChainAsset {
+  id: string;
+  chain_id: string;
+  asset_type: AssetType;
+  file_name: string;
+  file_url: string;
+  file_size_bytes: number;
+  mime_type: string;
+  title: string | null;
+  description: string | null;
+  alt_text: string | null;
+  display_order: number;
+  is_primary: boolean;
+  is_featured: boolean;
+  is_active: boolean;
+  moderation_status: string;
+  moderation_notes: string | null;
+  uploaded_by: string;
+  created_at: string;
+  updated_at: string;
+}
 
 /**
  * Create asset request payload

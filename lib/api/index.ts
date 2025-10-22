@@ -58,7 +58,7 @@ export {
 export { sendEmailCode, verifyCode } from "./auth";
 
 // Users API
-export { updateProfile } from "./users";
+export { updateProfile, uploadUserMedia } from "./users";
 
 // Transactions API
 export {
@@ -121,6 +121,8 @@ export type {
   CreateChainRequest,
   GetChainsParams,
   GetTransactionsParams,
+  ChainAsset,
+  AssetType,
 } from "@/types/chains";
 
 export type {

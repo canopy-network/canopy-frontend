@@ -109,6 +109,20 @@ export const SmallProjectCard = ({
     return { color: "bg-green-500", label: "Active" };
   }, [project.is_graduated, project.progress]);
 
+  // Creator display name with fallback
+  const creator = useMemo(() => {
+    if (project.creator?.display_name) {
+      return project.creator.display_name;
+    }
+    if (project.creator?.wallet_address) {
+      return `${project.creator.wallet_address.slice(
+        0,
+        6
+      )}...${project.creator.wallet_address.slice(-4)}`;
+    }
+    return "Unknown";
+  }, [project.creator?.display_name, project.creator?.wallet_address]);
+
   return (
     <Link
       href={href}
@@ -160,19 +174,19 @@ export const SmallProjectCard = ({
                   : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"
               }`}
             >
-              {project.template?.template_category?.charAt(0).toUpperCase() +
-                project.template?.template_category?.slice(1) || "Other"}
+              {project.template?.template_category
+                ? project.template.template_category.charAt(0).toUpperCase() +
+                  project.template.template_category.slice(1)
+                : "Other"}
             </Badge>
-            <span className="text-gray-400 text-xs">•</span>
-            <span className="text-gray-400 text-xs">
-              {project.creator?.display_name ||
-                project.creator?.wallet_address?.slice(0, 6) +
-                  "..." +
-                  project.creator?.wallet_address?.slice(-4) ||
-                "Unknown"}
+            <span
+              className="text-gray-400 text-xs max-w-[100px] truncate"
+              title={creator}
+            >
+              {creator}
             </span>
             <span className="text-gray-400 text-xs">•</span>
-            <span className="text-gray-400 text-xs">{timeAgo}</span>
+            <span className="text-gray-400 text-xs nowrap">{timeAgo}</span>
           </div>
 
           {/* Dynamic Performance and Progress */}

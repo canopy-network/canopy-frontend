@@ -64,3 +64,43 @@ export async function updateProfile(
 ): Promise<ApiResponse<UpdateProfileResponse>> {
   return apiClient.put<UpdateProfileResponse>("/api/v1/users/profile", data);
 }
+
+/**
+ * Upload user media (avatar or banner) response
+ */
+export interface UploadUserMediaResponse {
+  success: boolean;
+  message: string;
+  url: string;
+  type: "avatar" | "banner";
+}
+
+/**
+ * Uploads a user profile image (avatar or banner) to S3
+ * @param userId - User ID
+ * @param file - Image file to upload
+ * @param type - Type of media (avatar or banner)
+ * @returns Promise with the upload response including the S3 URL
+ */
+export async function uploadUserMedia(
+  userId: string,
+  file: File,
+  type: "avatar" | "banner"
+): Promise<UploadUserMediaResponse> {
+  const formData = new FormData();
+  formData.append("userId", userId);
+  formData.append("type", type);
+  formData.append("file", file);
+
+  const response = await fetch("/api/canopy-user-media", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to upload image");
+  }
+
+  return response.json();
+}

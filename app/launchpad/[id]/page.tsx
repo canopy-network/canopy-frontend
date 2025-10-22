@@ -4,6 +4,7 @@ import { convertToChainWithUI } from "@/lib/utils/chain-converter";
 import { useState } from "react";
 import { useEffect } from "react";
 import { notFound } from "next/navigation";
+import { chainsApi } from "@/lib/api/chains";
 
 // Force dynamic rendering to ensure params are always fresh
 export const dynamic = "force-dynamic";
@@ -203,7 +204,26 @@ export default function ChainPage({ params }: ChainPageProps) {
             return;
           }
 
+          const assets = await chainsApi.getChainAssets(chainId);
+
           chainData = data.data;
+
+          if (assets.data.length > 0) {
+            let branding = assets.data.find(
+              (asset: any) => asset.asset_type === "logo"
+            )?.file_url;
+            let banner = assets.data.find(
+              (asset: any) =>
+                asset.asset_type === "banner" ||
+                asset.asset_type === "screenshot"
+            )?.file_url;
+
+            chainData = {
+              ...chainData,
+              branding,
+              banner,
+            };
+          }
         } catch (fetchError) {
           clearTimeout(timeoutId);
 

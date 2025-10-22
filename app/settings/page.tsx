@@ -34,10 +34,10 @@ import {
   X,
   CheckCircle2,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { updateProfile } from "@/lib/api";
+import { updateProfile, uploadUserMedia } from "@/lib/api";
 import {
   Dialog,
   DialogContent,
@@ -91,6 +91,17 @@ function SettingsContent() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
 
+  // Image upload states and files
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
+  const [pendingBannerFile, setPendingBannerFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+
+  // File input refs
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
+
   const navigationItems = [
     { id: "public-profile", label: "Public profile", icon: User },
     { id: "account", label: "Account", icon: User },
@@ -98,22 +109,197 @@ function SettingsContent() {
     { id: "notifications", label: "Notifications", icon: Bell },
   ];
 
+  // Cleanup preview URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (avatarPreview) {
+        URL.revokeObjectURL(avatarPreview);
+      }
+      if (bannerPreview) {
+        URL.revokeObjectURL(bannerPreview);
+      }
+    };
+  }, [avatarPreview, bannerPreview]);
+
+  const handleAvatarSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (2MB for avatar)
+    if (file.size > 2 * 1024 * 1024) {
+      setUploadError("Avatar image must be less than 2MB");
+      return;
+    }
+
+    // Validate file type
+    const validTypes = [
+      "image/png",
+      "image/jpeg",
+      "image/jpg",
+      "image/webp",
+      "image/gif",
+    ];
+    if (!validTypes.includes(file.type)) {
+      setUploadError("Avatar must be PNG, JPEG, WebP, or GIF");
+      return;
+    }
+
+    // Clear any previous errors
+    setUploadError(null);
+
+    // Store the file for later upload
+    setPendingAvatarFile(file);
+
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file);
+    setAvatarPreview(previewUrl);
+  };
+
+  const handleBannerSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (5MB for banner)
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError("Banner image must be less than 5MB");
+      return;
+    }
+
+    // Validate file type
+    const validTypes = [
+      "image/png",
+      "image/jpeg",
+      "image/jpg",
+      "image/webp",
+      "image/gif",
+    ];
+    if (!validTypes.includes(file.type)) {
+      setUploadError("Banner must be PNG, JPEG, WebP, or GIF");
+      return;
+    }
+
+    // Clear any previous errors
+    setUploadError(null);
+
+    // Store the file for later upload
+    setPendingBannerFile(file);
+
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file);
+    setBannerPreview(previewUrl);
+  };
+
+  const validateSocialLinks = (): string | null => {
+    // Validate website URL
+    if (socialLinks.website && socialLinks.website.trim() !== "") {
+      if (socialLinks.website.length > 500) {
+        return "Website URL must be less than 500 characters";
+      }
+      try {
+        new URL(socialLinks.website);
+      } catch {
+        return "Website URL must be a valid URL (e.g., https://example.com)";
+      }
+    }
+
+    // Validate Twitter handle
+    if (socialLinks.twitter && socialLinks.twitter.trim() !== "") {
+      if (socialLinks.twitter.length > 50) {
+        return "Twitter handle must be less than 50 characters";
+      }
+    }
+
+    // Validate GitHub username
+    if (socialLinks.github && socialLinks.github.trim() !== "") {
+      if (socialLinks.github.length > 100) {
+        return "GitHub username must be less than 100 characters";
+      }
+      // Alphanumeric only (can include hyphens and underscores for GitHub)
+      if (!/^[a-zA-Z0-9_-]+$/.test(socialLinks.github)) {
+        return "GitHub username must contain only letters, numbers, hyphens, and underscores";
+      }
+    }
+
+    // Validate Telegram handle
+    if (socialLinks.telegram && socialLinks.telegram.trim() !== "") {
+      if (socialLinks.telegram.length > 50) {
+        return "Telegram handle must be less than 50 characters";
+      }
+    }
+
+    return null;
+  };
+
   const handleSaveProfile = () => {
     setSaveError(null);
+
+    // Validate social links
+    const validationError = validateSocialLinks();
+    if (validationError) {
+      setSaveError(validationError);
+      return;
+    }
+
     setShowConfirmDialog(true);
   };
 
   const confirmSaveProfile = async () => {
+    if (!user?.id) {
+      setSaveError("User not authenticated");
+      return;
+    }
+
     try {
       setIsSaving(true);
       setSaveError(null);
+
+      let avatarUrl = profile.profileImage;
+      let bannerUrl = profile.bannerImage;
+
+      // Upload avatar if there's a pending file
+      if (pendingAvatarFile) {
+        try {
+          const avatarResult = await uploadUserMedia(
+            user.id,
+            pendingAvatarFile,
+            "avatar"
+          );
+          avatarUrl = avatarResult.url;
+          console.log("Avatar uploaded successfully:", avatarResult.url);
+        } catch (error: any) {
+          console.error("Failed to upload avatar:", error);
+          setSaveError(
+            `Failed to upload avatar: ${error.message || "Unknown error"}`
+          );
+          return;
+        }
+      }
+
+      // Upload banner if there's a pending file
+      if (pendingBannerFile) {
+        try {
+          const bannerResult = await uploadUserMedia(
+            user.id,
+            pendingBannerFile,
+            "banner"
+          );
+          bannerUrl = bannerResult.url;
+          console.log("Banner uploaded successfully:", bannerResult.url);
+        } catch (error: any) {
+          console.error("Failed to upload banner:", error);
+          setSaveError(
+            `Failed to upload banner: ${error.message || "Unknown error"}`
+          );
+          return;
+        }
+      }
 
       // Prepare the data for the API
       const updateData = {
         username: profile.username || undefined,
         display_name: profile.displayName || undefined,
         bio: profile.bio || undefined,
-        avatar_url: profile.profileImage || undefined,
+        avatar_url: avatarUrl || undefined,
         website_url: socialLinks.website || undefined,
         twitter_handle: socialLinks.twitter || undefined,
         github_username: socialLinks.github || undefined,
@@ -127,6 +313,25 @@ function SettingsContent() {
       if (response.data?.user) {
         setUser(response.data.user);
       }
+
+      // Clear pending files and previews
+      setPendingAvatarFile(null);
+      setPendingBannerFile(null);
+      if (avatarPreview) {
+        URL.revokeObjectURL(avatarPreview);
+        setAvatarPreview(null);
+      }
+      if (bannerPreview) {
+        URL.revokeObjectURL(bannerPreview);
+        setBannerPreview(null);
+      }
+
+      // Update profile state with final URLs
+      setProfile((prev) => ({
+        ...prev,
+        profileImage: avatarUrl,
+        bannerImage: bannerUrl,
+      }));
 
       // Close dialog and exit edit mode
       setShowConfirmDialog(false);
@@ -161,13 +366,34 @@ function SettingsContent() {
           {activeSection === "public-profile" && (
             <div>
               {!isEditing ? (
-                <Button onClick={() => setIsEditing(true)} className="gap-2">
+                <Button
+                  onClick={() => {
+                    setSaveError(null);
+                    setIsEditing(true);
+                  }}
+                  className="gap-2"
+                >
                   <Edit2 className="h-4 w-4" />
                   Edit Profile
                 </Button>
               ) : (
                 <Button
-                  onClick={() => setIsEditing(false)}
+                  onClick={() => {
+                    // Clean up pending files and previews
+                    setPendingAvatarFile(null);
+                    setPendingBannerFile(null);
+                    if (avatarPreview) {
+                      URL.revokeObjectURL(avatarPreview);
+                      setAvatarPreview(null);
+                    }
+                    if (bannerPreview) {
+                      URL.revokeObjectURL(bannerPreview);
+                      setBannerPreview(null);
+                    }
+                    setUploadError(null);
+                    setSaveError(null);
+                    setIsEditing(false);
+                  }}
                   variant="outline"
                   className="gap-2"
                 >
@@ -239,6 +465,34 @@ function SettingsContent() {
                   </Card>
                 )}
 
+                {/* Upload Error Alert */}
+                {uploadError && (
+                  <Card className="border-red-500/50 bg-red-500/10">
+                    <CardContent className="pt-6">
+                      <div className="flex items-start gap-3">
+                        <div className="rounded-full bg-red-500/20 p-2">
+                          <X className="h-5 w-5 text-red-500" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-red-500 mb-1">
+                            Upload Failed
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            {uploadError}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setUploadError(null)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Display Name Warning */}
                 {!hasDisplayName && (
                   <Card className="border-yellow-500/50 bg-yellow-500/10">
@@ -261,86 +515,6 @@ function SettingsContent() {
                     </CardContent>
                   </Card>
                 )}
-
-                {/* Profile Picture */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Profile Picture</CardTitle>
-                    <CardDescription>
-                      Upload a profile picture to personalize your account
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center gap-6">
-                      <div className="relative">
-                        <div className="w-32 h-32 rounded-full overflow-hidden bg-gradient-to-br from-pink-500 to-purple-500">
-                          <img
-                            src={profile.profileImage}
-                            alt="Profile"
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        {isEditing && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="absolute bottom-0 right-0 rounded-full w-10 h-10 p-0"
-                          >
-                            <Camera className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Button
-                          variant="outline"
-                          className="gap-2"
-                          disabled={!isEditing}
-                        >
-                          <Upload className="h-4 w-4" />
-                          Upload New Picture
-                        </Button>
-                        <p className="text-xs text-muted-foreground">
-                          JPG, PNG or GIF. Max size 2MB.
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Banner Image */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Banner Image</CardTitle>
-                    <CardDescription>
-                      Customize your profile with a banner image
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-4">
-                      <div className="relative w-full h-48 rounded-lg overflow-hidden bg-gradient-to-r from-purple-500 to-pink-500">
-                        <img
-                          src={profile.bannerImage}
-                          alt="Banner"
-                          className="w-full h-full object-cover"
-                        />
-                        {isEditing && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="absolute bottom-4 right-4 gap-2"
-                          >
-                            <Upload className="h-4 w-4" />
-                            Change Banner
-                          </Button>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Recommended size: 1400x400px. JPG, PNG or GIF. Max size
-                        5MB.
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
 
                 {/* Basic Information */}
                 <Card>
@@ -422,6 +596,119 @@ function SettingsContent() {
                   </CardContent>
                 </Card>
 
+                {/* Profile Picture */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Profile Picture</CardTitle>
+                    <CardDescription>
+                      Upload a profile picture to personalize your account
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center gap-6">
+                      <div className="relative">
+                        <div className="w-32 h-32 rounded-full overflow-hidden bg-gradient-to-br from-pink-500 to-purple-500">
+                          <img
+                            src={avatarPreview || profile.profileImage}
+                            alt="Profile"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        {isEditing && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="absolute bottom-0 right-0 rounded-full w-10 h-10 p-0"
+                            onClick={() => avatarInputRef.current?.click()}
+                          >
+                            <Camera className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <input
+                          ref={avatarInputRef}
+                          type="file"
+                          accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                          onChange={handleAvatarSelect}
+                          className="hidden"
+                        />
+                        <Button
+                          variant="outline"
+                          className="gap-2"
+                          disabled={!isEditing}
+                          onClick={() => avatarInputRef.current?.click()}
+                        >
+                          <Upload className="h-4 w-4" />
+                          {pendingAvatarFile
+                            ? "Change Picture"
+                            : "Upload New Picture"}
+                        </Button>
+                        <p className="text-xs text-muted-foreground">
+                          PNG, JPEG, WebP, or GIF. Max size 2MB.
+                        </p>
+                        {pendingAvatarFile && (
+                          <p className="text-xs text-green-500">
+                            ✓ New image selected: {pendingAvatarFile.name}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Banner Image */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Banner Image</CardTitle>
+                    <CardDescription>
+                      Customize your profile with a banner image
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-4">
+                      <div className="relative w-full h-48 rounded-lg overflow-hidden bg-gradient-to-r from-purple-500 to-pink-500">
+                        <img
+                          src={bannerPreview || profile.bannerImage}
+                          alt="Banner"
+                          className="w-full h-full object-cover"
+                        />
+                        {isEditing && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="absolute bottom-4 right-4 gap-2"
+                            onClick={() => bannerInputRef.current?.click()}
+                          >
+                            <Upload className="h-4 w-4" />
+                            {pendingBannerFile
+                              ? "Change Banner"
+                              : "Upload Banner"}
+                          </Button>
+                        )}
+                      </div>
+                      <input
+                        ref={bannerInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                        onChange={handleBannerSelect}
+                        className="hidden"
+                      />
+                      <div className="space-y-1">
+                        <p className="text-xs text-muted-foreground">
+                          Recommended size: 1400x400px. PNG, JPEG, WebP, or GIF.
+                          Max size 5MB.
+                        </p>
+                        {pendingBannerFile && (
+                          <p className="text-xs text-green-500">
+                            ✓ New banner selected: {pendingBannerFile.name}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
                 {/* Social Networks */}
                 <Card>
                   <CardHeader>
@@ -445,7 +732,18 @@ function SettingsContent() {
                           }))
                         }
                         disabled={!isEditing}
+                        maxLength={500}
+                        className={
+                          socialLinks.website &&
+                          socialLinks.website.length > 500
+                            ? "border-red-500"
+                            : ""
+                        }
                       />
+                      <p className="text-xs text-muted-foreground">
+                        Valid URL format required. Max 500 characters (
+                        {socialLinks.website.length}/500)
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="twitter">Twitter</Label>
@@ -460,7 +758,16 @@ function SettingsContent() {
                           }))
                         }
                         disabled={!isEditing}
+                        maxLength={50}
+                        className={
+                          socialLinks.twitter && socialLinks.twitter.length > 50
+                            ? "border-red-500"
+                            : ""
+                        }
                       />
+                      <p className="text-xs text-muted-foreground">
+                        Max 50 characters ({socialLinks.twitter.length}/50)
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="github">GitHub</Label>
@@ -475,7 +782,19 @@ function SettingsContent() {
                           }))
                         }
                         disabled={!isEditing}
+                        maxLength={100}
+                        className={
+                          socialLinks.github &&
+                          (socialLinks.github.length > 100 ||
+                            !/^[a-zA-Z0-9_-]*$/.test(socialLinks.github))
+                            ? "border-red-500"
+                            : ""
+                        }
                       />
+                      <p className="text-xs text-muted-foreground">
+                        Alphanumeric, hyphens, and underscores only. Max 100
+                        characters ({socialLinks.github.length}/100)
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="telegram">Telegram</Label>
@@ -490,10 +809,48 @@ function SettingsContent() {
                           }))
                         }
                         disabled={!isEditing}
+                        maxLength={50}
+                        className={
+                          socialLinks.telegram &&
+                          socialLinks.telegram.length > 50
+                            ? "border-red-500"
+                            : ""
+                        }
                       />
+                      <p className="text-xs text-muted-foreground">
+                        Max 50 characters ({socialLinks.telegram.length}/50)
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Validation Error */}
+                {saveError && isEditing && (
+                  <Card className="border-red-500/50 bg-red-500/10">
+                    <CardContent className="pt-6">
+                      <div className="flex items-start gap-3">
+                        <div className="rounded-full bg-red-500/20 p-2">
+                          <X className="h-5 w-5 text-red-500" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-red-500 mb-1">
+                            Validation Error
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            {saveError}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSaveError(null)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* Save Button */}
                 {isEditing && (
@@ -796,6 +1153,15 @@ function SettingsContent() {
             <DialogDescription>
               Are you sure you want to update your public profile? This will
               change how others see your information on Canopy.
+              {(pendingAvatarFile || pendingBannerFile) && (
+                <span className="block mt-2 text-blue-500">
+                  {pendingAvatarFile && pendingBannerFile
+                    ? "Your new avatar and banner images will be uploaded."
+                    : pendingAvatarFile
+                    ? "Your new avatar image will be uploaded."
+                    : "Your new banner image will be uploaded."}
+                </span>
+              )}
             </DialogDescription>
           </DialogHeader>
           {saveError && (
