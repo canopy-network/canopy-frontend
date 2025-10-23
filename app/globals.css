@@ -133,3 +133,60 @@ body,
     @apply bg-background text-foreground;
   }
 }
+
+
+
+/* Chart Tooltip Styling*/
+.chart-tooltip {
+  width: 152px;
+  /* height: 64px; */
+  position: absolute;
+  display: none;
+  padding: 12px;
+  box-sizing: border-box;
+  text-align: left;
+  z-index: 1000;
+  top: 12px;
+  left: 12px;
+  pointer-events: none;
+  border: 1px solid #333;
+  background-color: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  border-radius: 12px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.2;
+}
+
+.chart-tooltip-value {
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.chart-tooltip-date {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  font-weight: normal;
+}
+
+
+.card {
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.primary-tab-button {
+
+  transition-duration: 150ms;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 2rem;
+}
+
+.primary-tab-button[data-state="active"] {
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}

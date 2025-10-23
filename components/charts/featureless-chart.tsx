@@ -9,6 +9,55 @@ import {
 } from "lightweight-charts";
 import { format } from "date-fns";
 
+// Smooth data using interpolation for curved lines
+const smoothData = (
+  data: Array<{ time: string | number; value: number }>,
+  tension: number = 0.5
+) => {
+  if (data.length < 2) return data;
+
+  const smoothed: Array<{ time: number; value: number }> = [];
+  const points = data.map((d) => ({
+    time: typeof d.time === "string" ? parseInt(d.time) : d.time,
+    value: d.value,
+  }));
+
+  // Add interpolated points between each pair of data points
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[Math.max(0, i - 1)];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[Math.min(points.length - 1, i + 2)];
+
+    smoothed.push(p1);
+
+    // Add interpolated points using Catmull-Rom spline
+    const steps = 8; // Number of interpolated points
+    for (let t = 1; t < steps; t++) {
+      const t_norm = t / steps;
+      const t2 = t_norm * t_norm;
+      const t3 = t2 * t_norm;
+
+      // Catmull-Rom spline formula
+      const value =
+        0.5 *
+        (2 * p1.value +
+          (-p0.value + p2.value) * t_norm +
+          (2 * p0.value - 5 * p1.value + 4 * p2.value - p3.value) * t2 +
+          (-p0.value + 3 * p1.value - 3 * p2.value + p3.value) * t3);
+
+      const time = p1.time + (p2.time - p1.time) * t_norm;
+
+      smoothed.push({ time, value });
+    }
+  }
+
+  // Add the last point
+  smoothed.push(points[points.length - 1]);
+
+  return smoothed;
+};
+
 export const FeaturelessChart = ({
   data,
   isDark = true,
@@ -67,24 +116,21 @@ export const FeaturelessChart = ({
 
     const series = chart.addSeries(AreaSeries, areaSeriesOptions);
 
+    let chartData;
     if (data && data.length > 0) {
-      series.setData(data as any);
+      chartData = smoothData(data);
     } else {
       // Fallback test data if no data provided
-      const test_data = [
-        { value: 0.1, time: 1642425322 },
-        { value: 8, time: 1642511722 },
-        { value: 10, time: 1642598122 },
-        { value: 20, time: 1642684522 },
-        { value: 3, time: 1642770922 },
-        { value: 43, time: 1642857322 },
-        { value: 41, time: 1642943722 },
-        { value: 43, time: 1643030122 },
-        { value: 56, time: 1643116522 },
-        { value: 46, time: 1643202922 },
-      ];
-      series.setData(test_data as any);
+      // Generate random test data
+      const baseTime = Math.floor(Date.now() / 1000) - 86400 * 30; // 30 days ago
+      const test_data = Array.from({ length: 30 }, (_, i) => ({
+        time: baseTime + i * 86400, // One day intervals
+        value: Math.random() * 50 + 10, // Random value between 10 and 60
+      }));
+      chartData = smoothData(test_data);
     }
+
+    series.setData(chartData as any);
 
     const toolTipWidth = 80;
     const toolTipHeight = 80;
@@ -159,5 +205,5 @@ export const FeaturelessChart = ({
     };
   }, [data]);
 
-  return <div ref={chartContainerRef} className="w-full h-full" />;
+  return <div ref={chartContainerRef} className="w-full h-full relative" />;
 };

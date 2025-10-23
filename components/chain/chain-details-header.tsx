@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Bell, Share2, Globe, Heart } from "lucide-react";
+import { Star, Upload, Users, TrendingUp, Zap } from "lucide-react";
+import { HexagonIcon } from "@/components/icons/hexagon-icon";
 
 interface ChainDetailsHeaderProps {
   chain: {
@@ -11,9 +12,6 @@ interface ChainDetailsHeaderProps {
 }
 
 export function ChainDetailsHeader({ chain }: ChainDetailsHeaderProps) {
-  const [isPriceAlertSet, setIsPriceAlertSet] = useState(false);
-  const [isLiked, setIsLiked] = useState(false);
-
   const shareProject = () => {
     if (navigator.share) {
       navigator.share({
@@ -26,109 +24,90 @@ export function ChainDetailsHeader({ chain }: ChainDetailsHeaderProps) {
     }
   };
 
-  const openWebsite = () => {
-    // Add website URL logic here
-    console.log("Open website for", chain.chain_name);
-  };
+  // Get first letter of chain name for avatar
+  const firstLetter = chain.chain_name.charAt(0).toUpperCase();
 
   return (
-    <div
-      id="chain-details-header"
-      className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-black p-4 sm:p-6"
-    >
-      {/* Left Information Section */}
-      <div
-        id="chain-details-metadata"
-        className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1"
-      >
-        <img
-          src=""
-          alt=""
-          className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-gradient-to-r from-green-300 to-green-500 flex-shrink-0"
-        />
+    <div className="rounded-xl border bg-card text-card-foreground shadow p-4">
+      <div className="flex items-center justify-between">
+        {/* Left Section */}
+        <div className="flex items-center gap-3">
+          {/* Avatar */}
+          <div
+            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: "rgb(59, 130, 246)" }}
+          >
+            <span className="text-sm font-bold text-black">{firstLetter}</span>
+          </div>
 
-        {/* Title and Subtitle */}
-        <div className="flex flex-col gap-1 min-w-0 flex-1">
-          <h1 className="text-base sm:text-base font-medium text-white truncate">
-            {chain.chain_name}
-          </h1>
+          {/* Title and Badges */}
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-medium">{chain.chain_name}</h2>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-white/50 flex-wrap">
-            <span className="whitespace-nowrap">${chain.token_symbol} by</span>
-            {/* Inline Secondary Icon */}
-            <Link
-              className="flex items-center gap-1 whitespace-nowrap min-w-0"
-              href={`/creator/xyz`}
-            >
-              <img
-                src=""
-                alt=""
-                className="w-4 h-4 sm:w-4 sm:h-4 rounded-full bg-gradient-to-r from-green-200 to-green-400 flex-shrink-0"
-              />
-              <span className="whitespace-nowrap truncate max-w-[100px] sm:max-w-none">
-                [username]
-              </span>
-            </Link>
-            <span className="hidden sm:inline">•</span>
-            <span className="whitespace-nowrap hidden sm:inline">
-              created 13m ago
-            </span>
+              {/* Hexagon Badges */}
+              <div className="flex items-center gap-1">
+                <HexagonIcon tooltip="Community">
+                  <Users className="w-2.5 h-2.5" />
+                </HexagonIcon>
+                <HexagonIcon tooltip="Trending">
+                  <TrendingUp className="w-2.5 h-2.5" />
+                </HexagonIcon>
+                <HexagonIcon tooltip="Active">
+                  <Users className="w-2.5 h-2.5" />
+                </HexagonIcon>
+                <HexagonIcon tooltip="Fast Growing">
+                  <Zap className="w-2.5 h-2.5" />
+                </HexagonIcon>
+                <HexagonIcon tooltip="Top Performer">
+                  <TrendingUp className="w-2.5 h-2.5" />
+                </HexagonIcon>
+                <HexagonIcon tooltip="Popular">
+                  <Users className="w-2.5 h-2.5" />
+                </HexagonIcon>
+                <div className="relative w-5 h-5 flex items-center justify-center cursor-help">
+                  <svg
+                    viewBox="0 0 100 100"
+                    className="absolute inset-0 w-full h-full"
+                  >
+                    <polygon
+                      points="50 0, 93.3 25, 93.3 75, 50 100, 6.7 75, 6.7 25"
+                      className="fill-primary/20 stroke-primary"
+                      strokeWidth="4"
+                    />
+                  </svg>
+                  <span className="text-[8px] font-bold relative z-10 text-primary">
+                    +4
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Subtitle */}
+            <p className="text-xs text-gray-400">
+              ${chain.token_symbol} on {chain.chain_name} • created 13m ago
+            </p>
           </div>
         </div>
-      </div>
 
-      {/* Right Action Button Section */}
-      <div
-        className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0"
-        id="chain-details-actions"
-      >
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setIsPriceAlertSet(!isPriceAlertSet)}
-          className={`w-9 h-9 sm:w-10 sm:h-10 p-0 ${
-            isPriceAlertSet
-              ? "bg-purple-500 text-white border-purple-500"
-              : "bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700"
-          }`}
-        >
-          <Bell className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-        </Button>
-
-        <div className="flex items-center gap-1.5 sm:gap-2 dark:border-input border rounded-md">
+        {/* Right Action Buttons */}
+        <div className="flex items-center gap-3">
           <Button
-            variant="clear"
+            variant="outline"
+            size="sm"
+            className="size-9 h-[30px] w-[30px] rounded-lg"
+          >
+            <Star className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="outline"
             size="sm"
             onClick={shareProject}
-            className="w-9 h-9 sm:w-10 sm:h-10 p-0 bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700"
+            className="size-9 h-[30px] w-[30px] rounded-lg"
           >
-            <Share2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-          </Button>
-          <Button
-            variant="clear"
-            size="sm"
-            onClick={openWebsite}
-            className="w-9 h-9 sm:w-10 sm:h-10 p-0 bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700"
-          >
-            <Globe className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <Upload className="w-4 h-4" />
           </Button>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setIsLiked(!isLiked)}
-          className={`w-9 h-9 sm:w-10 sm:h-10 p-0 ${
-            isLiked
-              ? "bg-red-500 text-white border-red-500"
-              : "bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700"
-          }`}
-        >
-          <Heart
-            className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${
-              isLiked ? "fill-current" : ""
-            }`}
-          />
-        </Button>
       </div>
     </div>
   );

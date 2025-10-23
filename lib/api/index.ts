@@ -70,7 +70,8 @@ export {
 export {
   getChainPriceHistory,
   getTimeRangeForTimeframe,
-  convertOHLCToChartData,
+  convertPriceHistoryToChart,
+  convertVolumeHistoryToChart,
   type PriceHistoryDataPoint,
 } from "./price-history";
 

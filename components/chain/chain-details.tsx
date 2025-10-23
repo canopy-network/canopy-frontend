@@ -14,7 +14,8 @@ import { HoldersTable } from "./holders-table";
 import {
   getChainPriceHistory,
   getTimeRangeForTimeframe,
-  convertOHLCToChartData,
+  convertPriceHistoryToChart,
+  convertVolumeHistoryToChart,
 } from "@/lib/api";
 
 interface ChainDetailsProps {
@@ -24,6 +25,9 @@ interface ChainDetailsProps {
 
 export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
   const [selectedTimeframe, setSelectedTimeframe] = useState("1D");
+  const [selectedMetric, setSelectedMetric] = useState<
+    "price" | "volume" | "marketCap"
+  >("price");
   const setCurrentChain = useChainsStore((state) => state.setCurrentChain);
 
   const [chartData, setChartData] = useState<
@@ -36,7 +40,10 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
   const [chartError, setChartError] = useState<string | null>(null);
 
   // Fetch price history data
-  const fetchPriceHistory = async (timeframe: string) => {
+  const fetchPriceHistory = async (
+    timeframe: string,
+    metric: "price" | "volume" | "marketCap"
+  ) => {
     try {
       setLoadingChart(true);
       setChartError(null);
@@ -45,16 +52,28 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
       const response = await getChainPriceHistory(chain.id, timeRange);
 
       if (response.data && response.data.length > 0) {
-        const formattedData = convertOHLCToChartData(response.data);
+        let formattedData;
+
+        if (metric === "volume") {
+          // Convert to volume data
+          formattedData = convertVolumeHistoryToChart(response.data);
+        } else if (metric === "price") {
+          // Convert to price data (close prices)
+          formattedData = convertPriceHistoryToChart(response.data);
+        } else {
+          // Market cap - placeholder for now
+          formattedData = convertPriceHistoryToChart(response.data);
+        }
+
         setChartData(formattedData);
       } else {
         // No data available for this timeframe
         setChartData([]);
-        setChartError("No price data available for this timeframe");
+        setChartError(`No ${metric} data available for this timeframe`);
       }
     } catch (err) {
       console.error("Failed to fetch price history:", err);
-      setChartError("Failed to load price data");
+      setChartError(`Failed to load ${metric} data`);
       setChartData([]);
     } finally {
       setLoadingChart(false);
@@ -71,121 +90,138 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
     };
   }, [chain, setCurrentChain]);
 
-  // Fetch price history when timeframe changes
+  // Fetch price history when timeframe or metric changes
   useEffect(() => {
-    fetchPriceHistory(selectedTimeframe);
-  }, [selectedTimeframe, chain.id]);
+    fetchPriceHistory(selectedTimeframe, selectedMetric);
+  }, [selectedTimeframe, selectedMetric, chain.id]);
 
   return (
     <div className="w-full max-w-7xl mx-auto lg:flex gap-4">
-      {/* Header */}
+      {/* Main Content */}
       <main id="chain-details" className="flex-1 min-w-0">
         <ChainDetailsHeader chain={chain} />
 
-        <section className="chain-details-live-data px-1 border border-white/[0.1] rounded-lg">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-2 px-3 py-4">
-            <div className="flex flex-col">
-              <span className="text-white/50 text-sm ">Price</span>
-              <span className="text-white/50 text-sm">
-                <span className="text-white font-medium text-2xl sm:text-3xl mr-1">
-                  25K
-                </span>
-                +$1.93
-              </span>
-            </div>
-
-            <div className="flex flex-col flex-1 sm:ml-auto sm:items-end">
-              <span className="text-white/50 text-xs sm:text-sm mb-2">
-                $233.23k until graduation
-              </span>
-              <span className="w-full bg-white/[0.1] rounded-full h-6 overflow-hidden sm:max-w-[220px]">
-                <span
-                  className="bg-gradient-to-r block from-green-500 to-green-400 h-full rounded-full transition-all duration-500"
-                  style={{ width: "35%" }}
-                />
-              </span>
-            </div>
-          </div>
-
-          <div
-            id="chart-container"
-            className="bg-white/[0.1] rounded-lg py-4 px-3 sm:px-5 mb-2 relative"
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-              <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
-                {(["1H", "1D", "1W", "1M", "1Y"] as const).map((timeframe) => (
+        {/* Main Chart Card */}
+        <Card className="p-1 mt-4">
+          <div className="space-y-2">
+            {/* Price Tabs and Value */}
+            <div className="flex items-center justify-between px-4 py-3">
+              <div className="space-y-2 flex-1">
+                {/* Metric Toggle Tabs */}
+                <div className="flex gap-1 p-1 bg-muted/50 rounded-lg w-fit">
                   <Button
-                    key={timeframe}
-                    variant="clear"
+                    variant={selectedMetric === "price" ? "secondary" : "ghost"}
                     size="sm"
-                    onClick={() => setSelectedTimeframe(timeframe)}
-                    disabled={loadingChart}
-                    className={`px-2 sm:px-3 py-1 text-xs sm:text-sm text-white/[.50] font-medium rounded-md transition-colors ${
-                      selectedTimeframe === timeframe
-                        ? "bg-white/[.1] hover:bg-white/[.2] text-white"
-                        : ""
-                    }`}
+                    onClick={() => setSelectedMetric("price")}
+                    className="rounded-md gap-1.5 h-7 text-xs px-3"
                   >
-                    {timeframe}
+                    Price
                   </Button>
-                ))}
+                  <Button
+                    variant={
+                      selectedMetric === "marketCap" ? "secondary" : "ghost"
+                    }
+                    size="sm"
+                    onClick={() => setSelectedMetric("marketCap")}
+                    disabled
+                    className="rounded-md gap-1.5 h-7 text-xs px-3 opacity-50 cursor-not-allowed"
+                  >
+                    Market Cap
+                  </Button>
+                  <Button
+                    variant={
+                      selectedMetric === "volume" ? "secondary" : "ghost"
+                    }
+                    size="sm"
+                    onClick={() => setSelectedMetric("volume")}
+                    className="rounded-md gap-1.5 h-7 text-xs px-3"
+                  >
+                    Volume
+                  </Button>
+                </div>
+
+                {/* Price Display */}
+                <div className="flex items-baseline gap-2">
+                  <h3 className="text-2xl font-semibold">$0.0135</h3>
+                  <span className="text-xs font-medium text-green-500">
+                    +12.8%
+                  </span>
+                </div>
               </div>
-              {loadingChart && (
-                <span className="text-xs sm:text-sm text-white/50">
-                  Loading...
-                </span>
-              )}
             </div>
 
-            {chartError ? (
-              <div className="flex items-center justify-center h-64 text-white/50">
-                {chartError}
+            {/* Chart Container */}
+            <div className="rounded-xl border text-card-foreground shadow relative h-[272px] bg-muted/40">
+              {/* Timeframe Buttons - Overlay on Chart */}
+              <div className="absolute left-4 top-2.5 z-10 flex gap-0.5 p-0.5 bg-muted/50 rounded-lg">
+                {(["1H", "1D", "1W", "1M", "1Y", "ALL"] as const).map(
+                  (timeframe) => (
+                    <Button
+                      key={timeframe}
+                      variant={
+                        selectedTimeframe === timeframe ? "secondary" : "ghost"
+                      }
+                      size="sm"
+                      onClick={() => setSelectedTimeframe(timeframe)}
+                      disabled={loadingChart}
+                      className="rounded-md gap-1.5 h-8 text-xs px-3"
+                    >
+                      {timeframe}
+                    </Button>
+                  )
+                )}
               </div>
-            ) : chartData.length === 0 && !loadingChart ? (
-              <div className="flex items-center justify-center h-64 text-white/50">
-                No data available for this timeframe
-              </div>
-            ) : (
-              <ChainDetailChart
-                data={chartData}
-                timeframe={selectedTimeframe}
-              />
-            )}
-          </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white/[0.1] rounded-lg py-4 px-3 sm:px-5 mb-1">
-            <h3 className="text-white font-medium text-sm sm:text-base">
-              Live updates
-            </h3>
+              {/* Chart */}
+              <div className="h-full pt-12 px-4">
+                {chartError ? (
+                  <div className="flex items-center justify-center h-64 text-white/50">
+                    {chartError}
+                  </div>
+                ) : chartData.length === 0 && !loadingChart ? (
+                  <div className="flex items-center justify-center h-64 text-white/50">
+                    No data available for this timeframe
+                  </div>
+                ) : (
+                  <ChainDetailChart
+                    data={chartData}
+                    timeframe={selectedTimeframe}
+                  />
+                )}
+              </div>
+            </div>
 
-            <div className="flex items-center gap-3 sm:gap-6 flex-wrap sm:ml-auto">
-              <div className="text-left">
-                <span className="text-white/[0.5] text-xs sm:text-sm mr-1">
-                  VOL (24h)
-                </span>
-                <span className="text-white font-medium text-sm sm:text-base">
-                  $1.8B
-                </span>
-              </div>
-              <div className="text-left">
-                <span className="text-white/[0.5] text-xs sm:text-sm mr-1">
-                  MCap
-                </span>
-                <span className="text-white font-medium text-sm sm:text-base">
-                  $2.8B
-                </span>
-              </div>
-              <div className="text-left">
-                <span className="text-white/[0.5] text-xs sm:text-sm mr-1">
-                  FDV
-                </span>
-                <span className="text-white font-medium text-sm sm:text-base">
-                  $3.8B
-                </span>
+            {/* Live Updates */}
+            <div className="rounded-xl border text-card-foreground shadow bg-muted/40">
+              <div className="flex items-center gap-6 px-5 py-3.5">
+                <p className="text-sm font-medium">Live updates</p>
+
+                <div className="flex flex-1 items-center justify-between text-sm">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xs text-muted-foreground">
+                      VOL (24h)
+                    </span>
+                    <span className="font-medium">$45200</span>
+                  </div>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xs text-muted-foreground">MCap</span>
+                    <span className="font-medium">$67.5k</span>
+                  </div>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xs text-muted-foreground">
+                      Liquidity
+                    </span>
+                    <span className="font-medium">$40500</span>
+                  </div>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xs text-muted-foreground">HOLD</span>
+                    <span className="font-medium">892</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </section>
+        </Card>
 
         {/* Navigation Tabs */}
         <Tabs defaultValue="holders" className="w-full gap-4 mt-4">
