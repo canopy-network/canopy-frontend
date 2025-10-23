@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ChainWithUI } from "@/lib/stores/chains-store";
 import { useMemo } from "react";
+import { HexagonIcon } from "@/components/icons/hexagon-icon";
+import { Users, TrendingUp } from "lucide-react";
 
 /**
  * SmallProjectCard component - A compact project card that functions as a clickable link
@@ -14,11 +15,13 @@ import { useMemo } from "react";
 interface SmallProjectCardProps {
   project: ChainWithUI;
   href?: string;
+  viewMode?: "grid" | "list";
 }
 
 export const SmallProjectCard = ({
   project,
   href = `/launchpad/${project.id}`,
+  viewMode = "grid",
 }: SmallProjectCardProps) => {
   // Dynamic performance calculation based on project data
   const performanceData = useMemo(() => {
@@ -95,122 +98,228 @@ export const SmallProjectCard = ({
   };
 
   // Calculate market cap and target based on actual project data
-  const marketCapFormatted = formatNumber(project.marketCap);
-  const targetFormatted = formatNumber(project.fdv);
+  const marketCapFormatted = formatNumber(25000);
+  const targetFormatted = formatNumber(40000);
+  // const marketCapFormatted = formatNumber( project.marketCap );
+  // const targetFormatted = formatNumber( project.fdv );
 
-  // Dynamic status indicator
-  const statusIndicator = useMemo(() => {
-    if (project.is_graduated)
-      return { color: "bg-blue-500", label: "Graduated" };
-    if (project.progress >= 100)
-      return { color: "bg-green-500", label: "Complete" };
-    if (project.progress >= 75)
-      return { color: "bg-yellow-500", label: "Near Goal" };
-    return { color: "bg-green-500", label: "Active" };
-  }, [project.is_graduated, project.progress]);
+  // Calculate visible and overflow hexagon icons
+  const hexagonIcons = useMemo(() => {
+    const icons = [];
+    const maxVisible = 5;
 
-  return (
-    <Link
-      href={href}
-      className="block p-4 rounded-xl bg-gradient-to-br from-[#1a1a1a] to-[#2a2a2a] border-[#2a2a2a] hover:from-[#2a2a2a] hover:to-[#3a3a3a] transition-all duration-300"
-    >
-      <div className="flex items-start gap-3">
-        {/* Dynamic Project Icon */}
-        <div className="relative flex-shrink-0">
-          <div
-            className={`w-12 h-12 bg-gradient-to-br ${iconData.gradient} rounded-full flex items-center justify-center text-white font-bold text-lg`}
-          >
-            {iconData.emoji}
-          </div>
-          {/* Dynamic status indicator */}
-          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center">
+    // Add icons based on project features
+    if (project.participants > 100) {
+      icons.push({ type: "users", tooltip: `${project.participants} holders` });
+    }
+    if (performanceData.isPositive && performanceData.change > 10) {
+      icons.push({
+        type: "trending",
+        tooltip: `+${performanceData.change}% growth`,
+      });
+    }
+    if (project.participants > 50) {
+      icons.push({ type: "users", tooltip: "Active community" });
+    }
+    if (project.progress > 50) {
+      icons.push({ type: "trending", tooltip: "Strong momentum" });
+    }
+    if (project.template?.template_category) {
+      icons.push({
+        type: "users",
+        tooltip: project.template.template_category,
+      });
+    }
+
+    const visible = icons.slice(0, maxVisible);
+    const overflow = Math.max(0, icons.length - maxVisible);
+
+    return { visible, overflow };
+  }, [
+    project.participants,
+    project.progress,
+    project.template,
+    performanceData,
+  ]);
+
+  // Generate placeholder data for list view
+  const volumeFormatted = formatNumber(
+    project.volume24h || Math.random() * 100000 + 10000
+  );
+  const holdersCount = Math.floor(Math.random() * 2000 + 500); // Placeholder
+  const liquidityFormatted = formatNumber(
+    project.marketCap * 0.1 || Math.random() * 50000 + 5000
+  );
+
+  // List view rendering
+  if (viewMode === "list") {
+    return (
+      <Link
+        href={href}
+        className="rounded-xl border bg-card text-card-foreground shadow cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all group"
+      >
+        <div className="flex items-center gap-4 p-4">
+          {/* Avatar + Name */}
+          <div className="flex items-center gap-3 min-w-[200px]">
             <div
-              className={`w-2 h-2 ${statusIndicator.color} rounded-full`}
-            ></div>
-          </div>
-        </div>
-
-        {/* Project Content */}
-        <div className="flex-1 min-w-0">
-          {/* Project Title with Token Symbol */}
-          <div className="flex items-center gap-2">
-            <h3 className="text-white font-semibold text-sm truncate group-hover:text-blue-300 transition-colors">
-              {project.chain_name}
-            </h3>
-            <span className="text-gray-400 text-xs font-mono">
-              ${project.token_symbol}
-            </span>
-          </div>
-
-          {/* Dynamic Source and Time */}
-          <div className="flex items-center gap-2 mt-1">
-            <Badge
-              variant="secondary"
-              className={`text-xs px-2 py-0.5 ${
-                project.template?.template_category === "defi"
-                  ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
-                  : project.template?.template_category === "gaming"
-                  ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300"
-                  : project.template?.template_category === "nft"
-                  ? "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-300"
-                  : project.template?.template_category === "infrastructure"
-                  ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300"
-                  : project.template?.template_category === "social"
-                  ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-                  : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"
-              }`}
+              className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${iconData.gradient}`}
             >
-              {project.template?.template_category?.charAt(0).toUpperCase() +
-                project.template?.template_category?.slice(1) || "Other"}
-            </Badge>
-            <span className="text-gray-400 text-xs">•</span>
-            <span className="text-gray-400 text-xs">
-              {project.creator?.display_name ||
-                project.creator?.wallet_address?.slice(0, 6) +
-                  "..." +
-                  project.creator?.wallet_address?.slice(-4) ||
-                "Unknown"}
-            </span>
-            <span className="text-gray-400 text-xs">•</span>
-            <span className="text-gray-400 text-xs">{timeAgo}</span>
-          </div>
-
-          {/* Dynamic Performance and Progress */}
-          <div className="flex items-center gap-3 mt-3">
-            {/* Dynamic Performance Indicator */}
-            <div className="flex items-center gap-1">
-              <div
-                className={`w-0 h-0 border-l-[3px] border-r-[3px] border-b-[6px] ${
-                  performanceData.isPositive
-                    ? "border-l-transparent border-r-transparent border-b-green-500"
-                    : "border-l-transparent border-r-transparent border-t-[6px] border-t-red-500 border-b-0"
-                }`}
-              ></div>
-              <span
-                className={`text-sm font-medium ${
-                  performanceData.isPositive ? "text-green-500" : "text-red-500"
-                }`}
-              >
-                {Math.abs(performanceData.change)}%
+              <span className="text-sm font-bold text-white">
+                {project.chain_name.charAt(0).toUpperCase()}
               </span>
             </div>
+            <div>
+              <h3 className="text-sm font-semibold">{project.chain_name}</h3>
+              <p className="text-xs text-muted-foreground">
+                ${project.token_symbol}
+              </p>
+            </div>
+          </div>
 
-            {/* Dynamic Progress Bar */}
-            <div className="flex-1 flex items-center gap-2">
-              <Progress
-                value={project.progress}
-                className="flex-1 h-2 bg-gray-700"
-              />
-              <div className="flex flex-col items-end">
-                <span className="text-gray-400 text-xs whitespace-nowrap">
-                  MC {marketCapFormatted}/{targetFormatted}
-                </span>
-                <span className="text-gray-500 text-xs">
-                  {project.participants} holders
-                </span>
+          {/* Market Cap */}
+          <div className="flex-1 min-w-[280px]">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Market Cap</span>
+              </div>
+              <Progress value={80} className="w-full h-1.5 bg-primary/20" />
+              <div className="text-xs text-muted-foreground">
+                ${marketCapFormatted} / ${targetFormatted}
               </div>
             </div>
           </div>
+
+          {/* Change (24h) */}
+          <div className="min-w-[100px] text-center">
+            <div className="text-xs text-muted-foreground mb-1">
+              Change (24h)
+            </div>
+            <div
+              className={`text-sm font-semibold ${
+                performanceData.isPositive ? "text-green-500" : "text-red-500"
+              }`}
+            >
+              {performanceData.isPositive ? "+" : ""}
+              {performanceData.change}%
+            </div>
+          </div>
+
+          {/* VOL (24h) */}
+          <div className="min-w-[100px] text-center">
+            <div className="text-xs text-muted-foreground mb-1">VOL (24h)</div>
+            <div className="text-sm font-semibold">${volumeFormatted}</div>
+          </div>
+
+          {/* Holders */}
+          <div className="min-w-[80px] text-center">
+            <div className="text-xs text-muted-foreground mb-1">Holders</div>
+            <div className="text-sm font-semibold">{holdersCount}</div>
+          </div>
+
+          {/* Liquidity */}
+          <div className="min-w-[100px] text-center">
+            <div className="text-xs text-muted-foreground mb-1">Liquidity</div>
+            <div className="text-sm font-semibold">${liquidityFormatted}</div>
+          </div>
+
+          {/* Age */}
+          <div className="min-w-[60px] text-center">
+            <div className="text-xs text-muted-foreground mb-1">Age</div>
+            <div className="text-sm font-semibold">{timeAgo}</div>
+          </div>
+        </div>
+      </Link>
+    );
+  }
+
+  // Grid view rendering (default)
+  return (
+    <Link
+      href={href}
+      className="rounded-xl border bg-card text-card-foreground shadow p-4 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all group h-40  flex flex-col gap-3"
+    >
+      {/* Header: Avatar + Title + Icons */}
+      <div className="flex items-center gap-3">
+        {/* Avatar */}
+        <div
+          className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${iconData.gradient}`}
+        >
+          <span className="text-sm font-bold text-white">
+            {project.chain_name.charAt(0).toUpperCase()}
+          </span>
+        </div>
+
+        {/* Title, Ticker, and Hexagon Icons */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <h3 className="text-sm font-semibold truncate">
+              {project.chain_name}
+            </h3>
+
+            {/* Hexagon Icons */}
+            <div className="flex items-center gap-0.5 flex-shrink-0">
+              {hexagonIcons.visible.map((icon, index) => (
+                <HexagonIcon
+                  key={index}
+                  tooltip={icon.tooltip}
+                  className="w-3.5 h-3.5"
+                >
+                  {icon.type === "users" ? (
+                    <Users className="w-1.5 h-1.5" />
+                  ) : (
+                    <TrendingUp className="w-1.5 h-1.5" />
+                  )}
+                </HexagonIcon>
+              ))}
+
+              {/* Overflow indicator */}
+              {hexagonIcons.overflow > 0 && (
+                <HexagonIcon
+                  className="w-3.5 h-3.5"
+                  tooltip={`${hexagonIcons.overflow} more features`}
+                >
+                  <span className="text-[6px] font-bold">
+                    +{hexagonIcons.overflow}
+                  </span>
+                </HexagonIcon>
+              )}
+            </div>
+          </div>
+
+          {/* Token Symbol */}
+          <p className="text-xs text-muted-foreground">
+            ${project.token_symbol}
+          </p>
+        </div>
+      </div>
+
+      {/* Description */}
+      <p className="text-xs text-muted-foreground line-clamp-2">
+        {project.chain_description || "No description available."}
+      </p>
+
+      {/* Progress Bar and Metrics */}
+      <div className="space-y-2 mt-auto">
+        {/* Progress Bar */}
+        <Progress
+          // value={project.progress}
+          value={80}
+          className="w-full h-2 bg-primary/20"
+        />
+
+        {/* Price and Percentage */}
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-muted-foreground">
+            ${marketCapFormatted} / ${targetFormatted}
+          </span>
+          <span
+            className={
+              performanceData.isPositive ? "text-green-500" : "text-red-500"
+            }
+          >
+            {performanceData.isPositive ? "+" : ""}
+            {performanceData.change}%
+          </span>
         </div>
       </div>
     </Link>

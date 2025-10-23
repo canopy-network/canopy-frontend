@@ -1,15 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { TrendingUp } from "lucide-react";
-import Link from "next/link";
+import React from "react";
+import { Card } from "@/components/ui/card";
+import { TrendingUp, Users, Target } from "lucide-react";
 import { ChainWithUI } from "@/lib/stores/chains-store";
 import { VirtualPool } from "@/types/chains";
 import { formatKilo } from "@/lib/utils";
 import { FeaturelessChart } from "../charts/featureless-chart";
+import { HexagonIcon } from "@/components/icons";
 
 /**
  * Generate sample chart data based on virtual pool data
@@ -68,18 +66,6 @@ export const ProjectCard = ({
   onBuyClick,
   chartData,
 }: ProjectCardProps) => {
-  const [avatar, setAvatar] = useState<string>("");
-
-  useEffect(() => {
-    if (project.creator?.avatar_url) {
-      setAvatar(project.creator.avatar_url);
-    } else if (project.creator?.username) {
-      setAvatar(project.creator.username);
-    } else {
-      setAvatar("https://picsum.photos/536/354");
-    }
-  }, [project.creator]);
-
   // Calculate metrics from virtual pool data
   const progress = virtualPool
     ? Math.min(
@@ -92,139 +78,209 @@ export const ProjectCard = ({
   const priceChange = virtualPool?.price_24h_change_percent || 0;
   const volume24h = virtualPool?.volume_24h_cnpy || 0;
   const marketCap = virtualPool?.market_cap_usd || 0;
-  const fdv = virtualPool?.market_cap_usd || 0; // Using market_cap_usd as FDV for now
   const uniqueTraders = virtualPool?.unique_traders || 0;
 
   // Generate sample chart data based on virtual pool data
   const sampleChartData = generateSampleChartData(virtualPool, project);
 
+  // Calculate age
+  const getAge = (createdAt: string) => {
+    const created = new Date(createdAt);
+    const now = new Date();
+    const diffMs = now.getTime() - created.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+
+    if (diffDays > 0) return `${diffDays}d`;
+    if (diffHours > 0) return `${diffHours}h`;
+    return `${diffMinutes}m`;
+  };
+
+  // Format creation time
+  const getCreatedTime = (createdAt: string) => {
+    const created = new Date(createdAt);
+    const now = new Date();
+    const diffMs = now.getTime() - created.getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays > 0) return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+    if (diffHours > 0)
+      return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+    return `${diffMinutes} min${diffMinutes > 1 ? "s" : ""} ago`;
+  };
+
+  // Generate holder avatars (using first letter of project name + random colors)
+  const holderColors = [
+    "bg-green-500",
+    "bg-yellow-500",
+    "bg-purple-500",
+    "bg-pink-500",
+  ];
+
+  // Generate a color based on project name
+  const generateProjectColor = (name: string) => {
+    const colors = [
+      "#dc2626", // red
+      "#ea580c", // orange
+      "#ca8a04", // yellow
+      "#16a34a", // green
+      "#0891b2", // cyan
+      "#2563eb", // blue
+      "#7c3aed", // violet
+      "#c026d3", // fuchsia
+      "#db2777", // pink
+    ];
+    const index = name.charCodeAt(0) % colors.length;
+    return colors[index];
+  };
+
+  const projectColor = generateProjectColor(project.chain_name);
+
   return (
-    <>
-      <Card
-        padding="lg"
-        size="lg"
-        className="bg-gradient-to-br from-[#1a1a1a] to-[#2a2a2a] border-[#2a2a2a] hover:from-[#2a2a2a] hover:to-[#3a3a3a] transition-all duration-300 lg:h-[342px]"
-      >
-        <div className="grid md:grid-cols-2 gap-8 items-center">
-          <div className="space-y-6">
-            <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-pink-500 to-red-500 flex items-center justify-center shadow-lg">
-                {/* TODO: whats up with the icon/avatar on API response? */}
-                <span className="text-white font-bold text-lg">
-                  {project.chain_name.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <Link href={`/launchpad/${project.id}`} className="text-left">
-                <div className="flex lg:items-center gap-2 mb-1 flex-col md:flex-row text-left">
-                  <h2 className="text-2xl font-bold text-white text-left">
-                    {project.chain_name}
-                  </h2>
-
-                  <Badge className="bg-[#2a2a2a] text-white border-[#3a3a3a] text-left">
-                    ${project.token_symbol}
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground text-left">
-                  {project.creator?.display_name} · Published{" "}
-                  {new Date(project.created_at).toLocaleDateString()}
-                </p>
-              </Link>
+    <Card className="rounded-xl border text-card-foreground shadow p-6 pb-0 bg-gradient-to-br from-card to-muted/20 cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8">
+        {/* Left Column */}
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex items-start gap-3">
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: projectColor }}
+            >
+              <span className="text-base font-bold text-black">
+                {project.chain_name.charAt(0).toUpperCase()}
+              </span>
             </div>
-
-            <div>
-              <h3 className="text-3xl font-semibold text-white mb-2 leading-tight line-clamp-2">
-                {project.chain_description}
-              </h3>
-              <p className="text-muted-foreground leading-relaxed line-clamp-2">
-                Buy an asset chain company with $700 in assets or not, take
-                everything onchain
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-medium">${project.token_symbol}</h3>
+                <div className="flex items-center gap-1">
+                  <HexagonIcon tooltip="50 holders milestone">
+                    <Users className="w-2 h-2" />
+                  </HexagonIcon>
+                  <HexagonIcon tooltip="Top trending today">
+                    <TrendingUp className="w-2 h-2" />
+                  </HexagonIcon>
+                  <HexagonIcon tooltip="100+ active traders">
+                    <Users className="w-2 h-2" />
+                  </HexagonIcon>
+                  <HexagonIcon tooltip="Price up 25% today">
+                    <TrendingUp className="w-2 h-2" />
+                  </HexagonIcon>
+                  <HexagonIcon tooltip="Most popular in category">
+                    <Users className="w-2 h-2" />
+                  </HexagonIcon>
+                  <HexagonIcon tooltip="50% to graduation goal">
+                    <Target className="w-2 h-2" />
+                  </HexagonIcon>
+                  <HexagonIcon tooltip="3 more achievements">
+                    <span className="text-[7px] font-bold">+3</span>
+                  </HexagonIcon>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {project.chain_name} • created{" "}
+                {getCreatedTime(project.created_at)}
               </p>
-            </div>
-
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Progress
-                    value={progress}
-                    className="w-32 h-2 bg-[#2a2a2a]"
-                  />
-                  <span className="text-sm text-muted-foreground font-medium">
-                    {formatKilo(currentRaised)}/
-                    {formatKilo(project.graduation_threshold)}
-                  </span>
-                  <span className="text-sm text-primary font-semibold flex items-center gap-1">
-                    <TrendingUp className="h-3 w-3" />
-                    {priceChange.toFixed(1)}%
-                  </span>
-                </div>
-              </div>
             </div>
           </div>
 
-          <div className="w-full h-full relative">
+          {/* Title */}
+          <h2 className="text-2xl font-bold leading-tight">
+            {project.chain_description}
+          </h2>
+
+          {/* Description */}
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Secure medical records on blockchain with patient-controlled access
+            and encrypted health data sharing.
+          </p>
+
+          {/* Progress Bar */}
+          <div className="space-y-2">
+            <div className="relative w-full overflow-hidden rounded-full bg-primary/20 h-3">
+              <div
+                className="h-full w-full flex-1 transition-all"
+                style={{
+                  backgroundColor: projectColor,
+                  transform: `translateX(-${100 - progress}%)`,
+                }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium">
+                ${formatKilo(currentRaised)} / $
+                {formatKilo(project.graduation_threshold)} until graduation
+              </span>
+              <span
+                className={priceChange >= 0 ? "text-green-500" : "text-red-500"}
+              >
+                {priceChange >= 0 ? "+" : ""}
+                {priceChange.toFixed(1)}%
+              </span>
+            </div>
+          </div>
+
+          {/* Bottom Stats */}
+          <div className="flex items-center gap-6 pt-2 border-t border-border/50 pb-4">
+            <div className="flex items-center">
+              <div className="flex -space-x-2">
+                {holderColors.map((color, i) => (
+                  <div
+                    key={i}
+                    className={`w-6 h-6 rounded-full border-2 border-card flex items-center justify-center text-[10px] font-semibold text-white ${color}`}
+                  >
+                    H{i + 1}
+                  </div>
+                ))}
+              </div>
+              <span className="ml-3 text-xs text-muted-foreground">
+                {formatKilo(uniqueTraders)}+ all
+              </span>
+            </div>
+            <div className="flex items-center gap-6 text-xs">
+              <div>
+                <span className="text-muted-foreground">VOL (24h) </span>
+                <span className="font-medium">
+                  $
+                  {volume24h >= 1000000
+                    ? `${(volume24h / 1000000).toFixed(1)}M`
+                    : volume24h >= 1000
+                    ? `${(volume24h / 1000).toFixed(1)}k`
+                    : volume24h.toFixed(0)}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">MCap </span>
+                <span className="font-medium">
+                  $
+                  {marketCap >= 1000000
+                    ? `${(marketCap / 1000000).toFixed(1)}M`
+                    : marketCap >= 1000
+                    ? `${(marketCap / 1000).toFixed(1)}k`
+                    : marketCap.toFixed(0)}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Age </span>
+                <span className="font-medium">
+                  {getAge(project.created_at)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column - Chart */}
+        <div className="flex items-center">
+          <div className="w-full h-[280px]">
             <FeaturelessChart data={sampleChartData} isDark={true} />
           </div>
         </div>
-      </Card>
-      <div className="mt-6 flex items-center justify-between flex-col-reverse md:flex-row md:items-center gap-4 lg:gap-3">
-        <div className="flex items-center gap-4 w-full md:w-auto">
-          <div className="flex items-center gap-2">
-            <div className="h-6 w-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
-              <span className="text-white text-xs font-bold">A</span>
-            </div>
-            <span className="text-sm text-muted-foreground">
-              {formatKilo(uniqueTraders)}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">By</span>
-            <div className="flex -space-x-2">
-              <div className="h-6 w-6 rounded-full bg-gradient-to-br from-green-500 to-blue-500 border-2 border-[#1a1a1a] overflow-hidden">
-                <img src={avatar} alt="Avatar" width={24} height={24} />
-              </div>
-            </div>
-            <span className="text-sm text-white font-medium">
-              {project.creator?.username || project.creator?.display_name}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-6 text-sm w-full md:w-auto">
-          <div className=" text-left lg:text-center">
-            <div className="text-muted-foreground">VOL (24h)</div>
-            <div className="text-white font-semibold">
-              $
-              {volume24h >= 1000000
-                ? `${(volume24h / 1000000).toFixed(1)}M`
-                : volume24h >= 1000
-                ? `${(volume24h / 1000).toFixed(1)}K`
-                : volume24h.toFixed(0)}
-            </div>
-          </div>
-          <div className=" text-left lg:text-center">
-            <div className="text-muted-foreground">MCap</div>
-            <div className="text-white font-semibold">
-              $
-              {marketCap >= 1000000
-                ? `${(marketCap / 1000000).toFixed(1)}M`
-                : marketCap >= 1000
-                ? `${(marketCap / 1000).toFixed(1)}K`
-                : marketCap.toFixed(0)}
-            </div>
-          </div>
-          <div className=" text-left lg:text-center">
-            <div className="text-muted-foreground">FDV</div>
-            <div className="text-white font-semibold">
-              $
-              {fdv >= 1000000
-                ? `${(fdv / 1000000).toFixed(1)}M`
-                : fdv >= 1000
-                ? `${(fdv / 1000).toFixed(1)}K`
-                : fdv.toFixed(0)}
-            </div>
-          </div>
-        </div>
       </div>
-    </>
+    </Card>
   );
 };

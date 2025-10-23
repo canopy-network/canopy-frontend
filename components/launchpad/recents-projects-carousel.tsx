@@ -62,10 +62,6 @@ export const RecentsProjectsCarousel = ({
     setIsAutoPlaying(false);
   };
 
-  // Pause auto-play on hover
-  const handleMouseEnter = () => setIsAutoPlaying(false);
-  const handleMouseLeave = () => setIsAutoPlaying(true);
-
   if (displayProjects.length === 0) {
     return (
       <div className="text-center py-12">
@@ -76,25 +72,8 @@ export const RecentsProjectsCarousel = ({
 
   return (
     <div className="relative">
-      {/* Dots Indicator - Top */}
-      {displayProjects.length > 1 && (
-        <div className="flex justify-center gap-2 mb-6">
-          {displayProjects.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => goToSlide(index)}
-              className={`w-3 h-3 rounded-full transition-all duration-200 ${
-                index === currentIndex
-                  ? "bg-white"
-                  : "bg-gray-500 hover:bg-gray-400"
-              }`}
-            />
-          ))}
-        </div>
-      )}
-
       {/* Carousel Container */}
-      <div className="relative  rounded-lg">
+      <div className="relative  rounded-lg mb-2">
         <div
           className="flex transition-transform duration-500 ease-in-out"
           style={{ transform: `translateX(-${currentIndex * 100}%)` }}
@@ -122,6 +101,27 @@ export const RecentsProjectsCarousel = ({
           })}
         </div>
       </div>
+
+      {/* Dots Indicator - Top */}
+      {displayProjects.length > 1 && (
+        <div className="flex justify-center  mb-6">
+          {displayProjects.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => goToSlide(index)}
+              className="cursor-pointer py-3 px-1"
+            >
+              <span
+                className={`block h-2 rounded-full transition-all duration-200 ${
+                  index === currentIndex
+                    ? "bg-white w-12"
+                    : "bg-gray-500 hover:bg-gray-400 w-3"
+                }`}
+              />
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
