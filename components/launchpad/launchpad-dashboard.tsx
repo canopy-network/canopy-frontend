@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLaunchpadDashboard } from "@/lib/hooks/use-launchpad-dashboard";
 import { useCreateChainDialog } from "@/lib/stores/use-create-chain-dialog";
 import { useChainsStore } from "@/lib/stores/chains-store";
@@ -13,6 +13,7 @@ import { OnboardingGuide } from "./onboarding-guide";
 import { SmallProjectCard } from "./small-project-card";
 import { ProjectCard } from "./project-card";
 import { RecentsProjectsCarousel } from "./recents-projects-carousel";
+import { SortDropdown } from "./sort-dropdown";
 import { ChainWithUI } from "@/lib/stores/chains-store";
 import {
   Plus,
@@ -25,7 +26,6 @@ import {
   TrendingUp,
   Heart,
   LucideIcon,
-  ArrowUpDown,
   Grid3x3,
   List,
 } from "lucide-react";
@@ -159,7 +159,7 @@ export function LaunchpadDashboard() {
   );
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [sortOption, setSortOption] = useState("market-cap-high");
+  const [sortOption, setSortOption] = useState("default");
 
   const {
     // Data
@@ -191,6 +191,46 @@ export function LaunchpadDashboard() {
     autoFetch: true,
     includeVirtualPools: true,
   });
+
+  // Sort the filtered chains based on the selected sort option
+  const sortedChains = useMemo(() => {
+    const chainsCopy = [...filteredChains];
+
+    switch (sortOption) {
+      case "market-cap-high":
+        return chainsCopy.sort(
+          (a, b) => (b.marketCap || 0) - (a.marketCap || 0)
+        );
+      case "market-cap-low":
+        return chainsCopy.sort(
+          (a, b) => (a.marketCap || 0) - (b.marketCap || 0)
+        );
+      case "holders-high":
+        return chainsCopy.sort(
+          (a, b) => (b.participants || 0) - (a.participants || 0)
+        );
+      case "holders-low":
+        return chainsCopy.sort(
+          (a, b) => (a.participants || 0) - (b.participants || 0)
+        );
+      case "volume-high":
+        return chainsCopy.sort(
+          (a, b) => (b.volume24h || 0) - (a.volume24h || 0)
+        );
+      case "volume-low":
+        return chainsCopy.sort(
+          (a, b) => (a.volume24h || 0) - (b.volume24h || 0)
+        );
+      case "price-high":
+        return chainsCopy.sort((a, b) => (b.price || 0) - (a.price || 0));
+      case "price-low":
+        return chainsCopy.sort((a, b) => (a.price || 0) - (b.price || 0));
+      case "default":
+      default:
+        // Return chains in their original order (as received from API)
+        return chainsCopy;
+    }
+  }, [filteredChains, sortOption]);
 
   // Handle buy button click
   const handleBuyClick = (project: ChainWithUI) => {
@@ -288,19 +328,7 @@ export function LaunchpadDashboard() {
             {/* Right: Sort and View Controls */}
             <div className="flex items-center gap-2">
               {/* Sort Dropdown */}
-              <Button
-                variant="outline"
-                className="flex items-center justify-between h-9 w-[180px] gap-2 px-3"
-              >
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4" />
-                  <span className="text-sm">
-                    Market Cap:{" "}
-                    <span className="text-muted-foreground">High</span>
-                  </span>
-                </div>
-                <ArrowUpDown className="w-4 h-4 opacity-50" />
-              </Button>
+              <SortDropdown value={sortOption} onSort={setSortOption} />
 
               {/* View Toggle */}
               <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
@@ -341,7 +369,7 @@ export function LaunchpadDashboard() {
                   : "flex flex-col gap-3"
               }
             >
-              {filteredChains.map((project) => (
+              {sortedChains.map((project) => (
                 <SmallProjectCard
                   key={project.id}
                   project={project}
@@ -352,7 +380,7 @@ export function LaunchpadDashboard() {
             </div>
 
             {/* Empty State */}
-            {filteredChains.length === 0 && !isLoading && (
+            {sortedChains.length === 0 && !isLoading && (
               <div className="text-center py-12">
                 <p className="text-gray-400 text-lg">No projects found</p>
                 <p className="text-gray-500 text-sm mt-2">
@@ -391,7 +419,7 @@ export function LaunchpadDashboard() {
                 : "flex flex-col gap-3"
             }
           >
-            {filteredChains.map((project) => (
+            {sortedChains.map((project) => (
               <SmallProjectCard
                 key={project.id}
                 project={project}
@@ -399,7 +427,7 @@ export function LaunchpadDashboard() {
                 viewMode={viewMode}
               />
             ))}
-            {filteredChains.length === 0 && (
+            {sortedChains.length === 0 && (
               <div className="text-center py-12">
                 <p className="text-gray-400 text-lg">No new projects</p>
               </div>
@@ -414,7 +442,7 @@ export function LaunchpadDashboard() {
                 : "flex flex-col gap-3"
             }
           >
-            {filteredChains.map((project) => (
+            {sortedChains.map((project) => (
               <SmallProjectCard
                 key={project.id}
                 project={project}
@@ -422,7 +450,7 @@ export function LaunchpadDashboard() {
                 viewMode={viewMode}
               />
             ))}
-            {filteredChains.length === 0 && (
+            {sortedChains.length === 0 && (
               <div className="text-center py-12">
                 <p className="text-gray-400 text-lg">No trending projects</p>
               </div>
@@ -437,7 +465,7 @@ export function LaunchpadDashboard() {
                 : "flex flex-col gap-3"
             }
           >
-            {filteredChains.map((project) => (
+            {sortedChains.map((project) => (
               <SmallProjectCard
                 key={project.id}
                 project={project}
@@ -445,7 +473,7 @@ export function LaunchpadDashboard() {
                 viewMode={viewMode}
               />
             ))}
-            {filteredChains.length === 0 && (
+            {sortedChains.length === 0 && (
               <div className="text-center py-12">
                 <p className="text-gray-400 text-lg">No graduated projects</p>
               </div>

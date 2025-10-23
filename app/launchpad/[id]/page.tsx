@@ -4,6 +4,7 @@ import { convertToChainWithUI } from "@/lib/utils/chain-converter";
 import { useState } from "react";
 import { useEffect } from "react";
 import { notFound } from "next/navigation";
+import { Container } from "@/components/layout/container";
 
 // Force dynamic rendering to ensure params are always fresh
 export const dynamic = "force-dynamic";
@@ -267,5 +268,10 @@ export default function ChainPage({ params }: ChainPageProps) {
     return null;
   }
 
-  return <ChainDetails chain={chainWithUI} virtualPool={virtualPool} />;
+  return (
+    <Container type="boxed">
+      {" "}
+      <ChainDetails chain={chainWithUI} virtualPool={virtualPool} />{" "}
+    </Container>
+  );
 }
