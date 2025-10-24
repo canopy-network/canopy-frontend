@@ -11,6 +11,7 @@ import { ChainDetailChart } from "@/components/charts/chain-detail-chart";
 import { WalletContent } from "../wallet/wallet-content";
 import { BlockExplorerTable } from "./block-explorer-table";
 import { HoldersTable } from "./holders-table";
+import { ChainOverview } from "./chain-details/chain-overview";
 import {
   getChainPriceHistory,
   getTimeRangeForTimeframe,
@@ -95,6 +96,23 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
     fetchPriceHistory(selectedTimeframe, selectedMetric);
   }, [selectedTimeframe, selectedMetric, chain.id]);
 
+  // Calculate current value and percentage change from chart data
+  const getCurrentValue = () => {
+    if (chartData.length === 0) return { value: 0, percentChange: 0 };
+
+    const mostRecentValue = chartData[chartData.length - 1].value;
+    const oldestValue = chartData[0].value;
+
+    const percentChange =
+      oldestValue !== 0
+        ? ((mostRecentValue - oldestValue) / oldestValue) * 100
+        : 0;
+
+    return { value: mostRecentValue, percentChange };
+  };
+
+  const { value: currentValue, percentChange } = getCurrentValue();
+
   return (
     <div className="w-full max-w-7xl mx-auto lg:flex gap-4">
       {/* Main Content */}
@@ -140,12 +158,36 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
                   </Button>
                 </div>
 
-                {/* Price Display */}
+                {/* Price/Volume Display */}
                 <div className="flex items-baseline gap-2">
-                  <h3 className="text-2xl font-semibold">$0.0135</h3>
-                  <span className="text-xs font-medium text-green-500">
-                    +12.8%
-                  </span>
+                  {selectedMetric === "volume" ? (
+                    <>
+                      <h3 className="text-2xl font-semibold">
+                        $
+                        {currentValue.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </h3>
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {selectedTimeframe}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <h3 className="text-2xl font-semibold">
+                        ${currentValue.toFixed(currentValue < 1 ? 6 : 2)}
+                      </h3>
+                      <span
+                        className={`text-xs font-medium ${
+                          percentChange >= 0 ? "text-green-500" : "text-red-500"
+                        }`}
+                      >
+                        {percentChange >= 0 ? "+" : ""}
+                        {percentChange.toFixed(2)}%
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -224,8 +266,11 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
         </Card>
 
         {/* Navigation Tabs */}
-        <Tabs defaultValue="holders" className="w-full gap-4 mt-4">
-          <TabsList variant="clear" className="flex justify-start gap-2">
+        <Tabs defaultValue="overview" className="w-full gap-4 mt-4">
+          <TabsList
+            variant="clear"
+            className="flex justify-start gap-2 bg-muted p-1 rounded-lg"
+          >
             {[
               {
                 value: "overview",
@@ -244,55 +289,19 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
                 label: "Block Explorer",
               },
             ].map((tab) => (
-              <TabsTrigger key={tab.value} value={tab.value} variant="clear">
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                variant="clear"
+                size="sm"
+              >
                 {tab.label}
               </TabsTrigger>
             ))}
           </TabsList>
 
           <TabsContent value="overview">
-            <Card>
-              <div className="flex items-center gap-4 mb-4">
-                <a
-                  href="#"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-3 py-1.5 bg-[#2a2a2a] hover:bg-[#3a3a3a] rounded-lg text-sm transition-colors"
-                >
-                  <span>🌐</span>
-                </a>
-
-                <a
-                  href="#"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-3 py-1.5 bg-[#2a2a2a] hover:bg-[#3a3a3a] rounded-lg text-sm transition-colors"
-                >
-                  <span>𝕏</span>
-                  <span>3.3k</span>
-                </a>
-
-                <a
-                  href="#"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-3 py-1.5 bg-[#2a2a2a] hover:bg-[#3a3a3a] rounded-lg text-sm transition-colors"
-                >
-                  <span>⭐</span>
-                  <span>23 stars</span>
-                </a>
-              </div>
-              <h2 className="text-xl font-semibold mb-3">
-                Token Chain Project: Revolutionizing Digital Asset Management
-              </h2>
-              <p className="text-[#737373] leading-relaxed">
-                Introducing the Token Chain Project, a revolutionary platform
-                designed to enhance the way digital assets are managed, traded,
-                and secured. Built on cutting-edge blockchain technology, this
-                project aims to provide users with a seamless and secure
-                experience for managing their cryptocurrency portfolios.
-              </p>
-            </Card>
+            <ChainOverview chain={chain} />
           </TabsContent>
 
           <TabsContent value="holders">
