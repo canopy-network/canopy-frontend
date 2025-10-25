@@ -10,3 +10,5 @@ export {
 } from "./info-card";
 export { AvatarGroup } from "./avatar-group";
 export { TokenomicsCard } from "./tokenomics-card";
+export { ChainMilestones } from "./chain-milestones";
+export { ChainCode } from "./chain-code";

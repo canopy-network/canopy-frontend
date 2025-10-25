@@ -10,8 +10,12 @@ import { VirtualPool } from "@/types/chains";
 import { ChainDetailChart } from "@/components/charts/chain-detail-chart";
 import { WalletContent } from "../wallet/wallet-content";
 import { BlockExplorerTable } from "./block-explorer-table";
+import { BlockExplorerHeader } from "../block-explorer/block-explorer-header";
 import { HoldersTable } from "./holders-table";
 import { ChainOverview } from "./chain-details/chain-overview";
+import { ChainMilestones } from "./chain-details/chain-milestones";
+import { ChainCode } from "./chain-details/chain-code";
+import { ChainBlocks } from "./chain-blocks";
 import {
   getChainPriceHistory,
   getTimeRangeForTimeframe,
@@ -269,16 +273,21 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
         <Tabs defaultValue="overview" className="w-full gap-4 mt-4">
           <TabsList
             variant="clear"
-            className="flex justify-start gap-2 bg-muted p-1 rounded-lg"
+            className="flex justify-start gap-2 bg-muted p-1 rounded-lg no-scrollbar overflow-auto"
           >
             {[
               {
                 value: "overview",
                 label: "Overview",
               },
+
               {
                 value: "holders",
                 label: "Holders",
+              },
+              {
+                value: "milestones",
+                label: "Milestones",
               },
               {
                 value: "code",
@@ -310,13 +319,19 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
             </Card>
           </TabsContent>
 
+          <TabsContent value="milestones">
+            <ChainMilestones />
+          </TabsContent>
+
           <TabsContent value="code">
-            <div className="text-center py-8 text-gray-400">
-              Code repository coming soon...
-            </div>
+            <ChainCode />
           </TabsContent>
 
           <TabsContent value="explorer">
+            <BlockExplorerHeader />
+
+            <ChainBlocks />
+
             <Card className="p-6">
               <BlockExplorerTable chainId={chain.id} />
             </Card>
