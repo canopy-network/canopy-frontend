@@ -42,7 +42,7 @@ export const chainsApi = {
    * // Get chains with filters
    * const activeChains = await chainsApi.getChains({
    *   status: 'virtual_active',
-   *   include: ['template', 'creator'],
+   *   include: 'template,creator',
    *   page: 1,
    *   limit: 20
    * });
@@ -52,20 +52,19 @@ export const chainsApi = {
     apiClient.get<Chain[]>("/api/v1/chains", params),
 
   /**
-   * Get a single chain by ID with optional related data
+   * Get a single chain by ID
    *
    * @param id - Chain ID
-   * @param include - Array of related data to include (template, creator, etc.)
    * @returns Promise resolving to chain data
    *
    * @example
    * ```typescript
-   * // Get chain with template and creator info
-   * const chain = await chainsApi.getChain('chain-id', ['template', 'creator']);
+   * // Get chain by ID
+   * const chain = await chainsApi.getChain('chain-id');
    * ```
    */
-  getChain: (id: string, include?: string[]) =>
-    apiClient.get<Chain>(`/api/v1/chains/${id}`, { include }),
+  getChain: (id: string, params?: { include?: string }) =>
+    apiClient.get<Chain>(`/api/v1/chains/${id}`, params),
 
   /**
    * Create a new chain
@@ -101,6 +100,22 @@ export const chainsApi = {
     apiClient.delete<{ message: string }>(`/api/v1/chains/${id}`),
 
   /**
+   * Get all assets for a chain
+   *
+   * @param chainId - Chain ID
+   * @returns Promise resolving to chain assets
+   *
+   * @example
+   * ```typescript
+   * const assets = await chainsApi.getChainAssets('chain-id');
+   * ```
+   */
+  getChainAssets: (chainId: string) =>
+    apiClient.get<import("@/types/chains").ChainAsset[]>(
+      `/api/v1/chains/${chainId}/assets`
+    ),
+
+  /**
    * Create an asset for a chain (logo, banner, screenshot, etc.)
    *
    * @param chainId - Chain ID to add the asset to
@@ -119,6 +134,28 @@ export const chainsApi = {
    */
   createAsset: (chainId: string, data: CreateAssetRequest) =>
     apiClient.post<any>(`/api/v1/chains/${chainId}/assets`, data),
+
+  /**
+   * Update an existing chain asset
+   *
+   * @param chainId - Chain ID
+   * @param assetId - Asset ID to update
+   * @param data - Updated asset data
+   * @returns Promise resolving to updated asset data
+   *
+   * @example
+   * ```typescript
+   * const asset = await chainsApi.updateAsset('chain-id', 'asset-id', {
+   *   file_url: 'https://s3.amazonaws.com/new-logo.png',
+   *   is_primary: true
+   * });
+   * ```
+   */
+  updateAsset: (
+    chainId: string,
+    assetId: string,
+    data: Partial<CreateAssetRequest>
+  ) => apiClient.put<any>(`/api/v1/chains/${chainId}/assets/${assetId}`, data),
 };
 
 // ============================================================================
@@ -142,7 +179,7 @@ export const virtualPoolsApi = {
    * ```
    */
   getVirtualPool: (chainId: string) =>
-    apiClient.get<VirtualPool>(`/api/v1/chains/${chainId}/virtual-pool`),
+    apiClient.get<VirtualPool>(`/api/v1/virtual-pools/${chainId}`),
 
   /**
    * Get transaction history for a chain's virtual pool
@@ -177,41 +214,35 @@ export const virtualPoolsApi = {
 
 /**
  * Get chains with template information included
+ * Note: API returns all related data by default
  *
  * @param params - Query parameters
  * @returns Promise resolving to chains with template data
  */
 export async function getChainsWithTemplates(params?: GetChainsParams) {
-  return chainsApi.getChains({
-    ...params,
-    include: [...(params?.include || []), "template"],
-  });
+  return chainsApi.getChains(params);
 }
 
 /**
  * Get chains with creator information included
+ * Note: API returns all related data by default
  *
  * @param params - Query parameters
  * @returns Promise resolving to chains with creator data
  */
 export async function getChainsWithCreators(params?: GetChainsParams) {
-  return chainsApi.getChains({
-    ...params,
-    include: [...(params?.include || []), "creator"],
-  });
+  return chainsApi.getChains(params);
 }
 
 /**
  * Get chains with both template and creator information
+ * Note: API returns all related data by default
  *
  * @param params - Query parameters
  * @returns Promise resolving to chains with full related data
  */
 export async function getChainsWithRelations(params?: GetChainsParams) {
-  return chainsApi.getChains({
-    ...params,
-    include: [...(params?.include || []), "template", "creator"],
-  });
+  return chainsApi.getChains(params);
 }
 
 /**
@@ -253,11 +284,11 @@ export async function getGraduatedChains(
  */
 export async function getChainsByCreator(
   creatorId: string,
-  params?: Omit<GetChainsParams, "created_by">
+  params?: Omit<GetChainsParams, "creator">
 ) {
   return chainsApi.getChains({
     ...params,
-    created_by: creatorId,
+    creator: creatorId,
   });
 }
 

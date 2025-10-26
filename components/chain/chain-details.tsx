@@ -280,7 +280,6 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
                 value: "overview",
                 label: "Overview",
               },
-
               {
                 value: "holders",
                 label: "Holders",

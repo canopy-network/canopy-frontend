@@ -25,7 +25,6 @@ export function Sidebar() {
   const pathname = usePathname();
 
   // User is considered logged in if either email auth or GitHub auth is active
-  const isLoggedIn = isAuthenticated || !!session;
   const checkCompact = () => {
     if (pathname?.includes("/launchpad")) {
       setIsCompact(true);
@@ -62,6 +61,8 @@ export function Sidebar() {
   // Show expanded view on hover when compact
   const shouldExpand = isCompact && isHovered;
   const isCondensed = isCompact && !shouldExpand;
+  // User is considered logged in if either email auth or GitHub auth is active
+  const isLoggedIn = isAuthenticated || !!session;
 
   return (
     <div
@@ -187,37 +188,36 @@ export function Sidebar() {
         {/* Full auth section - shown when expanded */}
         <div className={cn("space-y-3 transition-all duration-300")}>
           {/* Email Authentication */}
-          {isAuthenticated && user ? (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 p-2 bg-[#1a1a1a] rounded-lg">
-                <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center">
-                  <span className="text-primary-foreground text-xs font-bold">
-                    {user.email.charAt(0).toUpperCase()}
+          {isLoggedIn && user ? (
+            <>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 p-2 bg-[#1a1a1a] rounded-lg">
+                  <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center">
+                    <span className="text-primary-foreground text-xs font-bold">
+                      {user.email?.charAt(0)?.toUpperCase()}
+                    </span>
+                  </div>
+                  <span className="text-sm text-white truncate">
+                    {user.email?.charAt(0)?.toUpperCase()}
                   </span>
                 </div>
-                <span className="text-sm text-white truncate">
-                  {user.email}
-                </span>
+                <Button
+                  onClick={() => setLoginDialogOpen(true)}
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-xs"
+                >
+                  Manage Account
+                </Button>
               </div>
-              <Button
-                onClick={() => setLoginDialogOpen(true)}
-                variant="outline"
-                size="sm"
-                className="w-full text-xs"
-              >
-                Manage Account
-              </Button>
-            </div>
+            </>
           ) : (
             <Button
               onClick={() => setLoginDialogOpen(true)}
-              className={cn(
-                "w-full gap-2 bg-transparent hover:bg-[#1a1a1a] text-white border border-[#2a2a2a] font-medium",
-                isCondensed ? "hidden" : "block"
-              )}
               variant="outline"
+              size="sm"
+              className="w-full text-xs"
             >
-              <Mail className="h-4 w-4" />
               Login
             </Button>
           )}

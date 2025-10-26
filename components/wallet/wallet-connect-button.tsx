@@ -13,7 +13,7 @@ export function WalletConnectButton() {
       <Button
         variant="outline"
         onClick={togglePopup}
-        className="gap-2 bg-transparent border-green-600/50 text-green-500 hover:bg-green-950/30 hover:border-green-600 w-full justify-start h-12 rounded-2xl font-medium"
+        className="gap-2 bg-transparent border-[#2a2a2a] text-white hover:bg-[#1a1a1a] w-full justify-start"
       >
         <Wallet className="h-4 w-4" />
         {currentAccount.address.slice(0, 6)}...

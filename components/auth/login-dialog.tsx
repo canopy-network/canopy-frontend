@@ -13,6 +13,8 @@ import {
 import { Loader2, Mail, CheckCircle2, LogOut, ArrowLeft } from "lucide-react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { sendEmailCode, verifyCode } from "@/lib/api/auth";
+import axios from "axios";
+import { API_CONFIG } from "@/lib/config/api";
 
 type AuthStep = "initial" | "email" | "code" | "authenticated";
 
@@ -100,12 +102,32 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
     setError(null);
 
     try {
-      const response = await verifyCode(email, code);
+      const verifyResponse = await axios.post(
+        `${API_CONFIG.baseURL}/api/v1/auth/verify`,
+        {
+          email,
+          code,
+        }
+      );
 
-      setUser({
-        email: response.data.email,
-        token: response.data.token,
-      });
+      if (verifyResponse.status !== 200) {
+        setLocalError(verifyResponse.data.message);
+        return;
+      }
+
+      const response_body = verifyResponse.data;
+
+      console.log({ response_body });
+
+      const authHeader =
+        verifyResponse.headers["authorization"] ||
+        verifyResponse.headers["Authorization"];
+      const token = authHeader ? authHeader.replace("Bearer ", "") : null;
+
+      // Save the full user object and token from the API response
+      // The auth store will handle storing to localStorage
+      setUser(response_body.data.user, token);
+
       setStep("authenticated");
       setCode("");
       setDevCode(null);
@@ -145,8 +167,9 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
-      // Reset form when closing
-      setStep("initial");
+      if (!isAuthenticated) {
+        setStep("initial");
+      }
       setEmail("");
       setCode("");
       setLocalError(null);

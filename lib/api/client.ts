@@ -139,25 +139,25 @@ function calculateRetryDelay(attempt: number, baseDelay: number): number {
  * Get authentication headers
  */
 function getAuthHeaders(): Record<string, string> {
-  // In development, use mock user ID
-  if (API_CONFIG.devMode && API_CONFIG.mockAuth) {
-    return {
-      "X-User-ID": API_CONFIG.mockUserId,
-    };
-  }
+  const headers: Record<string, string> = {};
 
-  // In production, get from auth store or localStorage
   // Check if we're in a browser environment before accessing localStorage
   if (typeof window !== "undefined") {
+    // Get authorization token from localStorage
+    const token = localStorage.getItem("auth_token");
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+      console.log("🔐 Adding Authorization header to request");
+    }
+
+    // Also add user ID if available (for backwards compatibility)
     const userId = localStorage.getItem("user_id");
     if (userId) {
-      return {
-        "X-User-ID": userId,
-      };
+      // headers["X-User-ID"] = userId;
     }
   }
 
-  return {};
+  return headers;
 }
 
 // ============================================================================
@@ -198,9 +198,14 @@ export class ApiClient {
     // Request interceptor - Add auth headers
     this.axiosInstance.interceptors.request.use(
       (config: InternalAxiosRequestConfig) => {
-        // Add authentication headers only for PUT and POST operations
+        // Add authentication headers for all mutation operations
         const method = config.method?.toUpperCase();
-        if (method === "PUT" || method === "POST") {
+        if (
+          method === "PUT" ||
+          method === "POST" ||
+          method === "PATCH" ||
+          method === "DELETE"
+        ) {
           const authHeaders = getAuthHeaders();
           Object.assign(config.headers, authHeaders);
         }

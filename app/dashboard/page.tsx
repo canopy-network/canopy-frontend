@@ -2,7 +2,7 @@
 
 // Force dynamic rendering
 export const dynamic = "force-dynamic";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useChainsStore } from "@/lib/stores/chains-store";
+import { useAuthStore } from "@/lib/stores/auth-store";
 import { CHAIN_STATUS_LABELS } from "@/types/chains";
 
 const stats = [
@@ -67,19 +68,26 @@ const stats = [
 export default function Dashboard() {
   const { chains, isLoading, fetchChains, virtualPools, fetchVirtualPool } =
     useChainsStore();
+  const { user } = useAuthStore();
 
   useEffect(() => {
-    fetchChains({ include: ["template", "creator"] });
+    fetchChains({ include: "assets" });
   }, [fetchChains]);
 
-  // Fetch virtual pools for chains
+  // Filter chains to only show those created by the current user
+  const userChains = useMemo(
+    () => chains.filter((chain) => chain.created_by === user?.id),
+    [chains, user?.id]
+  );
+
+  // Fetch virtual pools for user's chains
   useEffect(() => {
-    chains.forEach((chain) => {
+    userChains.forEach((chain) => {
       if (!virtualPools[chain.id]) {
         fetchVirtualPool(chain.id);
       }
     });
-  }, [chains, virtualPools, fetchVirtualPool]);
+  }, [userChains, virtualPools, fetchVirtualPool]);
 
   const getStatusVariant = (status: string): "default" | "secondary" => {
     switch (status) {
@@ -141,7 +149,7 @@ export default function Dashboard() {
           <div className="text-center py-12 text-muted-foreground">
             Loading chains...
           </div>
-        ) : chains.length === 0 ? (
+        ) : userChains.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground mb-4">
@@ -154,7 +162,7 @@ export default function Dashboard() {
           </Card>
         ) : (
           <div className="space-y-4">
-            {chains.map((chain) => {
+            {userChains.map((chain) => {
               const virtualPool = virtualPools[chain.id];
               const progress = virtualPool
                 ? Math.min(

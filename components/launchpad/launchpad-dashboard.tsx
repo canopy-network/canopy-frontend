@@ -41,9 +41,9 @@ interface TabConfig {
 
 const tabsConfig: TabConfig[] = [
   { value: "all", label: "All", icon: Home },
+  { value: "pending_launch", label: "Scheduled", icon: Calendar },
   { value: "virtual_active", label: "Trending", icon: TrendingUp },
-  { value: "pending_launch", label: "New", icon: Calendar },
-  { value: "graduated", label: "Graduated", icon: Heart },
+  { value: "graduated", label: "Favorites", icon: Heart },
 ];
 
 // Mock data for fallback when API is not available

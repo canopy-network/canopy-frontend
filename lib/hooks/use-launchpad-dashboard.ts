@@ -97,7 +97,7 @@ export function useLaunchpadDashboard({
   useEffect(() => {
     if (autoFetch) {
       fetchChains({
-        include: ["template", "creator"],
+        include: "template,creator,assets",
         limit: 50,
       });
     }
@@ -216,7 +216,7 @@ export function useLaunchpadDashboard({
 
   const refreshData = async () => {
     await fetchChains({
-      include: ["template", "creator"],
+      include: "template,creator,assets",
       limit: 50,
     });
   };

@@ -1,6 +1,4 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
 import { Star, Upload, Users, TrendingUp, Zap } from "lucide-react";
 import { HexagonIcon } from "@/components/icons/hexagon-icon";
 

@@ -26,6 +26,7 @@ import {
   Transaction,
   CreateChainRequest,
   GetChainsParams,
+  ChainAsset,
 } from "@/types/chains";
 // We'll define our own UI types here instead of using placeholder types
 
@@ -105,7 +106,7 @@ interface ChainsState {
 
   // Actions
   fetchChains: (params?: GetChainsParams) => Promise<void>;
-  fetchChain: (id: string) => Promise<void>;
+  fetchChain: (id: string, include?: string) => Promise<void>;
   fetchVirtualPool: (chainId: string) => Promise<void>;
   fetchTransactions: (chainId: string) => Promise<void>;
   createChain: (data: CreateChainRequest) => Promise<Chain>;
@@ -138,6 +139,30 @@ interface ChainsState {
 // ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
+
+/**
+ * Process chain assets and extract branding and banner URLs
+ */
+function processChainAssets(chain: Chain): Chain {
+  if (!chain.assets || chain.assets.length === 0) {
+    return chain;
+  }
+
+  // Find logo for branding
+  const logoAsset = chain.assets.find((asset) => asset.asset_type === "logo");
+
+  // Find banner or screenshot for banner
+  const bannerAsset = chain.assets.find(
+    (asset) =>
+      asset.asset_type === "banner" || asset.asset_type === "screenshot"
+  );
+
+  return {
+    ...chain,
+    branding: logoAsset?.file_url,
+    banner: bannerAsset?.file_url,
+  };
+}
 
 /**
  * Convert Chain to ChainWithUI format for UI components
@@ -362,6 +387,11 @@ export const useChainsStore = create<ChainsState>()(
         // API ACTIONS
         // ============================================================================
 
+        //testing@again.com user id
+        // "2403b4fc-82a2-4dd3-a82a-e437ed68d3a2"
+
+        //chris@santana.com
+        // 0cd21689-de6c-4b65-ad4d-178179a07161
         fetchChains: async (params) => {
           const state = get();
 
@@ -375,13 +405,15 @@ export const useChainsStore = create<ChainsState>()(
 
           set({ isLoading: true, error: null });
           try {
-            const response = await chainsApi.getChains({
-              ...params,
-              include: ["template", "creator"],
-            });
+            const response = await chainsApi.getChains(params);
+
+            // Process assets for each chain to extract branding and banner
+            const processedChains = response.data.map((chain) =>
+              processChainAssets(chain)
+            );
 
             set({
-              chains: response.data,
+              chains: processedChains,
               isLoading: false,
               error: null,
               pagination: {
@@ -402,15 +434,19 @@ export const useChainsStore = create<ChainsState>()(
           }
         },
 
-        fetchChain: async (id) => {
+        fetchChain: async (id, include?: string) => {
           set({ isLoading: true, error: null });
           try {
-            const response = await chainsApi.getChain(id, [
-              "template",
-              "creator",
-            ]);
+            const response = await chainsApi.getChain(
+              id,
+              include ? { include } : undefined
+            );
+
+            // Process assets to extract branding and banner
+            const processedChain = processChainAssets(response.data);
+
             set({
-              currentChain: response.data,
+              currentChain: processedChain,
               isLoading: false,
               error: null,
             });
