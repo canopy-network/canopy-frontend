@@ -10,7 +10,7 @@ export function Container({
   children: React.ReactNode | React.ReactNode[];
   id?: string;
   className?: string;
-  type?: "full-width" | "boxed";
+  type?: "full-width" | "boxed" | "2xl";
 }) {
   const size = useMemo(() => {
     switch (type) {
@@ -18,6 +18,8 @@ export function Container({
         return "max-w-7xl mx-auto";
       case "full-width":
         return "w-full";
+      case "2xl":
+        return "w-full 2xl:max-w-[1680px] mx-auto";
       default:
         return "w-full";
     }

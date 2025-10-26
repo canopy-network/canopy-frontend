@@ -61,7 +61,7 @@ export function InfoCard({
 
       {/* Content - Avatar Group or Stats */}
       {isHolders && holders.length > 0 ? (
-        <div className="flex items-center gap-2  py-0">
+        <div className="flex items-center flex-wrap gap-2  py-0">
           <AvatarGroup holders={holders} maxVisible={maxVisibleHolders} />
 
           <span className="text-xs text-muted-foreground">
@@ -73,7 +73,7 @@ export function InfoCard({
           {stats.map((stat, idx) => (
             <div
               key={idx}
-              className="flex items-center justify-between text-sm"
+              className="flex items-center justify-between lg:text-sm text-xs"
             >
               <span className="text-muted-foreground">{stat.label}</span>
               <span className="font-medium">

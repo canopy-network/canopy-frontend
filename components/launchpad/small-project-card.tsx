@@ -20,7 +20,7 @@ interface SmallProjectCardProps {
 
 export const SmallProjectCard = ({
   project,
-  href = `/launchpad/${project.id}`,
+  href = `/chain/${project.id}`,
   viewMode = "grid",
 }: SmallProjectCardProps) => {
   // Dynamic performance calculation based on project data

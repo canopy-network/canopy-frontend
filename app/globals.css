@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+@theme {
+  --breakpoint-2xl: 1680px;
+}
+
 @custom-variant dark (&:is(.dark *));
 @plugin "tailwindcss-animate";
 

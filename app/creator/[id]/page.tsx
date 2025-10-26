@@ -224,7 +224,7 @@ export default function CreatorPage({ params }: CreatorPageProps) {
                         <SmallProjectCard
                           key={chain.id}
                           project={chain}
-                          href={`/launchpad/${chain.id}`}
+                          href={`/chain/${chain.id}`}
                         />
                       ))}
                     </div>
@@ -248,7 +248,7 @@ export default function CreatorPage({ params }: CreatorPageProps) {
                         <SmallProjectCard
                           key={chain.id}
                           project={chain}
-                          href={`/launchpad/${chain.id}`}
+                          href={`/chain/${chain.id}`}
                         />
                       ))}
                     </div>

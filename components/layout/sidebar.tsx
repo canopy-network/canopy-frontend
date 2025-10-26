@@ -1,140 +1,276 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MainNav } from "@/components/navigation/main-nav";
 import { WalletConnectButton } from "@/components/wallet/wallet-connect-button";
 import { LoginDialog } from "@/components/auth/login-dialog";
-import { Input } from "@/components/ui/input";
+import CommandSearchDialog from "@/components/command-search-dialog";
 import { Button } from "@/components/ui/button";
-import { Search, Plus, Github, Mail } from "lucide-react";
+import { Search, Plus, Github, Mail, Wallet } from "lucide-react";
 import { useCreateChainDialog } from "@/lib/stores/use-create-chain-dialog";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn, WINDOW_BREAKPOINTS } from "@/lib/utils";
 
 export function Sidebar() {
   const { open } = useCreateChainDialog();
   const { data: session, status } = useSession();
   const { user, isAuthenticated } = useAuthStore();
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
+  const [showCommandSearch, setShowCommandSearch] = useState(false);
+  const [isCompact, setIsCompact] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const pathname = usePathname();
 
   // User is considered logged in if either email auth or GitHub auth is active
   const isLoggedIn = isAuthenticated || !!session;
+  const checkCompact = () => {
+    if (pathname?.includes("/launchpad")) {
+      setIsCompact(true);
+
+      return;
+    }
+    const isSmallScreen = window.innerWidth <= WINDOW_BREAKPOINTS.XL;
+
+    console.log("isSmallScreen", isSmallScreen);
+    setIsCompact(isSmallScreen);
+  };
+
+  // Check if sidebar should be compact
+  useEffect(() => {
+    checkCompact();
+    window.addEventListener("resize", checkCompact);
+    return () => window.removeEventListener("resize", checkCompact);
+  }, [pathname]);
+
+  // Handle Cmd+K / Ctrl+K keyboard shortcut
+  useEffect(() => {
+    checkCompact();
+    const down = (e: KeyboardEvent) => {
+      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setShowCommandSearch((open) => !open);
+      }
+    };
+
+    document.addEventListener("keydown", down);
+    return () => document.removeEventListener("keydown", down);
+  }, []);
+
+  // Show expanded view on hover when compact
+  const shouldExpand = isCompact && isHovered;
+  const isCondensed = isCompact && !shouldExpand;
 
   return (
-    <div className="flex h-full w-64 flex-col bg-[#0e0e0e] border-r border-[#2a2a2a]">
-      <div className="flex h-16 items-center border-b border-[#2a2a2a] px-6">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-sm">
-              🌳
+    <div
+      className={cn(
+        "border-r border-zinc-800 bg-card flex flex-col pb-7 h-screen sticky top-0 transition-all duration-300 overflow-hidden",
+        isCondensed ? "w-[90px]" : "w-60"
+      )}
+    >
+      {/* Logo */}
+      <div
+        className={cn(
+          "h-16 border-b flex items-center border-zinc-800 transition-all duration-300",
+          isCondensed ? "px-5" : "px-4"
+        )}
+      >
+        <Link
+          href="/"
+          className={cn(
+            "overflow-hidden transition-all duration-300  block",
+            isCondensed ? "w-[16px] max-w-[16px] mx-auto" : "w-32 mr-auto"
+          )}
+        >
+          <img
+            src="/images/logo.svg"
+            alt="Logo"
+            className={cn("invert w-32 min-w-32")}
+          />
+        </Link>
+      </div>
+
+      {/* Search and Create */}
+      <div
+        className={cn(
+          " py-3 border-b border-[#2a2a2a] transition-all duration-300",
+          isCondensed
+            ? "flex flex-col items-center gap-2 px-5"
+            : "px-4 space-y-3"
+        )}
+      >
+        <button
+          onClick={() => setShowCommandSearch(true)}
+          className={cn(
+            "flex items-center rounded-full bg-transparent hover:bg-white/5 transition-colors",
+            isCondensed
+              ? "w-10 h-10 justify-center text-white/50"
+              : "w-full h-9 justify-between pl-4 pr-2 text-sm text-white/50"
+          )}
+        >
+          <div className="flex items-center gap-3">
+            <Search className="w-4 h-4" />
+            <span
+              className={cn(
+                "transition-all duration-300",
+                isCondensed ? "hidden" : "block"
+              )}
+            >
+              Search chains...
             </span>
           </div>
-          <span className="font-semibold text-lg text-white tracking-tight">
-            CANOPY
-          </span>
-        </div>
-      </div>
-
-      <div className="p-4 border-b border-[#2a2a2a]">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search chains"
-            className="pl-10 bg-[#1a1a1a] border-[#2a2a2a] text-white placeholder:text-muted-foreground focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
-          />
-        </div>
-      </div>
-
-      {isLoggedIn && (
-        <div className="px-4 py-2 border-b border-[#2a2a2a]">
-          <Button
-            className="w-full justify-start gap-2 bg-transparent hover:bg-[#1a1a1a] text-white border-none font-medium"
-            onClick={open}
+          <kbd
+            className={cn(
+              "h-5 select-none items-center gap-1 rounded-2xl bg-white/10 px-1.5 font-mono text-[10px] font-medium text-white/70 transition-all duration-300",
+              isCondensed ? "hidden" : "hidden sm:inline-flex"
+            )}
           >
-            <Plus className="h-4 w-4" />
-            Create chain
-          </Button>
-        </div>
-      )}
+            <span className="text-xs">⌘</span>K
+          </kbd>
+        </button>
 
-      <div className="flex-1 overflow-auto p-4">
-        <MainNav isAuthenticated={isLoggedIn} />
-      </div>
-
-      <div className="border-t border-[#2a2a2a] p-4 space-y-3">
-        {/* Email Authentication */}
-        {isAuthenticated && user ? (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 p-2 bg-[#1a1a1a] rounded-lg">
-              <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground text-xs font-bold">
-                  {user.email.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <span className="text-sm text-white truncate">{user.email}</span>
-            </div>
-            <Button
-              onClick={() => setLoginDialogOpen(true)}
-              variant="outline"
-              size="sm"
-              className="w-full text-xs"
-            >
-              Manage Account
-            </Button>
-          </div>
-        ) : (
-          <Button
-            onClick={() => setLoginDialogOpen(true)}
-            className="w-full gap-2 bg-transparent hover:bg-[#1a1a1a] text-white border border-[#2a2a2a] font-medium"
-            variant="outline"
-          >
-            <Mail className="h-4 w-4" />
-            Login
-          </Button>
-        )}
-
-        {isLoggedIn && <WalletConnectButton />}
-
-        {/* GitHub Login Button - Only show if logged in */}
         {isLoggedIn && (
-          <div className="space-y-2">
-            {session ? (
-              <>
-                <div className="flex items-center gap-2 p-2 bg-[#1a1a1a] rounded-lg">
-                  <img
-                    src={session.user?.image || ""}
-                    alt={session.user?.name || ""}
-                    className="w-6 h-6 rounded-full"
-                  />
-                  <span className="text-sm text-white truncate">
-                    {session.user?.name || session.user?.email}
+          <button
+            onClick={open}
+            className={cn(
+              "flex items-center rounded-full bg-transparent text-sm font-medium text-white hover:bg-white/5 transition-colors",
+              isCondensed ? "w-10 h-10 justify-center" : "w-full h-9 gap-3 pl-4"
+            )}
+          >
+            <Plus className="w-5 h-5" />
+            <span
+              className={cn(
+                "transition-all duration-300",
+                isCondensed ? "hidden" : "block"
+              )}
+            >
+              Create L1 chain
+            </span>
+          </button>
+        )}
+      </div>
+
+      {/* Navigation */}
+      <div
+        className={cn(
+          "flex-1 overflow-auto py-4 ",
+          isCondensed ? "px-5" : "px-4"
+        )}
+      >
+        <MainNav isAuthenticated={isLoggedIn} isCondensed={isCondensed} />
+      </div>
+
+      {/* Bottom Section */}
+      <div
+        className={cn(
+          "border-t border-[#2a2a2a] transition-all duration-300 py-4",
+          isCondensed ? "px-5" : "px-4"
+        )}
+      >
+        {/* Compact wallet icon - shown when condensed */}
+        <div
+          className={cn(
+            "flex justify-center transition-all duration-300",
+            isCondensed ? "block" : "hidden"
+          )}
+        >
+          <button
+            onClick={() => setLoginDialogOpen(true)}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-[#1a1a1a] hover:bg-[#2a2a2a] transition-colors"
+          >
+            <Wallet className="w-4 h-4 text-white" />
+          </button>
+        </div>
+
+        {/* Full auth section - shown when expanded */}
+        <div className={cn("space-y-3 transition-all duration-300")}>
+          {/* Email Authentication */}
+          {isAuthenticated && user ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 p-2 bg-[#1a1a1a] rounded-lg">
+                <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center">
+                  <span className="text-primary-foreground text-xs font-bold">
+                    {user.email.charAt(0).toUpperCase()}
                   </span>
                 </div>
-                <Button
-                  onClick={() => signOut()}
-                  variant="outline"
-                  size="sm"
-                  className="w-full text-xs"
-                >
-                  Sign Out
-                </Button>
-              </>
-            ) : (
+                <span className="text-sm text-white truncate">
+                  {user.email}
+                </span>
+              </div>
               <Button
-                onClick={() => signIn("github")}
+                onClick={() => setLoginDialogOpen(true)}
                 variant="outline"
-                className="w-full justify-start gap-2 bg-transparent hover:bg-[#1a1a1a] text-white border-[#2a2a2a]"
+                size="sm"
+                className="w-full text-xs"
               >
-                <Github className="h-4 w-4" />
-                Connect GitHub
+                Manage Account
               </Button>
-            )}
-          </div>
-        )}
+            </div>
+          ) : (
+            <Button
+              onClick={() => setLoginDialogOpen(true)}
+              className={cn(
+                "w-full gap-2 bg-transparent hover:bg-[#1a1a1a] text-white border border-[#2a2a2a] font-medium",
+                isCondensed ? "hidden" : "block"
+              )}
+              variant="outline"
+            >
+              <Mail className="h-4 w-4" />
+              Login
+            </Button>
+          )}
+
+          {isLoggedIn && <WalletConnectButton />}
+
+          {/* GitHub Login Button - Only show if logged in */}
+          {isLoggedIn && (
+            <div className="space-y-2">
+              {session ? (
+                <>
+                  <div className="flex items-center gap-2 p-2 bg-[#1a1a1a] rounded-lg">
+                    <img
+                      src={session.user?.image || ""}
+                      alt={session.user?.name || ""}
+                      className="w-6 h-6 rounded-full"
+                    />
+                    <span className="text-sm text-white truncate">
+                      {session.user?.name || session.user?.email}
+                    </span>
+                  </div>
+                  <Button
+                    onClick={() => signOut()}
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs"
+                  >
+                    Sign Out
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  onClick={() => signIn("github")}
+                  variant="outline"
+                  className="w-full justify-start gap-2 bg-transparent hover:bg-[#1a1a1a] text-white border-[#2a2a2a]"
+                >
+                  <Github className="h-4 w-4" />
+                  Connect GitHub
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Login Dialog */}
       <LoginDialog open={loginDialogOpen} onOpenChange={setLoginDialogOpen} />
+
+      {/* Command Search Dialog */}
+      <CommandSearchDialog
+        open={showCommandSearch}
+        onOpenChange={setShowCommandSearch}
+      />
     </div>
   );
 }

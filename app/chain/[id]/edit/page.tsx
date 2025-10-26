@@ -227,7 +227,7 @@ export default function EditChainPage({ params }: EditChainPageProps) {
 
       // Exit edit mode and redirect to the chain detail page
       setIsEditMode(false);
-      router.push(`/launchpad/${chain.id}`);
+      router.push(`/chain/${chain.id}`);
     } catch (error) {
       console.error("Error saving chain:", error);
       setError(

@@ -152,34 +152,6 @@ function SettingsContent() {
 
   return (
     <div className="min-h-screen px-4">
-      {/* Top Header */}
-      <div className="border-b border-gray-800 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex items-center justify-between py-4">
-          <div>
-            <h1 className="text-2xl font-bold">Settings</h1>
-          </div>
-          {activeSection === "public-profile" && (
-            <div>
-              {!isEditing ? (
-                <Button onClick={() => setIsEditing(true)} className="gap-2">
-                  <Edit2 className="h-4 w-4" />
-                  Edit Profile
-                </Button>
-              ) : (
-                <Button
-                  onClick={() => setIsEditing(false)}
-                  variant="outline"
-                  className="gap-2"
-                >
-                  <X className="h-4 w-4" />
-                  Cancel
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
       <div className="container py-8 mx-auto">
         <div className="flex gap-8">
           {/* Sidebar Navigation */}
@@ -210,11 +182,36 @@ function SettingsContent() {
           <main className="flex-1 max-w-4xl">
             {activeSection === "public-profile" && (
               <div className="space-y-6">
-                <div>
-                  <h2 className="text-2xl font-bold mb-2">Public profile</h2>
-                  <p className="text-muted-foreground">
-                    Manage your public profile information
-                  </p>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h2 className="text-2xl font-bold mb-2">Public profile</h2>
+                    <p className="text-muted-foreground">
+                      Manage your public profile information
+                    </p>
+                  </div>
+
+                  {activeSection === "public-profile" && (
+                    <>
+                      {!isEditing ? (
+                        <Button
+                          onClick={() => setIsEditing(true)}
+                          className="gap-2"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                          Edit Profile
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={() => setIsEditing(false)}
+                          variant="outline"
+                          className="gap-2"
+                        >
+                          <X className="h-4 w-4" />
+                          Cancel
+                        </Button>
+                      )}
+                    </>
+                  )}
                 </div>
 
                 {/* Success Alert */}

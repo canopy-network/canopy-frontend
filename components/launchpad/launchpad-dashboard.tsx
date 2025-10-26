@@ -281,7 +281,7 @@ export function LaunchpadDashboard() {
         </div>
       )}
 
-      <Container>
+      <Container type="2xl">
         {/* Main Content */}
         {/* Recent Projects Carousel */}
         <div className="mb-6 lg:mb-12">
@@ -373,7 +373,7 @@ export function LaunchpadDashboard() {
                 <SmallProjectCard
                   key={project.id}
                   project={project}
-                  href={`/launchpad/${project.id}`}
+                  href={`/chain/${project.id}`}
                   viewMode={viewMode}
                 />
               ))}
@@ -423,7 +423,7 @@ export function LaunchpadDashboard() {
               <SmallProjectCard
                 key={project.id}
                 project={project}
-                href={`/launchpad/${project.id}`}
+                href={`/chain/${project.id}`}
                 viewMode={viewMode}
               />
             ))}
@@ -446,7 +446,7 @@ export function LaunchpadDashboard() {
               <SmallProjectCard
                 key={project.id}
                 project={project}
-                href={`/launchpad/${project.id}`}
+                href={`/chain/${project.id}`}
                 viewMode={viewMode}
               />
             ))}
@@ -469,7 +469,7 @@ export function LaunchpadDashboard() {
               <SmallProjectCard
                 key={project.id}
                 project={project}
-                href={`/launchpad/${project.id}`}
+                href={`/chain/${project.id}`}
                 viewMode={viewMode}
               />
             ))}

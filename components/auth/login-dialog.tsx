@@ -163,11 +163,11 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader className="text-center">
-            <div className="mx-auto mb-4 h-12 w-12 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">
-                🌳
-              </span>
-            </div>
+            <img
+              src="/images/logo.svg"
+              alt="Logo"
+              className="invert h-4 mx-auto my-6"
+            />
             <DialogTitle className="text-2xl font-bold">
               Welcome back!
             </DialogTitle>
@@ -216,11 +216,11 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
           </button>
 
           <DialogHeader className="text-center">
-            <div className="mx-auto mb-4 h-12 w-12 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">
-                ✈️
-              </span>
-            </div>
+            <img
+              src="/images/logo.svg"
+              alt="Logo"
+              className="invert h-4 mx-auto my-6"
+            />
             <DialogTitle className="text-2xl font-bold">
               Verification code sent
             </DialogTitle>
@@ -332,11 +332,11 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader className="text-center">
-          <div className="mx-auto mb-4 h-12 w-12 rounded-lg bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-lg">
-              🌳
-            </span>
-          </div>
+          <img
+            src="/images/logo.svg"
+            alt="Logo"
+            className="invert h-4 mx-auto my-6"
+          />
           <DialogTitle className="text-2xl font-bold">
             Welcome to Canopy
           </DialogTitle>

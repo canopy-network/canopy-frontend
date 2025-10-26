@@ -339,7 +339,7 @@ export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
         </Tabs>
       </main>
 
-      <aside className="w-[352px] flex-shrink-0 card h-fit p-4">
+      <aside className="w-[352px] flex-shrink-0 card h-fit p-4 lg:block hidden">
         <WalletContent showBalance={false} />
       </aside>
     </div>
