@@ -12,7 +12,21 @@ const steps = [
   { id: 7, label: 'Review & Payment', icon: FileCheck },
 ]
 
-export default function LaunchpadSidebar({ currentStep = 1, completedSteps = [], isSaving = false, lastSaved = null, repoConnected = false }) {
+interface LaunchpadSidebarProps {
+  currentStep?: number;
+  completedSteps?: number[];
+  isSaving?: boolean;
+  lastSaved?: string | null;
+  repoConnected?: boolean;
+}
+
+export default function LaunchpadSidebar({ 
+  currentStep = 1, 
+  completedSteps = [], 
+  isSaving = false, 
+  lastSaved = null, 
+  repoConnected = false 
+}: LaunchpadSidebarProps) {
   const progressPercentage = (completedSteps.length / steps.length) * 100
 
   // Show auto-save indicator ONLY after repo is actually connected
