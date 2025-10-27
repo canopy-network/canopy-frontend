@@ -3,17 +3,33 @@ FROM node:22.12.0-slim AS base
 
 # Install dependencies only when needed
 FROM base AS deps
+# Install build dependencies for native modules
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # Install dependencies based on the preferred package manager
 COPY package.json package-lock.json* ./
-RUN npm ci
+# Use npm ci to install dependencies including optional platform-specific binaries
+RUN npm ci --include=optional
 
 # Rebuild the source code only when needed
 FROM base AS builder
+# Install build dependencies for native modules
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+
+# Rebuild native modules for the current platform to ensure compatibility
+RUN npm rebuild
 
 # Accept build arguments for Next.js public env vars
 ARG NEXT_PUBLIC_API_URL
