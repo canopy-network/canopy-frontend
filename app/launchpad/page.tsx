@@ -196,6 +196,7 @@ export default function LaunchpadPage() {
       // Step 1: Create chain via API
       const chainData = {
         chain_name: formData.chainName,
+        token_name: formData.tokenName,
         token_symbol: formData.ticker,
         chain_description: formData.chainDescription || formData.description,
         template_id: formData.template?.id || "",
@@ -369,7 +370,7 @@ export default function LaunchpadPage() {
 
       // Show success message
       alert(
-        `Chain "${chain.chain_name}" created successfully! (Status: ${chain.status})`
+        `Chain "${chain.token_name}" created successfully! (Status: ${chain.status})`
       );
 
       // Reset form and navigate to chain page
@@ -402,7 +403,10 @@ export default function LaunchpadPage() {
       <div className="flex-1">
         {/* Step 1: Select Template/Language */}
         {currentStep === 1 && (
-          <SelectLanguage onDataSubmit={handleLanguageSubmit} />
+          <SelectLanguage
+            initialTemplate={formData.template}
+            onDataSubmit={handleLanguageSubmit}
+          />
         )}
 
         {/* Step 2: Connect Repository */}
@@ -410,6 +414,7 @@ export default function LaunchpadPage() {
           <ConnectRepo
             initialRepo={formData.githubRepo}
             initialValidated={formData.githubValidated}
+            initialRepoData={formData.githubRepoData}
             templateName={formData.template?.template_name || "Python"}
             templateLanguage={formData.template?.supported_language || "Python"}
             onDataSubmit={handleRepoSubmit}

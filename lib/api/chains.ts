@@ -75,7 +75,7 @@ export const chainsApi = {
    * @example
    * ```typescript
    * const newChain = await chainsApi.createChain({
-   *   chain_name: 'My DeFi Chain',
+   *   token_name: 'My DeFi Chain',
    *   token_symbol: 'DEFI',
    *   chain_description: 'A revolutionary DeFi protocol',
    *   template_id: 'template-id'

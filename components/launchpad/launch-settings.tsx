@@ -3,22 +3,7 @@
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import {
-  Target,
-  DollarSign,
-  Calendar,
-  ChevronDown,
-  Clock,
-  HelpCircle,
-} from "lucide-react";
+import { Target, DollarSign, HelpCircle } from "lucide-react";
 
 interface LaunchSettingsProps {
   initialData?: {
@@ -48,11 +33,9 @@ export default function LaunchSettings({
   ticker = "tokens",
   onDataSubmit,
 }: LaunchSettingsProps) {
-  const [launchImmediately, setLaunchImmediately] = useState(
-    initialData?.launchImmediately ?? true
-  );
-  const [launchDate, setLaunchDate] = useState(initialData?.launchDate || "");
-  const [launchTime, setLaunchTime] = useState(initialData?.launchTime || "");
+  const [launchImmediately] = useState(initialData?.launchImmediately ?? true);
+  const [launchDate] = useState(initialData?.launchDate || "");
+  const [launchTime] = useState(initialData?.launchTime || "");
   const [timezone] = useState(
     initialData?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
   );
@@ -62,7 +45,6 @@ export default function LaunchSettings({
   const [graduationThreshold] = useState(
     initialData?.graduationThreshold || 50000
   );
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   // Notify parent when data changes
   useEffect(() => {
@@ -92,189 +74,104 @@ export default function LaunchSettings({
 
   return (
     <div className="p-6">
-      <div className="max-w-4xl mx-auto space-y-12">
+      <div className="max-w-4xl mx-auto space-y-8">
         {/* Title */}
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold">Launch Settings</h1>
+          <h1 className="text-3xl font-bold">Launch settings</h1>
           <p className="text-muted-foreground">
-            Configure when and how your chain will launch.
+            Configure your chain's launch parameters
           </p>
         </div>
 
         {/* Graduation Threshold Section */}
-        <div>
-          <div className="flex items-center gap-3 mb-3">
-            <Target className="h-6 w-6 text-muted-foreground" />
-            <h3 className="text-lg font-medium text-muted-foreground">
-              Graduation Threshold
-            </h3>
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <Target className="h-5 w-5" />
+            <h2 className="text-xl font-semibold">Graduation Threshold</h2>
           </div>
-          <p className="text-base">
-            Your chain becomes real at:{" "}
-            <span className="font-semibold">
-              ${graduationThreshold.toLocaleString()}
-            </span>
-          </p>
+
+          <div className="bg-muted/30 rounded-lg p-6 space-y-4">
+            <p className="text-lg">
+              Your chain becomes real at:{" "}
+              <span className="font-bold">
+                ${graduationThreshold.toLocaleString()}
+              </span>
+            </p>
+
+            <div className="space-y-3 text-sm text-muted-foreground">
+              <p>
+                Your chain starts as a{" "}
+                <span className="font-semibold text-foreground">
+                  virtual chain
+                </span>{" "}
+                — a lightweight environment where users can buy and trade your
+                tokens without the full blockchain infrastructure running yet.
+              </p>
+              <p>
+                Once total purchases reach{" "}
+                <span className="font-semibold text-foreground">
+                  ${graduationThreshold.toLocaleString()}
+                </span>
+                , your chain{" "}
+                <span className="font-semibold text-foreground">graduates</span>
+                . At this point, we deploy your repository and launch the full
+                blockchain network, making it a real, operational chain on the
+                Canopy ecosystem.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Initial Purchase Section */}
-        <div>
-          <div className="flex items-center gap-3 mb-3">
-            <DollarSign className="h-6 w-6 text-muted-foreground" />
-            <h3 className="text-lg font-medium text-muted-foreground">
-              Initial Purchase (Optional)
-            </h3>
-          </div>
-          <div className="mb-6">
-            <p className="text-base mb-1">
-              Buy tokens to show confidence.{" "}
-              <button className="text-pink-500 hover:text-pink-600 inline-flex items-center gap-1">
-                <HelpCircle className="h-4 w-4" />
-                Why should I buy?
-              </button>
-            </p>
-          </div>
-
-          <div className="border-2 rounded-lg p-6">
-            <Label
-              htmlFor="initialPurchaseAmount"
-              className="text-base font-semibold mb-4 block"
-            >
-              Amount in CNPY
-            </Label>
-            <Input
-              id="initialPurchaseAmount"
-              type="number"
-              placeholder="0000"
-              value={initialPurchaseAmount}
-              onChange={(e) => setInitialPurchaseAmount(e.target.value)}
-              className="border-0 shadow-none focus-visible:ring-0 p-0 text-base text-muted-foreground placeholder:text-muted-foreground/50"
-            />
-          </div>
-
-          {initialPurchaseAmount && parseFloat(initialPurchaseAmount) > 0 && (
-            <p className="text-base italic mt-4">
-              You'll receive ~
-              {Math.floor(
-                parseFloat(initialPurchaseAmount) * 0.25
-              ).toLocaleString()}{" "}
-              {ticker}
-            </p>
-          )}
-        </div>
-
-        {/* Launch Schedule Section */}
-        <div>
-          <div className="flex items-center gap-3 mb-6">
-            <Calendar className="h-6 w-6 text-muted-foreground" />
-            <h3 className="text-lg font-medium text-muted-foreground">
-              Launch Schedule
-            </h3>
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <DollarSign className="h-5 w-5" />
+            <h2 className="text-xl font-semibold">Initial Purchase</h2>
+            <span className="px-2.5 py-0.5 rounded-md bg-muted text-xs font-medium">
+              Optional
+            </span>
           </div>
 
           <div className="space-y-4">
-            {/* Launch now checkbox */}
-            <div className="flex items-center space-x-3">
-              <Checkbox
-                id="launchNow"
-                checked={launchImmediately}
-                onCheckedChange={(checked: boolean) =>
-                  setLaunchImmediately(!!checked)
-                }
-              />
-              <Label
-                htmlFor="launchNow"
-                className="text-base font-normal cursor-pointer"
-              >
-                Launch now
-              </Label>
-            </div>
+            <p className="text-sm">
+              Buy tokens to show confidence.{" "}
+              <button className="inline-flex items-center gap-1 text-sm hover:underline">
+                <HelpCircle className="h-3.5 w-3.5" />
+                Why should I buy?
+              </button>
+            </p>
 
-            {/* Schedule for later checkbox */}
-            <div className="flex items-center space-x-3">
-              <Checkbox
-                id="scheduleLater"
-                checked={!launchImmediately}
-                onCheckedChange={(checked: boolean) =>
-                  setLaunchImmediately(!checked)
-                }
-              />
-              <Label
-                htmlFor="scheduleLater"
-                className="text-base font-normal cursor-pointer"
-              >
-                Schedule for later
-              </Label>
-            </div>
-
-            {/* Date and Time Pickers - shown when Schedule for later is checked */}
-            {!launchImmediately && (
-              <div className="flex gap-4 pt-4">
-                {/* Date Picker */}
-                <div className="flex flex-col gap-3 flex-1">
-                  <Label
-                    htmlFor="date-picker"
-                    className="text-base font-normal"
-                  >
-                    Date
-                  </Label>
-                  <Popover
-                    open={datePickerOpen}
-                    onOpenChange={setDatePickerOpen}
-                  >
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        id="date-picker"
-                        className="w-full justify-between font-normal h-11"
-                      >
-                        {launchDate
-                          ? new Date(launchDate).toLocaleDateString()
-                          : "Select date"}
-                        <ChevronDown className="h-4 w-4" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <CalendarComponent
-                        mode="single"
-                        selected={launchDate ? new Date(launchDate) : undefined}
-                        onSelect={(date: Date | undefined) => {
-                          if (date) {
-                            setLaunchDate(date.toISOString().split("T")[0]);
-                            setDatePickerOpen(false);
-                          }
-                        }}
-                        disabled={(date: Date) => {
-                          const today = new Date();
-                          today.setHours(0, 0, 0, 0);
-                          return date < today;
-                        }}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                {/* Time Picker */}
-                <div className="flex flex-col gap-3 flex-1">
-                  <Label
-                    htmlFor="time-picker"
-                    className="text-base font-normal"
-                  >
-                    Time
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      type="time"
-                      id="time-picker"
-                      value={launchTime}
-                      onChange={(e) => setLaunchTime(e.target.value)}
-                      className="h-11"
-                    />
-                    <Clock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                  </div>
-                </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Label
+                  htmlFor="initialPurchaseAmount"
+                  className="text-sm font-medium"
+                >
+                  Amount in CNPY
+                </Label>
+                <HelpCircle className="h-4 w-4 text-muted-foreground" />
               </div>
+
+              <Input
+                id="initialPurchaseAmount"
+                type="number"
+                placeholder="0000"
+                value={initialPurchaseAmount}
+                onChange={(e) => setInitialPurchaseAmount(e.target.value)}
+              />
+            </div>
+
+            {initialPurchaseAmount && parseFloat(initialPurchaseAmount) > 0 && (
+              <p className="text-sm text-muted-foreground italic">
+                You'll receive{" "}
+                <span className="font-bold text-white">
+                  {Math.floor(
+                    parseFloat(initialPurchaseAmount) * 0.25
+                  ).toLocaleString()}{" "}
+                  ${ticker}
+                </span>
+                &nbsp; tokens (1:1 ratio)
+              </p>
             )}
           </div>
         </div>

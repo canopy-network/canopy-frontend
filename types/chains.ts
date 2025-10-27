@@ -31,7 +31,7 @@ export interface Chain {
   id: string;
 
   /** Display name of the chain */
-  chain_name: string;
+  token_name: string;
 
   /** Token symbol (uppercase, e.g., "DEFISWAP") */
   token_symbol: string;
@@ -321,6 +321,7 @@ export interface Transaction {
  */
 export interface CreateChainRequest {
   chain_name: string;
+  token_name: string;
   token_symbol: string;
   chain_description?: string;
   template_id?: string;
@@ -333,6 +334,7 @@ export interface CreateChainRequest {
   bonding_curve_slope?: number;
   validator_min_stake?: number;
   creator_initial_purchase_cnpy?: number;
+  brand_color?: string;
 }
 
 /**
