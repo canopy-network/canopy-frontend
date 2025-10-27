@@ -27,6 +27,16 @@ import { fetchUserRepositories, type Repository } from "@/lib/api/github-repos";
 interface ConnectRepoProps {
   initialRepo?: string;
   initialValidated?: boolean;
+  initialRepoData?: {
+    name: string;
+    fullName: string;
+    htmlUrl: string;
+    defaultBranch: string;
+    owner: string;
+    language?: string;
+    description?: string | null;
+    cloneUrl: string;
+  } | null;
   templateName?: string;
   templateLanguage?: string;
   onDataSubmit?: (data: {
@@ -48,6 +58,7 @@ interface ConnectRepoProps {
 export default function ConnectRepo({
   initialRepo = "",
   initialValidated = false,
+  initialRepoData = null,
   templateName = "Python",
   templateLanguage = "python",
   onDataSubmit,
@@ -62,6 +73,29 @@ export default function ConnectRepo({
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [isLoadingRepos, setIsLoadingRepos] = useState(false);
   const [repoError, setRepoError] = useState<string | null>(null);
+
+  // Notify parent if component mounts with initial validated data
+  useEffect(() => {
+    if (initialValidated && initialRepo && onDataSubmit) {
+      // Use stored repoData if available, otherwise reconstruct it
+      const repoData = initialRepoData || {
+        name: initialRepo.split("/")[1] || initialRepo,
+        fullName: initialRepo,
+        htmlUrl: `https://github.com/${initialRepo}`,
+        defaultBranch: "main",
+        owner: initialRepo.split("/")[0] || "",
+        language: templateLanguage,
+        description: null,
+        cloneUrl: `https://github.com/${initialRepo}.git`,
+      };
+
+      onDataSubmit({
+        repo: initialRepo,
+        validated: true,
+        repoData,
+      });
+    }
+  }, []);
 
   // Fetch repositories when dialog opens and user is authenticated
   useEffect(() => {

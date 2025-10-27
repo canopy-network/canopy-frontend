@@ -588,7 +588,7 @@ export const useChainsStore = create<ChainsState>()(
             const query = filters.searchQuery.toLowerCase();
             filtered = filtered.filter(
               (chain) =>
-                chain.chain_name.toLowerCase().includes(query) ||
+                chain.token_name.toLowerCase().includes(query) ||
                 chain.chain_description.toLowerCase().includes(query) ||
                 chain.creator?.display_name?.toLowerCase().includes(query) ||
                 chain.creator?.wallet_address?.toLowerCase().includes(query)

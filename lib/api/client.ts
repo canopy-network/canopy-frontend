@@ -188,6 +188,21 @@ export class ApiClient {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
+      paramsSerializer: {
+        serialize: (params) => {
+          // Filter out undefined/null values and serialize
+          const filteredParams = Object.entries(params || {})
+            .filter(([_, value]) => value !== undefined && value !== null)
+            .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
+
+          // Use URLSearchParams for proper encoding
+          const searchParams = new URLSearchParams();
+          Object.entries(filteredParams).forEach(([key, value]) => {
+            searchParams.append(key, String(value));
+          });
+          return searchParams.toString();
+        },
+      },
     });
   }
 

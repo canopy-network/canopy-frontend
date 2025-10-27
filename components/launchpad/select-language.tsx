@@ -8,16 +8,25 @@ import { cn } from "@/lib/utils";
 import { Template } from "@/types";
 
 export default function SelectLanguage({
+  initialTemplate,
   onDataSubmit,
 }: {
+  initialTemplate?: Template | null;
   onDataSubmit: (data: Template) => void;
 }) {
   const { getActiveTemplates } = useTemplatesStore();
   const activeTemplates = getActiveTemplates();
   const [selectedLanguage, setSelectedLanguage] = useState<Template | null>(
-    null
+    initialTemplate || null
   );
   const router = useRouter();
+
+  // Update selected language when initial template changes (e.g., navigating back)
+  useEffect(() => {
+    if (initialTemplate && !selectedLanguage) {
+      setSelectedLanguage(initialTemplate);
+    }
+  }, [initialTemplate]);
 
   useEffect(() => {
     if (selectedLanguage) {
