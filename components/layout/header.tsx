@@ -61,7 +61,6 @@ export function Header() {
   const searchParams = useSearchParams();
   const currentChain = useChainsStore((state) => state.currentChain);
   const chains = useChainsStore((state) => state.chains);
-  const fetchChains = useChainsStore((state) => state.fetchChains);
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -86,29 +85,6 @@ export function Header() {
 
   // Get current filter from URL
   const projectStatus = searchParams.get("project_status") || "new";
-
-  // Fetch chains on mount if not already loaded
-  // BUT: Don't fetch on chain detail pages - they have their own fetch
-
-  console.log("[pathname hook]", pathname);
-
-  useEffect(() => {
-    const pathSegments = pathname.split("/").filter(Boolean);
-    const isDetailPage =
-      pathname.startsWith("/chain/") && pathSegments.length >= 2;
-
-    if (chains.length === 0 && !isDetailPage) {
-      console.log("[Header] Calling fetchChains()");
-      fetchChains();
-    } else {
-      console.log(
-        "[Header] Skipping fetchChains - isDetailPage:",
-        isDetailPage,
-        "chains.length:",
-        chains.length
-      );
-    }
-  }, [chains.length, fetchChains, pathname]);
 
   // Handle click outside to close search
   useEffect(() => {

@@ -5,8 +5,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChainDetailsHeader } from "@/components/chain/chain-details-header";
-import { ChainWithUI, useChainsStore } from "@/lib/stores/chains-store";
-import { VirtualPool } from "@/types/chains";
+import { useChainsStore } from "@/lib/stores/chains-store";
+import { Chain } from "@/types/chains";
 import { ChainDetailChart } from "@/components/charts/chain-detail-chart";
 import { WalletContent } from "../wallet/wallet-content";
 import { BlockExplorerTable } from "./block-explorer-table";
@@ -24,11 +24,12 @@ import {
 } from "@/lib/api";
 
 interface ChainDetailsProps {
-  chain: ChainWithUI;
-  virtualPool?: VirtualPool | null;
+  chain: Chain;
 }
 
-export function ChainDetails({ chain, virtualPool }: ChainDetailsProps) {
+export function ChainDetails({ chain }: ChainDetailsProps) {
+  // Extract virtual pool from chain if included
+  const virtualPool = chain.virtual_pool;
   const [selectedTimeframe, setSelectedTimeframe] = useState("1D");
   const [selectedMetric, setSelectedMetric] = useState<
     "price" | "volume" | "marketCap"

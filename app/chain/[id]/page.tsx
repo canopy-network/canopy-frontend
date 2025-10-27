@@ -1,10 +1,10 @@
 "use client";
 import { ChainDetails } from "@/components/chain/chain-details";
-import { convertToChainWithUI } from "@/lib/utils/chain-converter";
-import { useState } from "react";
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/layout/container";
+import { chainsApi } from "@/lib/api";
+import { Chain } from "@/types/chains";
 
 // Force dynamic rendering to ensure params are always fresh
 export const dynamic = "force-dynamic";
@@ -14,10 +14,6 @@ interface ChainPageProps {
   params: {
     id: string;
   };
-}
-
-interface ApiResponse {
-  data: any; // The chain data is directly in the data property
 }
 
 // export default async function ChainPage({ params }: ChainPageProps) {
@@ -134,8 +130,7 @@ interface ApiResponse {
 // }
 
 export default function ChainPage({ params }: ChainPageProps) {
-  const [chainWithUI, setChainWithUI] = useState<any>(null);
-  const [virtualPool, setVirtualPool] = useState<any>(null);
+  const [chain, setChain] = useState<Chain | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -147,96 +142,45 @@ export default function ChainPage({ params }: ChainPageProps) {
 
         console.log("Chain ID from params (raw):", params.id);
         console.log("Chain ID from params (decoded):", chainId);
-
-        // Client-side fetch - use public API URL
-        const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "").trim();
-
-        const requestUrl = `${apiUrl}/api/v1/chains/${chainId}`;
-        console.log("Environment: CLIENT");
-        console.log("Using API URL:", apiUrl);
-        console.log("Requesting URL:", requestUrl);
-        console.log("Chain ID being sent:", chainId);
         console.log("Client-side fetch starting at:", new Date().toISOString());
 
-        // Use fetch with proper timeout and error handling
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+        // Fetch chain with all related data using include parameter
+        const response = await chainsApi.getChain(chainId, {
+          include:
+            "creator,template,assets,virtual_pool,repository,social_links",
+        });
 
-        let chainData;
-        let fetchedVirtualPool = null;
+        console.log("Response received at:", new Date().toISOString());
 
-        try {
-          const response = await fetch(requestUrl, {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            signal: controller.signal,
-            cache: "no-store", // Don't cache during development/testing
+        if (!response.data) {
+          console.error("API returned no chain data:", {
+            responseData: response,
+            chainId: chainId,
           });
-
-          clearTimeout(timeoutId);
-
-          console.log("Response received at:", new Date().toISOString());
-          console.log("Response Status:", response.status);
-          console.log("Response OK:", response.ok);
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error("API request failed:", {
-              status: response.status,
-              statusText: response.statusText,
-              url: response.url,
-              body: errorText,
-            });
-            notFound();
-            return;
-          }
-
-          const data: ApiResponse = await response.json();
-
-          if (!data.data) {
-            console.error("API returned no chain data:", {
-              responseData: data,
-              chainId: chainId,
-            });
-            notFound();
-            return;
-          }
-
-          chainData = data.data;
-        } catch (fetchError) {
-          clearTimeout(timeoutId);
-
-          if (fetchError instanceof Error && fetchError.name === "AbortError") {
-            console.error("Request timed out after 30 seconds:", {
-              requestUrl,
-              chainId,
-            });
-          } else {
-            console.error("Fetch error:", {
-              error: fetchError,
-              message:
-                fetchError instanceof Error
-                  ? fetchError.message
-                  : "Unknown error",
-              requestUrl,
-              chainId,
-            });
-          }
-          throw fetchError;
+          notFound();
+          return;
         }
 
-        //TODO: We need to get rid of the ChainWithUI converter and just use the Chain type for all components
+        console.log("DEEP: Chain Page - [response.data]", response.data);
 
-        // Convert to ChainWithUI format
-        const convertedChain = convertToChainWithUI(
-          chainData,
-          fetchedVirtualPool
-        );
+        const branding = response.data.assets?.find(
+          (asset) => asset.asset_type === "logo"
+        )?.file_url;
 
-        setChainWithUI(convertedChain);
-        setVirtualPool(fetchedVirtualPool);
+        const media = response.data.assets
+          ?.filter((asset: any) =>
+            ["media", "screenshot", "banner"].includes(asset.asset_type)
+          )
+          ?.map((asset) => asset.file_url);
+
+        console.log(`DEEP: Chain Page -`, media);
+        const chain = {
+          ...response.data,
+          branding,
+          media,
+        };
+
+        setChain(chain);
         setLoading(false);
       } catch (error) {
         console.error("Error in page component:", {
@@ -245,7 +189,6 @@ export default function ChainPage({ params }: ChainPageProps) {
           stack: error instanceof Error ? error.stack : undefined,
           chainId: params?.id || "unknown",
           rawParamsId: params?.id,
-          apiUrl: (process.env.NEXT_PUBLIC_API_URL || "").trim(),
         });
         setError(error as Error);
         setLoading(false);
@@ -263,15 +206,14 @@ export default function ChainPage({ params }: ChainPageProps) {
     );
   }
 
-  if (error || !chainWithUI) {
+  if (error || !chain) {
     notFound();
     return null;
   }
 
   return (
     <Container type="boxed">
-      {" "}
-      <ChainDetails chain={chainWithUI} virtualPool={virtualPool} />{" "}
+      <ChainDetails chain={chain} />
     </Container>
   );
 }

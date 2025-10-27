@@ -50,23 +50,20 @@ export default function CreatorPage({ params }: CreatorPageProps) {
   const chains = useChainsStore((state) => state.chains);
   const isLoading = useChainsStore((state) => state.isLoading);
   const fetchChains = useChainsStore((state) => state.fetchChains);
-  const getChainsWithUI = useChainsStore((state) => state.getChainsWithUI);
 
   // Fetch chains on mount
   useEffect(() => {
     if (chains.length === 0) {
-      fetchChains({ include: ["template", "creator"] });
+      fetchChains({ include: "template,creator,virtual_pool" });
     }
   }, [chains.length, fetchChains]);
 
-  // Get chains with UI data
-  const chainsWithUI = getChainsWithUI();
-
   // Filter chains by status
-  const newChains = chainsWithUI.filter(
-    (chain) => chain.status === "active" || chain.status === "pending"
+  const newChains = chains.filter(
+    (chain) =>
+      chain.status === "virtual_active" || chain.status === "pending_launch"
   );
-  const graduatedChains = chainsWithUI.filter(
+  const graduatedChains = chains.filter(
     (chain) => chain.status === "graduated"
   );
 

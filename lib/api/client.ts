@@ -200,7 +200,10 @@ export class ApiClient {
           Object.entries(filteredParams).forEach(([key, value]) => {
             searchParams.append(key, String(value));
           });
-          return searchParams.toString();
+
+          const queryString = searchParams.toString();
+
+          return queryString;
         },
       },
     });
@@ -238,15 +241,6 @@ export class ApiClient {
     // Response interceptor - Handle responses and errors
     this.axiosInstance.interceptors.response.use(
       (response: AxiosResponse) => {
-        // Log response time for debugging
-        const duration =
-          Date.now() - ((response.config as any).metadata?.startTime || 0);
-        console.debug(`API Request completed in ${duration}ms:`, {
-          url: response.config.url,
-          method: response.config.method,
-          status: response.status,
-        });
-
         return response;
       },
       (error: AxiosError) => {

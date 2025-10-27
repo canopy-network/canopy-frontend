@@ -6,6 +6,7 @@ interface ChainDetailsHeaderProps {
   chain: {
     chain_name: string;
     token_symbol: string;
+    branding?: string;
   };
 }
 
@@ -31,12 +32,22 @@ export function ChainDetailsHeader({ chain }: ChainDetailsHeaderProps) {
         {/* Left Section */}
         <div className="flex items-center gap-3">
           {/* Avatar */}
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: "rgb(59, 130, 246)" }}
-          >
-            <span className="text-sm font-bold text-black">{firstLetter}</span>
-          </div>
+          {chain.branding ? (
+            <img
+              src={chain.branding}
+              alt={`logo - ${chain.chain_name}`}
+              className="w-8 h-8 rounded-full"
+            />
+          ) : (
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: "rgb(59, 130, 246)" }}
+            >
+              <span className="text-sm font-bold text-black">
+                {firstLetter}
+              </span>
+            </div>
+          )}
 
           {/* Title and Badges */}
           <div className="space-y-1">
