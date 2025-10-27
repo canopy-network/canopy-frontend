@@ -31,11 +31,14 @@ export interface CreateChainFormData {
   tokenSupply: string;
   decimals: string;
   description: string;
+  halvingDays: string;
+  blockTime: string;
 
   // Step 4: Branding & Media
   logo: File | null;
   chainDescription: string;
   gallery: File[];
+  brandColor: string;
 
   // Step 5: Links & Documentation
   website: string;
@@ -89,11 +92,14 @@ const initialFormData: CreateChainFormData = {
   tokenSupply: "1000000000",
   decimals: "18",
   description: "",
+  halvingDays: "365",
+  blockTime: "10",
 
   // Step 4
   logo: null,
   chainDescription: "",
   gallery: [],
+  brandColor: "",
 
   // Step 5
   website: "",
@@ -176,7 +182,6 @@ export const useCreateChainStore = create<CreateChainState>()(
           currentStep: state.currentStep,
           completedSteps: state.completedSteps,
         }),
-        skipHydration: true,
       }
     ),
     { name: "CreateChainStore" }

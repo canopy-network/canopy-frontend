@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,9 +11,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Github, ExternalLink, CheckCircle2, Search, X } from "lucide-react";
-import { signIn, useSession } from "next-auth/react";
+import {
+  Github,
+  ExternalLink,
+  CheckCircle2,
+  Search,
+  X,
+  Loader2,
+  AlertCircle,
+} from "lucide-react";
+import { signIn, signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
+import { fetchUserRepositories, type Repository } from "@/lib/api/github-repos";
 
 interface ConnectRepoProps {
   initialRepo?: string;
@@ -23,13 +32,6 @@ interface ConnectRepoProps {
   onDataSubmit?: (data: { repo: string; validated: boolean }) => void;
 }
 
-interface Repository {
-  id: string;
-  name: string;
-  fullName: string;
-  forkedFrom?: string;
-}
-
 export default function ConnectRepo({
   initialRepo = "",
   initialValidated = false,
@@ -37,36 +39,42 @@ export default function ConnectRepo({
   templateLanguage = "python",
   onDataSubmit,
 }: ConnectRepoProps) {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [connectedRepo, setConnectedRepo] = useState<string | null>(
     initialValidated ? initialRepo : null
   );
   const [showRepoDialog, setShowRepoDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRepo, setSelectedRepo] = useState<Repository | null>(null);
+  const [repositories, setRepositories] = useState<Repository[]>([]);
+  const [isLoadingRepos, setIsLoadingRepos] = useState(false);
+  const [repoError, setRepoError] = useState<string | null>(null);
 
-  // Mock repositories - replace with actual GitHub API call
-  const mockRepositories: Repository[] = [
-    {
-      id: "1",
-      name: "chain-python",
-      fullName: "eliezerpujols/chain-python",
-      forkedFrom: "canopy/chain-template-python",
-    },
-    {
-      id: "2",
-      name: "my-blockchain",
-      fullName: "eliezerpujols/my-blockchain",
-    },
-    {
-      id: "3",
-      name: "python-template-fork",
-      fullName: "eliezerpujols/python-template-fork",
-      forkedFrom: "canopy/chain-template-python",
-    },
-  ];
+  // Fetch repositories when dialog opens and user is authenticated
+  useEffect(() => {
+    if (showRepoDialog && session?.accessToken && repositories.length === 0) {
+      loadRepositories();
+    }
+  }, [showRepoDialog, session?.accessToken]);
 
-  const filteredRepos = mockRepositories.filter(
+  const loadRepositories = async () => {
+    if (!session?.accessToken) return;
+
+    setIsLoadingRepos(true);
+    setRepoError(null);
+
+    try {
+      const repos = await fetchUserRepositories(session.accessToken);
+      setRepositories(repos);
+    } catch (error) {
+      console.error("Error loading repositories:", error);
+      setRepoError("Failed to load repositories. Please try again.");
+    } finally {
+      setIsLoadingRepos(false);
+    }
+  };
+
+  const filteredRepos = repositories.filter(
     (repo) =>
       repo.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       repo.fullName.toLowerCase().includes(searchQuery.toLowerCase())
@@ -81,13 +89,13 @@ export default function ConnectRepo({
   };
 
   const handleConnectRepository = () => {
-    // if (!session) {
-    // Initialize GitHub OAuth flow
-    signIn("github");
-    // } else {
-    //   // Show repository selection dialog
-    //   setShowRepoDialog(true);
-    // }
+    if (!session) {
+      // Initialize GitHub OAuth flow - user authorizes Canopy to access their repos
+      signIn("github", { callbackUrl: window.location.href });
+    } else {
+      // User is authenticated - show repository selection dialog
+      setShowRepoDialog(true);
+    }
   };
 
   const handleSelectRepository = () => {
@@ -102,14 +110,18 @@ export default function ConnectRepo({
     }
   };
 
-  const handleDisconnect = () => {
+  const handleDisconnect = async () => {
     setConnectedRepo(null);
     setSelectedRepo(null);
+    setRepositories([]);
 
     // Notify parent
     if (onDataSubmit) {
       onDataSubmit({ repo: "", validated: false });
     }
+
+    // Sign out from GitHub
+    await signOut({ redirect: false });
   };
 
   const getLanguageIcon = (lang: string) => {
@@ -215,7 +227,7 @@ export default function ConnectRepo({
 
               <div className="border rounded-lg p-4">
                 {!connectedRepo ? (
-                  <div className="flex flex-col items-center space-y-4">
+                  <div className="flex flex-col items-center space-y-4 py-2">
                     <Github className="w-12 h-12 text-muted-foreground" />
                     <div className="text-center space-y-1">
                       <p className="font-medium">Connect Your Repository</p>
@@ -223,14 +235,45 @@ export default function ConnectRepo({
                         You can always update your code later.
                       </p>
                     </div>
-                    <Button
-                      onClick={handleConnectRepository}
-                      variant="outline"
-                      className="gap-2"
-                    >
-                      <Github className="w-4 h-4" />
-                      Connect Repository
-                    </Button>
+                    {status === "loading" ? (
+                      <Button variant="outline" disabled className="gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Loading...
+                      </Button>
+                    ) : !session ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <Button
+                          onClick={handleConnectRepository}
+                          variant="outline"
+                          className="gap-2"
+                        >
+                          <Github className="w-4 h-4" />
+                          Authorize GitHub
+                        </Button>
+                        <p className="text-xs text-muted-foreground">
+                          Canopy needs permission to read your repositories
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <Button
+                          onClick={handleConnectRepository}
+                          variant="outline"
+                          className="gap-2"
+                        >
+                          <Github className="w-4 h-4" />
+                          Select Repository
+                        </Button>
+
+                        <Button
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive text-xs px-2"
+                          onClick={handleDisconnect}
+                        >
+                          Disconnect
+                        </Button>
+                      </>
+                    )}
                   </div>
                 ) : (
                   <div className="flex items-center justify-between">
@@ -304,41 +347,75 @@ export default function ConnectRepo({
 
             {/* Repository List */}
             <div className="space-y-2 max-h-[400px] overflow-y-auto">
-              {filteredRepos.map((repo) => (
-                <div
-                  key={repo.id}
-                  className={cn(
-                    "border-2 rounded-lg p-4 cursor-pointer transition-all",
-                    selectedRepo?.id === repo.id
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/50"
-                  )}
-                  onClick={() => setSelectedRepo(repo)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <p className="font-medium">{repo.fullName}</p>
-                      {repo.forkedFrom && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Forked from {repo.forkedFrom}
-                        </p>
+              {isLoadingRepos ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  <p className="text-sm text-muted-foreground">
+                    Loading your repositories...
+                  </p>
+                </div>
+              ) : repoError ? (
+                <div className="flex flex-col items-center py-8 gap-3">
+                  <AlertCircle className="w-8 h-8 text-destructive" />
+                  <div className="text-center">
+                    <p className="text-destructive font-medium">{repoError}</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Make sure you've authorized Canopy to access your repos
+                    </p>
+                  </div>
+                  <Button
+                    onClick={loadRepositories}
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                  >
+                    Retry
+                  </Button>
+                </div>
+              ) : filteredRepos.length > 0 ? (
+                filteredRepos.map((repo) => (
+                  <div
+                    key={repo.id}
+                    className={cn(
+                      "border-2 rounded-lg p-4 cursor-pointer transition-all",
+                      selectedRepo?.id === repo.id
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50"
+                    )}
+                    onClick={() => setSelectedRepo(repo)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="font-medium">{repo.fullName}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          {repo.forkedFrom && (
+                            <p className="text-xs text-muted-foreground">
+                              Forked from {repo.forkedFrom}
+                            </p>
+                          )}
+                          {repo.language && (
+                            <span className="text-xs bg-muted px-2 py-0.5 rounded">
+                              {repo.language}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {selectedRepo?.id === repo.id && (
+                        <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 ml-2" />
                       )}
                     </div>
-                    {selectedRepo?.id === repo.id && (
-                      <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 ml-2" />
-                    )}
                   </div>
-                </div>
-              ))}
-
-              {filteredRepos.length === 0 && (
+                ))
+              ) : repositories.length === 0 && !isLoadingRepos ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <p>No repositories found</p>
                   <p className="text-sm mt-1">
-                    Make sure you've forked the template first
+                    {searchQuery
+                      ? "Try a different search term"
+                      : "Make sure you've forked the template first"}
                   </p>
                 </div>
-              )}
+              ) : null}
             </div>
 
             {/* Actions */}

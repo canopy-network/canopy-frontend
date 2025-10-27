@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import SelectLanguage from "@/components/launchpad/select-language";
 import ConnectRepo from "@/components/launchpad/connect-repo";
@@ -19,6 +19,13 @@ import { Template } from "@/types";
 export default function LaunchpadPage() {
   // Initialize templates on mount
   useInitializeTemplates();
+
+  // Hydration state to prevent SSR/client mismatch with persisted store
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   const router = useRouter();
   const {
@@ -80,6 +87,7 @@ export default function LaunchpadPage() {
       logo: File | null;
       chainDescription: string;
       gallery: File[];
+      brandColor: string;
     },
     isValid: boolean
   ) => {
@@ -181,6 +189,18 @@ export default function LaunchpadPage() {
     }
   };
 
+  // Show loading spinner while hydrating persisted data from localStorage
+  if (!isHydrated) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1">
@@ -222,6 +242,7 @@ export default function LaunchpadPage() {
               logo: formData.logo,
               chainDescription: formData.chainDescription,
               gallery: formData.gallery,
+              brandColor: formData.brandColor,
             }}
             onDataSubmit={handleBrandingSubmit}
           />

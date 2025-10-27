@@ -92,9 +92,6 @@ export function Header() {
 
   console.log("[pathname hook]", pathname);
 
-  if (pathname.includes("/launchpad")) {
-    return null;
-  }
   useEffect(() => {
     const pathSegments = pathname.split("/").filter(Boolean);
     const isDetailPage =
@@ -154,6 +151,11 @@ export function Header() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isHomepageSearchOpen]);
+
+  // Early return for launchpad pages - after all hooks
+  if (pathname.includes("/launchpad")) {
+    return null;
+  }
 
   // Chain search filter
   const filteredChains = searchQuery.trim()

@@ -97,6 +97,14 @@ export {
   type UploadResponse,
 } from "./media";
 
+// GitHub API
+export {
+  fetchUserRepositories,
+  verifyRepositoryOwnership,
+  getGitHubUser,
+  type Repository as GitHubRepository,
+} from "./github-repos";
+
 // ============================================================================
 // CONVENIENCE RE-EXPORTS
 // ============================================================================
