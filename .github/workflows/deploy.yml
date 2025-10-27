@@ -82,10 +82,10 @@ jobs:
             docker system prune -af --filter "until=24h" || true
             docker volume prune -f || true
 
-            # Build the Docker image with environment variables (removed --no-cache for disk space)
+            # Build the Docker image with environment variables
             echo -e "${YELLOW}=== Building Docker image ===${NC}"
             echo "Using API URL: $NEXT_PUBLIC_API_URL"
-            if ! NEXT_PUBLIC_API_URL="$NEXT_PUBLIC_API_URL" $DOCKER_COMPOSE build canopy-frontend; then
+            if ! NEXT_PUBLIC_API_URL="$NEXT_PUBLIC_API_URL" $DOCKER_COMPOSE build --no-cache canopy-frontend; then
               echo -e "${RED}Error: Docker build failed${NC}"
               exit 1
             fi

@@ -13,7 +13,10 @@ WORKDIR /app
 
 # Install dependencies based on the preferred package manager
 COPY package.json package-lock.json* ./
-RUN npm ci
+# Use npm ci to install dependencies
+RUN npm ci --include=optional --force
+# Explicitly install the platform-specific lightningcss binary
+RUN npm install --no-save --force @lightningcss/linux-x64-gnu || true
 
 # Rebuild the source code only when needed
 FROM base AS builder
@@ -27,8 +30,8 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Rebuild native modules for the current platform
-RUN npm rebuild lightningcss --verbose
+# Rebuild native modules for the current platform to ensure compatibility
+RUN npm rebuild
 
 # Accept build arguments for Next.js public env vars
 ARG NEXT_PUBLIC_API_URL
