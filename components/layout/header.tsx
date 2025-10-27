@@ -89,18 +89,16 @@ export function Header() {
 
   // Fetch chains on mount if not already loaded
   // BUT: Don't fetch on chain detail pages - they have their own fetch
+
+  console.log("[pathname hook]", pathname);
+
+  if (pathname.includes("/launchpad")) {
+    return null;
+  }
   useEffect(() => {
     const pathSegments = pathname.split("/").filter(Boolean);
     const isDetailPage =
       pathname.startsWith("/chain/") && pathSegments.length >= 2;
-
-    console.log("[Header] useEffect triggered:", {
-      pathname,
-      pathSegments,
-      isDetailPage,
-      chainsLength: chains.length,
-      willFetch: chains.length === 0 && !isDetailPage,
-    });
 
     if (chains.length === 0 && !isDetailPage) {
       console.log("[Header] Calling fetchChains()");

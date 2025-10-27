@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Heart, ChevronDown, Copy, ExternalLink } from "lucide-react";
 import Link from "next/link";
-import { SmallProjectCard } from "@/components/launchpad/small-project-card";
+import { SmallProjectCard } from "@/components/chain/small-project-card";
 import { useChainsStore } from "@/lib/stores/chains-store";
 
 // Force dynamic rendering

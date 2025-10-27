@@ -133,8 +133,8 @@ export function Sidebar() {
         </button>
 
         {isLoggedIn && (
-          <button
-            onClick={open}
+          <Link
+            href="/launchpad/language"
             className={cn(
               "flex items-center rounded-full bg-transparent text-sm font-medium text-white hover:bg-white/5 transition-colors",
               isCondensed ? "w-10 h-10 justify-center" : "w-full h-9 gap-3 pl-4"
@@ -149,7 +149,7 @@ export function Sidebar() {
             >
               Create L1 chain
             </span>
-          </button>
+          </Link>
         )}
       </div>
 
@@ -190,26 +190,28 @@ export function Sidebar() {
           {/* Email Authentication */}
           {isLoggedIn && user ? (
             <>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 p-2 bg-[#1a1a1a] rounded-lg">
-                  <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center">
+              <Button
+                onClick={() => setLoginDialogOpen(true)}
+                variant="clear"
+                className="w-full  py-3 px-2 rounded-xl"
+              >
+                <div className="h-6 w-6 min-w-6  rounded-full bg-primary flex items-center justify-center">
+                  {user.avatar_url ? (
+                    <img
+                      src={user.avatar_url}
+                      alt={user.email || ""}
+                      className="h-6 w-6  min-w-6 rounded-full"
+                    />
+                  ) : (
                     <span className="text-primary-foreground text-xs font-bold">
-                      {user.email?.charAt(0)?.toUpperCase()}
+                      {user.email?.slice(0, 2).toUpperCase()}
                     </span>
-                  </div>
-                  <span className="text-sm text-white truncate">
-                    {user.email?.charAt(0)?.toUpperCase()}
-                  </span>
+                  )}
                 </div>
-                <Button
-                  onClick={() => setLoginDialogOpen(true)}
-                  variant="outline"
-                  size="sm"
-                  className="w-full text-xs"
-                >
-                  Manage Account
-                </Button>
-              </div>
+                <span className="text-sm text-white truncate">
+                  {user.email}
+                </span>
+              </Button>
             </>
           ) : (
             <Button
@@ -223,43 +225,6 @@ export function Sidebar() {
           )}
 
           {isLoggedIn && <WalletConnectButton />}
-
-          {/* GitHub Login Button - Only show if logged in */}
-          {isLoggedIn && (
-            <div className="space-y-2">
-              {session ? (
-                <>
-                  <div className="flex items-center gap-2 p-2 bg-[#1a1a1a] rounded-lg">
-                    <img
-                      src={session.user?.image || ""}
-                      alt={session.user?.name || ""}
-                      className="w-6 h-6 rounded-full"
-                    />
-                    <span className="text-sm text-white truncate">
-                      {session.user?.name || session.user?.email}
-                    </span>
-                  </div>
-                  <Button
-                    onClick={() => signOut()}
-                    variant="outline"
-                    size="sm"
-                    className="w-full text-xs"
-                  >
-                    Sign Out
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  onClick={() => signIn("github")}
-                  variant="outline"
-                  className="w-full justify-start gap-2 bg-transparent hover:bg-[#1a1a1a] text-white border-[#2a2a2a]"
-                >
-                  <Github className="h-4 w-4" />
-                  Connect GitHub
-                </Button>
-              )}
-            </div>
-          )}
         </div>
       </div>
 

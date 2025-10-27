@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dropdown, DropdownOption } from "@/components/ui/dropdown";
 import { BondingCurveChart } from "./bonding-curve-chart";
-import { OnboardingGuide } from "./onboarding-guide";
+import { OnboardingGuide } from "../launchpad/onboarding-guide";
 import { SmallProjectCard } from "./small-project-card";
 import { ProjectCard } from "./project-card";
 import { RecentsProjectsCarousel } from "./recents-projects-carousel";
