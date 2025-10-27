@@ -344,9 +344,9 @@ export interface GetChainsParams {
   status?: ChainStatus;
   creator?: string;
   template_id?: string;
-  include?: string; // Comma-separated: template,creator,assets,virtual_pool,repository,social_links
   page?: number;
   limit?: number;
+  include?: string;
 }
 
 /**

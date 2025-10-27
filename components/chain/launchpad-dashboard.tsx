@@ -164,15 +164,10 @@ export function LaunchpadDashboard() {
   const {
     // Data
     chains,
-    featuredProject,
     filteredChains,
-    categoryOptions,
 
     // Loading states
     isLoading,
-    isCreating,
-    isDeleting,
-
     // Error handling
     error,
     clearError,

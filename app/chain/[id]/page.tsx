@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useEffect } from "react";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/layout/container";
+import { apiClient } from "@/lib/api/client";
 
 // Force dynamic rendering to ensure params are always fresh
 export const dynamic = "force-dynamic";
@@ -14,10 +15,6 @@ interface ChainPageProps {
   params: {
     id: string;
   };
-}
-
-interface ApiResponse {
-  data: any; // The chain data is directly in the data property
 }
 
 // export default async function ChainPage({ params }: ChainPageProps) {
@@ -147,85 +144,26 @@ export default function ChainPage({ params }: ChainPageProps) {
 
         console.log("Chain ID from params (raw):", params.id);
         console.log("Chain ID from params (decoded):", chainId);
-
-        // Client-side fetch - use public API URL
-        const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "").trim();
-
-        const requestUrl = `${apiUrl}/api/v1/chains/${chainId}`;
-        console.log("Environment: CLIENT");
-        console.log("Using API URL:", apiUrl);
-        console.log("Requesting URL:", requestUrl);
-        console.log("Chain ID being sent:", chainId);
         console.log("Client-side fetch starting at:", new Date().toISOString());
 
-        // Use fetch with proper timeout and error handling
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+        // Use axios client with include parameters
+        const response = await apiClient.get<any>(`/api/v1/chains/${chainId}`, {
+          include: "creator,repository,social_links,assets,virtual_pool",
+        });
 
-        let chainData;
-        let fetchedVirtualPool = null;
+        console.log("Response received at:", new Date().toISOString());
 
-        try {
-          const response = await fetch(requestUrl, {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            signal: controller.signal,
-            cache: "no-store", // Don't cache during development/testing
+        if (!response.data) {
+          console.error("API returned no chain data:", {
+            responseData: response,
+            chainId: chainId,
           });
-
-          clearTimeout(timeoutId);
-
-          console.log("Response received at:", new Date().toISOString());
-          console.log("Response Status:", response.status);
-          console.log("Response OK:", response.ok);
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error("API request failed:", {
-              status: response.status,
-              statusText: response.statusText,
-              url: response.url,
-              body: errorText,
-            });
-            notFound();
-            return;
-          }
-
-          const data: ApiResponse = await response.json();
-
-          if (!data.data) {
-            console.error("API returned no chain data:", {
-              responseData: data,
-              chainId: chainId,
-            });
-            notFound();
-            return;
-          }
-
-          chainData = data.data;
-        } catch (fetchError) {
-          clearTimeout(timeoutId);
-
-          if (fetchError instanceof Error && fetchError.name === "AbortError") {
-            console.error("Request timed out after 30 seconds:", {
-              requestUrl,
-              chainId,
-            });
-          } else {
-            console.error("Fetch error:", {
-              error: fetchError,
-              message:
-                fetchError instanceof Error
-                  ? fetchError.message
-                  : "Unknown error",
-              requestUrl,
-              chainId,
-            });
-          }
-          throw fetchError;
+          notFound();
+          return;
         }
+
+        const chainData = response.data;
+        const fetchedVirtualPool = null;
 
         //TODO: We need to get rid of the ChainWithUI converter and just use the Chain type for all components
 

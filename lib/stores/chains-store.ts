@@ -28,6 +28,7 @@ import {
   GetChainsParams,
   ChainAsset,
 } from "@/types/chains";
+import axios from "axios";
 // We'll define our own UI types here instead of using placeholder types
 
 // ============================================================================
@@ -393,6 +394,7 @@ export const useChainsStore = create<ChainsState>()(
         //chris@santana.com
         // 0cd21689-de6c-4b65-ad4d-178179a07161
         fetchChains: async (params) => {
+          console.log("DEEP: Chain Store - [params]", params);
           const state = get();
 
           // Prevent concurrent fetches
@@ -412,6 +414,10 @@ export const useChainsStore = create<ChainsState>()(
               processChainAssets(chain)
             );
 
+            console.log(
+              "DEEP: Chain Store - [processedChains]",
+              processedChains
+            );
             set({
               chains: processedChains,
               isLoading: false,

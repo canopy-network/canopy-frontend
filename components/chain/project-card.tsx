@@ -3,6 +3,7 @@
 import React from "react";
 import { Card } from "@/components/ui/card";
 import { TrendingUp, Users, Target } from "lucide-react";
+import Link from "next/link";
 import { ChainWithUI } from "@/lib/stores/chains-store";
 import { VirtualPool } from "@/types/chains";
 import { formatKilo } from "@/lib/utils";
@@ -140,20 +141,30 @@ export const ProjectCard = ({
   const projectColor = generateProjectColor(project.chain_name);
 
   return (
-    <Card className="rounded-xl border text-card-foreground shadow p-6 pb-0 bg-gradient-to-br from-card to-muted/20 cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all">
+    <Card className="rounded-xl border text-card-foreground   p-6 pb-0 bg-gradient-to-br from-card to-muted/20  hover:ring-2 hover:ring-primary/20 transition-all">
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8">
         {/* Left Column */}
         <div className="space-y-6">
           {/* Header */}
           <div className="flex items-start gap-3">
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: projectColor }}
-            >
-              <span className="text-base font-bold text-black">
-                {project.chain_name.charAt(0).toUpperCase()}
-              </span>
-            </div>
+            <Link href={`/chain/${project.id}`}>
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: projectColor }}
+              >
+                {project.branding ? (
+                  <img
+                    src={project.branding}
+                    alt={`logo - ${project.chain_name}`}
+                    className="w-10 h-10 rounded-full"
+                  />
+                ) : (
+                  <span className="text-base font-bold text-black">
+                    {project.chain_name.charAt(0).toUpperCase()}
+                  </span>
+                )}
+              </div>
+            </Link>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-medium">${project.token_symbol}</h3>
@@ -188,10 +199,12 @@ export const ProjectCard = ({
             </div>
           </div>
 
-          {/* Title */}
-          <h2 className="text-2xl font-bold leading-tight">
-            {project.chain_description}
-          </h2>
+          <Link href={`/chain/${project.id}`}>
+            {/* Title */}
+            <h2 className="text-2xl font-bold leading-tight">
+              {project.chain_description}
+            </h2>
+          </Link>
 
           {/* Description */}
           <p className="text-sm text-muted-foreground leading-relaxed">

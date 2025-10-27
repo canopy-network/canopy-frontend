@@ -161,13 +161,25 @@ export const SmallProjectCard = ({
         <div className="flex items-center gap-4 p-4">
           {/* Avatar + Name */}
           <div className="flex items-center gap-3 min-w-[200px]">
-            <div
-              className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${iconData.gradient}`}
-            >
-              <span className="text-sm font-bold text-white">
-                {project.chain_name.charAt(0).toUpperCase()}
-              </span>
-            </div>
+            {project.branding ? (
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${project.brand_color}`}
+              >
+                <img
+                  src={project.branding}
+                  alt={`logo - ${project.chain_name}`}
+                  className="w-10 h-10 rounded-full"
+                />
+              </div>
+            ) : (
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${project.brand_color}`}
+              >
+                <span className="text-sm font-bold text-white">
+                  {project.chain_name.charAt(0).toUpperCase()}
+                </span>
+              </div>
+            )}
             <div>
               <h3 className="text-sm font-semibold">{project.chain_name}</h3>
               <p className="text-xs text-muted-foreground">
@@ -241,13 +253,25 @@ export const SmallProjectCard = ({
       {/* Header: Avatar + Title + Icons */}
       <div className="flex items-center gap-3">
         {/* Avatar */}
-        <div
-          className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${iconData.gradient}`}
-        >
-          <span className="text-sm font-bold text-white">
-            {project.chain_name.charAt(0).toUpperCase()}
-          </span>
-        </div>
+        {project.branding ? (
+          <div
+            className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${project.brand_color}`}
+          >
+            <img
+              src={project.branding}
+              alt={`logo - ${project.chain_name}`}
+              className="w-10 h-10 rounded-full"
+            />
+          </div>
+        ) : (
+          <div
+            className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${iconData.gradient}`}
+          >
+            <span className="text-sm font-bold text-white">
+              {project.chain_name.charAt(0).toUpperCase()}
+            </span>
+          </div>
+        )}
 
         {/* Title, Ticker, and Hexagon Icons */}
         <div className="flex-1 min-w-0">
