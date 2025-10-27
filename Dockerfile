@@ -13,10 +13,8 @@ WORKDIR /app
 
 # Install dependencies based on the preferred package manager
 COPY package.json package-lock.json* ./
-# Use npm ci to install dependencies
-RUN npm ci --include=optional --force
-# Explicitly install the platform-specific lightningcss binary
-RUN npm install --no-save --force @lightningcss/linux-x64-gnu || true
+# Use npm ci to install dependencies including optional platform-specific binaries
+RUN npm ci --include=optional
 
 # Rebuild the source code only when needed
 FROM base AS builder
