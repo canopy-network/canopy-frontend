@@ -26,7 +26,7 @@ export function WalletConnectButton() {
     <Button
       onClick={connectWallet}
       disabled={isConnecting}
-      className="gap-2 w-full bg-transparent border-[#2a2a2a] text-white hover:bg-[#1a1a1a]"
+      className="gap-2 w-full bg-transparent border-green-600/50 text-green-500 hover:bg-green-950/30 hover:border-green-600 h-12 rounded-2xl font-medium"
       variant="outline"
     >
       {isConnecting ? (
@@ -34,7 +34,7 @@ export function WalletConnectButton() {
       ) : (
         <Wallet className="h-4 w-4" />
       )}
-      {isConnecting ? "Connecting..." : "Connect Wallet"}
+      {isConnecting ? "Connecting..." : "Connect wallet"}
     </Button>
   );
 }

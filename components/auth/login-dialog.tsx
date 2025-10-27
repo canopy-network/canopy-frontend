@@ -14,6 +14,7 @@ import { Loader2, Mail, CheckCircle2, LogOut, ArrowLeft } from "lucide-react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { sendEmailCode, verifyCode } from "@/lib/api/auth";
 import axios from "axios";
+import { API_CONFIG } from "@/lib/config/api";
 
 type AuthStep = "initial" | "email" | "code" | "authenticated";
 
@@ -35,13 +36,6 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
   const [devCode, setDevCode] = useState<string | null>(null);
   const [resendTimer, setResendTimer] = useState(0);
   const [isResending, setIsResending] = useState(false);
-
-  // Sync step with authentication state when dialog opens
-  useEffect(() => {
-    if (open) {
-      setStep(isAuthenticated ? "authenticated" : "initial");
-    }
-  }, [open, isAuthenticated]);
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,23 +102,31 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
     setError(null);
 
     try {
-      console.log("🟢 [LoginDialog] Verifying code...");
-      const response = await axios.post(
-        `http://app.neochiba.net:3001/api/v1/auth/verify`,
+      const verifyResponse = await axios.post(
+        `${API_CONFIG.baseURL}/api/v1/auth/verify`,
         {
           email,
           code,
         }
       );
 
-      // Extract token from Authorization header
+      if (verifyResponse.status !== 200) {
+        setLocalError(verifyResponse.data.message);
+        return;
+      }
+
+      const response_body = verifyResponse.data;
+
+      console.log({ response_body });
+
       const authHeader =
-        response.headers["authorization"] || response.headers["Authorization"];
+        verifyResponse.headers["authorization"] ||
+        verifyResponse.headers["Authorization"];
       const token = authHeader ? authHeader.replace("Bearer ", "") : null;
 
       // Save the full user object and token from the API response
       // The auth store will handle storing to localStorage
-      setUser(response.data.data.user, token);
+      setUser(response_body.data.user, token);
 
       setStep("authenticated");
       setCode("");
@@ -134,7 +136,6 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
         onOpenChange(false);
       }, 1000);
     } catch (error: any) {
-      console.error("🔴 [LoginDialog] Verification failed:", error);
       setLocalError(
         error.message || "Failed to verify code. Please try again."
       );
@@ -166,7 +167,6 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
-      // Reset form when closing, but preserve auth state
       if (!isAuthenticated) {
         setStep("initial");
       }
@@ -181,16 +181,16 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
   };
 
   // Authenticated view
-  if (step === "authenticated" && user && user.email) {
+  if (step === "authenticated" && user) {
     return (
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader className="text-center">
-            <div className="mx-auto mb-4 h-12 w-12 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">
-                🌳
-              </span>
-            </div>
+            <img
+              src="/images/logo.svg"
+              alt="Logo"
+              className="invert h-4 mx-auto my-6"
+            />
             <DialogTitle className="text-2xl font-bold">
               Welcome back!
             </DialogTitle>
@@ -239,11 +239,11 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
           </button>
 
           <DialogHeader className="text-center">
-            <div className="mx-auto mb-4 h-12 w-12 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">
-                ✈️
-              </span>
-            </div>
+            <img
+              src="/images/logo.svg"
+              alt="Logo"
+              className="invert h-4 mx-auto my-6"
+            />
             <DialogTitle className="text-2xl font-bold">
               Verification code sent
             </DialogTitle>
@@ -355,11 +355,11 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader className="text-center">
-          <div className="mx-auto mb-4 h-12 w-12 rounded-lg bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-lg">
-              🌳
-            </span>
-          </div>
+          <img
+            src="/images/logo.svg"
+            alt="Logo"
+            className="invert h-4 mx-auto my-6"
+          />
           <DialogTitle className="text-2xl font-bold">
             Welcome to Canopy
           </DialogTitle>

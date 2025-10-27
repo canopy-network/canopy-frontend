@@ -70,7 +70,8 @@ export {
 export {
   getChainPriceHistory,
   getTimeRangeForTimeframe,
-  convertOHLCToChartData,
+  convertPriceHistoryToChart,
+  convertVolumeHistoryToChart,
   type PriceHistoryDataPoint,
 } from "./price-history";
 
@@ -95,6 +96,14 @@ export {
   type UploadResult,
   type UploadResponse,
 } from "./media";
+
+// GitHub API
+export {
+  fetchUserRepositories,
+  verifyRepositoryOwnership,
+  getGitHubUser,
+  type Repository as GitHubRepository,
+} from "./github-repos";
 
 // ============================================================================
 // CONVENIENCE RE-EXPORTS

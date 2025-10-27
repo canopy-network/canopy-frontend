@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLaunchpadDashboard } from "@/lib/hooks/use-launchpad-dashboard";
 import { useCreateChainDialog } from "@/lib/stores/use-create-chain-dialog";
 import { useChainsStore } from "@/lib/stores/chains-store";
@@ -9,10 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dropdown, DropdownOption } from "@/components/ui/dropdown";
 import { BondingCurveChart } from "./bonding-curve-chart";
-import { OnboardingGuide } from "./onboarding-guide";
+import { OnboardingGuide } from "../launchpad/onboarding-guide";
 import { SmallProjectCard } from "./small-project-card";
 import { ProjectCard } from "./project-card";
 import { RecentsProjectsCarousel } from "./recents-projects-carousel";
+import { SortDropdown } from "./sort-dropdown";
 import { ChainWithUI } from "@/lib/stores/chains-store";
 import {
   Plus,
@@ -25,8 +26,11 @@ import {
   TrendingUp,
   Heart,
   LucideIcon,
+  Grid3x3,
+  List,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Container } from "@/components/layout/container";
 
 // Tab configuration
 interface TabConfig {
@@ -154,6 +158,8 @@ export function LaunchpadDashboard() {
     null
   );
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [sortOption, setSortOption] = useState("default");
 
   const {
     // Data
@@ -186,34 +192,45 @@ export function LaunchpadDashboard() {
     includeVirtualPools: true,
   });
 
-  // Get virtual pools from the store for debugging
-  const { virtualPools } = useChainsStore();
+  // Sort the filtered chains based on the selected sort option
+  const sortedChains = useMemo(() => {
+    const chainsCopy = [...filteredChains];
 
-  // Use fallback data if no projects are loaded
-  const displayProjects = chains.length > 0 ? chains : fallbackProjects;
-  const displayFilteredProjects =
-    chains.length > 0 ? filteredChains : fallbackProjects;
-  const displayFeaturedProject =
-    chains.length > 0 ? featuredProject : fallbackProjects[0];
-
-  // Sorting options configuration
-  const sortOptions: DropdownOption[] = [
-    { value: "newest", label: "Newest First" },
-    { value: "oldest", label: "Oldest First" },
-    { value: "name-asc", label: "Name A-Z" },
-    { value: "name-desc", label: "Name Z-A" },
-    { value: "marketcap-high", label: "Market Cap High" },
-    { value: "marketcap-low", label: "Market Cap Low" },
-    { value: "progress-high", label: "Progress High" },
-    { value: "progress-low", label: "Progress Low" },
-    { value: "participants-high", label: "Participants High" },
-    { value: "participants-low", label: "Participants Low" },
-  ];
-
-  // Handle project selection for detailed view
-  const handleProjectSelect = (project: ChainWithUI) => {
-    setSelectedProject(project);
-  };
+    switch (sortOption) {
+      case "market-cap-high":
+        return chainsCopy.sort(
+          (a, b) => (b.marketCap || 0) - (a.marketCap || 0)
+        );
+      case "market-cap-low":
+        return chainsCopy.sort(
+          (a, b) => (a.marketCap || 0) - (b.marketCap || 0)
+        );
+      case "holders-high":
+        return chainsCopy.sort(
+          (a, b) => (b.participants || 0) - (a.participants || 0)
+        );
+      case "holders-low":
+        return chainsCopy.sort(
+          (a, b) => (a.participants || 0) - (b.participants || 0)
+        );
+      case "volume-high":
+        return chainsCopy.sort(
+          (a, b) => (b.volume24h || 0) - (a.volume24h || 0)
+        );
+      case "volume-low":
+        return chainsCopy.sort(
+          (a, b) => (a.volume24h || 0) - (b.volume24h || 0)
+        );
+      case "price-high":
+        return chainsCopy.sort((a, b) => (b.price || 0) - (a.price || 0));
+      case "price-low":
+        return chainsCopy.sort((a, b) => (a.price || 0) - (b.price || 0));
+      case "default":
+      default:
+        // Return chains in their original order (as received from API)
+        return chainsCopy;
+    }
+  }, [filteredChains, sortOption]);
 
   // Handle buy button click
   const handleBuyClick = (project: ChainWithUI) => {
@@ -264,8 +281,8 @@ export function LaunchpadDashboard() {
         </div>
       )}
 
-      {/* Main Content */}
-      <div className="container max-w-5xl mx-auto px-4 py-8">
+      <Container type="2xl">
+        {/* Main Content */}
         {/* Recent Projects Carousel */}
         <div className="mb-6 lg:mb-12">
           {chains.length > 0 ? (
@@ -287,55 +304,83 @@ export function LaunchpadDashboard() {
           onValueChange={setActiveTab}
           className="min-h-[400px]"
         >
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-4">
-            <div className="overflow-x-auto w-full lg:w-auto -mx-4 px-4 lg:mx-0 lg:px-0">
-              <TabsList className="bg-transparent border-none p-0 gap-4 mb-0 inline-flex">
-                {tabsConfig.map((tab) => {
-                  const Icon = tab.icon;
-                  return (
-                    <TabsTrigger
-                      key={tab.value}
-                      value={tab.value}
-                      className="primary-tab-button whitespace-nowrap"
-                    >
-                      <div className="flex items-center gap-2">
-                        {activeTab === tab.value && (
-                          <Icon className="w-4 h-4" />
-                        )}
-                        {tab.label}
-                      </div>
-                    </TabsTrigger>
-                  );
-                })}
-              </TabsList>
+          {/* Filter Bar */}
+          <div className="rounded-xl border border-border bg-card text-card-foreground shadow p-1 flex items-center justify-between mb-8">
+            {/* Left: Tab Buttons */}
+            <div className="flex items-center gap-1">
+              {tabsConfig.map((tab) => (
+                <Button
+                  key={tab.value}
+                  onClick={() => setActiveTab(tab.value)}
+                  variant={activeTab === tab.value ? "secondary" : "ghost"}
+                  size="sm"
+                  className={`rounded-md gap-1.5 h-9 px-4 ${
+                    activeTab === tab.value
+                      ? "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                      : "hover:bg-accent hover:text-accent-foreground"
+                  }`}
+                >
+                  {tab.label}
+                </Button>
+              ))}
             </div>
 
-            <div className="flex items-center gap-4 w-full lg:w-auto">
-              {/* TODO: Dropdown is not working as expected. */}
-              <Dropdown
-                options={categoryOptions}
-                value={selectedCategory}
-                onValueChange={setSelectedCategory}
-                placeholder="All Categories"
-                label="Category"
-              />
+            {/* Right: Sort and View Controls */}
+            <div className="flex items-center gap-2">
+              {/* Sort Dropdown */}
+              <SortDropdown value={sortOption} onSort={setSortOption} />
+
+              {/* View Toggle */}
+              <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
+                <Button
+                  onClick={() => setViewMode("grid")}
+                  variant={viewMode === "grid" ? "secondary" : "ghost"}
+                  size="sm"
+                  className={`h-8 w-8 p-0 ${
+                    viewMode === "grid"
+                      ? "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                      : "hover:bg-accent hover:text-accent-foreground"
+                  }`}
+                >
+                  <Grid3x3 className="w-4 h-4" />
+                </Button>
+                <Button
+                  onClick={() => setViewMode("list")}
+                  variant={viewMode === "list" ? "secondary" : "ghost"}
+                  size="sm"
+                  className={`h-8 w-8 p-0 ${
+                    viewMode === "list"
+                      ? "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                      : "hover:bg-accent hover:text-accent-foreground"
+                  }`}
+                >
+                  <List className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </div>
 
           <TabsContent value="all" className="space-y-4">
-            {/* Projects Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredChains.map((project) => (
+            {/* Projects Grid/List */}
+            <div
+              className={
+                viewMode === "grid"
+                  ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                  : "flex flex-col gap-3"
+              }
+            >
+              {sortedChains.map((project) => (
                 <SmallProjectCard
                   key={project.id}
                   project={project}
-                  href={`/launchpad/${project.id}`}
+                  href={`/chain/${project.id}`}
+                  viewMode={viewMode}
                 />
               ))}
             </div>
 
             {/* Empty State */}
-            {filteredChains.length === 0 && !isLoading && (
+            {sortedChains.length === 0 && !isLoading && (
               <div className="text-center py-12">
                 <p className="text-gray-400 text-lg">No projects found</p>
                 <p className="text-gray-500 text-sm mt-2">
@@ -366,58 +411,76 @@ export function LaunchpadDashboard() {
             )}
           </TabsContent>
 
-          <TabsContent value="pending_launch" className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredChains.map((project) => (
-                <SmallProjectCard
-                  key={project.id}
-                  project={project}
-                  href={`/launchpad/${project.id}`}
-                />
-              ))}
-            </div>
-            {filteredChains.length === 0 && (
+          <TabsContent
+            value="pending_launch"
+            className={
+              viewMode === "grid"
+                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                : "flex flex-col gap-3"
+            }
+          >
+            {sortedChains.map((project) => (
+              <SmallProjectCard
+                key={project.id}
+                project={project}
+                href={`/chain/${project.id}`}
+                viewMode={viewMode}
+              />
+            ))}
+            {sortedChains.length === 0 && (
               <div className="text-center py-12">
-                <p className="text-gray-400 text-lg">No scheduled projects</p>
+                <p className="text-gray-400 text-lg">No new projects</p>
               </div>
             )}
           </TabsContent>
 
-          <TabsContent value="virtual_active" className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredChains.map((project) => (
-                <SmallProjectCard
-                  key={project.id}
-                  project={project}
-                  href={`/launchpad/${project.id}`}
-                />
-              ))}
-            </div>
-            {filteredChains.length === 0 && (
+          <TabsContent
+            value="virtual_active"
+            className={
+              viewMode === "grid"
+                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                : "flex flex-col gap-3"
+            }
+          >
+            {sortedChains.map((project) => (
+              <SmallProjectCard
+                key={project.id}
+                project={project}
+                href={`/chain/${project.id}`}
+                viewMode={viewMode}
+              />
+            ))}
+            {sortedChains.length === 0 && (
               <div className="text-center py-12">
                 <p className="text-gray-400 text-lg">No trending projects</p>
               </div>
             )}
           </TabsContent>
 
-          <TabsContent value="graduated" className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredChains.map((project) => (
-                <SmallProjectCard
-                  key={project.id}
-                  project={project}
-                  href={`/launchpad/${project.id}`}
-                />
-              ))}
-            </div>
-            {filteredChains.length === 0 && (
+          <TabsContent
+            value="graduated"
+            className={
+              viewMode === "grid"
+                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                : "flex flex-col gap-3"
+            }
+          >
+            {sortedChains.map((project) => (
+              <SmallProjectCard
+                key={project.id}
+                project={project}
+                href={`/chain/${project.id}`}
+                viewMode={viewMode}
+              />
+            ))}
+            {sortedChains.length === 0 && (
               <div className="text-center py-12">
-                <p className="text-gray-400 text-lg">No favorite projects</p>
+                <p className="text-gray-400 text-lg">No graduated projects</p>
               </div>
             )}
           </TabsContent>
         </Tabs>
-      </div>
+      </Container>
 
       {/* Onboarding Modal */}
       {showOnboarding && (

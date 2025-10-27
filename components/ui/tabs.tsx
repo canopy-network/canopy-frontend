@@ -10,7 +10,8 @@ const tabsListVariants = cva("inline-flex items-center justify-center", {
   variants: {
     variant: {
       default: "bg-muted text-muted-foreground h-9 w-fit rounded-lg p-[3px]",
-      clear: "bg-transparent text-foreground h-auto w-full gap-2",
+      clear:
+        "bg-transparent text-foreground h-auto w-full gap-2 scrollbar-hide",
     },
   },
   defaultVariants: {
@@ -22,15 +23,21 @@ const tabsTriggerVariants = cva(
   'inline-flex items-center justify-center text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*="size-"])]:size-4',
   {
     variants: {
+      size: {
+        default: "px-3 py-2",
+        sm: "px-3 !py-1",
+        lg: "px-4 py-3",
+      },
       variant: {
         default:
-          "data-[state=active]:bg-background dark:data-[state=active]:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:data-[state=active]:border-input dark:data-[state=active]:bg-input/30 text-foreground dark:text-muted-foreground h-[calc(100%-1px)] flex-1 rounded-md border border-transparent px-2 py-1 data-[state=active]:shadow-sm",
+          "data-[state=active]:bg-background dark:data-[state=active]:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:data-[state=active]:border-input dark:data-[state=active]:bg-input/30 text-foreground dark:text-muted-foreground h-[calc(100%-1px)] flex-1 rounded-md border border-transparent data-[state=active]:shadow-sm",
         clear:
-          "px-3 py-2 text-zinc-400 font-inter text-sm font-medium leading-4 tracking-normal data-[state=active]:text-white data-[state=active]:bg-transparent data-[state=active]:bg-green-500/[0.1] bg-white/10 border border-transparent data-[state=active]:border-green-500 rounded-lg",
+          "text-zinc-400 font-inter text-sm font-medium leading-none  tracking-normal data-[state=active]:text-white data-[state=active]:bg-transparent data-[state=active]:bg-background  border border-transparent rounded-lg ",
       },
     },
     defaultVariants: {
       variant: "default",
+      size: "default",
     },
   }
 );

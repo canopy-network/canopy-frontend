@@ -12,3 +12,4 @@
 export { useChainsStore } from "./chains-store";
 export { useCreateChainDialog } from "./use-create-chain-dialog";
 export { useTemplatesStore, useInitializeTemplates } from "./templates-store";
+export { useCreateChainStore } from "./create-chain-store";

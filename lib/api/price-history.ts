@@ -85,15 +85,29 @@ export function getTimeRangeForTimeframe(
 }
 
 /**
- * Convert OHLC data to simple chart format using close prices
- * @param data - Array of OHLC data points
+ * Convert price history data to chart format using close prices
+ * @param data - Array of price history data points
  * @returns Array of {value, time} objects for the chart
  */
-export function convertOHLCToChartData(
+export function convertPriceHistoryToChart(
   data: PriceHistoryDataPoint[]
 ): Array<{ value: number; time: number }> {
   return data.map((point) => ({
     value: point.close,
+    time: Math.floor(new Date(point.timestamp).getTime() / 1000), // Convert to Unix timestamp
+  }));
+}
+
+/**
+ * Convert price history data to volume chart format
+ * @param data - Array of price history data points
+ * @returns Array of {value, time} objects for the chart
+ */
+export function convertVolumeHistoryToChart(
+  data: PriceHistoryDataPoint[]
+): Array<{ value: number; time: number }> {
+  return data.map((point) => ({
+    value: point.volume,
     time: Math.floor(new Date(point.timestamp).getTime() / 1000), // Convert to Unix timestamp
   }));
 }

@@ -42,3 +42,11 @@ export function formatKilo(num: number, digits = 1) {
   // If the number is too small (e.g., less than 1000), return the original number formatted
   return new Intl.NumberFormat("en-US").format(num);
 }
+
+export const WINDOW_BREAKPOINTS = {
+  SM: 640,
+  MD: 768,
+  LG: 1024,
+  XL: 1280,
+  XXL: 1536,
+};

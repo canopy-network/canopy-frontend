@@ -211,13 +211,13 @@ export default function Dashboard() {
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Link href={`/launchpad/${chain.id}`} target="_blank">
+                        <Link href={`/chain/${chain.id}`} target="_blank">
                           <Button variant="outline" size="sm" className="gap-2">
                             View
                             <ExternalLink className="h-4 w-4" />
                           </Button>
                         </Link>
-                        <Link href={`/launchpad/${chain.id}/edit`}>
+                        <Link href={`/chain/${chain.id}/edit`}>
                           <Button variant="default" size="sm" className="gap-2">
                             Edit
                             <Edit className="h-4 w-4" />
