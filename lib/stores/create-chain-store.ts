@@ -23,6 +23,16 @@ export interface CreateChainFormData {
   // Step 2: Connect Repo
   githubRepo: string;
   githubValidated: boolean;
+  githubRepoData: {
+    name: string;
+    fullName: string;
+    htmlUrl: string;
+    defaultBranch: string;
+    owner: string;
+    language?: string;
+    description?: string | null;
+    cloneUrl: string;
+  } | null;
 
   // Step 3: Main Info
   chainName: string;
@@ -41,11 +51,21 @@ export interface CreateChainFormData {
   brandColor: string;
 
   // Step 5: Links & Documentation
-  website: string;
-  whitepaper: string;
-  whitepaperFile: File | null;
-  twitterUrl: string;
-  telegramUrl: string;
+  socialLinks: Array<{
+    id: number;
+    platform: string;
+    url: string;
+  }>;
+  resources: Array<{
+    id: number;
+    type: "file" | "url";
+    file?: File;
+    name: string;
+    size?: number;
+    url?: string;
+    title?: string;
+    description?: string;
+  }>;
 
   // Step 6: Launch Settings
   launchDate: string;
@@ -84,6 +104,7 @@ const initialFormData: CreateChainFormData = {
   // Step 2
   githubRepo: "",
   githubValidated: false,
+  githubRepoData: null,
 
   // Step 3
   chainName: "",
@@ -102,11 +123,8 @@ const initialFormData: CreateChainFormData = {
   brandColor: "",
 
   // Step 5
-  website: "",
-  whitepaper: "",
-  whitepaperFile: null,
-  twitterUrl: "",
-  telegramUrl: "",
+  socialLinks: [],
+  resources: [],
 
   // Step 6
   launchDate: "",
@@ -177,7 +195,7 @@ export const useCreateChainStore = create<CreateChainState>()(
             ...state.formData,
             logo: null,
             gallery: [],
-            whitepaperFile: null,
+            resources: [], // Don't persist file resources
           },
           currentStep: state.currentStep,
           completedSteps: state.completedSteps,

@@ -87,6 +87,7 @@ export default function LaunchSettings({
     launchImmediately,
     initialPurchaseAmount,
     graduationThreshold,
+    onDataSubmit,
   ]);
 
   return (

@@ -29,7 +29,20 @@ interface ConnectRepoProps {
   initialValidated?: boolean;
   templateName?: string;
   templateLanguage?: string;
-  onDataSubmit?: (data: { repo: string; validated: boolean }) => void;
+  onDataSubmit?: (data: {
+    repo: string;
+    validated: boolean;
+    repoData: {
+      name: string;
+      fullName: string;
+      htmlUrl: string;
+      defaultBranch: string;
+      owner: string;
+      language?: string;
+      description?: string | null;
+      cloneUrl: string;
+    } | null;
+  }) => void;
 }
 
 export default function ConnectRepo({
@@ -103,9 +116,22 @@ export default function ConnectRepo({
       setConnectedRepo(selectedRepo.fullName);
       setShowRepoDialog(false);
 
-      // Notify parent
+      // Notify parent with full repository data
       if (onDataSubmit) {
-        onDataSubmit({ repo: selectedRepo.fullName, validated: true });
+        onDataSubmit({
+          repo: selectedRepo.fullName,
+          validated: true,
+          repoData: {
+            name: selectedRepo.name,
+            fullName: selectedRepo.fullName,
+            htmlUrl: selectedRepo.htmlUrl,
+            defaultBranch: selectedRepo.defaultBranch,
+            owner: selectedRepo.owner.login,
+            language: selectedRepo.language,
+            description: selectedRepo.description,
+            cloneUrl: selectedRepo.cloneUrl,
+          },
+        });
       }
     }
   };
@@ -117,7 +143,7 @@ export default function ConnectRepo({
 
     // Notify parent
     if (onDataSubmit) {
-      onDataSubmit({ repo: "", validated: false });
+      onDataSubmit({ repo: "", validated: false, repoData: null });
     }
 
     // Sign out from GitHub

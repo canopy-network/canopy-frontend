@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
@@ -68,7 +68,7 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Validate form
-  const validateForm = () => {
+  const validateForm = useCallback(() => {
     const newErrors: Record<string, string> = {};
 
     if (!formData.chainName || formData.chainName.length < 3) {
@@ -91,7 +91,7 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
+  }, [formData]);
 
   // Notify parent when data changes
   useEffect(() => {
@@ -99,7 +99,7 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
       const isValid = validateForm();
       onDataSubmit(formData, isValid);
     }
-  }, [formData]);
+  }, [formData, validateForm, onDataSubmit]);
 
   const updateField = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));

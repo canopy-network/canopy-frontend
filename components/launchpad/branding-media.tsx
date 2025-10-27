@@ -100,7 +100,7 @@ export default function BrandingMedia({
       const isValid = logo !== null && chainDescription.length >= 10;
       onDataSubmit({ logo, chainDescription, gallery, brandColor }, isValid);
     }
-  }, [logo, chainDescription, gallery, brandColor]);
+  }, [logo, chainDescription, gallery, brandColor, onDataSubmit]);
 
   // Gallery handlers
   const handleGalleryUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

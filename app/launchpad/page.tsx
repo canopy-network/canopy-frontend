@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import SelectLanguage from "@/components/launchpad/select-language";
 import ConnectRepo from "@/components/launchpad/connect-repo";
@@ -51,104 +51,149 @@ export default function LaunchpadPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Step 1: Language/Template Selection
-  const handleLanguageSubmit = (template: Template) => {
-    setFormData({ template });
-    setStepValidity({ ...stepValidity, 1: true });
-  };
+  const handleLanguageSubmit = useCallback(
+    (template: Template) => {
+      setFormData({ template });
+      setStepValidity((prev) => ({ ...prev, 1: true }));
+    },
+    [setFormData]
+  );
 
   // Step 2: Connect Repo
-  const handleRepoSubmit = (data: { repo: string; validated: boolean }) => {
-    setFormData({
-      githubRepo: data.repo,
-      githubValidated: data.validated,
-    });
-    setStepValidity({ ...stepValidity, 2: data.validated });
-  };
+  const handleRepoSubmit = useCallback(
+    (data: {
+      repo: string;
+      validated: boolean;
+      repoData: {
+        name: string;
+        fullName: string;
+        htmlUrl: string;
+        defaultBranch: string;
+        owner: string;
+        language?: string;
+        description?: string | null;
+        cloneUrl: string;
+      } | null;
+    }) => {
+      setFormData({
+        githubRepo: data.repo,
+        githubValidated: data.validated,
+        githubRepoData: data.repoData,
+      });
+      setStepValidity((prev) => ({ ...prev, 2: data.validated }));
+    },
+    [setFormData]
+  );
 
   // Step 3: Main Info
-  const handleMainInfoSubmit = (
-    data: {
-      chainName: string;
-      tokenName: string;
-      ticker: string;
-      tokenSupply: string;
-      decimals: string;
-      description: string;
+  const handleMainInfoSubmit = useCallback(
+    (
+      data: {
+        chainName: string;
+        tokenName: string;
+        ticker: string;
+        tokenSupply: string;
+        decimals: string;
+        description: string;
+      },
+      isValid: boolean
+    ) => {
+      setFormData(data);
+      setStepValidity((prev) => ({ ...prev, 3: isValid }));
     },
-    isValid: boolean
-  ) => {
-    setFormData(data);
-    setStepValidity({ ...stepValidity, 3: isValid });
-  };
+    [setFormData]
+  );
 
   // Step 4: Branding & Media
-  const handleBrandingSubmit = (
-    data: {
-      logo: File | null;
-      chainDescription: string;
-      gallery: File[];
-      brandColor: string;
+  const handleBrandingSubmit = useCallback(
+    (
+      data: {
+        logo: File | null;
+        chainDescription: string;
+        gallery: File[];
+        brandColor: string;
+      },
+      isValid: boolean
+    ) => {
+      setFormData(data);
+      setStepValidity((prev) => ({ ...prev, 4: isValid }));
     },
-    isValid: boolean
-  ) => {
-    setFormData(data);
-    setStepValidity({ ...stepValidity, 4: isValid });
-  };
+    [setFormData]
+  );
 
   // Step 5: Links & Documentation
-  const handleLinksSubmit = (
-    data: {
-      website: string;
-      whitepaper: string;
-      whitepaperFile: File | null;
-      twitterUrl: string;
-      telegramUrl: string;
+  const handleLinksSubmit = useCallback(
+    (
+      data: {
+        social: Array<{
+          id: number;
+          platform: string;
+          url: string;
+        }>;
+        resources: Array<{
+          id: number;
+          type: "file" | "url";
+          file?: File;
+          name: string;
+          size?: number;
+          url?: string;
+          title?: string;
+          description?: string;
+        }>;
+      },
+      isValid: boolean
+    ) => {
+      setFormData({
+        socialLinks: data.social,
+        resources: data.resources,
+      });
+      setStepValidity((prev) => ({ ...prev, 5: isValid }));
     },
-    isValid: boolean
-  ) => {
-    setFormData(data);
-    setStepValidity({ ...stepValidity, 5: isValid });
-  };
+    [setFormData]
+  );
 
   // Step 6: Launch Settings
-  const handleSettingsSubmit = (
-    data: {
-      launchDate: string;
-      launchTime: string;
-      timezone: string;
-      launchImmediately: boolean;
-      initialPurchaseAmount: string;
-      graduationThreshold: number;
+  const handleSettingsSubmit = useCallback(
+    (
+      data: {
+        launchDate: string;
+        launchTime: string;
+        timezone: string;
+        launchImmediately: boolean;
+        initialPurchaseAmount: string;
+        graduationThreshold: number;
+      },
+      isValid: boolean
+    ) => {
+      setFormData(data);
+      setStepValidity((prev) => ({ ...prev, 6: isValid }));
     },
-    isValid: boolean
-  ) => {
-    setFormData(data);
-    setStepValidity({ ...stepValidity, 6: isValid });
-  };
+    [setFormData]
+  );
 
   // Navigation handlers
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
     }
-  };
+  }, [currentStep, setCurrentStep]);
 
-  const handleContinue = () => {
+  const handleContinue = useCallback(() => {
     if (stepValidity[currentStep]) {
       markStepCompleted(currentStep);
       if (currentStep < 7) {
         setCurrentStep(currentStep + 1);
       }
     }
-  };
+  }, [currentStep, stepValidity, markStepCompleted, setCurrentStep]);
 
   // Final submission
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     setIsSubmitting(true);
     setSubmitError(null);
 
     try {
-      // Prepare chain data for API
+      // Step 1: Create chain via API
       const chainData = {
         chain_name: formData.chainName,
         token_symbol: formData.ticker,
@@ -165,20 +210,171 @@ export default function LaunchpadPage() {
         creator_initial_purchase_cnpy: parseFloat(
           formData.initialPurchaseAmount || "0"
         ),
+        brand_color: formData.brandColor,
       };
 
-      // Create chain via API
       const response = await chainsApi.createChain(chainData);
-      const result = response.data;
+      const chain = response.data;
+
+      // Chain created successfully! Now proceed with additional operations
+
+      // Step 2: Create repository data if GitHub repo is connected
+      if (
+        formData.githubRepo &&
+        formData.githubValidated &&
+        formData.githubRepoData
+      ) {
+        try {
+          await chainsApi.createRepository(chain.id, {
+            github_url: formData.githubRepoData.htmlUrl,
+            repository_name: formData.githubRepoData.name,
+            repository_owner: formData.githubRepoData.owner,
+            default_branch: formData.githubRepoData.defaultBranch,
+          });
+        } catch (repoErr) {
+          console.error("Error creating repository:", repoErr);
+          // Don't fail the entire process if repo creation fails
+        }
+      }
+
+      // Step 3: Upload media files and create asset records
+      let logoUrl = "";
+      const galleryUrls: { url: string; type: string; name: string }[] = [];
+
+      // Upload logo if present
+      if (formData.logo) {
+        try {
+          const { uploadLogo } = await import("@/lib/api/media");
+          const logoResult = await uploadLogo(formData.ticker, formData.logo);
+          if (logoResult.success && logoResult.urls && logoResult.urls[0]) {
+            logoUrl = logoResult.urls[0].url;
+
+            // Create logo asset record
+            await chainsApi.createAsset(chain.id, {
+              asset_type: "logo",
+              file_name: formData.logo.name,
+              file_url: logoUrl,
+              file_size_bytes: formData.logo.size,
+              mime_type: formData.logo.type,
+              is_primary: true,
+              is_featured: true,
+            });
+          }
+        } catch (logoErr) {
+          console.error("Error uploading/creating logo:", logoErr);
+          // Don't fail the entire process if logo upload fails
+        }
+      }
+
+      // Upload gallery items if present
+      if (formData.gallery && formData.gallery.length > 0) {
+        try {
+          const { uploadGallery } = await import("@/lib/api/media");
+          const galleryResult = await uploadGallery(
+            formData.ticker,
+            formData.gallery
+          );
+          if (galleryResult.success && galleryResult.urls) {
+            galleryUrls.push(
+              ...galleryResult.urls.map((result, index) => ({
+                url: result.url,
+                type: formData.gallery[index].type.startsWith("image/")
+                  ? "banner"
+                  : "video",
+                name: result.originalName,
+              }))
+            );
+
+            // Create gallery asset records
+            for (let i = 0; i < galleryUrls.length; i++) {
+              const galleryItem = galleryUrls[i];
+              const file = formData.gallery[i];
+              try {
+                await chainsApi.createAsset(chain.id, {
+                  asset_type: galleryItem.type as "banner" | "video",
+                  file_name: galleryItem.name,
+                  file_url: galleryItem.url,
+                  file_size_bytes: file.size,
+                  mime_type: file.type,
+                  display_order: i,
+                });
+              } catch (assetErr) {
+                console.error(`Error creating gallery asset ${i}:`, assetErr);
+              }
+            }
+          }
+        } catch (galleryErr) {
+          console.error("Error uploading/creating gallery:", galleryErr);
+          // Don't fail the entire process if gallery upload fails
+        }
+      }
+
+      // Step 4: Create social links
+      if (formData.socialLinks && formData.socialLinks.length > 0) {
+        for (let i = 0; i < formData.socialLinks.length; i++) {
+          const socialLink = formData.socialLinks[i];
+          try {
+            await chainsApi.createSocial(chain.id, {
+              platform: socialLink.platform,
+              url: socialLink.url,
+              display_order: i,
+            });
+          } catch (socialErr) {
+            console.error(
+              `Error creating social link for ${socialLink.platform}:`,
+              socialErr
+            );
+            // Don't fail the entire process if a social link creation fails
+          }
+        }
+      }
+
+      // Step 5: Handle resources (documentation, whitepapers, etc.)
+      if (formData.resources && formData.resources.length > 0) {
+        for (let i = 0; i < formData.resources.length; i++) {
+          const resource = formData.resources[i];
+          try {
+            let resourceUrl = resource.url || "";
+
+            // If it's a file resource, upload it first
+            if (resource.type === "file" && resource.file) {
+              const { uploadSingleFile } = await import("@/lib/api/media");
+              const uploadResult = await uploadSingleFile(
+                formData.ticker,
+                "papers",
+                resource.file
+              );
+              if (uploadResult.success && uploadResult.urls?.[0]) {
+                resourceUrl = uploadResult.urls[0].url;
+              }
+            }
+
+            // Create asset record for the resource
+            if (resourceUrl) {
+              await chainsApi.createAsset(chain.id, {
+                asset_type: "documentation",
+                file_name: resource.name,
+                file_url: resourceUrl,
+                file_size_bytes: resource.size || 0,
+                mime_type: resource.file?.type || "application/octet-stream",
+                display_order: i,
+              });
+            }
+          } catch (resourceErr) {
+            console.error(`Error creating resource ${i}:`, resourceErr);
+            // Don't fail the entire process if resource creation fails
+          }
+        }
+      }
 
       // Show success message
       alert(
-        `Chain "${result.chain_name}" created successfully! (Status: ${result.status})`
+        `Chain "${chain.chain_name}" created successfully! (Status: ${chain.status})`
       );
 
       // Reset form and navigate to chain page
       resetFormData();
-      router.push(`/chain/${result.id}`);
+      router.push(`/chain/${chain.id}`);
     } catch (err: any) {
       console.error("Error creating chain:", err);
       setSubmitError(
@@ -187,7 +383,7 @@ export default function LaunchpadPage() {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [formData, resetFormData, router]);
 
   // Show loading spinner while hydrating persisted data from localStorage
   if (!isHydrated) {
@@ -252,11 +448,8 @@ export default function LaunchpadPage() {
         {currentStep === 5 && (
           <LinksDocumentation
             initialData={{
-              website: formData.website,
-              whitepaper: formData.whitepaper,
-              whitepaperFile: formData.whitepaperFile,
-              twitterUrl: formData.twitterUrl,
-              telegramUrl: formData.telegramUrl,
+              social: formData.socialLinks,
+              resources: formData.resources,
             }}
             onDataSubmit={handleLinksSubmit}
           />

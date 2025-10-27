@@ -23,7 +23,7 @@ export default function SelectLanguage({
     if (selectedLanguage) {
       onDataSubmit(selectedLanguage);
     }
-  }, [selectedLanguage]);
+  }, [selectedLanguage, onDataSubmit]);
 
   return (
     <div id="select-template" className="p-6">

@@ -100,6 +100,60 @@ export const chainsApi = {
     apiClient.delete<{ message: string }>(`/api/v1/chains/${id}`),
 
   /**
+   * Create chain repository configuration
+   *
+   * @param chainId - Chain ID
+   * @param data - Repository creation data
+   * @returns Promise resolving to created repository data
+   *
+   * @example
+   * ```typescript
+   * const repo = await chainsApi.createRepository('chain-id', {
+   *   github_url: 'https://github.com/user/repo',
+   *   repository_name: 'repo',
+   *   repository_owner: 'user',
+   *   default_branch: 'main'
+   * });
+   * ```
+   */
+  createRepository: (
+    chainId: string,
+    data: {
+      github_url: string;
+      repository_name: string;
+      repository_owner: string;
+      default_branch: string;
+    }
+  ) => apiClient.post<any>(`/api/v1/chains/${chainId}/repository`, data),
+
+  /**
+   * Update chain repository configuration
+   *
+   * @param chainId - Chain ID
+   * @param data - Repository update data
+   * @returns Promise resolving to updated repository data
+   *
+   * @example
+   * ```typescript
+   * const repo = await chainsApi.updateRepository('chain-id', {
+   *   github_url: 'https://github.com/user/repo',
+   *   repository_name: 'repo',
+   *   repository_owner: 'user',
+   *   default_branch: 'main'
+   * });
+   * ```
+   */
+  updateRepository: (
+    chainId: string,
+    data: {
+      github_url?: string;
+      repository_name?: string;
+      repository_owner?: string;
+      default_branch?: string;
+    }
+  ) => apiClient.put<any>(`/api/v1/chains/${chainId}/repository`, data),
+
+  /**
    * Get all assets for a chain
    *
    * @param chainId - Chain ID
@@ -156,6 +210,33 @@ export const chainsApi = {
     assetId: string,
     data: Partial<CreateAssetRequest>
   ) => apiClient.put<any>(`/api/v1/chains/${chainId}/assets/${assetId}`, data),
+
+  /**
+   * Create a social link for a chain
+   *
+   * @param chainId - Chain ID
+   * @param data - Social link data
+   * @returns Promise resolving to created social link data
+   *
+   * @example
+   * ```typescript
+   * const social = await chainsApi.createSocial('chain-id', {
+   *   platform: 'twitter',
+   *   url: 'https://twitter.com/mychain',
+   *   display_name: '@mychain',
+   *   display_order: 0
+   * });
+   * ```
+   */
+  createSocial: (
+    chainId: string,
+    data: {
+      platform: string;
+      url: string;
+      display_name?: string;
+      display_order?: number;
+    }
+  ) => apiClient.post<any>(`/api/v1/chains/${chainId}/socials`, data),
 };
 
 // ============================================================================

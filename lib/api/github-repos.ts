@@ -11,7 +11,10 @@ export interface GitHubRepository {
   private: boolean;
   owner: {
     login: string;
+    id: number;
     avatar_url: string;
+    html_url: string;
+    type: string;
   };
   html_url: string;
   description: string | null;
@@ -23,6 +26,9 @@ export interface GitHubRepository {
   updated_at: string;
   pushed_at: string;
   language: string | null;
+  default_branch: string;
+  clone_url: string;
+  ssh_url: string;
 }
 
 export interface Repository {
@@ -31,8 +37,24 @@ export interface Repository {
   fullName: string;
   forkedFrom?: string;
   url: string;
+  htmlUrl: string;
   language?: string;
   isPrivate: boolean;
+  defaultBranch: string;
+  owner: {
+    login: string;
+    id: number;
+    avatarUrl: string;
+    htmlUrl: string;
+    type: string;
+  };
+  description?: string | null;
+  fork: boolean;
+  cloneUrl: string;
+  sshUrl: string;
+  createdAt: string;
+  updatedAt: string;
+  pushedAt: string;
 }
 
 /**
@@ -65,8 +87,24 @@ export async function fetchUserRepositories(
       fullName: repo.full_name,
       forkedFrom: repo.parent?.full_name,
       url: repo.html_url,
+      htmlUrl: repo.html_url,
       language: repo.language || undefined,
       isPrivate: repo.private,
+      defaultBranch: repo.default_branch || "main",
+      owner: {
+        login: repo.owner.login,
+        id: repo.owner.id,
+        avatarUrl: repo.owner.avatar_url,
+        htmlUrl: repo.owner.html_url,
+        type: repo.owner.type,
+      },
+      description: repo.description,
+      fork: repo.fork,
+      cloneUrl: repo.clone_url,
+      sshUrl: repo.ssh_url,
+      createdAt: repo.created_at,
+      updatedAt: repo.updated_at,
+      pushedAt: repo.pushed_at,
     }));
   } catch (error) {
     console.error("Error fetching repositories:", error);
