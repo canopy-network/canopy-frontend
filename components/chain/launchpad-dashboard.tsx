@@ -14,7 +14,13 @@ import { SmallProjectCard } from "./small-project-card";
 import { ProjectCard } from "./project-card";
 import { RecentsProjectsCarousel } from "./recents-projects-carousel";
 import { SortDropdown } from "./sort-dropdown";
-import { ChainWithUI } from "@/lib/stores/chains-store";
+import { Chain } from "@/types/chains";
+import {
+  getMarketCap,
+  getVolume24h,
+  getPrice,
+  getPriceChange24h,
+} from "@/lib/utils/chain-ui-helpers";
 import {
   Plus,
   Filter,
@@ -46,117 +52,11 @@ const tabsConfig: TabConfig[] = [
   { value: "graduated", label: "Favorites", icon: Heart },
 ];
 
-// Mock data for fallback when API is not available
-const fallbackProjects: ChainWithUI[] = [
-  {
-    // Base Chain properties
-    id: "fallback-1",
-    chain_name: "DeFi Chain Alpha",
-    token_symbol: "DEFI",
-    chain_description:
-      "Next-generation DeFi infrastructure with cross-chain compatibility",
-    template_id: "template-1",
-    consensus_mechanism: "tendermint",
-    token_total_supply: 1000000000,
-    graduation_threshold: 600000,
-    creation_fee_cnpy: 100,
-    initial_cnpy_reserve: 10000,
-    initial_token_supply: 800000000,
-    bonding_curve_slope: 0.0001,
-    scheduled_launch_time: new Date(
-      Date.now() + 2 * 24 * 60 * 60 * 1000
-    ).toISOString(),
-    actual_launch_time: null,
-    creator_initial_purchase_cnpy: 1000,
-    status: "virtual_active" as any,
-    is_graduated: false,
-    graduation_time: null,
-    chain_id: "defi-1",
-    genesis_hash: "abc123",
-    validator_min_stake: 1000,
-    created_by: "user-1",
-    created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    template: {
-      id: "template-1",
-      template_name: "DeFi Standard",
-      template_description: "Standard DeFi template",
-      template_category: "defi",
-      supported_language: "go",
-      default_consensus: "tendermint",
-      default_token_supply: 1000000000,
-      default_validator_count: 21,
-      complexity_level: "intermediate",
-      estimated_deployment_time_minutes: 30,
-      documentation_url: null,
-      example_chains: null,
-      version: "1.0.0",
-      is_active: true,
-      created_at: "2024-01-01T00:00:00Z",
-      updated_at: "2024-01-01T00:00:00Z",
-    },
-    creator: {
-      id: "user-1",
-      wallet_address: "0x742d...8D4",
-      email: null,
-      username: null,
-      display_name: "DeFi Creator",
-      bio: null,
-      avatar_url: null,
-      website_url: null,
-      twitter_handle: null,
-      github_username: null,
-      telegram_handle: null,
-      notification_preferences: null,
-      is_verified: false,
-      verification_tier: "unverified",
-      total_chains_created: 1,
-      total_cnpy_invested: 1000,
-      reputation_score: 0,
-      created_at: "2024-01-01T00:00:00Z",
-      updated_at: "2024-01-01T00:00:00Z",
-      last_active_at: null,
-    },
-    // UI-specific properties
-    progress: 75,
-    price: 0.4,
-    marketCap: 2520000000,
-    volume24h: 1800000000,
-    fdv: 3100000000,
-    raised: "450,000",
-    target: "600,000",
-    participants: 234,
-    timeLeft: "2d 14h",
-    chartData: [
-      { time: "2024-01-01", value: 0.1 },
-      { time: "2024-01-02", value: 0.12 },
-      { time: "2024-01-03", value: 0.15 },
-      { time: "2024-01-04", value: 0.18 },
-      { time: "2024-01-05", value: 0.22 },
-      { time: "2024-01-06", value: 0.25 },
-      { time: "2024-01-07", value: 0.28 },
-      { time: "2024-01-08", value: 0.32 },
-      { time: "2024-01-09", value: 0.35 },
-      { time: "2024-01-10", value: 0.38 },
-      { time: "2024-01-11", value: 0.4 },
-    ],
-    bondingCurve: [
-      { price: 0.1, supply: 0 },
-      { price: 0.15, supply: 100000 },
-      { price: 0.25, supply: 300000 },
-      { price: 0.4, supply: 450000 },
-      { price: 0.6, supply: 600000 },
-    ],
-    category: "defi",
-    isGraduated: false,
-  } as unknown as ChainWithUI,
-];
+// No fallback data needed - working directly with API responses
 
 export function LaunchpadDashboard() {
   const { open: openCreateChainDialog } = useCreateChainDialog();
-  const [selectedProject, setSelectedProject] = useState<ChainWithUI | null>(
-    null
-  );
+  const [selectedProject, setSelectedProject] = useState<Chain | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sortOption, setSortOption] = useState("default");
@@ -194,32 +94,40 @@ export function LaunchpadDashboard() {
     switch (sortOption) {
       case "market-cap-high":
         return chainsCopy.sort(
-          (a, b) => (b.marketCap || 0) - (a.marketCap || 0)
+          (a, b) => getMarketCap(b.virtual_pool) - getMarketCap(a.virtual_pool)
         );
       case "market-cap-low":
         return chainsCopy.sort(
-          (a, b) => (a.marketCap || 0) - (b.marketCap || 0)
+          (a, b) => getMarketCap(a.virtual_pool) - getMarketCap(b.virtual_pool)
         );
       case "holders-high":
         return chainsCopy.sort(
-          (a, b) => (b.participants || 0) - (a.participants || 0)
+          (a, b) =>
+            (b.virtual_pool?.unique_traders || 0) -
+            (a.virtual_pool?.unique_traders || 0)
         );
       case "holders-low":
         return chainsCopy.sort(
-          (a, b) => (a.participants || 0) - (b.participants || 0)
+          (a, b) =>
+            (a.virtual_pool?.unique_traders || 0) -
+            (b.virtual_pool?.unique_traders || 0)
         );
       case "volume-high":
         return chainsCopy.sort(
-          (a, b) => (b.volume24h || 0) - (a.volume24h || 0)
+          (a, b) => getVolume24h(b.virtual_pool) - getVolume24h(a.virtual_pool)
         );
       case "volume-low":
         return chainsCopy.sort(
-          (a, b) => (a.volume24h || 0) - (b.volume24h || 0)
+          (a, b) => getVolume24h(a.virtual_pool) - getVolume24h(b.virtual_pool)
         );
       case "price-high":
-        return chainsCopy.sort((a, b) => (b.price || 0) - (a.price || 0));
+        return chainsCopy.sort(
+          (a, b) => getPrice(b.virtual_pool) - getPrice(a.virtual_pool)
+        );
       case "price-low":
-        return chainsCopy.sort((a, b) => (a.price || 0) - (b.price || 0));
+        return chainsCopy.sort(
+          (a, b) => getPrice(a.virtual_pool) - getPrice(b.virtual_pool)
+        );
       case "default":
       default:
         // Return chains in their original order (as received from API)
@@ -228,7 +136,7 @@ export function LaunchpadDashboard() {
   }, [filteredChains, sortOption]);
 
   // Handle buy button click
-  const handleBuyClick = (project: ChainWithUI) => {
+  const handleBuyClick = (project: Chain) => {
     console.log("Buy clicked for project:", project.chain_name);
     // TODO: Implement buy functionality
   };

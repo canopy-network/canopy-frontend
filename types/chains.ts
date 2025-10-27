@@ -30,8 +30,11 @@ export interface Chain {
   /** Unique identifier for the chain */
   id: string;
 
-  /** Display name of the chain */
-  token_name: string;
+  /** Chain name (primary display name) */
+  chain_name: string;
+
+  /** Token name (optional, can be same as chain_name) */
+  token_name?: string;
 
   /** Token symbol (uppercase, e.g., "DEFISWAP") */
   token_symbol: string;
@@ -66,8 +69,8 @@ export interface Chain {
   /** Scheduled launch time (ISO 8601) */
   scheduled_launch_time: string;
 
-  /** Actual launch time (ISO 8601) */
-  actual_launch_time: string;
+  /** Actual launch time (ISO 8601, nullable) */
+  actual_launch_time: string | null;
 
   /** Creator's initial CNPY purchase amount */
   creator_initial_purchase_cnpy: number;
@@ -81,11 +84,11 @@ export interface Chain {
   /** Time when the chain graduated (ISO 8601) */
   graduation_time: string | null;
 
-  /** Chain ID on the network */
-  chain_id: string;
+  /** Chain ID on the network (nullable) */
+  chain_id: string | null;
 
-  /** Genesis block hash */
-  genesis_hash: string;
+  /** Genesis block hash (nullable) */
+  genesis_hash: string | null;
 
   /** Minimum stake required for validators */
   validator_min_stake: number;
@@ -107,6 +110,9 @@ export interface Chain {
 
   /** Assets associated with the chain (included when requested) */
   assets?: ChainAsset[];
+
+  /** Virtual pool information (included when requested) */
+  virtual_pool?: VirtualPool;
 
   /** Logo/branding URL (computed from assets) */
   branding?: string;
@@ -415,6 +421,91 @@ export interface CreateAssetRequest {
   display_order?: number;
   is_primary?: boolean;
   is_featured?: boolean;
+}
+
+// ============================================================================
+// SOCIAL LINKS & REPOSITORY TYPES
+// ============================================================================
+
+/**
+ * Social media platforms supported
+ */
+export type SocialPlatform =
+  | "website"
+  | "twitter"
+  | "discord"
+  | "telegram"
+  | "github"
+  | "medium"
+  | "youtube"
+  | "linkedin";
+
+/**
+ * Social link interface
+ */
+export interface SocialLink {
+  id: string;
+  chain_id: string;
+  platform: SocialPlatform;
+  url: string;
+  display_name: string | null;
+  is_verified: boolean;
+  follower_count: number;
+  last_metrics_update: string | null;
+  display_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Repository connection details
+ */
+export interface Repository {
+  id: string;
+  chain_id: string;
+  github_url: string;
+  repository_name: string;
+  repository_owner: string;
+  default_branch: string;
+  is_connected: boolean;
+  auto_upgrade_enabled: boolean;
+  upgrade_trigger: "manual" | "automatic" | "tag";
+  last_sync_commit_hash: string | null;
+  last_sync_time: string | null;
+  build_status: "pending" | "success" | "failed" | null;
+  last_build_time: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Graduation progress details
+ */
+export interface GraduationProgress {
+  threshold_cnpy: number;
+  current_cnpy_reserve: number;
+  cnpy_remaining: number;
+  completion_percentage: number;
+}
+
+/**
+ * Chain details response from /api/v1/chains/{id}/details
+ * Provides comprehensive chain information optimized for detail pages
+ */
+export interface ChainDetails {
+  chain_id: string;
+  chain_name: string;
+  token_symbol: string;
+  token_name: string;
+  chain_description: string;
+  status: ChainStatus;
+  graduation: GraduationProgress;
+  pool: VirtualPool | null;
+  social_links: SocialLink[];
+  repository: Repository | null;
+  created_at: string;
+  actual_launch_time: string | null;
 }
 
 // ============================================================================

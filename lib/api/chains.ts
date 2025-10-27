@@ -55,16 +55,42 @@ export const chainsApi = {
    * Get a single chain by ID
    *
    * @param id - Chain ID
+   * @param params - Optional query parameters (e.g., include)
    * @returns Promise resolving to chain data
    *
    * @example
    * ```typescript
    * // Get chain by ID
    * const chain = await chainsApi.getChain('chain-id');
+   *
+   * // Get chain with related data
+   * const chain = await chainsApi.getChain('chain-id', {
+   *   include: 'creator,template,assets,virtual_pool'
+   * });
    * ```
    */
   getChain: (id: string, params?: { include?: string }) =>
     apiClient.get<Chain>(`/api/v1/chains/${id}`, params),
+
+  /**
+   * Get comprehensive chain details including graduation progress, virtual pool, social links, and repository
+   * This endpoint is optimized for chain detail pages and provides consolidated information
+   *
+   * @param id - Chain ID
+   * @returns Promise resolving to comprehensive chain details
+   *
+   * @example
+   * ```typescript
+   * // Get detailed chain information
+   * const details = await chainsApi.getChainDetails('chain-id');
+   * console.log(`Graduation progress: ${details.data.graduation.completion_percentage}%`);
+   * console.log(`Social links: ${details.data.social_links.length}`);
+   * ```
+   */
+  getChainDetails: (id: string) =>
+    apiClient.get<import("@/types/chains").ChainDetails>(
+      `/api/v1/chains/${id}/details`
+    ),
 
   /**
    * Create a new chain

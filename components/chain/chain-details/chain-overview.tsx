@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { ChainWithUI } from "@/lib/stores/chains-store";
+import { Chain } from "@/types/chains";
 import { MediaGallery } from "./media-gallery";
 import { AchievementsList } from "./achievements-list";
 import { InfoCard } from "./info-card";
@@ -7,7 +7,7 @@ import { TokenomicsCard } from "./tokenomics-card";
 import { Users, CodeXml, Activity } from "lucide-react";
 
 interface ChainOverviewProps {
-  chain: ChainWithUI;
+  chain: Chain;
 }
 
 export function ChainOverview({ chain }: ChainOverviewProps) {
@@ -67,10 +67,12 @@ export function ChainOverview({ chain }: ChainOverviewProps) {
           <AchievementsList />
         </div>
 
-        <div className="flex flex-col gap-4">
-          <h3 className="text-lg font-semibold">Gallery</h3>
-          <MediaGallery />
-        </div>
+        {chain.media && chain.media.length > 0 && (
+          <div className="flex flex-col gap-4">
+            <h3 className="text-lg font-semibold">Gallery</h3>
+            <MediaGallery media={chain.media || []} />
+          </div>
+        )}
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">

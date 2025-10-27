@@ -4,19 +4,22 @@ import React from "react";
 import { Card } from "@/components/ui/card";
 import { TrendingUp, Users, Target } from "lucide-react";
 import Link from "next/link";
-import { ChainWithUI } from "@/lib/stores/chains-store";
-import { VirtualPool } from "@/types/chains";
+import { Chain, VirtualPool } from "@/types/chains";
 import { formatKilo } from "@/lib/utils";
 import { FeaturelessChart } from "../charts/featureless-chart";
 import { HexagonIcon } from "@/components/icons";
+import {
+  calculateGraduationProgress,
+  formatCurrency,
+  formatRelativeTime,
+  calculateAge,
+  generateChainColor,
+} from "@/lib/utils/chain-ui-helpers";
 
 /**
  * Generate sample chart data based on virtual pool data
  */
-const generateSampleChartData = (
-  virtualPool?: VirtualPool,
-  project?: ChainWithUI
-) => {
+const generateSampleChartData = (virtualPool?: VirtualPool, chain?: Chain) => {
   // Always return hardcoded sample data that matches the image
   const now = Date.now() / 1000; // Current timestamp in seconds
 
@@ -45,18 +48,19 @@ const generateSampleChartData = (
     { time: now, value: 0.48 },
   ];
 };
+
 /**
  * Props interface for the ProjectCard component
  * Defines the required data and callbacks for rendering a project card
  * Used by the ProjectCard component to display project information and handle user interactions
  */
 export interface ProjectCardProps {
-  /** Complete project data object containing all information needed for display */
-  project: ChainWithUI;
+  /** Complete chain data object containing all information needed for display */
+  project: Chain;
   /** Virtual pool data for trading metrics and progress calculation */
   virtualPool?: VirtualPool;
   /** Callback function triggered when the buy button is clicked */
-  onBuyClick: (project: ChainWithUI) => void;
+  onBuyClick: (project: Chain) => void;
   /** Historical price data points for rendering price charts and trend analysis */
   chartData: any[];
 }
@@ -67,14 +71,8 @@ export const ProjectCard = ({
   onBuyClick,
   chartData,
 }: ProjectCardProps) => {
-  // Calculate metrics from virtual pool data
-  const progress = virtualPool
-    ? Math.min(
-        (virtualPool.cnpy_reserve / project.graduation_threshold) * 100,
-        100
-      )
-    : project.progress || 0;
-
+  // Calculate metrics from virtual pool data using utility functions
+  const progress = calculateGraduationProgress(project, virtualPool);
   const currentRaised = virtualPool?.cnpy_reserve || 0;
   const priceChange = virtualPool?.price_24h_change_percent || 0;
   const volume24h = virtualPool?.volume_24h_cnpy || 0;
@@ -84,35 +82,6 @@ export const ProjectCard = ({
   // Generate sample chart data based on virtual pool data
   const sampleChartData = generateSampleChartData(virtualPool, project);
 
-  // Calculate age
-  const getAge = (createdAt: string) => {
-    const created = new Date(createdAt);
-    const now = new Date();
-    const diffMs = now.getTime() - created.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-
-    if (diffDays > 0) return `${diffDays}d`;
-    if (diffHours > 0) return `${diffHours}h`;
-    return `${diffMinutes}m`;
-  };
-
-  // Format creation time
-  const getCreatedTime = (createdAt: string) => {
-    const created = new Date(createdAt);
-    const now = new Date();
-    const diffMs = now.getTime() - created.getTime();
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffDays > 0) return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
-    if (diffHours > 0)
-      return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
-    return `${diffMinutes} min${diffMinutes > 1 ? "s" : ""} ago`;
-  };
-
   // Generate holder avatars (using first letter of project name + random colors)
   const holderColors = [
     "bg-green-500",
@@ -121,24 +90,7 @@ export const ProjectCard = ({
     "bg-pink-500",
   ];
 
-  // Generate a color based on project name
-  const generateProjectColor = (name: string) => {
-    const colors = [
-      "#dc2626", // red
-      "#ea580c", // orange
-      "#ca8a04", // yellow
-      "#16a34a", // green
-      "#0891b2", // cyan
-      "#2563eb", // blue
-      "#7c3aed", // violet
-      "#c026d3", // fuchsia
-      "#db2777", // pink
-    ];
-    const index = name.charCodeAt(0) % colors.length;
-    return colors[index];
-  };
-
-  const projectColor = generateProjectColor(project.chain_name);
+  const projectColor = generateChainColor(project.chain_name);
 
   return (
     <Card className="rounded-xl border text-card-foreground   p-6 pb-0 bg-gradient-to-br from-card to-muted/20  hover:ring-2 hover:ring-primary/20 transition-all">
@@ -194,7 +146,7 @@ export const ProjectCard = ({
               </div>
               <p className="text-xs text-muted-foreground">
                 {project.chain_name} • created{" "}
-                {getCreatedTime(project.created_at)}
+                {formatRelativeTime(project.created_at)}
               </p>
             </div>
           </div>
@@ -280,7 +232,7 @@ export const ProjectCard = ({
               <div>
                 <span className="text-muted-foreground">Age </span>
                 <span className="font-medium">
-                  {getAge(project.created_at)}
+                  {calculateAge(project.created_at)}
                 </span>
               </div>
             </div>

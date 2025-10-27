@@ -11,7 +11,9 @@
  */
 
 import { useEffect, useMemo } from "react";
-import { useChainsStore, ChainWithUI } from "@/lib/stores/chains-store";
+import { useChainsStore } from "@/lib/stores/chains-store";
+import { Chain } from "@/types/chains";
+import { getStatusLabel } from "@/lib/utils/chain-ui-helpers";
 
 // ============================================================================
 // HOOK INTERFACE
@@ -24,10 +26,10 @@ interface UseLaunchpadDashboardProps {
 
 interface UseLaunchpadDashboardReturn {
   // Data
-  chains: ChainWithUI[];
-  featuredProject: ChainWithUI | null;
-  activeProjects: ChainWithUI[];
-  graduatedProjects: ChainWithUI[];
+  chains: Chain[];
+  featuredProject: Chain | null;
+  activeProjects: Chain[];
+  graduatedProjects: Chain[];
 
   // Loading states
   isLoading: boolean;
@@ -52,7 +54,7 @@ interface UseLaunchpadDashboardReturn {
   setActiveTab: (tab: string) => void;
 
   // Computed values
-  filteredChains: ChainWithUI[];
+  filteredChains: Chain[];
   categoryOptions: Array<{ value: string; label: string }>;
   totalProjects: number;
 }
@@ -85,7 +87,6 @@ export function useLaunchpadDashboard({
     setFilters,
 
     // Computed
-    getChainsWithUI,
     getFilteredChains,
   } = useChainsStore();
 
@@ -119,31 +120,28 @@ export function useLaunchpadDashboard({
   // COMPUTED VALUES
   // ============================================================================
 
-  // Convert chains to UI format
-  const chainsWithUI = useMemo(() => {
-    return getChainsWithUI();
-  }, [chains, virtualPools, getChainsWithUI]);
-
   // Get featured project (first active project)
   const featuredProject = useMemo(() => {
-    const activeProjects = chainsWithUI.filter((p) => p.status === "active");
+    const activeProjects = chains.filter(
+      (p) => getStatusLabel(p.status) === "active"
+    );
     return activeProjects[0] || null;
-  }, [chainsWithUI]);
+  }, [chains]);
 
   // Get active projects
   const activeProjects = useMemo(() => {
-    return chainsWithUI.filter((p) => p.status === "active");
-  }, [chainsWithUI]);
+    return chains.filter((p) => getStatusLabel(p.status) === "active");
+  }, [chains]);
 
   // Get graduated projects
   const graduatedProjects = useMemo(() => {
-    return chainsWithUI.filter((p) => p.status === "graduated");
-  }, [chainsWithUI]);
+    return chains.filter((p) => getStatusLabel(p.status) === "graduated");
+  }, [chains]);
 
   // Category options for dropdown
   const categoryOptions = useMemo(() => {
     const categories = new Set<string>();
-    chainsWithUI.forEach((chain) => {
+    chains.forEach((chain) => {
       if (chain.template?.template_category) {
         categories.add(chain.template.template_category);
       }
@@ -156,11 +154,11 @@ export function useLaunchpadDashboard({
         label: category.charAt(0).toUpperCase() + category.slice(1),
       })),
     ];
-  }, [chainsWithUI]);
+  }, [chains]);
 
   // Filter projects based on current filters and active tab
   const filteredChains = useMemo(() => {
-    let filtered = [...chainsWithUI];
+    let filtered = [...chains];
 
     // Apply search filter
     if (filters.searchQuery) {
@@ -181,24 +179,9 @@ export function useLaunchpadDashboard({
       );
     }
 
-    // Apply tab filter
-    switch (filters.status) {
-      case "virtual_active":
-        filtered = filtered.filter((p) => p.status === "active");
-        break;
-      case "graduated":
-        filtered = filtered.filter((p) => p.status === "graduated");
-        break;
-      case "pending_launch":
-        filtered = filtered.filter((p) => p.status === "pending");
-        break;
-      case "draft":
-        filtered = filtered.filter((p) => p.status === "pending");
-        break;
-      default:
-        // Show all projects when "all" is selected
-        // No additional filtering needed
-        break;
+    // Apply tab filter (comparing against Chain.status, not the UI status label)
+    if (filters.status) {
+      filtered = filtered.filter((p) => p.status === filters.status);
     }
 
     // Sort by creation date (newest first)
@@ -208,7 +191,7 @@ export function useLaunchpadDashboard({
     );
 
     return filtered;
-  }, [chainsWithUI, filters]);
+  }, [chains, filters]);
 
   // ============================================================================
   // ACTIONS
@@ -275,7 +258,7 @@ export function useLaunchpadDashboard({
 
   return {
     // Data
-    chains: chains as ChainWithUI[],
+    chains,
     featuredProject,
     activeProjects,
     graduatedProjects,

@@ -1,29 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-interface GalleryImage {
-  id: number;
-  url: string;
-  alt: string;
-}
-
 interface MediaGalleryProps {
-  images?: GalleryImage[];
+  media?: string[];
 }
 
-export function MediaGallery({ images }: MediaGalleryProps) {
+export function MediaGallery({ media }: MediaGalleryProps) {
   const [currentGalleryIndex, setCurrentGalleryIndex] = useState(0);
 
-  // Default gallery data if no images provided
-  const galleryImages = images || [
-    { id: 1, url: "/placeholder.jpg", alt: "Gallery Image 1" },
-    { id: 2, url: "/placeholder.jpg", alt: "Gallery Image 2" },
-    { id: 3, url: "/placeholder.jpg", alt: "Gallery Image 3" },
-  ];
+  // Use media prop or default to empty array
+  const galleryImages = media || [];
+
+  // Don't render if no images
+  if (galleryImages.length === 0) {
+    return null;
+  }
 
   const navigateGallery = (direction: "prev" | "next") => {
     if (direction === "prev") {
@@ -42,9 +36,11 @@ export function MediaGallery({ images }: MediaGalleryProps) {
       <div className="space-y-4">
         {/* Main Gallery Display */}
         <div className="relative aspect-video bg-muted rounded-lg flex items-center justify-center overflow-hidden">
-          <span className="text-muted-foreground">
-            Gallery Image {currentGalleryIndex + 1}
-          </span>
+          <img
+            src={galleryImages[currentGalleryIndex]}
+            alt="Gallery Image"
+            className="w-full h-full object-cover"
+          />
 
           {/* Navigation Arrows */}
           {galleryImages.length > 1 && (
@@ -71,15 +67,19 @@ export function MediaGallery({ images }: MediaGalleryProps) {
 
         {/* Thumbnails */}
         <div className="flex gap-3 p-1 overflow-x-auto">
-          {galleryImages.map((_, idx) => (
+          {galleryImages.map((imageUrl, idx) => (
             <button
               key={idx}
               onClick={() => setCurrentGalleryIndex(idx)}
-              className={`flex-shrink-0 w-24 h-16 rounded-lg bg-muted flex items-center justify-center transition-all ${
+              className={`flex-shrink-0 w-24 h-16 rounded-lg overflow-hidden bg-muted transition-all ${
                 currentGalleryIndex === idx ? "ring-2 ring-primary" : ""
               }`}
             >
-              <span className="text-xs text-muted-foreground">{idx + 1}</span>
+              <img
+                src={imageUrl}
+                alt={`Thumbnail ${idx + 1}`}
+                className="w-full h-full object-cover"
+              />
             </button>
           ))}
         </div>

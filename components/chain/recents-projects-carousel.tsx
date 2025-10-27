@@ -1,14 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ChainWithUI } from "@/lib/stores/chains-store";
-import { VirtualPool } from "@/types/chains";
+import { Chain, VirtualPool } from "@/types/chains";
 import { ProjectCard } from "./project-card";
 
 interface RecentsProjectsCarouselProps {
-  projects: ChainWithUI[];
+  projects: Chain[];
   virtualPools?: Record<string, VirtualPool>;
-  onBuyClick: (project: ChainWithUI) => void;
+  onBuyClick: (project: Chain) => void;
 }
 
 const SAMPLE_CHART_DATA = [

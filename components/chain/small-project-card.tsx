@@ -2,10 +2,19 @@
 
 import Link from "next/link";
 import { Progress } from "@/components/ui/progress";
-import { ChainWithUI } from "@/lib/stores/chains-store";
+import { Chain } from "@/types/chains";
 import { useMemo } from "react";
 import { HexagonIcon } from "@/components/icons/hexagon-icon";
 import { Users, TrendingUp } from "lucide-react";
+import {
+  calculateGraduationProgress,
+  formatNumber,
+  calculateAge,
+  getPrice,
+  getMarketCap,
+  getPriceChange24h,
+  generateChainColor,
+} from "@/lib/utils/chain-ui-helpers";
 
 /**
  * SmallProjectCard component - A compact project card that functions as a clickable link
@@ -13,7 +22,7 @@ import { Users, TrendingUp } from "lucide-react";
  * Used in dashboard listings and project grids where space is limited
  */
 interface SmallProjectCardProps {
-  project: ChainWithUI;
+  project: Chain;
   href?: string;
   viewMode?: "grid" | "list";
 }
@@ -23,43 +32,22 @@ export const SmallProjectCard = ({
   href = `/chain/${project.id}`,
   viewMode = "grid",
 }: SmallProjectCardProps) => {
+  // Get virtual pool data if included
+  const virtualPool = project.virtual_pool;
+  const progress = calculateGraduationProgress(project, virtualPool);
+
   // Dynamic performance calculation based on project data
   const performanceData = useMemo(() => {
-    // Calculate 24h price change based on chart data
-    if (project.chartData && project.chartData.length >= 2) {
-      const latest = project.chartData[project.chartData.length - 1];
-      const previous = project.chartData[project.chartData.length - 2];
-      const change = ((latest.value - previous.value) / previous.value) * 100;
-      return {
-        change: Math.round(change * 100) / 100,
-        isPositive: change >= 0,
-      };
-    }
-
-    // Fallback: calculate based on progress and market cap
-    const progressFactor = project.progress / 100;
-    const marketCapFactor = Math.min(project.marketCap / 1000000000, 1); // Normalize to 0-1
-    const change = (progressFactor * marketCapFactor - 0.5) * 40; // -20 to +20 range
-
+    const change = getPriceChange24h(virtualPool);
     return {
       change: Math.round(change * 100) / 100,
       isPositive: change >= 0,
     };
-  }, [project.chartData, project.progress, project.marketCap]);
+  }, [virtualPool]);
 
   // Dynamic time calculation
   const timeAgo = useMemo(() => {
-    const now = new Date();
-    const created = new Date(project.created_at);
-    const diffMs = now.getTime() - created.getTime();
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return `${Math.floor(diffDays / 7)}w ago`;
+    return calculateAge(project.created_at);
   }, [project.created_at]);
 
   // Dynamic icon generation based on project category and name
@@ -89,19 +77,10 @@ export const SmallProjectCard = ({
     };
   }, [project.template?.template_category]);
 
-  // Format numbers with proper suffixes
-  const formatNumber = (num: number) => {
-    if (num >= 1000000000) return `${(num / 1000000000).toFixed(1)}B`;
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-    return num.toFixed(0);
-  };
-
   // Calculate market cap and target based on actual project data
-  const marketCapFormatted = formatNumber(25000);
-  const targetFormatted = formatNumber(40000);
-  // const marketCapFormatted = formatNumber( project.marketCap );
-  // const targetFormatted = formatNumber( project.fdv );
+  const marketCap = getMarketCap(virtualPool);
+  const marketCapFormatted = formatNumber(marketCap || 25000);
+  const targetFormatted = formatNumber(project.graduation_threshold);
 
   // Calculate visible and overflow hexagon icons
   const hexagonIcons = useMemo(() => {

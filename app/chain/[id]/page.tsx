@@ -1,11 +1,10 @@
 "use client";
 import { ChainDetails } from "@/components/chain/chain-details";
-import { convertToChainWithUI } from "@/lib/utils/chain-converter";
-import { useState } from "react";
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/layout/container";
-import { apiClient } from "@/lib/api/client";
+import { chainsApi } from "@/lib/api";
+import { Chain } from "@/types/chains";
 
 // Force dynamic rendering to ensure params are always fresh
 export const dynamic = "force-dynamic";
@@ -131,8 +130,7 @@ interface ChainPageProps {
 // }
 
 export default function ChainPage({ params }: ChainPageProps) {
-  const [chainWithUI, setChainWithUI] = useState<any>(null);
-  const [virtualPool, setVirtualPool] = useState<any>(null);
+  const [chain, setChain] = useState<Chain | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -146,9 +144,10 @@ export default function ChainPage({ params }: ChainPageProps) {
         console.log("Chain ID from params (decoded):", chainId);
         console.log("Client-side fetch starting at:", new Date().toISOString());
 
-        // Use axios client with include parameters
-        const response = await apiClient.get<any>(`/api/v1/chains/${chainId}`, {
-          include: "creator,repository,social_links,assets,virtual_pool",
+        // Fetch chain with all related data using include parameter
+        const response = await chainsApi.getChain(chainId, {
+          include:
+            "creator,template,assets,virtual_pool,repository,social_links",
         });
 
         console.log("Response received at:", new Date().toISOString());
@@ -162,19 +161,26 @@ export default function ChainPage({ params }: ChainPageProps) {
           return;
         }
 
-        const chainData = response.data;
-        const fetchedVirtualPool = null;
+        console.log("DEEP: Chain Page - [response.data]", response.data);
 
-        //TODO: We need to get rid of the ChainWithUI converter and just use the Chain type for all components
+        const branding = response.data.assets?.find(
+          (asset) => asset.asset_type === "logo"
+        )?.file_url;
 
-        // Convert to ChainWithUI format
-        const convertedChain = convertToChainWithUI(
-          chainData,
-          fetchedVirtualPool
-        );
+        const media = response.data.assets
+          ?.filter((asset: any) =>
+            ["media", "screenshot", "banner"].includes(asset.asset_type)
+          )
+          ?.map((asset) => asset.file_url);
 
-        setChainWithUI(convertedChain);
-        setVirtualPool(fetchedVirtualPool);
+        console.log(`DEEP: Chain Page -`, media);
+        const chain = {
+          ...response.data,
+          branding,
+          media,
+        };
+
+        setChain(chain);
         setLoading(false);
       } catch (error) {
         console.error("Error in page component:", {
@@ -183,7 +189,6 @@ export default function ChainPage({ params }: ChainPageProps) {
           stack: error instanceof Error ? error.stack : undefined,
           chainId: params?.id || "unknown",
           rawParamsId: params?.id,
-          apiUrl: (process.env.NEXT_PUBLIC_API_URL || "").trim(),
         });
         setError(error as Error);
         setLoading(false);
@@ -201,15 +206,14 @@ export default function ChainPage({ params }: ChainPageProps) {
     );
   }
 
-  if (error || !chainWithUI) {
+  if (error || !chain) {
     notFound();
     return null;
   }
 
   return (
     <Container type="boxed">
-      {" "}
-      <ChainDetails chain={chainWithUI} virtualPool={virtualPool} />{" "}
+      <ChainDetails chain={chain} />
     </Container>
   );
 }
