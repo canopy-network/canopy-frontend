@@ -190,17 +190,25 @@ export class ApiClient {
       },
       paramsSerializer: {
         serialize: (params) => {
+          console.log("🔧 Serializing params:", params);
+
           // Filter out undefined/null values and serialize
           const filteredParams = Object.entries(params || {})
             .filter(([_, value]) => value !== undefined && value !== null)
             .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
+
+          console.log("🔧 Filtered params:", filteredParams);
 
           // Use URLSearchParams for proper encoding
           const searchParams = new URLSearchParams();
           Object.entries(filteredParams).forEach(([key, value]) => {
             searchParams.append(key, String(value));
           });
-          return searchParams.toString();
+
+          const queryString = searchParams.toString();
+          console.log("🔧 Final query string:", queryString);
+
+          return queryString;
         },
       },
     });
@@ -213,6 +221,18 @@ export class ApiClient {
     // Request interceptor - Add auth headers
     this.axiosInstance.interceptors.request.use(
       (config: InternalAxiosRequestConfig) => {
+        // Log the full request configuration
+        console.log("📤 Axios Request Config:", {
+          method: config.method,
+          baseURL: config.baseURL,
+          url: config.url,
+          params: config.params,
+          paramsSerializer: config.paramsSerializer
+            ? "configured"
+            : "not configured",
+          fullURL: `${config.baseURL || ""}${config.url || ""}`,
+        });
+
         // Add authentication headers for all mutation operations
         const method = config.method?.toUpperCase();
         if (
@@ -313,6 +333,14 @@ export class ApiClient {
     params?: Record<string, any>,
     config?: AxiosRequestConfig
   ): Promise<ApiResponse<T>> {
+    console.log("🔍 API GET Request:", {
+      url,
+      params,
+      paramKeys: params ? Object.keys(params) : [],
+      paramValues: params ? Object.values(params) : [],
+      fullParams: JSON.stringify(params, null, 2),
+    });
+
     return this.makeRequest<T>({
       method: "GET",
       url,
