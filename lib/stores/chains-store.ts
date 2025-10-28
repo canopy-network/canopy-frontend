@@ -36,7 +36,7 @@ import {
 interface ChainsState {
   // Data
   chains: Chain[];
-  currentChain: Chain | null;
+  currentChain: Chain | ChainWithUI | null;
   virtualPools: Record<string, VirtualPool>; // chainId -> pool
   transactions: Record<string, Transaction[]>; // chainId -> transactions
 
@@ -76,7 +76,7 @@ interface ChainsState {
 
   // Utility Actions
   clearError: () => void;
-  setCurrentChain: (chain: Chain | null) => void;
+  setCurrentChain: (chain: Chain | ChainWithUI | null) => void;
   refreshChain: (id: string) => Promise<void>;
 
   // Computed Data
@@ -154,9 +154,7 @@ export const useChainsStore = create<ChainsState>()(
         //chris@santana.com
         // 0cd21689-de6c-4b65-ad4d-178179a07161
         fetchChains: async (params) => {
-          console.log("DEEP: Chain Store - [params]", params);
           const state = get();
-
           // Prevent concurrent fetches
           if (state.isLoading) {
             console.log(
@@ -174,10 +172,6 @@ export const useChainsStore = create<ChainsState>()(
               processChainAssets(chain)
             );
 
-            console.log(
-              "DEEP: Chain Store - [processedChains]",
-              processedChains
-            );
             set({
               chains: processedChains,
               isLoading: false,

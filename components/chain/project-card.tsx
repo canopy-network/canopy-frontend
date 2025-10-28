@@ -48,7 +48,6 @@ const generateSampleChartData = (virtualPool?: VirtualPool, chain?: Chain) => {
     { time: now, value: 0.48 },
   ];
 };
-
 /**
  * Props interface for the ProjectCard component
  * Defines the required data and callbacks for rendering a project card
