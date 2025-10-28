@@ -5,8 +5,6 @@ import { Suspense } from "react";
 import { WalletProvider } from "@/components/wallet/wallet-provider";
 import { WalletPopup } from "@/components/wallet/wallet-popup";
 import { Sidebar } from "@/components/layout/sidebar";
-import { CreateChainWizard } from "@/components/launchpad/create-chain-wizard";
-import { TemplatesInitializer } from "@/components/providers/templates-initializer";
 import { AuthSessionProvider } from "@/components/providers/session-provider";
 import { StoreProvider } from "@/components/providers/store-provider";
 import "./globals.css";
@@ -35,7 +33,6 @@ export default function RootLayout({
         <AuthSessionProvider>
           <StoreProvider>
             <WalletProvider>
-              <TemplatesInitializer />
               <div className="flex h-screen bg-background overflow-hidden">
                 {/* Desktop Sidebar - hidden on mobile */}
                 <div className="hidden lg:block">
@@ -48,7 +45,6 @@ export default function RootLayout({
                   </div>
                 </main>
               </div>
-              <CreateChainWizard />
               <WalletPopup />
             </WalletProvider>
           </StoreProvider>

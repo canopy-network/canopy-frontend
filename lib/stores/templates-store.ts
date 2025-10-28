@@ -10,6 +10,7 @@
  * @since 2024-01-01
  */
 
+import { useEffect, useState } from "react";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 import { templatesApi, getActiveTemplates } from "@/lib/api";
@@ -305,7 +306,8 @@ export const useTemplatesStore = create<TemplatesState>()(
           templates: state.templates,
           filters: state.filters,
         }),
-        skipHydration: true, // Skip hydration on SSR
+        // Let Zustand handle hydration automatically
+        skipHydration: false,
       }
     ),
     { name: "TemplatesStore" }
@@ -321,12 +323,25 @@ export const useTemplatesStore = create<TemplatesState>()(
  * Call this hook once in your root layout or app component
  */
 export function useInitializeTemplates() {
-  const { templates, isLoading, fetchTemplates } = useTemplatesStore();
+  const [isHydrated, setIsHydrated] = useState(false);
+  const store = useTemplatesStore();
 
-  // Fetch templates on mount if not already loaded
-  if (templates.length === 0 && !isLoading) {
-    fetchTemplates({ is_active: true });
-  }
+  // Wait for client-side hydration
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
-  return { isLoading, templates };
+  // Fetch templates after hydration if not already loaded
+  useEffect(() => {
+    if (isHydrated && store.templates.length === 0 && !store.isLoading) {
+      store.fetchTemplates({ is_active: true });
+    }
+  }, [
+    isHydrated,
+    store.templates.length,
+    store.isLoading,
+    store.fetchTemplates,
+  ]);
+
+  return { isLoading: store.isLoading, templates: store.templates };
 }

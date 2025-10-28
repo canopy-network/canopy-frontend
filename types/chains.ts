@@ -119,6 +119,9 @@ export interface Chain {
 
   /** Banner/screenshot URL (computed from assets) */
   banner?: string;
+
+  /** Media URLs (computed from assets - includes media, screenshots, banners) */
+  media?: string[];
 }
 
 // ============================================================================

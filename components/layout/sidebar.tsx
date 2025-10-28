@@ -15,7 +15,6 @@ import { usePathname } from "next/navigation";
 import { cn, WINDOW_BREAKPOINTS } from "@/lib/utils";
 
 export function Sidebar() {
-  const { open } = useCreateChainDialog();
   const { data: session, status } = useSession();
   const { user, isAuthenticated } = useAuthStore();
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
