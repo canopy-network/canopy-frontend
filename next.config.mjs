@@ -23,6 +23,15 @@ const nextConfig = {
   // Force all pages to be dynamic
   skipTrailingSlashRedirect: true,
   skipMiddlewareUrlNormalize: true,
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: process.env.NEXT_PUBLIC_API_URL + '/:path*',
+      },
+    ]
+  },
+
 }
 //Dummy
 export default nextConfig
