@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
@@ -48,16 +48,17 @@ import { uploadLogo, uploadGallery } from "@/lib/api/media";
 export const dynamic = "force-dynamic";
 
 interface EditChainPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 interface ApiResponse {
   data: Chain;
 }
 
-export default function EditChainPage({ params }: EditChainPageProps) {
+export default function EditChainPage(props: EditChainPageProps) {
+  const params = use(props.params);
   const router = useRouter();
   const [chain, setChain] = useState<Chain | null>(null);
   const [loading, setLoading] = useState(true);
@@ -453,13 +454,11 @@ export default function EditChainPage({ params }: EditChainPageProps) {
           )}
         </div>
       </div>
-
       {error && (
         <div className="bg-red-500/10 border border-red-500 text-red-500 p-4 rounded-md mb-6">
           {error}
         </div>
       )}
-
       <div className="space-y-6">
         {/* Branding & Media */}
         <Card>

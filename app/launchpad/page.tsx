@@ -15,6 +15,7 @@ import { chainsApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, ArrowLeft } from "lucide-react";
 import { Template } from "@/types";
+import { cn } from "@/lib/utils";
 
 export default function LaunchpadPage() {
   // Initialize templates on mount
@@ -400,88 +401,88 @@ export default function LaunchpadPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1">
-        {/* Step 1: Select Template/Language */}
-        {currentStep === 1 && (
-          <SelectLanguage
-            initialTemplate={formData.template}
-            onDataSubmit={handleLanguageSubmit}
-          />
-        )}
+      {/* <div className="flex-1"> */}
+      {/* Step 1: Select Template/Language */}
+      {currentStep === 1 && (
+        <SelectLanguage
+          initialTemplate={formData.template}
+          onDataSubmit={handleLanguageSubmit}
+        />
+      )}
 
-        {/* Step 2: Connect Repository */}
-        {currentStep === 2 && (
-          <ConnectRepo
-            initialRepo={formData.githubRepo}
-            initialValidated={formData.githubValidated}
-            initialRepoData={formData.githubRepoData}
-            templateName={formData.template?.template_name || "Python"}
-            templateLanguage={formData.template?.supported_language || "Python"}
-            onDataSubmit={handleRepoSubmit}
-          />
-        )}
+      {/* Step 2: Connect Repository */}
+      {currentStep === 2 && (
+        <ConnectRepo
+          initialRepo={formData.githubRepo}
+          initialValidated={formData.githubValidated}
+          initialRepoData={formData.githubRepoData}
+          templateName={formData.template?.template_name || "Python"}
+          templateLanguage={formData.template?.supported_language || "Python"}
+          onDataSubmit={handleRepoSubmit}
+        />
+      )}
 
-        {/* Step 3: Main Info */}
-        {currentStep === 3 && (
-          <MainInfo
-            initialData={{
-              chainName: formData.chainName,
-              tokenName: formData.tokenName,
-              ticker: formData.ticker,
-              tokenSupply: formData.tokenSupply,
-              decimals: formData.decimals,
-              description: formData.description,
-            }}
-            onDataSubmit={handleMainInfoSubmit}
-          />
-        )}
+      {/* Step 3: Main Info */}
+      {currentStep === 3 && (
+        <MainInfo
+          initialData={{
+            chainName: formData.chainName,
+            tokenName: formData.tokenName,
+            ticker: formData.ticker,
+            tokenSupply: formData.tokenSupply,
+            decimals: formData.decimals,
+            description: formData.description,
+          }}
+          onDataSubmit={handleMainInfoSubmit}
+        />
+      )}
 
-        {/* Step 4: Branding & Media */}
-        {currentStep === 4 && (
-          <BrandingMedia
-            initialData={{
-              logo: formData.logo,
-              chainDescription: formData.chainDescription,
-              gallery: formData.gallery,
-              brandColor: formData.brandColor,
-            }}
-            onDataSubmit={handleBrandingSubmit}
-          />
-        )}
+      {/* Step 4: Branding & Media */}
+      {currentStep === 4 && (
+        <BrandingMedia
+          initialData={{
+            logo: formData.logo,
+            chainDescription: formData.chainDescription,
+            gallery: formData.gallery,
+            brandColor: formData.brandColor,
+          }}
+          onDataSubmit={handleBrandingSubmit}
+        />
+      )}
 
-        {/* Step 5: Links & Documentation */}
-        {currentStep === 5 && (
-          <LinksDocumentation
-            initialData={{
-              social: formData.socialLinks,
-              resources: formData.resources,
-            }}
-            onDataSubmit={handleLinksSubmit}
-          />
-        )}
+      {/* Step 5: Links & Documentation */}
+      {currentStep === 5 && (
+        <LinksDocumentation
+          initialData={{
+            social: formData.socialLinks,
+            resources: formData.resources,
+          }}
+          onDataSubmit={handleLinksSubmit}
+        />
+      )}
 
-        {/* Step 6: Launch Settings */}
-        {currentStep === 6 && (
-          <LaunchSettings
-            initialData={{
-              launchDate: formData.launchDate,
-              launchTime: formData.launchTime,
-              timezone: formData.timezone,
-              launchImmediately: formData.launchImmediately,
-              initialPurchaseAmount: formData.initialPurchaseAmount,
-              graduationThreshold: formData.graduationThreshold,
-            }}
-            ticker={formData.ticker}
-            onDataSubmit={handleSettingsSubmit}
-          />
-        )}
+      {/* Step 6: Launch Settings */}
+      {currentStep === 6 && (
+        <LaunchSettings
+          initialData={{
+            launchDate: formData.launchDate,
+            launchTime: formData.launchTime,
+            timezone: formData.timezone,
+            launchImmediately: formData.launchImmediately,
+            initialPurchaseAmount: formData.initialPurchaseAmount,
+            graduationThreshold: formData.graduationThreshold,
+          }}
+          ticker={formData.ticker}
+          onDataSubmit={handleSettingsSubmit}
+        />
+      )}
 
-        {/* Step 7: Review & Payment */}
-        {currentStep === 7 && <ReviewPayment formData={formData} />}
-      </div>
+      {/* Step 7: Review & Payment */}
+      {currentStep === 7 && <ReviewPayment formData={formData} />}
+      {/* </div> */}
 
       {/* Action Buttons */}
-      <div className="border-t border-border p-6">
+      <div className=" py-8 px-4 mb-24">
         <div className="max-w-4xl mx-auto">
           {submitError && (
             <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm flex items-center gap-2">
@@ -489,14 +490,19 @@ export default function LaunchpadPage() {
             </div>
           )}
 
-          <div className="flex justify-between">
+          <div
+            className={cn(
+              "flex justify-between",
+              currentStep === 7 && "flex-col-reverse justify-center gap-4"
+            )}
+          >
             {/* Back Button */}
             {currentStep > 1 && (
               <Button
                 onClick={handleBack}
                 variant="outline"
                 size="lg"
-                className="gap-2"
+                className={cn("gap-2", currentStep === 7 && "w-full")}
                 disabled={isSubmitting}
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -520,7 +526,7 @@ export default function LaunchpadPage() {
                 onClick={handleSubmit}
                 disabled={isSubmitting}
                 size="lg"
-                className="gap-2 ml-auto"
+                className={cn("gap-2 ml-auto", currentStep === 7 && "w-full")}
               >
                 {isSubmitting ? "Processing..." : "Connect Wallet & Pay"}
               </Button>

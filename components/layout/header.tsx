@@ -78,7 +78,6 @@ export function Header() {
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
 
   // Auth state
-  const { open } = useCreateChainDialog();
   const { data: session } = useSession();
   const { user, isAuthenticated } = useAuthStore();
   const isLoggedIn = isAuthenticated || !!session;
