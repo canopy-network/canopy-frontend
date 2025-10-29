@@ -5,15 +5,14 @@ import { WalletConnectButton } from "@/components/wallet/wallet-connect-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Plus, Github, Mail } from "lucide-react";
-import { signIn, signOut } from "next-auth/react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import type { AuthUser } from "@/lib/stores/auth-store";
 
 interface MobileSidebarProps {
   isLoggedIn: boolean;
   isAuthenticated: boolean;
-  user: any;
-  session: any;
+  user: AuthUser | null;
   onCreateChain: () => void;
   onSearchClick: () => void;
   onLoginClick: () => void;
@@ -24,7 +23,6 @@ export function MobileSidebar({
   isLoggedIn,
   isAuthenticated,
   user,
-  session,
   onCreateChain,
   onSearchClick,
   onLoginClick,
@@ -132,43 +130,6 @@ export function MobileSidebar({
         )}
 
         {isLoggedIn && <WalletConnectButton />}
-
-        {/* GitHub Login Button */}
-        {isLoggedIn && (
-          <div className="space-y-2">
-            {session ? (
-              <>
-                <div className="flex items-center gap-2 p-2 bg-[#1a1a1a] rounded-lg">
-                  <img
-                    src={session.user?.image || ""}
-                    alt={session.user?.name || ""}
-                    className="w-6 h-6 rounded-full"
-                  />
-                  <span className="text-sm text-white truncate">
-                    {session.user?.name || session.user?.email}
-                  </span>
-                </div>
-                <Button
-                  onClick={() => signOut()}
-                  variant="outline"
-                  size="sm"
-                  className="w-full text-xs"
-                >
-                  Sign Out
-                </Button>
-              </>
-            ) : (
-              <Button
-                onClick={() => signIn("github")}
-                variant="outline"
-                className="w-full justify-start gap-2 bg-transparent hover:bg-[#1a1a1a] text-white border-[#2a2a2a]"
-              >
-                <Github className="h-4 w-4" />
-                Connect GitHub
-              </Button>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

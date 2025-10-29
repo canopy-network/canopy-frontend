@@ -23,7 +23,7 @@ export default function LaunchpadLayout({ children }: LaunchpadLayoutProps) {
   };
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <section className="flex min-h-screen max-h-screen overflow-hidden bg-background">
       {/* Launch Progress Sidebar */}
       <LaunchpadSidebar
         currentStep={currentStep}
@@ -32,8 +32,8 @@ export default function LaunchpadLayout({ children }: LaunchpadLayoutProps) {
       />
 
       {/* Main Content Area */}
-      <main className="flex flex-col overflow-auto w-full">
-        <div className="flex justify-end p-2 border-b mb-10">
+      <div className="flex flex-col flex-1 overflow-y-auto">
+        <div className="flex justify-end p-2 border-b mb-10 sticky top-0 bg-background z-10">
           <Button
             variant="ghost"
             size="icon"
@@ -44,7 +44,7 @@ export default function LaunchpadLayout({ children }: LaunchpadLayoutProps) {
           </Button>
         </div>
         {children}
-      </main>
-    </div>
+      </div>
+    </section>
   );
 }

@@ -24,7 +24,6 @@ import { Input } from "@/components/ui/input";
 import { ChevronDown, Search, X, Menu } from "lucide-react";
 import { MobileSidebar } from "@/components/layout/mobile-sidebar";
 import { LoginDialog } from "@/components/auth/login-dialog";
-import { useSession } from "next-auth/react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { Badge } from "../ui/badge";
 import { chainStatusesLabels } from "@/lib/utils";
@@ -79,9 +78,8 @@ export function Header() {
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
 
   // Auth state
-  const { data: session } = useSession();
   const { user, isAuthenticated } = useAuthStore();
-  const isLoggedIn = isAuthenticated || !!session;
+  const isLoggedIn = isAuthenticated;
 
   // Get current filter from URL
   const projectStatus = searchParams.get("project_status") || "new";
@@ -570,7 +568,6 @@ export function Header() {
             isLoggedIn={isLoggedIn}
             isAuthenticated={isAuthenticated}
             user={user}
-            session={session}
             onCreateChain={() => open()}
             onSearchClick={() => setIsMobileSearchOpen(true)}
             onLoginClick={() => setLoginDialogOpen(true)}

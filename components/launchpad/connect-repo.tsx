@@ -20,9 +20,9 @@ import {
   Loader2,
   AlertCircle,
 } from "lucide-react";
-import { signIn, signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { fetchUserRepositories, type Repository } from "@/lib/api/github-repos";
+import { useGitHubSession } from "@/lib/hooks/use-github-session";
 
 interface ConnectRepoProps {
   initialRepo?: string;
@@ -63,7 +63,12 @@ export default function ConnectRepo({
   templateLanguage = "python",
   onDataSubmit,
 }: ConnectRepoProps) {
-  const { data: session, status } = useSession();
+  const {
+    session,
+    loading: sessionLoading,
+    login,
+    logout,
+  } = useGitHubSession();
   const [connectedRepo, setConnectedRepo] = useState<string | null>(
     initialValidated ? initialRepo : null
   );
@@ -99,13 +104,13 @@ export default function ConnectRepo({
 
   // Fetch repositories when dialog opens and user is authenticated
   useEffect(() => {
-    if (showRepoDialog && session?.accessToken && repositories.length === 0) {
+    if (showRepoDialog && session.authenticated && repositories.length === 0) {
       loadRepositories();
     }
-  }, [showRepoDialog, session?.accessToken]);
+  }, [showRepoDialog, session.authenticated]);
 
   const loadRepositories = async () => {
-    if (!session?.accessToken) return;
+    if (!session.accessToken) return;
 
     setIsLoadingRepos(true);
     setRepoError(null);
@@ -136,9 +141,9 @@ export default function ConnectRepo({
   };
 
   const handleConnectRepository = () => {
-    if (!session) {
+    if (!session.authenticated) {
       // Initialize GitHub OAuth flow - user authorizes Canopy to access their repos
-      signIn("github", { callbackUrl: window.location.href });
+      login();
     } else {
       // User is authenticated - show repository selection dialog
       setShowRepoDialog(true);
@@ -181,7 +186,7 @@ export default function ConnectRepo({
     }
 
     // Sign out from GitHub
-    await signOut({ redirect: false });
+    await logout();
   };
 
   const getLanguageIcon = (lang: string) => {
@@ -295,12 +300,12 @@ export default function ConnectRepo({
                         You can always update your code later.
                       </p>
                     </div>
-                    {status === "loading" ? (
+                    {sessionLoading ? (
                       <Button variant="outline" disabled className="gap-2">
                         <Loader2 className="w-4 h-4 animate-spin" />
                         Loading...
                       </Button>
-                    ) : !session ? (
+                    ) : !session.authenticated ? (
                       <div className="flex flex-col items-center gap-2">
                         <Button
                           onClick={handleConnectRepository}
@@ -385,12 +390,16 @@ export default function ConnectRepo({
 
           <div className="space-y-4 pt-4">
             {/* User Info */}
-            {session?.user && (
+            {session.user && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
-                  {session.user.name?.[0] || "U"}
+                  {session.user.name?.[0] || session.user.login?.[0] || "U"}
                 </div>
-                <span>{session.user.name || session.user.email}</span>
+                <span>
+                  {session.user.name ||
+                    session.user.login ||
+                    session.user.email}
+                </span>
               </div>
             )}
 
