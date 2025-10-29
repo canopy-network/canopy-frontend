@@ -121,6 +121,18 @@ function processChainAssets(chain: Chain): Chain {
 // STORE IMPLEMENTATION
 // ============================================================================
 
+// Custom storage that handles SSR
+const createNoopStorage = (): any => {
+  return {
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+  };
+};
+
+const storage =
+  typeof window !== "undefined" ? localStorage : createNoopStorage();
+
 export const useChainsStore = create<ChainsState>()(
   devtools(
     persist(
@@ -418,12 +430,12 @@ export const useChainsStore = create<ChainsState>()(
       }),
       {
         name: "chains-store",
+        storage,
         partialize: (state) => ({
           // Only persist filters and pagination, not the actual data
           filters: state.filters,
           pagination: state.pagination,
         }),
-        skipHydration: true, // Skip hydration on SSR
       }
     ),
     { name: "ChainsStore" }

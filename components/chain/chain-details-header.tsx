@@ -1,13 +1,13 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 import { Star, Upload, Users, TrendingUp, Zap } from "lucide-react";
 import { HexagonIcon } from "@/components/icons/hexagon-icon";
+import { formatDistanceToNow } from "date-fns";
+import { ChainExtended } from "@/types/chains";
 
 interface ChainDetailsHeaderProps {
-  chain: {
-    chain_name: string;
-    token_symbol: string;
-    branding?: string;
-  };
+  chain: ChainExtended;
 }
 
 export function ChainDetailsHeader({ chain }: ChainDetailsHeaderProps) {
@@ -94,7 +94,10 @@ export function ChainDetailsHeader({ chain }: ChainDetailsHeaderProps) {
 
             {/* Subtitle */}
             <p className="text-xs text-gray-400">
-              ${chain.token_symbol} on {chain.chain_name} • created 13m ago
+              ${chain.token_symbol} on {chain.chain_name} • Created&nbsp;
+              {formatDistanceToNow(new Date(chain.created_at), {
+                addSuffix: true,
+              })}
             </p>
           </div>
         </div>

@@ -13,7 +13,7 @@
 import { useEffect, useState } from "react";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
-import { templatesApi, getActiveTemplates } from "@/lib/api";
+import { templatesApi } from "@/lib/api";
 import {
   Template,
   TemplateCategory,
@@ -110,6 +110,18 @@ function calculateStatistics(templates: Template[]): TemplateStatistics {
 // ============================================================================
 // STORE IMPLEMENTATION
 // ============================================================================
+
+// Custom storage that handles SSR
+const createNoopStorage = (): any => {
+  return {
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+  };
+};
+
+const storage =
+  typeof window !== "undefined" ? localStorage : createNoopStorage();
 
 export const useTemplatesStore = create<TemplatesState>()(
   devtools(
@@ -301,13 +313,12 @@ export const useTemplatesStore = create<TemplatesState>()(
       }),
       {
         name: "templates-store",
+        storage,
         partialize: (state) => ({
           // Persist templates data and filters for better UX
           templates: state.templates,
           filters: state.filters,
         }),
-        // Let Zustand handle hydration automatically
-        skipHydration: false,
       }
     ),
     { name: "TemplatesStore" }
@@ -324,7 +335,9 @@ export const useTemplatesStore = create<TemplatesState>()(
  */
 export function useInitializeTemplates() {
   const [isHydrated, setIsHydrated] = useState(false);
-  const store = useTemplatesStore();
+  const templates = useTemplatesStore((state) => state.templates);
+  const isLoading = useTemplatesStore((state) => state.isLoading);
+  const fetchTemplates = useTemplatesStore((state) => state.fetchTemplates);
 
   // Wait for client-side hydration
   useEffect(() => {
@@ -333,15 +346,10 @@ export function useInitializeTemplates() {
 
   // Fetch templates after hydration if not already loaded
   useEffect(() => {
-    if (isHydrated && store.templates.length === 0 && !store.isLoading) {
-      store.fetchTemplates({ is_active: true });
+    if (isHydrated && templates.length === 0 && !isLoading) {
+      fetchTemplates({ is_active: true });
     }
-  }, [
-    isHydrated,
-    store.templates.length,
-    store.isLoading,
-    store.fetchTemplates,
-  ]);
+  }, [isHydrated, templates.length, isLoading, fetchTemplates]);
 
-  return { isLoading: store.isLoading, templates: store.templates };
+  return { isLoading, templates };
 }

@@ -22,12 +22,13 @@ import { useChainsStore } from "@/lib/stores/chains-store";
 import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { ChevronDown, Search, X, Menu } from "lucide-react";
-import clsx from "clsx";
 import { MobileSidebar } from "@/components/layout/mobile-sidebar";
 import { LoginDialog } from "@/components/auth/login-dialog";
-import { useCreateChainDialog } from "@/lib/stores/use-create-chain-dialog";
 import { useSession } from "next-auth/react";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { Badge } from "../ui/badge";
+import { chainStatusesLabels } from "@/lib/utils";
+import { ChainStatus } from "@/types";
 
 // Page type definitions
 export type PageType =
@@ -44,7 +45,7 @@ export type PageType =
 
 // Route configuration for breadcrumbs
 const routeConfig: Record<string, { label: string; href?: string }> = {
-  launchpad: { label: "Launchpad", href: "/" },
+  chain: { label: "Launchpad", href: "/" },
   dashboard: { label: "Dashboard", href: "/dashboard" },
   explorer: { label: "Explorer", href: "/explorer" },
   graduation: { label: "Graduation", href: "/graduation" },
@@ -141,17 +142,6 @@ export function Header() {
         .slice(0, 10)
     : [];
 
-  // Homepage chain search filter
-  const homepageFilteredChains = homepageSearchQuery.trim()
-    ? chains
-        .filter((chain) =>
-          chain.chain_name
-            .toLowerCase()
-            .includes(homepageSearchQuery.toLowerCase())
-        )
-        .slice(0, 10)
-    : [];
-
   // Mobile chain search filter
   const mobileFilteredChains = mobileSearchQuery.trim()
     ? chains
@@ -243,6 +233,7 @@ export function Header() {
   const getBreadcrumbs = () => {
     const segments = pathname.split("/").filter(Boolean);
 
+    console.log("segments", segments);
     if (segments.length === 0) {
       return null;
     }
@@ -273,6 +264,7 @@ export function Header() {
       let isLast = segments.length === 2;
 
       if (mainSection === "chain" && currentChain) {
+        console.log("2 [currentChain]", currentChain);
         // Use the chain name from the store if available
         label = currentChain.chain_name || segments[1];
 
@@ -319,7 +311,7 @@ export function Header() {
       <header
         id="superapp-header"
         data-page-type={pageType}
-        className="flex items-center justify-between px-4 lg:px-6  border-b border-white/[0.1] relative h-16"
+        className="flex items-center justify-between px-4 lg:px-6   relative h-16 bg-black"
       >
         {/* Mobile Header - visible only on mobile */}
         <div className="flex lg:hidden items-center justify-between w-full relative">
@@ -461,7 +453,19 @@ export function Header() {
                           </>
                         ) : crumb.isLast ? (
                           <BreadcrumbPage className="text-white">
-                            {crumb.label}
+                            {crumb.label}{" "}
+                            {currentChain && currentChain?.status && (
+                              <Badge
+                                variant={currentChain?.status as ChainStatus}
+                                className="text-xs ml-3"
+                              >
+                                {
+                                  chainStatusesLabels[
+                                    currentChain?.status as ChainStatus
+                                  ]
+                                }
+                              </Badge>
+                            )}
                           </BreadcrumbPage>
                         ) : (
                           <BreadcrumbLink asChild>

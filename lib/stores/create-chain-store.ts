@@ -139,6 +139,18 @@ const initialFormData: CreateChainFormData = {
 // STORE IMPLEMENTATION
 // ============================================================================
 
+// Custom storage that handles SSR
+const createNoopStorage = (): any => {
+  return {
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+  };
+};
+
+const storage =
+  typeof window !== "undefined" ? localStorage : createNoopStorage();
+
 export const useCreateChainStore = create<CreateChainState>()(
   devtools(
     persist(
@@ -189,6 +201,7 @@ export const useCreateChainStore = create<CreateChainState>()(
       }),
       {
         name: "create-chain-store",
+        storage,
         partialize: (state) => ({
           // Persist form data but not Files
           formData: {
