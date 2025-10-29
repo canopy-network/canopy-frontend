@@ -38,7 +38,7 @@ export default function RootLayout({
                 <div className="hidden lg:block">
                   <Sidebar />
                 </div>
-                <main className="w-full overflow-x-hidden flex flex-col">
+                <main className="w-full overflow-auto">
                   <Header />
                   <div className="flex-1 overflow-y-auto overflow-x-hidden">
                     <Suspense fallback={null}>{children}</Suspense>

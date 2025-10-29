@@ -1,10 +1,7 @@
-interface Holder {
-  address: string;
-  label?: string;
-}
+import { ChainHolder } from "@/types";
 
 interface AvatarGroupProps {
-  holders: Holder[];
+  holders: ChainHolder[];
   maxVisible?: number;
 }
 
@@ -20,12 +17,23 @@ const AVATAR_COLORS = [
   "bg-orange-500",
 ];
 
-// Get a consistent color based on address
-function getAvatarColor(address: string): string {
-  const hash = address.split("").reduce((acc, char) => {
+// Get a randomized color based on string
+function getAvatarColor(str: string): string {
+  if (!str) return AVATAR_COLORS[5];
+  const hash = str.split("").reduce((acc, char) => {
     return char.charCodeAt(0) + ((acc << 5) - acc);
   }, 0);
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+// Get 2-letter initials from account name
+function getInitials(accountName: string): string {
+  if (!accountName || accountName.length === 0) return "??";
+  const words = accountName.trim().split(/\s+/);
+  if (words.length >= 2) {
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }
+  return accountName.slice(0, 2).toUpperCase();
 }
 
 export function AvatarGroup({ holders, maxVisible = 5 }: AvatarGroupProps) {
@@ -37,12 +45,12 @@ export function AvatarGroup({ holders, maxVisible = 5 }: AvatarGroupProps) {
       <div className="flex -space-x-2">
         {visibleHolders.map((holder, idx) => (
           <div
-            key={holder.address || idx}
+            key={holder.user_id || idx}
             className={`w-8 h-8 rounded-full border-2 border-card flex items-center justify-center text-xs font-semibold text-white ${getAvatarColor(
-              holder.address
+              holder.account_name
             )}`}
           >
-            {holder.label || holder.address.slice(2, 4).toUpperCase()}
+            {getInitials(holder.account_name)}
           </div>
         ))}
       </div>

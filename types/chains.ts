@@ -523,6 +523,21 @@ export type ChainWithRelations = Chain & {
   creator: Creator;
 };
 
+/**
+ * Extended Chain type that includes additional optional properties from ChainDetails
+ * This type is useful for components that can handle both Chain and ChainDetails data
+ */
+export type ChainExtended = Chain & {
+  /** Graduation progress information (from ChainDetails) */
+  graduation?: GraduationProgress;
+  /** Virtual pool information (alias for virtual_pool, from ChainDetails) */
+  pool?: VirtualPool;
+  /** Social links (from ChainDetails) */
+  social_links?: SocialLink[];
+  /** Repository information (from ChainDetails) */
+  repository?: Repository;
+};
+
 // ============================================================================
 // CONSTANTS
 // ============================================================================
@@ -575,4 +590,29 @@ export interface ChainToken {
 export interface CanopyWallet {
   cnpyAvailableAmount: number;
   usdCurrentPrice: number;
+}
+
+/**
+ * Chain holder information from /api/v1/chains/{id}/holders
+ */
+export interface ChainHolder {
+  user_id: string;
+  account_name: string;
+  wallet_address: string;
+  token_balance: number;
+  percentage: number;
+  value_cnpy: number;
+  average_entry_price_cnpy: number;
+  unrealized_pnl_cnpy: number;
+  total_return_percent: number;
+  first_purchase_at: string;
+  last_activity_at: string;
+}
+
+/**
+ * Query parameters for getting holders
+ */
+export interface GetHoldersParams {
+  page?: number;
+  limit?: number;
 }

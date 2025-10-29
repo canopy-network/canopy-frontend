@@ -2,13 +2,6 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -17,6 +10,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { ChainHolder } from "@/types/chains";
 
 // Function to truncate address: first 6 chars + ... + last 4 chars
 const truncateAddress = (address: string): string => {
@@ -24,14 +18,18 @@ const truncateAddress = (address: string): string => {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 };
 
-// Get initials from address for avatar
-const getInitials = (address: string): string => {
-  if (address.length < 4) return address.slice(0, 2).toUpperCase();
-  return address.slice(2, 4).toUpperCase();
+// Get initials from account name for avatar
+const getInitials = (accountName: string): string => {
+  if (!accountName || accountName.length === 0) return "??";
+  const words = accountName.trim().split(/\s+/);
+  if (words.length >= 2) {
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }
+  return accountName.slice(0, 2).toUpperCase();
 };
 
-// Generate consistent color based on address
-const getAvatarColor = (address: string): string => {
+// Generate consistent color based on string
+const getAvatarColor = (str: string): string => {
   const colors = [
     "bg-purple-500",
     "bg-yellow-500",
@@ -43,114 +41,19 @@ const getAvatarColor = (address: string): string => {
     "bg-indigo-500",
   ];
 
-  // Use address to generate consistent color
-  const hash = address.split("").reduce((acc, char) => {
+  // Use string to generate consistent color
+  const hash = str.split("").reduce((acc, char) => {
     return char.charCodeAt(0) + ((acc << 5) - acc);
   }, 0);
 
   return colors[Math.abs(hash) % colors.length];
 };
 
-export type Holder = {
-  rank: number;
-  address: string;
-  balance: number;
-  percentage: number;
-  value: number;
-  isCreator?: boolean;
-};
-
-// Base data template
-const baseData: Holder[] = [
-  {
-    rank: 1,
-    address: "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1",
-    balance: 350000,
-    percentage: 16.28,
-    value: 4725.0,
-    isCreator: true,
-  },
-  {
-    rank: 2,
-    address: "0x8626F6940E2eb28930eFb4CeF49B2d1F2C9C1199",
-    balance: 320000,
-    percentage: 14.88,
-    value: 4320.0,
-  },
-  {
-    rank: 3,
-    address: "0xdD2FD4581271e230360230F9337D5c0430Bf44C0",
-    balance: 290000,
-    percentage: 13.49,
-    value: 3915.0,
-  },
-  {
-    rank: 4,
-    address: "0xbDA5747bFD65F08deb54cb465eB87D40e51B197E",
-    balance: 260000,
-    percentage: 12.09,
-    value: 3510.0,
-  },
-  {
-    rank: 5,
-    address: "0x2546BcD3c84621e976D8185a91A922aE77ECEc30",
-    balance: 230000,
-    percentage: 10.7,
-    value: 3105.0,
-  },
-  {
-    rank: 6,
-    address: "0xCD36a566fE133a2711a03B0b3c488ce8E27C1234",
-    balance: 200000,
-    percentage: 9.3,
-    value: 2700.0,
-  },
-  {
-    rank: 7,
-    address: "0x1234567890aBcDeF1234567890aBcDeF12345678",
-    balance: 180000,
-    percentage: 8.37,
-    value: 2430.0,
-  },
-  {
-    rank: 8,
-    address: "0xaBcDeF1234567890aBcDeF1234567890aBcDeF12",
-    balance: 150000,
-    percentage: 6.98,
-    value: 2025.0,
-  },
-  {
-    rank: 9,
-    address: "0x9876543210fEdCbA9876543210fEdCbA98765432",
-    balance: 120000,
-    percentage: 5.58,
-    value: 1620.0,
-  },
-  {
-    rank: 10,
-    address: "0xfEdCbA9876543210fEdCbA9876543210fEdCbA98",
-    balance: 100000,
-    percentage: 4.65,
-    value: 1350.0,
-  },
-];
-
-// Duplicate data to create 50 entries for pagination
-const mockData: Holder[] = Array.from({ length: 5 }, (_, groupIndex) =>
-  baseData.map((holder, index) => ({
-    ...holder,
-    rank: groupIndex * 10 + index + 1,
-    isCreator: holder.isCreator && groupIndex === 0,
-    // Vary the addresses slightly for each duplicate
-    address:
-      holder.address.slice(0, -4) +
-      Math.random().toString(16).substring(2, 6).toUpperCase(),
-  }))
-).flat();
-
-// Format USD value
-const formatUSDValue = (value: number): string => {
-  return `$${value.toLocaleString("en-US", {
+// Format USD value (mock placeholder)
+const formatUSDValue = (cnpyValue: number): string => {
+  // Using placeholder mock conversion: 1 CNPY = ~$0.135 (mock rate)
+  const mockUSDValue = cnpyValue * 0.135;
+  return `$${mockUSDValue.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
@@ -162,7 +65,7 @@ const formatPercentage = (percentage: number): string => {
 };
 
 // Format token balance
-const formatBalance = (balance: number, ticker: string = "DYPRO"): string => {
+const formatBalance = (balance: number, ticker: string): string => {
   return `${balance.toLocaleString()} ${ticker}`;
 };
 
@@ -199,21 +102,22 @@ const CopyableAddress = ({ address }: { address: string }) => {
   );
 };
 
-export function HoldersTable() {
-  const [currentPage, setCurrentPage] = React.useState(0);
-  const [pageSize, setPageSize] = React.useState(10);
-
-  const ticker = "DYPRO";
-  const creatorAddress = mockData[0]?.address; // First holder is creator for demo
-
-  // Calculate pagination
-  const totalPages = Math.ceil(mockData.length / pageSize);
-  const startIndex = currentPage * pageSize;
-  const endIndex = startIndex + pageSize;
-  const currentHolders = mockData.slice(startIndex, endIndex);
-
-  const canPreviousPage = currentPage > 0;
-  const canNextPage = currentPage < totalPages - 1;
+export function HoldersTable({
+  data,
+  pagination,
+  tokenSymbol,
+}: {
+  data: ChainHolder[];
+  pagination: {
+    page: number;
+    total: number;
+  };
+  tokenSymbol: string;
+}) {
+  // Display settings
+  const displayLimit = 10; // Number of holders to display initially
+  const displayedHolders = data.slice(0, displayLimit);
+  const remainingHolders = pagination.total - displayedHolders.length;
 
   return (
     <div className="w-full space-y-4">
@@ -222,7 +126,7 @@ export function HoldersTable() {
         <h2 className="text-lg font-medium text-white">
           Total{" "}
           <span className="text-white/70">
-            {(2471549).toLocaleString()} holders
+            {pagination.total.toLocaleString()} holders
           </span>
         </h2>
         <div className="flex items-center gap-2">
@@ -240,32 +144,32 @@ export function HoldersTable() {
       {/* Holders List */}
       <div className=" bg-card overflow-hidden">
         <div>
-          {currentHolders.map((holder, idx) => (
+          {displayedHolders.map((holder, idx) => (
             <div
-              key={holder.address}
+              key={holder.user_id}
               className="flex items-center gap-4 py-4  border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
             >
               {/* Rank */}
               <div className="flex items-center justify-center w-8 h-8 text-sm font-semibold text-muted-foreground">
-                #{holder.rank}
+                #{idx + 1}
               </div>
 
               {/* Avatar */}
               <Avatar className="w-10 h-10">
                 <AvatarFallback
                   className={`${getAvatarColor(
-                    holder.address
+                    holder.account_name
                   )} text-white font-semibold`}
                 >
-                  {getInitials(holder.address)}
+                  {getInitials(holder.account_name)}
                 </AvatarFallback>
               </Avatar>
 
               {/* Address */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <CopyableAddress address={holder.address} />
-                  {holder.isCreator && (
+                  <CopyableAddress address={holder.wallet_address} />
+                  {idx === 0 && (
                     <Badge
                       variant="secondary"
                       className="text-[10px] px-1.5 py-0 h-4 bg-green-500/10 text-green-500 border-green-500/20"
@@ -279,20 +183,29 @@ export function HoldersTable() {
               {/* Balance Info */}
               <div className="text-right">
                 <p className="font-semibold text-sm">
-                  {formatUSDValue(holder.value)}
+                  {formatUSDValue(holder.value_cnpy)}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {formatPercentage(holder.percentage)} •{" "}
-                  {formatBalance(holder.balance, ticker)}
+                  {formatBalance(holder.token_balance, tokenSymbol)}
                 </p>
               </div>
             </div>
           ))}
         </div>
+
+        {/* Among others indicator */}
+        {remainingHolders > 0 && (
+          <div className="pt-6 text-center border-t border-border">
+            <p className="text-sm text-muted-foreground">
+              Among <span>{remainingHolders.toLocaleString()}</span> others
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between px-2">
+      {/* <div className="flex items-center justify-between px-2">
         <div className="flex items-center gap-2">
           <span className="text-sm text-white/70">Show</span>
           <Select
@@ -363,7 +276,7 @@ export function HoldersTable() {
             </Button>
           </div>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 }

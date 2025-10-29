@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { ChainStatus } from "@/types/chains";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -49,4 +50,12 @@ export const WINDOW_BREAKPOINTS = {
   LG: 1024,
   XL: 1280,
   XXL: 1536,
+};
+
+export const chainStatusesLabels: Record<ChainStatus, string> = {
+  draft: "Draft",
+  pending_launch: "Pending Launch",
+  virtual_active: "Virtual",
+  graduated: "Graduated",
+  failed: "Failed",
 };

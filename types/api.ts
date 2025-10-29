@@ -17,6 +17,7 @@
  * Standard API response wrapper for successful requests
  */
 export interface ApiResponse<T> {
+  pagination: any;
   data: T;
   token?: string; // Authorization token from response headers
 }

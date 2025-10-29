@@ -18,7 +18,10 @@ import {
   VirtualPool,
   Transaction,
   CreateAssetRequest,
+  ChainHolder,
+  GetHoldersParams,
 } from "@/types/chains";
+import { PaginatedResponse } from "@/types/api";
 
 // ============================================================================
 // CHAINS API
@@ -414,4 +417,35 @@ export async function getChainsByTemplate(
     ...params,
     template_id: templateId,
   });
+}
+
+/**
+ * Get holders for a specific chain
+ *
+ * @param chainId - Chain ID
+ * @param params - Optional pagination parameters
+ * @returns Promise resolving to paginated holders data
+ *
+ * @example
+ * ```typescript
+ * // Get first page of holders
+ * const holders = await getChainHolders('chain-id');
+ *
+ * // Get specific page
+ * const holdersPage2 = await getChainHolders('chain-id', { page: 2, limit: 20 });
+ * ```
+ */
+export async function getChainHolders(
+  chainId: string,
+  params?: GetHoldersParams
+) {
+  return apiClient.get<{
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      pages: number;
+    };
+    data: ChainHolder[];
+  }>(`/api/v1/chains/${chainId}/holders`, params);
 }

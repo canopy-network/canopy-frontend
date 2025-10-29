@@ -60,6 +60,18 @@ export function logPersistedAuthData() {
   return data;
 }
 
+// Custom storage that handles SSR
+const createNoopStorage = (): any => {
+  return {
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+  };
+};
+
+const storage =
+  typeof window !== "undefined" ? localStorage : createNoopStorage();
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
@@ -78,7 +90,7 @@ export const useAuthStore = create<AuthState>()(
         }
 
         // Store token in localStorage if provided
-        if (token) {
+        if (token && typeof window !== "undefined") {
           localStorage.setItem("auth_token", token);
           console.log("🔑 Authorization token stored");
         }
@@ -91,24 +103,28 @@ export const useAuthStore = create<AuthState>()(
         });
 
         // Verify persistence
-        setTimeout(() => {
-          const stored = localStorage.getItem("canopy-auth-storage");
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            console.log("✅ Verified data persisted to localStorage:", {
-              userFieldCount: Object.keys(parsed.state?.user || {}).length,
-              hasUser: !!parsed.state?.user,
-              hasToken: !!parsed.state?.token,
-              userId: parsed.state?.user?.id,
-              userEmail: parsed.state?.user?.email,
-            });
-          }
-        }, 100);
+        if (typeof window !== "undefined") {
+          setTimeout(() => {
+            const stored = localStorage.getItem("canopy-auth-storage");
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              console.log("✅ Verified data persisted to localStorage:", {
+                userFieldCount: Object.keys(parsed.state?.user || {}).length,
+                hasUser: !!parsed.state?.user,
+                hasToken: !!parsed.state?.token,
+                userId: parsed.state?.user?.id,
+                userEmail: parsed.state?.user?.email,
+              });
+            }
+          }, 100);
+        }
       },
 
       clearUser: () => {
         clearUserId();
-        localStorage.removeItem("auth_token");
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("auth_token");
+        }
         set({
           user: null,
           token: null,
@@ -128,7 +144,9 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         clearUserId();
-        localStorage.removeItem("auth_token");
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("auth_token");
+        }
         set({
           user: null,
           token: null,
@@ -139,6 +157,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: "canopy-auth-storage",
+      storage,
       partialize: (state) => ({
         user: state.user,
         token: state.token,

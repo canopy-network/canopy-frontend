@@ -29,6 +29,8 @@ export interface GitHubRepository {
   default_branch: string;
   clone_url: string;
   ssh_url: string;
+  stargazers_count?: number;
+  forks_count?: number;
 }
 
 export interface Repository {

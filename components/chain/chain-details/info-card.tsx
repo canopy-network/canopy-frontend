@@ -2,7 +2,8 @@ import { LucideIcon, ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AvatarGroup } from "./avatar-group";
-
+import { ChainHolder } from "@/types";
+import { GitHubRepository } from "@/lib/api/github-repos";
 export interface InfoCardStat {
   label: string;
   value: string | number;
@@ -21,8 +22,9 @@ export interface InfoCardProps {
   buttonText: string;
   onButtonClick?: () => void;
   isHolders?: boolean;
-  holders?: Holder[];
+  holders?: ChainHolder[];
   maxVisibleHolders?: number;
+  repository?: GitHubRepository | null;
 }
 
 export function InfoCard({
@@ -35,6 +37,7 @@ export function InfoCard({
   isHolders = false,
   holders = [],
   maxVisibleHolders = 5,
+  repository = null,
 }: InfoCardProps) {
   return (
     <Card className="flex flex-col" size="none">
@@ -63,10 +66,6 @@ export function InfoCard({
       {isHolders && holders.length > 0 ? (
         <div className="flex items-center flex-wrap gap-2  py-0">
           <AvatarGroup holders={holders} maxVisible={maxVisibleHolders} />
-
-          <span className="text-xs text-muted-foreground">
-            +{holders.length - maxVisibleHolders} holders
-          </span>
         </div>
       ) : stats && stats.length > 0 ? (
         <div className="space-y-2 py-0">
@@ -90,7 +89,7 @@ export function InfoCard({
       <div className="pb-5 mt-auto">
         <Button
           variant="ghost"
-          className="w-full justify-between group py-0 px-1"
+          className="w-full justify-between group py-0 !px-0"
           onClick={onButtonClick}
         >
           {buttonText}
