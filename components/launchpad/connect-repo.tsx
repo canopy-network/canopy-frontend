@@ -100,14 +100,36 @@ export default function ConnectRepo({
         repoData,
       });
     }
+    // Only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch repositories when dialog opens and user is authenticated
+  // Sync GitHub connection status with parent when session changes
   useEffect(() => {
-    if (showRepoDialog && session.authenticated && repositories.length === 0) {
+    console.log("session.connected", session);
+    if (
+      session.connected &&
+      !initialValidated &&
+      onDataSubmit &&
+      connectedRepo
+    ) {
+      // Notify parent when GitHub is connected AND a repo is selected
+      onDataSubmit({
+        repo: connectedRepo,
+        validated: true,
+        repoData: null,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.connected, connectedRepo]);
+
+  // Fetch repositories when dialog opens and user is connected to GitHub
+  useEffect(() => {
+    if (showRepoDialog && session.connected && repositories.length === 0) {
       loadRepositories();
     }
-  }, [showRepoDialog, session.authenticated]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showRepoDialog, session.connected]);
 
   const loadRepositories = async () => {
     if (!session.accessToken) return;
@@ -141,11 +163,11 @@ export default function ConnectRepo({
   };
 
   const handleConnectRepository = () => {
-    if (!session.authenticated) {
+    if (!session.connected) {
       // Initialize GitHub OAuth flow - user authorizes Canopy to access their repos
       login();
     } else {
-      // User is authenticated - show repository selection dialog
+      // User is connected to GitHub - show repository selection dialog
       setShowRepoDialog(true);
     }
   };
@@ -271,9 +293,9 @@ export default function ConnectRepo({
                     Customize the code if you want (or leave it as-is)
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    If you're new to blockchain development, you can launch the
-                    template without changing anything! It's fully functional
-                    out of the box.
+                    If you&apos;re new to blockchain development, you can launch
+                    the template without changing anything! It&apos;s fully
+                    functional out of the box.
                   </p>
                 </div>
               </div>
@@ -305,7 +327,7 @@ export default function ConnectRepo({
                         <Loader2 className="w-4 h-4 animate-spin" />
                         Loading...
                       </Button>
-                    ) : !session.authenticated ? (
+                    ) : !session.connected ? (
                       <div className="flex flex-col items-center gap-2">
                         <Button
                           onClick={handleConnectRepository}
@@ -429,7 +451,8 @@ export default function ConnectRepo({
                   <div className="text-center">
                     <p className="text-destructive font-medium">{repoError}</p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Make sure you've authorized Canopy to access your repos
+                      Make sure you&apos;ve authorized Canopy to access your
+                      repos
                     </p>
                   </div>
                   <Button

@@ -1,50 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-// Get current session (checks both email and GitHub auth)
+// Get current GitHub connection status (for repository access only)
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const authUser = cookieStore.get("auth_user")?.value;
-    const authToken = cookieStore.get("auth_token")?.value;
     const githubAccessToken = cookieStore.get("github_access_token")?.value;
+    const githubUser = cookieStore.get("github_user")?.value;
 
-    if (!authUser) {
+    if (!githubAccessToken || !githubUser) {
       return NextResponse.json(
-        { authenticated: false, user: null, accessToken: null },
+        { connected: false, user: null, accessToken: null },
         { status: 200 }
       );
     }
 
-    const user = JSON.parse(authUser);
+    const user = JSON.parse(githubUser);
 
     return NextResponse.json(
       {
-        authenticated: true,
+        connected: true,
         user,
-        token: authToken,
-        githubAccessToken,
+        accessToken: githubAccessToken,
       },
       { status: 200 }
     );
   } catch (error) {
     console.error("Session retrieval error:", error);
     return NextResponse.json(
-      { authenticated: false, user: null, accessToken: null },
+      { connected: false, user: null, accessToken: null },
       { status: 200 }
     );
   }
 }
 
-// Logout - clear all session cookies
+// Disconnect GitHub - clear GitHub session only (does NOT affect app authentication)
 export async function DELETE(request: NextRequest) {
   try {
     const cookieStore = await cookies();
 
-    // Clear all auth-related cookies
-    cookieStore.delete("auth_user");
-    cookieStore.delete("auth_token");
+    // Clear only GitHub-related cookies
     cookieStore.delete("github_access_token");
+    cookieStore.delete("github_user");
+
+    console.log("✅ GitHub session cleared");
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {

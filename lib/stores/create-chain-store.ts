@@ -9,7 +9,12 @@
  */
 
 import { create } from "zustand";
-import { devtools, persist } from "zustand/middleware";
+import {
+  devtools,
+  persist,
+  createJSONStorage,
+  StateStorage,
+} from "zustand/middleware";
 import { Template } from "@/types";
 
 // ============================================================================
@@ -139,17 +144,21 @@ const initialFormData: CreateChainFormData = {
 // STORE IMPLEMENTATION
 // ============================================================================
 
-// Custom storage that handles SSR
-const createNoopStorage = (): any => {
-  return {
-    getItem: () => null,
-    setItem: () => {},
-    removeItem: () => {},
-  };
+// Custom storage that properly implements Zustand's StateStorage interface
+const zustandStorage: StateStorage = {
+  getItem: (name: string): string | null => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(name);
+  },
+  setItem: (name: string, value: string): void => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(name, value);
+  },
+  removeItem: (name: string): void => {
+    if (typeof window === "undefined") return;
+    localStorage.removeItem(name);
+  },
 };
-
-const storage =
-  typeof window !== "undefined" ? localStorage : createNoopStorage();
 
 export const useCreateChainStore = create<CreateChainState>()(
   devtools(
@@ -201,7 +210,7 @@ export const useCreateChainStore = create<CreateChainState>()(
       }),
       {
         name: "create-chain-store",
-        storage,
+        storage: createJSONStorage(() => zustandStorage),
         partialize: (state) => ({
           // Persist form data but not Files
           formData: {
@@ -213,6 +222,19 @@ export const useCreateChainStore = create<CreateChainState>()(
           currentStep: state.currentStep,
           completedSteps: state.completedSteps,
         }),
+        onRehydrateStorage: () => {
+          return (state, error) => {
+            if (error) {
+              console.error("Failed to rehydrate create-chain store:", error);
+            } else if (state) {
+              console.log("✅ Create-chain store rehydrated:", {
+                currentStep: state.currentStep,
+                hasTemplate: !!state.formData.template,
+                githubConnected: state.formData.githubValidated,
+              });
+            }
+          };
+        },
       }
     ),
     { name: "CreateChainStore" }

@@ -1,16 +1,15 @@
-import { useEffect } from "react";
-import { useAuthStore } from "@/lib/stores/auth-store";
+import { useState, useEffect } from "react";
 
 export interface GitHubUser {
-  id: number | string;
-  login?: string;
+  id: number;
+  login: string;
   name: string | null;
   email: string | null;
-  avatar_url?: string;
+  avatar_url: string;
 }
 
 export interface GitHubSession {
-  authenticated: boolean;
+  connected: boolean;
   user: GitHubUser | null;
   accessToken: string | null;
 }
@@ -23,77 +22,127 @@ function getCookie(name: string): string | null {
   return null;
 }
 
+/**
+ * Hook to manage GitHub OAuth connection for repository access
+ * This is SEPARATE from app authentication - only used to read repositories
+ */
 export function useGitHubSession() {
-  const { user, isAuthenticated, setUser, logout: authLogout } = useAuthStore();
+  const [session, setSession] = useState<GitHubSession>({
+    connected: false,
+    user: null,
+    accessToken: null,
+  });
+  const [loading, setLoading] = useState(true);
 
-  // Check for GitHub auth success on mount and sync with auth store
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const githubAuthSuccess = urlParams.get("github_auth");
+  // Load GitHub session from cookies
+  const loadSession = () => {
+    try {
+      const githubUserCookie = getCookie("github_user");
+      const githubAccessToken = getCookie("github_access_token");
 
-    if (githubAuthSuccess === "success") {
-      // Read user data from cookie and store in auth store
-      const authUserCookie = getCookie("auth_user");
-      const authTokenCookie = getCookie("auth_token");
+      console.log("🔍 Loading GitHub session from cookies:", {
+        hasUserCookie: !!githubUserCookie,
+        hasAccessToken: !!githubAccessToken,
+        userCookieLength: githubUserCookie?.length,
+        tokenLength: githubAccessToken?.length,
+      });
 
-      if (authUserCookie) {
+      if (githubUserCookie && githubAccessToken) {
         try {
-          const userData = JSON.parse(decodeURIComponent(authUserCookie));
-          setUser(userData, authTokenCookie || undefined);
-
-          // Clean up URL
-          window.history.replaceState(
-            {},
-            document.title,
-            window.location.pathname
-          );
-        } catch (error) {
-          console.error("Failed to parse auth user cookie:", error);
+          const githubUser = JSON.parse(decodeURIComponent(githubUserCookie));
+          setSession({
+            connected: true,
+            user: githubUser,
+            accessToken: githubAccessToken,
+          });
+          console.log("✅ GitHub session loaded:", githubUser.login);
+        } catch (parseError) {
+          console.error("Failed to parse GitHub user data:", parseError);
+          setSession({
+            connected: false,
+            user: null,
+            accessToken: null,
+          });
         }
+      } else {
+        console.log("❌ No GitHub cookies found");
+        setSession({
+          connected: false,
+          user: null,
+          accessToken: null,
+        });
       }
+    } catch (error) {
+      console.error("Failed to load GitHub session:", error);
+      setSession({
+        connected: false,
+        user: null,
+        accessToken: null,
+      });
+    } finally {
+      setLoading(false);
     }
-  }, [setUser]);
-
-  // Read GitHub access token from cookies
-  const getGitHubAccessToken = (): string | null => {
-    return getCookie("github_access_token");
   };
 
+  // Check for GitHub connection success on mount and handle redirect
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const githubConnected = urlParams.get("github_connected");
+
+    if (githubConnected === "success") {
+      console.log("🔗 GitHub connection successful, loading session...");
+
+      // Give cookies time to be set, then reload session
+      setTimeout(() => {
+        loadSession();
+        // Clean up URL after loading
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname
+        );
+      }, 100);
+    } else {
+      loadSession();
+    }
+  }, []);
+
   const login = () => {
+    // Redirect to GitHub OAuth
     window.location.href = "/api/github/auth";
   };
 
   const logout = async () => {
     try {
-      // Clear GitHub session
+      // Clear GitHub session via API
       await fetch("/api/github/session", { method: "DELETE" });
 
-      // Clear auth store (this also clears localStorage)
-      authLogout();
+      // Clear local state
+      setSession({
+        connected: false,
+        user: null,
+        accessToken: null,
+      });
 
       // Clear cookies
       if (typeof window !== "undefined") {
         document.cookie =
-          "auth_user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-        document.cookie =
-          "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+          "github_user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
         document.cookie =
           "github_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
       }
+
+      console.log("✅ GitHub disconnected");
     } catch (error) {
-      console.error("Failed to logout:", error);
+      console.error("Failed to disconnect GitHub:", error);
     }
   };
 
   return {
-    session: {
-      authenticated: isAuthenticated,
-      user: user as GitHubUser | null,
-      accessToken: getGitHubAccessToken(),
-    },
-    loading: false, // Auth store handles loading state
+    session,
+    loading,
     login,
     logout,
-    refetch: () => {}, // Not needed anymore as we use auth store
+    refetch: loadSession,
   };
 }

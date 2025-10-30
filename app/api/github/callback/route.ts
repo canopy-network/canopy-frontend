@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import axios from "axios";
-import { API_CONFIG } from "@/lib/config/api";
 
-// Handles GitHub OAuth callback
+// Handles GitHub OAuth callback - ONLY for repository access, NOT for app authentication
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get("code");
@@ -76,105 +74,41 @@ export async function GET(request: NextRequest) {
       emails.find((e: { primary: boolean; email: string }) => e.primary)
         ?.email || githubUserData.email;
 
-    // Register/login user with our backend API
-    try {
-      const apiResponse = await axios.post(
-        `${API_CONFIG.baseURL}/api/v1/auth/github`,
-        {
-          github_id: githubUserData.id,
-          login: githubUserData.login,
-          name: githubUserData.name,
-          email: primaryEmail,
-          avatar_url: githubUserData.avatar_url,
-          github_access_token: accessToken,
-        }
-      );
+    // Store GitHub session in cookies (for repository access only)
+    const cookieStore = await cookies();
 
-      const backendUser = apiResponse.data.data.user;
-      const authHeader =
-        apiResponse.headers["authorization"] ||
-        apiResponse.headers["Authorization"];
-      const backendToken = authHeader
-        ? authHeader.replace("Bearer ", "")
-        : null;
+    // Store GitHub access token (client-accessible for repository operations)
+    cookieStore.set("github_access_token", accessToken, {
+      httpOnly: false, // Allow client-side access for repository API calls
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+      path: "/",
+    });
 
-      // Store session in cookies for client-side access
-      const cookieStore = await cookies();
+    // Store GitHub user info (for display purposes)
+    const githubUser = {
+      id: githubUserData.id,
+      login: githubUserData.login,
+      name: githubUserData.name,
+      email: primaryEmail,
+      avatar_url: githubUserData.avatar_url,
+    };
 
-      // Store auth data in cookies
-      cookieStore.set("auth_user", JSON.stringify(backendUser), {
-        httpOnly: false, // Allow client-side access for auth store
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 30, // 30 days
-        path: "/",
-      });
+    cookieStore.set("github_user", JSON.stringify(githubUser), {
+      httpOnly: false, // Allow client-side access for display
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+      path: "/",
+    });
 
-      if (backendToken) {
-        cookieStore.set("auth_token", backendToken, {
-          httpOnly: false, // Allow client-side access for auth store
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          maxAge: 60 * 60 * 24 * 30, // 30 days
-          path: "/",
-        });
-      }
+    console.log("✅ GitHub connected successfully:", githubUser.login);
 
-      // Also store GitHub-specific data
-      cookieStore.set("github_access_token", accessToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 30,
-        path: "/",
-      });
-
-      // Redirect back to original page
-      return NextResponse.redirect(
-        `${process.env.NEXTAUTH_URL}${state}?github_auth=success`
-      );
-    } catch (apiError) {
-      const error = apiError as {
-        response?: { data?: unknown };
-        message?: string;
-      };
-      console.error(
-        "Backend API error:",
-        error.response?.data || error.message
-      );
-      // If backend fails, still store GitHub data locally
-      const cookieStore = await cookies();
-
-      // Create a local user object from GitHub data
-      const localUser = {
-        id: `github_${githubUserData.id}`,
-        email: primaryEmail,
-        name: githubUserData.name || githubUserData.login,
-        username: githubUserData.login,
-        avatar_url: githubUserData.avatar_url,
-        provider: "github",
-      };
-
-      cookieStore.set("auth_user", JSON.stringify(localUser), {
-        httpOnly: false,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 30,
-        path: "/",
-      });
-
-      cookieStore.set("github_access_token", accessToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 30,
-        path: "/",
-      });
-
-      return NextResponse.redirect(
-        `${process.env.NEXTAUTH_URL}${state}?github_auth=success`
-      );
-    }
+    // Redirect back to original page
+    return NextResponse.redirect(
+      `${process.env.NEXTAUTH_URL}${state}?github_connected=success`
+    );
   } catch (error) {
     console.error("OAuth callback error:", error);
     return NextResponse.redirect(

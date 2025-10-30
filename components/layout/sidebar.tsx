@@ -205,9 +205,11 @@ export function Sidebar() {
                     </span>
                   )}
                 </div>
-                <span className="text-sm text-white truncate">
-                  {user.email}
-                </span>
+                {isCondensed ? null : (
+                  <span className="text-sm text-white truncate">
+                    {user.email}
+                  </span>
+                )}
               </Button>
             </>
           ) : (
