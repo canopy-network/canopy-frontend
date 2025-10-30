@@ -10,7 +10,7 @@
  */
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage, StateStorage } from "zustand/middleware";
 import type { User } from "@/types/api";
 import { setUserId, clearUserId } from "@/lib/api/client";
 
@@ -60,17 +60,21 @@ export function logPersistedAuthData() {
   return data;
 }
 
-// Custom storage that handles SSR
-const createNoopStorage = (): any => {
-  return {
-    getItem: () => null,
-    setItem: () => {},
-    removeItem: () => {},
-  };
+// Custom storage that properly implements Zustand's StateStorage interface
+const zustandStorage: StateStorage = {
+  getItem: (name: string): string | null => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(name);
+  },
+  setItem: (name: string, value: string): void => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(name, value);
+  },
+  removeItem: (name: string): void => {
+    if (typeof window === "undefined") return;
+    localStorage.removeItem(name);
+  },
 };
-
-const storage =
-  typeof window !== "undefined" ? localStorage : createNoopStorage();
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -157,12 +161,34 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: "canopy-auth-storage",
-      storage,
-      partialize: (state) => ({
-        user: state.user,
-        token: state.token,
-        isAuthenticated: state.isAuthenticated,
-      }),
+      storage: createJSONStorage(() => zustandStorage),
+      onRehydrateStorage: () => {
+        return (state, error) => {
+          if (error) {
+            console.error("Failed to rehydrate auth store:", error);
+          } else if (state) {
+            console.log("✅ Auth store rehydrated successfully:", {
+              hasUser: !!state.user,
+              hasToken: !!state.token,
+              isAuthenticated: state.isAuthenticated,
+              userId: state.user?.id,
+            });
+
+            // Restore user ID for API calls if user exists
+            if (state.user?.id) {
+              setUserId(state.user.id);
+            }
+
+            // Restore token to localStorage if it exists
+            if (state.token && typeof window !== "undefined") {
+              const storedToken = localStorage.getItem("auth_token");
+              if (!storedToken) {
+                localStorage.setItem("auth_token", state.token);
+              }
+            }
+          }
+        };
+      },
     }
   )
 );
