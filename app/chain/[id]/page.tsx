@@ -31,7 +31,7 @@ export default async function ChainPage(props: ChainPageProps) {
     // Fetch chain data with all required includes
     const response = await chainsApi.getChain(chainId, {
       include:
-        "creator,template,assets,graduation,repository,social_links,graduated_pool,virtual_pool",
+        "creator,template,assets,holders,graduation,repository,social_links,graduated_pool,virtual_pool",
     });
 
     console.log("Response received at:", new Date().toISOString());
