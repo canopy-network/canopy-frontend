@@ -237,10 +237,13 @@ export function ChainDetails({ chain }: ChainDetailsProps) {
               ) : (
                 <div className="flex items-baseline gap-2">
                   <h3 className="text-2xl font-semibold">
-                    {chain.pool?.market_cap_usd.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
+                    {chain.virtual_pool?.market_cap_usd.toLocaleString(
+                      undefined,
+                      {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      }
+                    )}
                   </h3>
                 </div>
               )}
