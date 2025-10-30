@@ -20,9 +20,9 @@ import {
   Loader2,
   AlertCircle,
 } from "lucide-react";
-import { signIn, signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { fetchUserRepositories, type Repository } from "@/lib/api/github-repos";
+import { useGitHubSession } from "@/lib/hooks/use-github-session";
 
 interface ConnectRepoProps {
   initialRepo?: string;
@@ -63,7 +63,12 @@ export default function ConnectRepo({
   templateLanguage = "python",
   onDataSubmit,
 }: ConnectRepoProps) {
-  const { data: session, status } = useSession();
+  const {
+    session,
+    loading: sessionLoading,
+    login,
+    logout,
+  } = useGitHubSession();
   const [connectedRepo, setConnectedRepo] = useState<string | null>(
     initialValidated ? initialRepo : null
   );
@@ -95,17 +100,39 @@ export default function ConnectRepo({
         repoData,
       });
     }
+    // Only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch repositories when dialog opens and user is authenticated
+  // Sync GitHub connection status with parent when session changes
   useEffect(() => {
-    if (showRepoDialog && session?.accessToken && repositories.length === 0) {
+    console.log("session.connected", session);
+    if (
+      session.connected &&
+      !initialValidated &&
+      onDataSubmit &&
+      connectedRepo
+    ) {
+      // Notify parent when GitHub is connected AND a repo is selected
+      onDataSubmit({
+        repo: connectedRepo,
+        validated: true,
+        repoData: null,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.connected, connectedRepo]);
+
+  // Fetch repositories when dialog opens and user is connected to GitHub
+  useEffect(() => {
+    if (showRepoDialog && session.connected && repositories.length === 0) {
       loadRepositories();
     }
-  }, [showRepoDialog, session?.accessToken]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showRepoDialog, session.connected]);
 
   const loadRepositories = async () => {
-    if (!session?.accessToken) return;
+    if (!session.accessToken) return;
 
     setIsLoadingRepos(true);
     setRepoError(null);
@@ -136,11 +163,11 @@ export default function ConnectRepo({
   };
 
   const handleConnectRepository = () => {
-    if (!session) {
+    if (!session.connected) {
       // Initialize GitHub OAuth flow - user authorizes Canopy to access their repos
-      signIn("github", { callbackUrl: window.location.href });
+      login();
     } else {
-      // User is authenticated - show repository selection dialog
+      // User is connected to GitHub - show repository selection dialog
       setShowRepoDialog(true);
     }
   };
@@ -181,7 +208,7 @@ export default function ConnectRepo({
     }
 
     // Sign out from GitHub
-    await signOut({ redirect: false });
+    await logout();
   };
 
   const getLanguageIcon = (lang: string) => {
@@ -266,9 +293,9 @@ export default function ConnectRepo({
                     Customize the code if you want (or leave it as-is)
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    If you're new to blockchain development, you can launch the
-                    template without changing anything! It's fully functional
-                    out of the box.
+                    If you&apos;re new to blockchain development, you can launch
+                    the template without changing anything! It&apos;s fully
+                    functional out of the box.
                   </p>
                 </div>
               </div>
@@ -295,12 +322,12 @@ export default function ConnectRepo({
                         You can always update your code later.
                       </p>
                     </div>
-                    {status === "loading" ? (
+                    {sessionLoading ? (
                       <Button variant="outline" disabled className="gap-2">
                         <Loader2 className="w-4 h-4 animate-spin" />
                         Loading...
                       </Button>
-                    ) : !session ? (
+                    ) : !session.connected ? (
                       <div className="flex flex-col items-center gap-2">
                         <Button
                           onClick={handleConnectRepository}
@@ -385,12 +412,16 @@ export default function ConnectRepo({
 
           <div className="space-y-4 pt-4">
             {/* User Info */}
-            {session?.user && (
+            {session.user && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
-                  {session.user.name?.[0] || "U"}
+                  {session.user.name?.[0] || session.user.login?.[0] || "U"}
                 </div>
-                <span>{session.user.name || session.user.email}</span>
+                <span>
+                  {session.user.name ||
+                    session.user.login ||
+                    session.user.email}
+                </span>
               </div>
             )}
 
@@ -420,7 +451,8 @@ export default function ConnectRepo({
                   <div className="text-center">
                     <p className="text-destructive font-medium">{repoError}</p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Make sure you've authorized Canopy to access your repos
+                      Make sure you&apos;ve authorized Canopy to access your
+                      repos
                     </p>
                   </div>
                   <Button

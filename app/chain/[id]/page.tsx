@@ -28,100 +28,43 @@ export default async function ChainPage(props: ChainPageProps) {
     console.log("Chain ID from params (decoded):", chainId);
     console.log("Server-side fetch starting at:", new Date().toISOString());
 
-    let chain: ChainExtended | null = null;
+    // Fetch chain data with all required includes
+    const response = await chainsApi.getChain(chainId, {
+      include:
+        "creator,template,assets,graduation,repository,social_links,graduated_pool,virtual_pool",
+    });
 
-    // Try to fetch using getChainDetails first
-    try {
-      const detailsResponse = await chainsApi.getChainDetails(chainId);
+    console.log("Response received at:", new Date().toISOString());
 
-      if (detailsResponse.data) {
-        console.log(
-          "DEEP: Chain Page - getChainDetails data:",
-          detailsResponse.data
-        );
-
-        // Transform ChainDetails to ChainExtended format
-        // ChainDetails uses chain_id while Chain uses id
-        const details = detailsResponse.data;
-        chain = {
-          id: details.chain_id,
-          chain_id: details.chain_id,
-          chain_name: details.chain_name,
-          token_symbol: details.token_symbol,
-          token_name: details.token_name || "",
-          chain_description: details.chain_description,
-          status: details.status,
-          actual_launch_time: details.actual_launch_time,
-          created_at: details.created_at,
-          graduation: details.graduation,
-          pool: details.pool || undefined,
-          virtual_pool: details.pool || undefined,
-          social_links: details.social_links,
-          repository: details.repository || undefined,
-          // These fields would need to be provided by getChain if needed
-          template_id: "",
-          consensus_mechanism: "",
-          token_total_supply: 0,
-          graduation_threshold: details.graduation.threshold_cnpy,
-          creation_fee_cnpy: 0,
-          initial_cnpy_reserve: 0,
-          initial_token_supply: 0,
-          bonding_curve_slope: 0,
-          scheduled_launch_time: "",
-          creator_initial_purchase_cnpy: 0,
-          is_graduated: details.status === "graduated",
-          graduation_time: null,
-          genesis_hash: null,
-          validator_min_stake: 0,
-          created_by: "",
-          updated_at: details.created_at,
-        } as ChainExtended;
-      }
-    } catch (detailsError) {
-      console.log(
-        "getChainDetails failed, falling back to getChain:",
-        detailsError
-      );
-    }
-
-    // Fallback to getChain if getChainDetails failed or returned non-200
-    if (!chain) {
-      const response = await chainsApi.getChain(chainId, {
-        include: "creator,template,assets,virtual_pool,repository,social_links",
+    if (!response.data) {
+      console.error("API returned no chain data:", {
+        responseData: response,
+        chainId: chainId,
       });
-
-      console.log("Response received at:", new Date().toISOString());
-
-      if (!response.data) {
-        console.error("API returned no chain data:", {
-          responseData: response,
-          chainId: chainId,
-        });
-        notFound();
-      }
-
-      console.log("DEEP: Chain Page - getChain data:", response.data);
-
-      // Extract branding and media from assets
-      const branding = response.data.assets?.find(
-        (asset) => asset.asset_type === "logo"
-      )?.file_url;
-
-      const media = response.data.assets
-        ?.filter((asset) =>
-          ["media", "screenshot", "banner"].includes(asset.asset_type)
-        )
-        ?.map((asset) => asset.file_url);
-
-      console.log(`DEEP: Chain Page - media:`, media);
-
-      // Augment chain data with computed branding and media
-      chain = {
-        ...response.data,
-        branding,
-        media,
-      } as ChainExtended;
+      notFound();
     }
+
+    console.log("DEEP: Chain Page - getChain data:", response.data);
+
+    // Extract branding and media from assets
+    const branding = response.data.assets?.find(
+      (asset) => asset.asset_type === "logo"
+    )?.file_url;
+
+    const media = response.data.assets
+      ?.filter((asset) =>
+        ["media", "screenshot", "banner"].includes(asset.asset_type)
+      )
+      ?.map((asset) => asset.file_url);
+
+    console.log(`DEEP: Chain Page - media:`, media);
+
+    // Augment chain data with computed branding and media
+    const chain: ChainExtended = {
+      ...response.data,
+      branding,
+      media,
+    } as ChainExtended;
 
     return (
       <Container type="boxed" className="">

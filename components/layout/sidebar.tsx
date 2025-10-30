@@ -6,16 +6,14 @@ import { WalletConnectButton } from "@/components/wallet/wallet-connect-button";
 import { LoginDialog } from "@/components/auth/login-dialog";
 import CommandSearchDialog from "@/components/command-search-dialog";
 import { Button } from "@/components/ui/button";
-import { Search, Plus, Github, Mail, Wallet } from "lucide-react";
+import { Search, Plus, Mail, Wallet } from "lucide-react";
 import { useCreateChainDialog } from "@/lib/stores/use-create-chain-dialog";
-import { signIn, signOut, useSession } from "next-auth/react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn, WINDOW_BREAKPOINTS } from "@/lib/utils";
 
 export function Sidebar() {
-  const { data: session, status } = useSession();
   const { user, isAuthenticated } = useAuthStore();
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [showCommandSearch, setShowCommandSearch] = useState(false);
@@ -60,8 +58,8 @@ export function Sidebar() {
   // Show expanded view on hover when compact
   const shouldExpand = isCompact && isHovered;
   const isCondensed = isCompact && !shouldExpand;
-  // User is considered logged in if either email auth or GitHub auth is active
-  const isLoggedIn = isAuthenticated || !!session;
+
+  const isLoggedIn = isAuthenticated;
 
   return (
     <div
@@ -207,9 +205,11 @@ export function Sidebar() {
                     </span>
                   )}
                 </div>
-                <span className="text-sm text-white truncate">
-                  {user.email}
-                </span>
+                {isCondensed ? null : (
+                  <span className="text-sm text-white truncate">
+                    {user.email}
+                  </span>
+                )}
               </Button>
             </>
           ) : (

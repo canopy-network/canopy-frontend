@@ -492,25 +492,6 @@ export interface GraduationProgress {
   completion_percentage: number;
 }
 
-/**
- * Chain details response from /api/v1/chains/{id}/details
- * Provides comprehensive chain information optimized for detail pages
- */
-export interface ChainDetails {
-  chain_id: string;
-  chain_name: string;
-  token_symbol: string;
-  token_name: string;
-  chain_description: string;
-  status: ChainStatus;
-  graduation: GraduationProgress;
-  pool: VirtualPool | null;
-  social_links: SocialLink[];
-  repository: Repository | null;
-  created_at: string;
-  actual_launch_time: string | null;
-}
-
 // ============================================================================
 // UTILITY TYPES
 // ============================================================================
@@ -524,17 +505,18 @@ export type ChainWithRelations = Chain & {
 };
 
 /**
- * Extended Chain type that includes additional optional properties from ChainDetails
- * This type is useful for components that can handle both Chain and ChainDetails data
+ * Extended Chain type that includes additional optional properties
+ * This type is useful for components that handle chains with all related data included
+ * via the include parameter (e.g., 'creator,template,assets,graduation,repository,social_links,graduated_pool,virtual_pool')
  */
 export type ChainExtended = Chain & {
-  /** Graduation progress information (from ChainDetails) */
+  /** Graduation progress information */
   graduation?: GraduationProgress;
-  /** Virtual pool information (alias for virtual_pool, from ChainDetails) */
+  /** Virtual pool information (alias for virtual_pool) */
   pool?: VirtualPool;
-  /** Social links (from ChainDetails) */
+  /** Social links */
   social_links?: SocialLink[];
-  /** Repository information (from ChainDetails) */
+  /** Repository information */
   repository?: Repository;
 };
 
