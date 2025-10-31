@@ -46,13 +46,18 @@ export const ProjectCard = ({
   const marketCap = virtualPool?.market_cap_usd || 0;
   const uniqueTraders = virtualPool?.unique_traders || 0;
 
-  // Generate holder avatars (using first letter of project name + random colors)
+  // Generate holder avatars based on unique traders count
   const holderColors = [
-    "bg-green-500",
     "bg-yellow-500",
     "bg-purple-500",
     "bg-pink-500",
+    "bg-blue-500",
+    "bg-green-500",
   ];
+
+  const maxVisibleHolders = 4;
+  const visibleHoldersCount = Math.min(uniqueTraders, maxVisibleHolders);
+  const remainingHolders = Math.max(0, uniqueTraders - maxVisibleHolders);
 
   const projectColor = generateChainColor(project.chain_name);
 
@@ -140,19 +145,31 @@ export const ProjectCard = ({
           {/* Bottom Stats */}
           <div className="flex items-center gap-6 pt-2 border-t border-border/50 pb-4">
             <div className="flex items-center">
-              <div className="flex -space-x-2">
-                {holderColors.map((color, i) => (
-                  <div
-                    key={i}
-                    className={`w-6 h-6 rounded-full border-2 border-card flex items-center justify-center text-[10px] font-semibold text-white ${color}`}
-                  >
-                    H{i + 1}
+              {uniqueTraders > 0 ? (
+                <>
+                  <div className="flex -space-x-2">
+                    {Array.from({ length: visibleHoldersCount }).map((_, i) => (
+                      <div
+                        key={i}
+                        className={`w-6 h-6 rounded-full border-2 border-card flex items-center justify-center text-[10px] font-semibold text-white ${
+                          holderColors[i % holderColors.length]
+                        }`}
+                      >
+                        {String.fromCharCode(65 + i)}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <span className="ml-3 text-xs text-muted-foreground">
-                {formatKilo(uniqueTraders)}+ all
-              </span>
+                  <span className="ml-3 text-xs text-muted-foreground">
+                    {remainingHolders > 0
+                      ? `+${formatKilo(remainingHolders)} more`
+                      : `${formatKilo(uniqueTraders)} holder${
+                          uniqueTraders !== 1 ? "s" : ""
+                        }`}
+                  </span>
+                </>
+              ) : (
+                <span className="text-xs text-muted-foreground">0 holders</span>
+              )}
             </div>
             <div className="flex items-center gap-6 text-xs">
               <div>

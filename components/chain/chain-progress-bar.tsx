@@ -38,17 +38,11 @@ export const ChainProgressBar = ({
       {progressColor ? (
         // Custom colored progress bar (for variant A / carousel)
         <div className="relative w-full overflow-hidden rounded-full bg-primary/20 h-3">
-          <div
-            className="h-full w-full flex-1 transition-all"
-            style={{
-              backgroundColor: progressColor,
-              transform: `translateX(-${100 - progress}%)`,
-            }}
-          />
+          <Progress value={progress} className="w-full h-3" />
         </div>
       ) : (
         // Standard progress bar (for variant B / small cards)
-        <Progress value={progress} className="w-full h-2 bg-primary/20" />
+        <Progress value={progress} className="w-full h-2" />
       )}
 
       {/* Text Information */}

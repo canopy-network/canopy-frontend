@@ -83,7 +83,11 @@ export function InfoCard({
             </div>
           ))}
         </div>
-      ) : null}
+      ) : (
+        <span className="text-muted-foreground text-xs">
+          No holders data available
+        </span>
+      )}
 
       {/* Footer Button */}
       <div className="pb-5 mt-auto">

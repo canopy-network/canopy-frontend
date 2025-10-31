@@ -128,7 +128,9 @@ export const RecentsProjectsCarousel = ({
           style={{ transform: `translateX(-${currentIndex * 100}%)` }}
         >
           {displayProjects.map((project, index) => {
-            const virtualPool = virtualPools[project.id];
+            // Use embedded virtual_pool from project, or fallback to virtualPools prop
+            const virtualPool =
+              project.virtual_pool || virtualPools[project.id];
             const chartData = priceHistoryData[project.id];
 
             return (
