@@ -71,7 +71,6 @@ export function useLaunchpadDashboard({
   const {
     // Data
     chains,
-    virtualPools,
     isLoading,
     isCreating,
     isDeleting,
@@ -98,7 +97,7 @@ export function useLaunchpadDashboard({
   useEffect(() => {
     if (autoFetch) {
       fetchChains({
-        include: "template,creator,assets",
+        include: "template,creator,assets,virtual_pool,graduation",
         limit: 50,
       });
     }
@@ -199,7 +198,7 @@ export function useLaunchpadDashboard({
 
   const refreshData = async () => {
     await fetchChains({
-      include: "template,creator,assets",
+      include: "template,creator,assets,virtual_pool,graduation",
       limit: 50,
     });
   };

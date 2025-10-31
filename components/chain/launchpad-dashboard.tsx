@@ -3,15 +3,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLaunchpadDashboard } from "@/lib/hooks/use-launchpad-dashboard";
 import { useCreateChainDialog } from "@/lib/stores/use-create-chain-dialog";
-import { useChainsStore } from "@/lib/stores/chains-store";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Dropdown, DropdownOption } from "@/components/ui/dropdown";
 import { BondingCurveChart } from "./bonding-curve-chart";
 import { OnboardingGuide } from "../launchpad/onboarding-guide";
 import { SmallProjectCard } from "./small-project-card";
-import { ProjectCard } from "./project-card";
 import { RecentsProjectsCarousel } from "./recents-projects-carousel";
 import { SortDropdown } from "./sort-dropdown";
 import { Chain } from "@/types/chains";
@@ -19,12 +15,8 @@ import {
   getMarketCap,
   getVolume24h,
   getPrice,
-  getPriceChange24h,
 } from "@/lib/utils/chain-ui-helpers";
 import {
-  Plus,
-  Filter,
-  BookOpen,
   RefreshCw,
   AlertCircle,
   Home,
@@ -35,7 +27,7 @@ import {
   Grid3x3,
   List,
 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Container } from "@/components/layout/container";
 
 // Tab configuration
