@@ -153,7 +153,7 @@ export function Sidebar() {
       {/* Navigation */}
       <div
         className={cn(
-          "flex-1 overflow-auto py-4 ",
+          "flex-1 overflow-auto py-4 scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]",
           isCondensed ? "px-5" : "px-4"
         )}
       >

@@ -6,6 +6,9 @@ import { WalletProvider } from "@/components/wallet/wallet-provider";
 import { WalletPopup } from "@/components/wallet/wallet-popup";
 import { Sidebar } from "@/components/layout/sidebar";
 import { StoreProvider } from "@/components/providers/store-provider";
+import { ErrorBoundary } from "@/components/providers/error-boundary";
+import { Toaster } from "sonner";
+import { Toaster as HotToaster } from "react-hot-toast";
 import "./globals.css";
 import { Header } from "@/components/layout/header";
 
@@ -29,23 +32,38 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={inter.className}>
-        <StoreProvider>
-          <WalletProvider>
-            <div className="flex h-screen bg-background overflow-hidden">
-              {/* Desktop Sidebar - hidden on mobile */}
-              <div className="hidden lg:block">
-                <Sidebar />
-              </div>
-              <main className="w-full overflow-auto">
-                <Header />
-                <div className="flex-1 overflow-y-auto overflow-x-hidden">
-                  <Suspense fallback={null}>{children}</Suspense>
+        <ErrorBoundary>
+          <StoreProvider>
+            <WalletProvider>
+              <div className="flex h-screen bg-background overflow-hidden">
+                {/* Desktop Sidebar - hidden on mobile */}
+                <div className="hidden lg:block">
+                  <Sidebar />
                 </div>
-              </main>
-            </div>
-            <WalletPopup />
-          </WalletProvider>
-        </StoreProvider>
+                <main className="w-full overflow-auto">
+                  <Header />
+                  <div className="flex-1 overflow-y-auto overflow-x-hidden">
+                    <Suspense fallback={null}>{children}</Suspense>
+                  </div>
+                </main>
+              </div>
+              <WalletPopup />
+              <Toaster
+                position="top-center"
+                theme="dark"
+                toastOptions={{
+                  style: {
+                    background: "rgba(255, 255, 255, 0.1)",
+                    border: "1px solid rgba(255, 255, 255, 0.1)",
+                    color: "white",
+                    backdropFilter: "blur(8px)",
+                  },
+                }}
+              />
+              <HotToaster />
+            </WalletProvider>
+          </StoreProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

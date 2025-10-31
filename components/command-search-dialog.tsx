@@ -124,7 +124,7 @@ export default function CommandSearchDialog({
 
   const handleRecentSelect = (recent: RecentSearch) => {
     if (recent.type === "chain") {
-      router.push(`/creator/${recent.id}`);
+      router.push(`/chain/${recent.id}`);
       onOpenChange(false);
       setSearchQuery("");
     } else if (recent.type === "transaction") {

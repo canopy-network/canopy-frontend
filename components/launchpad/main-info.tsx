@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
@@ -17,7 +17,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { HelpCircle, Info } from "lucide-react";
+import { HelpCircle, Info, Check, Loader2 } from "lucide-react";
+
+// Toggle this to disable API validation when the API is unavailable
+const FORCE_ENABLE = true;
 
 const BLOCK_TIME_OPTIONS = [
   { value: "5", label: "5 seconds" },
@@ -66,6 +69,123 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [validatedFields, setValidatedFields] = useState<
+    Record<string, boolean>
+  >({});
+  const [validatingFields, setValidatingFields] = useState<
+    Record<string, boolean>
+  >({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
+
+  // API validation for chain name, token name, and ticker
+  const validateWithAPI = async (
+    chainName: string,
+    tokenName: string,
+    ticker: string
+  ) => {
+    try {
+      const params = new URLSearchParams({
+        name: chainName,
+        symbol: ticker,
+        token_name: tokenName,
+      });
+
+      const response = await fetch(
+        `/api/v1/chains/validate?${params.toString()}`
+      );
+      const data = await response.json();
+
+      return {
+        success: response.ok && data.available !== false,
+        message: data.message || (response.ok ? "Available" : "Not available"),
+      };
+    } catch {
+      return {
+        success: false,
+        message: "Unable to validate",
+      };
+    }
+  };
+
+  // Validate a specific field
+  const validateField = async (field: string, value: string) => {
+    const newErrors = { ...errors };
+    delete newErrors[field];
+
+    // Basic validation
+    if (field === "chainName") {
+      if (!value || value.length < 3) {
+        newErrors.chainName = "Chain name must be at least 3 characters";
+        setErrors(newErrors);
+        setValidatedFields((prev) => ({ ...prev, chainName: false }));
+        return false;
+      }
+    }
+
+    if (field === "tokenName") {
+      if (!value || value.length < 2) {
+        newErrors.tokenName = "Token name must be at least 2 characters";
+        setErrors(newErrors);
+        setValidatedFields((prev) => ({ ...prev, tokenName: false }));
+        return false;
+      }
+    }
+
+    if (field === "ticker") {
+      if (!value) {
+        newErrors.ticker = "Ticker is required";
+        setErrors(newErrors);
+        setValidatedFields((prev) => ({ ...prev, ticker: false }));
+        return false;
+      } else if (value.length < 3 || value.length > 5) {
+        newErrors.ticker = "Ticker must be 3-5 characters";
+        setErrors(newErrors);
+        setValidatedFields((prev) => ({ ...prev, ticker: false }));
+        return false;
+      }
+    }
+
+    if (field === "halvingDays") {
+      if (!value || parseFloat(value) <= 0) {
+        newErrors.halvingDays = "Halving schedule must be greater than 0";
+        setErrors(newErrors);
+        return false;
+      }
+    }
+
+    // API validation for chain name, token name, and ticker
+    if (field === "chainName" || field === "tokenName" || field === "ticker") {
+      if (FORCE_ENABLE) {
+        // Skip API validation, just mark as valid after basic validation passes
+        setValidatedFields((prev) => ({ ...prev, [field]: true }));
+      } else {
+        // Perform API validation
+        setValidatingFields((prev) => ({ ...prev, [field]: true }));
+
+        const result = await validateWithAPI(
+          field === "chainName" ? value : formData.chainName,
+          field === "tokenName" ? value : formData.tokenName,
+          field === "ticker" ? value : formData.ticker
+        );
+
+        setValidatingFields((prev) => ({ ...prev, [field]: false }));
+
+        if (!result.success) {
+          newErrors[field] = result.message;
+          setErrors(newErrors);
+          setValidatedFields((prev) => ({ ...prev, [field]: false }));
+          return false;
+        }
+
+        setValidatedFields((prev) => ({ ...prev, [field]: true }));
+      }
+    }
+
+    setErrors(newErrors);
+    return true;
+  };
 
   // Validate form
   const validateForm = useCallback(() => {
@@ -89,31 +209,64 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
       newErrors.halvingDays = "Halving schedule must be greater than 0";
     }
 
-    setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }, [formData]);
 
   // Notify parent when data changes
   useEffect(() => {
     if (onDataSubmit) {
-      const isValid = validateForm();
+      // When FORCE_ENABLE is true, skip API validation requirement
+      const isValid = FORCE_ENABLE
+        ? validateForm()
+        : validateForm() &&
+          validatedFields.chainName &&
+          validatedFields.tokenName &&
+          validatedFields.ticker;
       onDataSubmit(formData, isValid);
     }
-  }, [formData, validateForm, onDataSubmit]);
+  }, [formData, validateForm, onDataSubmit, validatedFields]);
 
   const updateField = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    setTouched((prev) => ({ ...prev, [field]: true }));
+
+    // Clear existing timer for this field
+    if (debounceTimers.current[field]) {
+      clearTimeout(debounceTimers.current[field]);
+    }
+
+    // Clear validation state while typing
+    setValidatedFields((prev) => ({ ...prev, [field]: false }));
+    if (errors[field]) {
+      const newErrors = { ...errors };
+      delete newErrors[field];
+      setErrors(newErrors);
+    }
+
+    // Set new timer to validate after 1 second of inactivity
+    if (
+      field === "chainName" ||
+      field === "tokenName" ||
+      field === "ticker" ||
+      field === "halvingDays"
+    ) {
+      debounceTimers.current[field] = setTimeout(() => {
+        validateField(field, value);
+      }, 1000);
+    }
   };
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    const timers = debounceTimers.current;
+    return () => {
+      Object.values(timers).forEach(clearTimeout);
+    };
+  }, []);
 
   // Calculate yearly minting based on block time and halving
   const calculateYearlyMinting = () => {
     if (!formData.blockTime || !formData.halvingDays) return "0";
-
-    const blocksPerDay = Math.floor(
-      (24 * 60 * 60) / parseInt(formData.blockTime)
-    );
-    const blocksPerYear = blocksPerDay * 365;
-    const halvingBlocks = blocksPerDay * parseInt(formData.halvingDays);
 
     // Simplified calculation - assume 50% of total supply in first year
     const yearlyMinting = Math.floor(parseInt(formData.tokenSupply) * 0.5);
@@ -150,20 +303,41 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
                     <TooltipContent className="max-w-xs">
                       <p>The name of your blockchain network</p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Example: "Ethereum", "Solana", "MyChain"
+                        Example: &quot;Ethereum&quot;, &quot;Solana&quot;,
+                        &quot;MyChain&quot;
                       </p>
                     </TooltipContent>
                   </Tooltip>
                 </Label>
-                <Input
-                  id="chainName"
-                  placeholder="Enter chain name"
-                  value={formData.chainName}
-                  onChange={(e) => updateField("chainName", e.target.value)}
-                  className={errors.chainName ? "border-destructive" : ""}
-                />
-                {errors.chainName && (
+                <div className="relative">
+                  <Input
+                    id="chainName"
+                    placeholder="Enter chain name"
+                    value={formData.chainName}
+                    onChange={(e) => updateField("chainName", e.target.value)}
+                    className={
+                      touched.chainName && errors.chainName
+                        ? "border-destructive pr-10"
+                        : validatedFields.chainName
+                        ? "border-green-500 pr-10"
+                        : ""
+                    }
+                  />
+                  {validatingFields.chainName && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+                  )}
+                  {!validatingFields.chainName && validatedFields.chainName && (
+                    <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />
+                  )}
+                </div>
+                {touched.chainName && errors.chainName && (
                   <p className="text-sm text-destructive">{errors.chainName}</p>
+                )}
+                {validatedFields.chainName && !errors.chainName && (
+                  <p className="text-sm text-green-600 flex items-center gap-1">
+                    <Check className="w-3 h-3" />
+                    Chain name is available
+                  </p>
                 )}
               </div>
 
@@ -181,20 +355,41 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
                     <TooltipContent className="max-w-xs">
                       <p>The full name of your native token</p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Example: "Ether", "Bitcoin", "MyToken"
+                        Example: &quot;Ether&quot;, &quot;Bitcoin&quot;,
+                        &quot;MyToken&quot;
                       </p>
                     </TooltipContent>
                   </Tooltip>
                 </Label>
-                <Input
-                  id="tokenName"
-                  placeholder="Enter your token name"
-                  value={formData.tokenName}
-                  onChange={(e) => updateField("tokenName", e.target.value)}
-                  className={errors.tokenName ? "border-destructive" : ""}
-                />
-                {errors.tokenName && (
+                <div className="relative">
+                  <Input
+                    id="tokenName"
+                    placeholder="Enter your token name"
+                    value={formData.tokenName}
+                    onChange={(e) => updateField("tokenName", e.target.value)}
+                    className={
+                      touched.tokenName && errors.tokenName
+                        ? "border-destructive pr-10"
+                        : validatedFields.tokenName
+                        ? "border-green-500 pr-10"
+                        : ""
+                    }
+                  />
+                  {validatingFields.tokenName && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+                  )}
+                  {!validatingFields.tokenName && validatedFields.tokenName && (
+                    <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />
+                  )}
+                </div>
+                {touched.tokenName && errors.tokenName && (
                   <p className="text-sm text-destructive">{errors.tokenName}</p>
+                )}
+                {validatedFields.tokenName && !errors.tokenName && (
+                  <p className="text-sm text-green-600 flex items-center gap-1">
+                    <Check className="w-3 h-3" />
+                    Token name is available
+                  </p>
                 )}
               </div>
 
@@ -212,24 +407,45 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
                     <TooltipContent className="max-w-xs">
                       <p>The trading symbol for your token</p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Example: "ETH", "BTC", "USDC" (3-5 characters)
+                        Example: &quot;ETH&quot;, &quot;BTC&quot;,
+                        &quot;USDC&quot; (3-5 characters)
                       </p>
                     </TooltipContent>
                   </Tooltip>
                 </Label>
-                <Input
-                  id="ticker"
-                  placeholder="Enter your ticker"
-                  value={formData.ticker}
-                  onChange={(e) => {
-                    const upper = e.target.value.toUpperCase();
-                    updateField("ticker", upper);
-                  }}
-                  maxLength={5}
-                  className={errors.ticker ? "border-destructive" : ""}
-                />
-                {errors.ticker && (
+                <div className="relative">
+                  <Input
+                    id="ticker"
+                    placeholder="Enter your ticker"
+                    value={formData.ticker}
+                    onChange={(e) => {
+                      const upper = e.target.value.toUpperCase();
+                      updateField("ticker", upper);
+                    }}
+                    maxLength={5}
+                    className={
+                      touched.ticker && errors.ticker
+                        ? "border-destructive pr-10"
+                        : validatedFields.ticker
+                        ? "border-green-500 pr-10"
+                        : ""
+                    }
+                  />
+                  {validatingFields.ticker && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+                  )}
+                  {!validatingFields.ticker && validatedFields.ticker && (
+                    <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />
+                  )}
+                </div>
+                {touched.ticker && errors.ticker && (
                   <p className="text-sm text-destructive">{errors.ticker}</p>
+                )}
+                {validatedFields.ticker && !errors.ticker && (
+                  <p className="text-sm text-green-600 flex items-center gap-1">
+                    <Check className="w-3 h-3" />
+                    Ticker is available
+                  </p>
                 )}
               </div>
             </div>
@@ -276,8 +492,8 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
                         Halving reduces mining rewards by 50% at set intervals
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Like Bitcoin's 4-year halving cycle. Enter days between
-                        halvings.
+                        Like Bitcoin&apos;s 4-year halving cycle. Enter days
+                        between halvings.
                       </p>
                     </TooltipContent>
                   </Tooltip>
@@ -288,9 +504,13 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
                   placeholder="365"
                   value={formData.halvingDays}
                   onChange={(e) => updateField("halvingDays", e.target.value)}
-                  className={errors.halvingDays ? "border-destructive" : ""}
+                  className={
+                    touched.halvingDays && errors.halvingDays
+                      ? "border-destructive"
+                      : ""
+                  }
                 />
-                {errors.halvingDays && (
+                {touched.halvingDays && errors.halvingDays && (
                   <p className="text-sm text-destructive">
                     {errors.halvingDays}
                   </p>

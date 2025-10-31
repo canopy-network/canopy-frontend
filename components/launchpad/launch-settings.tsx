@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Target, DollarSign, HelpCircle } from "lucide-react";
+import { Target, DollarSign, HelpCircle, Clock } from "lucide-react";
 
 interface LaunchSettingsProps {
   initialData?: {
@@ -13,6 +13,7 @@ interface LaunchSettingsProps {
     launchImmediately?: boolean;
     initialPurchaseAmount?: string;
     graduationThreshold?: number;
+    scheduled_launch_time?: string;
   };
   ticker?: string;
   onDataSubmit?: (
@@ -23,6 +24,7 @@ interface LaunchSettingsProps {
       launchImmediately: boolean;
       initialPurchaseAmount: string;
       graduationThreshold: number;
+      scheduled_launch_time?: string;
     },
     isValid: boolean
   ) => void;
@@ -33,7 +35,15 @@ export default function LaunchSettings({
   ticker = "tokens",
   onDataSubmit,
 }: LaunchSettingsProps) {
-  const [launchImmediately] = useState(initialData?.launchImmediately ?? true);
+  const [launchImmediately, setLaunchImmediately] = useState(
+    initialData?.launchImmediately ?? true
+  );
+  const [scheduledDate, setScheduledDate] = useState(
+    initialData?.launchDate || ""
+  );
+  const [scheduledTime, setScheduledTime] = useState(
+    initialData?.launchTime || ""
+  );
   const [launchDate] = useState(initialData?.launchDate || "");
   const [launchTime] = useState(initialData?.launchTime || "");
   const [timezone] = useState(
@@ -49,7 +59,19 @@ export default function LaunchSettings({
   // Notify parent when data changes
   useEffect(() => {
     if (onDataSubmit) {
-      const isValid = Boolean(launchImmediately || (launchDate && launchTime));
+      const isValid = Boolean(
+        launchImmediately || (scheduledDate && scheduledTime)
+      );
+
+      // Calculate scheduled_launch_time if scheduled launch is selected
+      let scheduled_launch_time: string | undefined = undefined;
+      if (!launchImmediately && scheduledDate && scheduledTime) {
+        // Combine date and time into ISO format
+        scheduled_launch_time = new Date(
+          `${scheduledDate}T${scheduledTime}`
+        ).toISOString();
+      }
+
       onDataSubmit(
         {
           launchDate,
@@ -58,6 +80,7 @@ export default function LaunchSettings({
           launchImmediately,
           initialPurchaseAmount,
           graduationThreshold,
+          scheduled_launch_time,
         },
         isValid
       );
@@ -67,6 +90,8 @@ export default function LaunchSettings({
     launchTime,
     timezone,
     launchImmediately,
+    scheduledDate,
+    scheduledTime,
     initialPurchaseAmount,
     graduationThreshold,
     onDataSubmit,
@@ -79,8 +104,127 @@ export default function LaunchSettings({
         <div className="space-y-2">
           <h1 className="text-3xl font-bold">Launch settings</h1>
           <p className="text-muted-foreground">
-            Configure your chain's launch parameters
+            Configure your chain&apos;s launch parameters
           </p>
+        </div>
+
+        {/* Launch Time Section */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <Clock className="h-5 w-5" />
+            <h2 className="text-xl font-semibold">Launch Time</h2>
+          </div>
+
+          <div className="space-y-4">
+            {/* Launch Now Option */}
+            <div
+              className={`rounded-lg p-4 border-2 cursor-pointer transition-colors ${
+                launchImmediately
+                  ? "border-primary bg-primary/10"
+                  : "border-muted bg-muted/30 hover:border-muted-foreground/30"
+              }`}
+              onClick={() => setLaunchImmediately(true)}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                    launchImmediately
+                      ? "border-primary"
+                      : "border-muted-foreground"
+                  }`}
+                >
+                  {launchImmediately && (
+                    <div className="w-3 h-3 rounded-full bg-primary" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-semibold">Launch now</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Your chain will be available immediately after payment
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Launch at Scheduled Time Option */}
+            <div
+              className={`rounded-lg p-4 border-2 cursor-pointer transition-colors ${
+                !launchImmediately
+                  ? "border-primary bg-primary/10"
+                  : "border-muted bg-muted/30 hover:border-muted-foreground/30"
+              }`}
+              onClick={() => setLaunchImmediately(false)}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                    !launchImmediately
+                      ? "border-primary"
+                      : "border-muted-foreground"
+                  }`}
+                >
+                  {!launchImmediately && (
+                    <div className="w-3 h-3 rounded-full bg-primary" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold">Launch at a scheduled time</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Choose a specific date and time for your launch
+                  </p>
+                </div>
+              </div>
+
+              {/* Date and Time Inputs - Only show when scheduled is selected */}
+              {!launchImmediately && (
+                <div className="mt-4 space-y-4 pl-8">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="scheduledDate"
+                        className="text-sm font-medium"
+                      >
+                        Launch Date
+                      </Label>
+                      <Input
+                        id="scheduledDate"
+                        type="date"
+                        value={scheduledDate}
+                        onChange={(e) => setScheduledDate(e.target.value)}
+                        min={new Date().toISOString().split("T")[0]}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="scheduledTime"
+                        className="text-sm font-medium"
+                      >
+                        Launch Time
+                      </Label>
+                      <Input
+                        id="scheduledTime"
+                        type="time"
+                        value={scheduledTime}
+                        onChange={(e) => setScheduledTime(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {scheduledDate && scheduledTime && (
+                    <p className="text-sm text-muted-foreground italic">
+                      Your chain will launch on{" "}
+                      <span className="font-semibold text-foreground">
+                        {new Date(
+                          `${scheduledDate}T${scheduledTime}`
+                        ).toLocaleString()}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Graduation Threshold Section */}
@@ -163,7 +307,7 @@ export default function LaunchSettings({
 
             {initialPurchaseAmount && parseFloat(initialPurchaseAmount) > 0 && (
               <p className="text-sm text-muted-foreground italic">
-                You'll receive{" "}
+                You&apos;ll receive{" "}
                 <span className="font-bold text-white">
                   {Math.floor(
                     parseFloat(initialPurchaseAmount) * 0.25

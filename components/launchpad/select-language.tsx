@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { useTemplatesStore } from "@/lib/stores/templates-store";
 import { cn } from "@/lib/utils";
 import { Template } from "@/types";
+import Image from "next/image";
 
 export default function SelectLanguage({
   initialTemplate,
@@ -60,12 +61,14 @@ export default function SelectLanguage({
               onClick={() => setSelectedLanguage(language)}
             >
               <div className="flex flex-col items-center space-y-3">
-                <img
+                <Image
                   src={`/images/languages/${language.supported_language.toLowerCase()}.svg`}
                   alt={`${language.supported_language} logo`}
                   className="w-12 h-12 object-contain invert brightness-0"
+                  width={48}
+                  height={48}
                 />
-                <span className="font-medium">
+                <span className="font-medium capitalize">
                   {language.supported_language}
                 </span>
               </div>

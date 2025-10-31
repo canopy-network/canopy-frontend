@@ -6,7 +6,15 @@ import { MediaGallery } from "./media-gallery";
 import { AchievementsList } from "./achievements-list";
 import { InfoCard } from "./info-card";
 import { TokenomicsCard } from "./tokenomics-card";
-import { Users, CodeXml, Activity, Globe, Github } from "lucide-react";
+import {
+  Users,
+  CodeXml,
+  Activity,
+  Globe,
+  Github,
+  BookOpen,
+  FileText,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import type { ChainHolder, SocialPlatform } from "@/types/chains";
 import type { ReactElement } from "react";
@@ -226,6 +234,45 @@ export function ChainOverview({
           yearOneEmission: "~137,442,250", // Placeholder - not available in API
         }}
       />
+
+      {/* Resources & Documentation */}
+      {chain.assets &&
+        chain.assets.length > 0 &&
+        chain.assets.some((asset) => asset.asset_type === "documentation") && (
+          <Card className="p-6 my-6">
+            <div className="flex items-center gap-2 ">
+              <BookOpen className="w-5 h-5 text-primary" />
+              <h3 className="text-lg font-semibold">
+                Resources & Documentation
+              </h3>
+            </div>
+            <div className="space-y-3">
+              {chain.assets
+                .filter((asset) => asset.asset_type === "documentation")
+                .map((asset) => (
+                  <a
+                    key={asset.id}
+                    href={asset.file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg hover:bg-muted transition-colors group"
+                  >
+                    <div className="p-2 bg-background rounded-md">
+                      <FileText className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate group-hover:text-primary transition-colors">
+                        {asset.title || asset.file_name}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {(asset.file_size_bytes / 1024).toFixed(2)} KB
+                      </p>
+                    </div>
+                  </a>
+                ))}
+            </div>
+          </Card>
+        )}
     </>
   );
 }

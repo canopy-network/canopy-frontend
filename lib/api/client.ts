@@ -18,6 +18,7 @@ import axios, {
 } from "axios";
 import { ApiResponse, ApiError } from "@/types/api";
 import { API_CONFIG } from "@/lib/config/api";
+import { showErrorToast } from "@/lib/utils/error-handler";
 
 // ============================================================================
 // CONFIGURATION
@@ -55,13 +56,15 @@ export class ApiClientError extends Error {
   public code?: string;
   public details?: Record<string, any>;
   public originalError?: AxiosError;
+  public requestUrl?: string;
 
   constructor(
     message: string,
     status?: number,
     code?: string,
     details?: Record<string, any>,
-    originalError?: AxiosError
+    originalError?: AxiosError,
+    requestUrl?: string
   ) {
     super(message);
     this.name = "ApiClientError";
@@ -69,6 +72,7 @@ export class ApiClientError extends Error {
     this.code = code;
     this.details = details;
     this.originalError = originalError;
+    this.requestUrl = requestUrl;
   }
 }
 
@@ -76,6 +80,11 @@ export class ApiClientError extends Error {
  * Error handler for API responses
  */
 function handleApiError(error: AxiosError): never {
+  // Extract request URL for debugging
+  const baseURL = error.config?.baseURL || API_CONFIG.baseURL;
+  const url = error.config?.url || "";
+  const requestUrl = url.startsWith("http") ? url : `${baseURL}${url}`;
+
   if (error.response) {
     // Server responded with error status
     const { status, data } = error.response;
@@ -86,7 +95,8 @@ function handleApiError(error: AxiosError): never {
       status,
       apiError.error?.code,
       apiError.error?.details,
-      error
+      error,
+      requestUrl
     );
   } else if (error.request) {
     // Request was made but no response received
@@ -95,7 +105,8 @@ function handleApiError(error: AxiosError): never {
       undefined,
       "NETWORK_ERROR",
       undefined,
-      error
+      error,
+      requestUrl
     );
   } else {
     // Something else happened
@@ -104,7 +115,8 @@ function handleApiError(error: AxiosError): never {
       undefined,
       "UNKNOWN_ERROR",
       undefined,
-      error
+      error,
+      requestUrl
     );
   }
 }
@@ -252,6 +264,28 @@ export class ApiClient {
           message: error.message,
         });
 
+        // Show toast notification for user-facing errors
+        // Skip toast during retry attempts to avoid duplicate notifications
+        const config = error.config as any;
+        const shouldShowToast =
+          !config?.skipErrorToast &&
+          !config?.isRetrying &&
+          typeof window !== "undefined";
+
+        if (shouldShowToast) {
+          const status = error.response?.status;
+
+          // Don't show toast for 401 errors (handled by auth)
+          if (status !== 401) {
+            // Build full request URL for development debugging
+            const baseURL = error.config?.baseURL || API_CONFIG.baseURL;
+            const url = error.config?.url || "";
+            const fullUrl = url.startsWith("http") ? url : `${baseURL}${url}`;
+
+            showErrorToast(error, undefined, fullUrl);
+          }
+        }
+
         return Promise.reject(error);
       }
     );
@@ -283,6 +317,9 @@ export class ApiClient {
           }
         );
 
+        // Mark as retry to skip toast during retry attempts
+        (config as any).isRetrying = true;
+
         // Wait before retrying
         await new Promise((resolve) => setTimeout(resolve, delay));
 
@@ -290,7 +327,8 @@ export class ApiClient {
         return this.makeRequest<T>(config, attempt + 1);
       }
 
-      // Don't retry, handle the error
+      // Don't retry, handle the error (toast will be shown in interceptor if not retrying)
+      (config as any).isRetrying = false;
       handleApiError(axiosError);
     }
   }

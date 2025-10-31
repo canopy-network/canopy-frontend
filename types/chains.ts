@@ -67,7 +67,7 @@ export interface Chain {
   bonding_curve_slope: number;
 
   /** Scheduled launch time (ISO 8601) */
-  scheduled_launch_time: string;
+  scheduled_launch_time?: string;
 
   /** Actual launch time (ISO 8601, nullable) */
   actual_launch_time: string | null;
