@@ -10,6 +10,7 @@ import { OnboardingGuide } from "../launchpad/onboarding-guide";
 import { SmallProjectCard } from "./small-project-card";
 import { RecentsProjectsCarousel } from "./recents-projects-carousel";
 import { SortDropdown } from "./sort-dropdown";
+import { HomePageSkeleton } from "@/components/skeletons";
 import { Chain } from "@/types/chains";
 import {
   getMarketCap,
@@ -17,7 +18,6 @@ import {
   getPrice,
 } from "@/lib/utils/chain-ui-helpers";
 import {
-  RefreshCw,
   AlertCircle,
   Home,
   Calendar,
@@ -144,6 +144,9 @@ export function LaunchpadDashboard() {
     }
   }, []);
 
+  if (isLoading) {
+    return <HomePageSkeleton />;
+  }
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Error Display */}
@@ -292,16 +295,6 @@ export function LaunchpadDashboard() {
                 >
                   Clear Filters
                 </Button>
-              </div>
-            )}
-
-            {/* Loading State */}
-            {isLoading && (
-              <div className="text-center py-12">
-                <div className="inline-flex items-center gap-2">
-                  <RefreshCw className="h-5 w-5 animate-spin text-pink-500" />
-                  <span className="text-gray-400">Loading projects...</span>
-                </div>
               </div>
             )}
           </TabsContent>

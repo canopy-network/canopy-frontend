@@ -318,6 +318,7 @@ export function ChainDetails({ chain }: ChainDetailsProps) {
                 <ChainDetailChart
                   data={chartData}
                   timeframe={selectedTimeframe}
+                  lineColor={chain.brand_color}
                 />
               )}
             </div>

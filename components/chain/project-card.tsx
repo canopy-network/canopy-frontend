@@ -59,7 +59,12 @@ export const ProjectCard = ({
   const visibleHoldersCount = Math.min(uniqueTraders, maxVisibleHolders);
   const remainingHolders = Math.max(0, uniqueTraders - maxVisibleHolders);
 
-  const projectColor = generateChainColor(project.chain_name);
+  // Use brand_color from API or fallback to generated color
+  const brandColor =
+    project.brand_color || generateChainColor(project.chain_name);
+
+  // Get first 2 letters of chain name for logo fallback
+  const chainInitials = project.chain_name.slice(0, 2).toUpperCase();
 
   return (
     <Card className="rounded-xl border text-card-foreground   p-6 pb-0 bg-gradient-to-br from-card to-muted/20  hover:ring-2 hover:ring-primary/20 transition-all">
@@ -71,7 +76,7 @@ export const ProjectCard = ({
             <Link href={`/chain/${project.id}`}>
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: projectColor }}
+                style={{ backgroundColor: brandColor }}
               >
                 {project.branding ? (
                   <img
@@ -80,8 +85,8 @@ export const ProjectCard = ({
                     className="w-10 h-10 rounded-full"
                   />
                 ) : (
-                  <span className="text-base font-bold text-black">
-                    {project.chain_name.charAt(0).toUpperCase()}
+                  <span className="text-base font-bold text-white">
+                    {chainInitials}
                   </span>
                 )}
               </div>
@@ -139,7 +144,7 @@ export const ProjectCard = ({
             targetAmount={formatKilo(project.graduation_threshold)}
             priceChange={priceChange}
             variant="A"
-            progressColor={projectColor}
+            progressColor={brandColor}
           />
 
           {/* Bottom Stats */}
@@ -208,7 +213,11 @@ export const ProjectCard = ({
         <div className="flex items-center">
           <div className="w-full h-[280px]">
             {chartData && chartData.length > 0 ? (
-              <FeaturelessChart data={chartData} isDark={true} />
+              <FeaturelessChart
+                data={chartData}
+                isDark={true}
+                lineColor={brandColor}
+              />
             ) : chartData === undefined ? (
               // Loading state
               <div className="w-full h-full flex items-center justify-center bg-muted/50 rounded-lg">

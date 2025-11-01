@@ -91,6 +91,12 @@ export const SmallProjectCard = ({
   const marketCapFormatted = formatNumber(marketCap || 25000);
   const targetFormatted = formatNumber(project.graduation_threshold);
 
+  // Use brand_color from API or fallback to generated gradient
+  const brandColor = project.brand_color;
+
+  // Get first 2 letters of chain name for logo fallback
+  const chainInitials = project.chain_name.slice(0, 2).toUpperCase();
+
   // Calculate visible and overflow hexagon icons
   const hexagonIcons = useMemo(() => {
     const icons = [];
@@ -151,7 +157,8 @@ export const SmallProjectCard = ({
           <div className="flex items-center gap-3 min-w-[200px]">
             {project.branding ? (
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${project.brand_color}`}
+                className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: brandColor }}
               >
                 <img
                   src={project.branding}
@@ -161,10 +168,13 @@ export const SmallProjectCard = ({
               </div>
             ) : (
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${project.brand_color}`}
+                className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  brandColor ? "" : `bg-gradient-to-br ${iconData.gradient}`
+                }`}
+                style={brandColor ? { backgroundColor: brandColor } : undefined}
               >
                 <span className="text-sm font-bold text-white">
-                  {project.chain_name.charAt(0).toUpperCase()}
+                  {chainInitials}
                 </span>
               </div>
             )}
@@ -247,7 +257,8 @@ export const SmallProjectCard = ({
         {/* Avatar */}
         {project.branding ? (
           <div
-            className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${project.brand_color}`}
+            className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: brandColor }}
           >
             <img
               src={project.branding}
@@ -257,10 +268,13 @@ export const SmallProjectCard = ({
           </div>
         ) : (
           <div
-            className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${iconData.gradient}`}
+            className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+              brandColor ? "" : `bg-gradient-to-br ${iconData.gradient}`
+            }`}
+            style={brandColor ? { backgroundColor: brandColor } : undefined}
           >
             <span className="text-sm font-bold text-white">
-              {project.chain_name.charAt(0).toUpperCase()}
+              {chainInitials}
             </span>
           </div>
         )}
