@@ -122,6 +122,9 @@ export interface Chain {
 
   /** Media URLs (computed from assets - includes media, screenshots, banners) */
   media?: string[];
+
+  /** Brand color for the chain (hex color code) */
+  brand_color?: string;
 }
 
 // ============================================================================
