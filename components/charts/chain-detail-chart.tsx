@@ -15,10 +15,12 @@ export const ChainDetailChart = ({
   data,
   isDark = true,
   timeframe = "1D",
+  lineColor = "#1dd13a",
 }: {
   data: Array<{ time: string | number; value: number }>;
   isDark?: boolean;
   timeframe?: string;
+  lineColor?: string;
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -124,7 +126,7 @@ export const ChainDetailChart = ({
     relativeGradient: false,
     lastPriceAnimation: 1,
     crosshairMarkerVisible: false,
-    color: "#1dd13a",
+    color: lineColor,
     priceLineVisible: false,
     crosshairMarkerBorderColor: "red",
   };
@@ -304,7 +306,7 @@ export const ChainDetailChart = ({
       chart.remove();
       chartRef.current = null;
     };
-  }, [data, timeframe]);
+  }, [data, timeframe, lineColor]);
 
   return (
     <>

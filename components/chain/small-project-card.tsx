@@ -1,19 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { Progress } from "@/components/ui/progress";
-import { Chain } from "@/types/chains";
+import { Chain, ChainExtended } from "@/types/chains";
 import { useMemo } from "react";
 import { HexagonIcon } from "@/components/icons/hexagon-icon";
 import { Users, TrendingUp } from "lucide-react";
+import { ChainProgressBar } from "./chain-progress-bar";
 import {
   calculateGraduationProgress,
   formatNumber,
   calculateAge,
-  getPrice,
   getMarketCap,
   getPriceChange24h,
-  generateChainColor,
 } from "@/lib/utils/chain-ui-helpers";
 
 /**
@@ -22,7 +20,7 @@ import {
  * Used in dashboard listings and project grids where space is limited
  */
 interface SmallProjectCardProps {
-  project: Chain;
+  project: Chain | ChainExtended;
   href?: string;
   viewMode?: "grid" | "list";
 }
@@ -34,7 +32,18 @@ export const SmallProjectCard = ({
 }: SmallProjectCardProps) => {
   // Get virtual pool data if included
   const virtualPool = project.virtual_pool;
-  const progress = calculateGraduationProgress(project, virtualPool);
+
+  // Use graduation.completion_percentage if available, otherwise calculate it
+  const progress = useMemo(() => {
+    const extendedProject = project as ChainExtended;
+    if (extendedProject.graduation?.completion_percentage !== undefined) {
+      return Math.min(
+        Math.round(extendedProject.graduation.completion_percentage),
+        100
+      );
+    }
+    return calculateGraduationProgress(project, virtualPool);
+  }, [project, virtualPool]);
 
   // Dynamic performance calculation based on project data
   const performanceData = useMemo(() => {
@@ -81,6 +90,12 @@ export const SmallProjectCard = ({
   const marketCap = getMarketCap(virtualPool);
   const marketCapFormatted = formatNumber(marketCap || 25000);
   const targetFormatted = formatNumber(project.graduation_threshold);
+
+  // Use brand_color from API or fallback to generated gradient
+  const brandColor = project.brand_color;
+
+  // Get first 2 letters of chain name for logo fallback
+  const chainInitials = project.chain_name.slice(0, 2).toUpperCase();
 
   // Calculate visible and overflow hexagon icons
   const hexagonIcons = useMemo(() => {
@@ -142,7 +157,8 @@ export const SmallProjectCard = ({
           <div className="flex items-center gap-3 min-w-[200px]">
             {project.branding ? (
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${project.brand_color}`}
+                className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: brandColor }}
               >
                 <img
                   src={project.branding}
@@ -152,10 +168,13 @@ export const SmallProjectCard = ({
               </div>
             ) : (
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${project.brand_color}`}
+                className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  brandColor ? "" : `bg-gradient-to-br ${iconData.gradient}`
+                }`}
+                style={brandColor ? { backgroundColor: brandColor } : undefined}
               >
                 <span className="text-sm font-bold text-white">
-                  {project.chain_name.charAt(0).toUpperCase()}
+                  {chainInitials}
                 </span>
               </div>
             )}
@@ -173,10 +192,14 @@ export const SmallProjectCard = ({
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">Market Cap</span>
               </div>
-              <Progress value={80} className="w-full h-1.5 bg-primary/20" />
-              <div className="text-xs text-muted-foreground">
-                ${marketCapFormatted} / ${targetFormatted}
-              </div>
+              <ChainProgressBar
+                progress={progress}
+                currentAmount={marketCapFormatted}
+                targetAmount={targetFormatted}
+                priceChange={performanceData.change}
+                variant="B"
+                className="space-y-1"
+              />
             </div>
           </div>
 
@@ -234,7 +257,8 @@ export const SmallProjectCard = ({
         {/* Avatar */}
         {project.branding ? (
           <div
-            className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${project.brand_color}`}
+            className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: brandColor }}
           >
             <img
               src={project.branding}
@@ -244,10 +268,13 @@ export const SmallProjectCard = ({
           </div>
         ) : (
           <div
-            className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${iconData.gradient}`}
+            className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+              brandColor ? "" : `bg-gradient-to-br ${iconData.gradient}`
+            }`}
+            style={brandColor ? { backgroundColor: brandColor } : undefined}
           >
             <span className="text-sm font-bold text-white">
-              {project.chain_name.charAt(0).toUpperCase()}
+              {chainInitials}
             </span>
           </div>
         )}
@@ -302,29 +329,14 @@ export const SmallProjectCard = ({
       </p>
 
       {/* Progress Bar and Metrics */}
-      <div className="space-y-2 mt-auto">
-        {/* Progress Bar */}
-        <Progress
-          // value={project.progress}
-          value={80}
-          className="w-full h-2 bg-primary/20"
-        />
-
-        {/* Price and Percentage */}
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-muted-foreground">
-            ${marketCapFormatted} / ${targetFormatted}
-          </span>
-          <span
-            className={
-              performanceData.isPositive ? "text-green-500" : "text-red-500"
-            }
-          >
-            {performanceData.isPositive ? "+" : ""}
-            {performanceData.change}%
-          </span>
-        </div>
-      </div>
+      <ChainProgressBar
+        progress={progress}
+        currentAmount={marketCapFormatted}
+        targetAmount={targetFormatted}
+        priceChange={performanceData.change}
+        variant="B"
+        className="mt-auto"
+      />
     </Link>
   );
 };

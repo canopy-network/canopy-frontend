@@ -436,7 +436,7 @@ export default function ReviewPayment({ formData }: ReviewPaymentProps) {
             </div>
 
             {/* Important Notice */}
-            <div className="bg-muted/30 rounded-lg p-6 space-y-3">
+            <div className="bg-rounded-xl border text-card-foreground shadow mt-6 p-4 bg-background border-primary/20">
               <div className="flex items-center gap-2">
                 <AlertCircle className="h-5 w-5" />
                 <span className="font-semibold">Important</span>

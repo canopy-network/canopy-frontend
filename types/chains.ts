@@ -67,7 +67,7 @@ export interface Chain {
   bonding_curve_slope: number;
 
   /** Scheduled launch time (ISO 8601) */
-  scheduled_launch_time: string;
+  scheduled_launch_time?: string;
 
   /** Actual launch time (ISO 8601, nullable) */
   actual_launch_time: string | null;
@@ -122,6 +122,9 @@ export interface Chain {
 
   /** Media URLs (computed from assets - includes media, screenshots, banners) */
   media?: string[];
+
+  /** Brand color for the chain (hex color code) */
+  brand_color?: string;
 }
 
 // ============================================================================

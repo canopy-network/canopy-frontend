@@ -8,46 +8,14 @@ import { Chain, VirtualPool } from "@/types/chains";
 import { formatKilo } from "@/lib/utils";
 import { FeaturelessChart } from "../charts/featureless-chart";
 import { HexagonIcon } from "@/components/icons";
+import { ChainProgressBar } from "./chain-progress-bar";
 import {
   calculateGraduationProgress,
-  formatCurrency,
   formatRelativeTime,
   calculateAge,
   generateChainColor,
 } from "@/lib/utils/chain-ui-helpers";
 
-/**
- * Generate sample chart data based on virtual pool data
- */
-const generateSampleChartData = (virtualPool?: VirtualPool, chain?: Chain) => {
-  // Always return hardcoded sample data that matches the image
-  const now = Date.now() / 1000; // Current timestamp in seconds
-
-  // Hardcoded data that matches the image: upward trend with peaks and valleys
-  return [
-    { time: now - 40 * 60 * 60, value: 0.12 },
-    { time: now - 38 * 60 * 60, value: 0.15 },
-    { time: now - 36 * 60 * 60, value: 0.18 },
-    { time: now - 34 * 60 * 60, value: 0.16 },
-    { time: now - 32 * 60 * 60, value: 0.22 },
-    { time: now - 30 * 60 * 60, value: 0.25 },
-    { time: now - 28 * 60 * 60, value: 0.28 },
-    { time: now - 26 * 60 * 60, value: 0.24 },
-    { time: now - 24 * 60 * 60, value: 0.3 },
-    { time: now - 22 * 60 * 60, value: 0.35 },
-    { time: now - 20 * 60 * 60, value: 0.38 },
-    { time: now - 18 * 60 * 60, value: 0.42 },
-    { time: now - 16 * 60 * 60, value: 0.45 },
-    { time: now - 14 * 60 * 60, value: 0.48 },
-    { time: now - 12 * 60 * 60, value: 0.44 },
-    { time: now - 10 * 60 * 60, value: 0.4 },
-    { time: now - 8 * 60 * 60, value: 0.36 },
-    { time: now - 6 * 60 * 60, value: 0.38 },
-    { time: now - 4 * 60 * 60, value: 0.42 },
-    { time: now - 2 * 60 * 60, value: 0.45 },
-    { time: now, value: 0.48 },
-  ];
-};
 /**
  * Props interface for the ProjectCard component
  * Defines the required data and callbacks for rendering a project card
@@ -61,7 +29,7 @@ export interface ProjectCardProps {
   /** Callback function triggered when the buy button is clicked */
   onBuyClick: (project: Chain) => void;
   /** Historical price data points for rendering price charts and trend analysis */
-  chartData: any[];
+  chartData?: Array<{ value: number; time: number }>;
 }
 
 export const ProjectCard = ({
@@ -78,18 +46,25 @@ export const ProjectCard = ({
   const marketCap = virtualPool?.market_cap_usd || 0;
   const uniqueTraders = virtualPool?.unique_traders || 0;
 
-  // Generate sample chart data based on virtual pool data
-  const sampleChartData = generateSampleChartData(virtualPool, project);
-
-  // Generate holder avatars (using first letter of project name + random colors)
+  // Generate holder avatars based on unique traders count
   const holderColors = [
-    "bg-green-500",
     "bg-yellow-500",
     "bg-purple-500",
     "bg-pink-500",
+    "bg-blue-500",
+    "bg-green-500",
   ];
 
-  const projectColor = generateChainColor(project.chain_name);
+  const maxVisibleHolders = 4;
+  const visibleHoldersCount = Math.min(uniqueTraders, maxVisibleHolders);
+  const remainingHolders = Math.max(0, uniqueTraders - maxVisibleHolders);
+
+  // Use brand_color from API or fallback to generated color
+  const brandColor =
+    project.brand_color || generateChainColor(project.chain_name);
+
+  // Get first 2 letters of chain name for logo fallback
+  const chainInitials = project.chain_name.slice(0, 2).toUpperCase();
 
   return (
     <Card className="rounded-xl border text-card-foreground   p-6 pb-0 bg-gradient-to-br from-card to-muted/20  hover:ring-2 hover:ring-primary/20 transition-all">
@@ -101,7 +76,7 @@ export const ProjectCard = ({
             <Link href={`/chain/${project.id}`}>
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: projectColor }}
+                style={{ backgroundColor: brandColor }}
               >
                 {project.branding ? (
                   <img
@@ -110,8 +85,8 @@ export const ProjectCard = ({
                     className="w-10 h-10 rounded-full"
                   />
                 ) : (
-                  <span className="text-base font-bold text-black">
-                    {project.chain_name.charAt(0).toUpperCase()}
+                  <span className="text-base font-bold text-white">
+                    {chainInitials}
                   </span>
                 )}
               </div>
@@ -153,57 +128,53 @@ export const ProjectCard = ({
           <Link href={`/chain/${project.id}`}>
             {/* Title */}
             <h2 className="text-2xl font-bold leading-tight">
-              {project.chain_description}
+              {project.chain_name}
             </h2>
           </Link>
 
           {/* Description */}
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Secure medical records on blockchain with patient-controlled access
-            and encrypted health data sharing.
+            {project.chain_description}
           </p>
 
           {/* Progress Bar */}
-          <div className="space-y-2">
-            <div className="relative w-full overflow-hidden rounded-full bg-primary/20 h-3">
-              <div
-                className="h-full w-full flex-1 transition-all"
-                style={{
-                  backgroundColor: projectColor,
-                  transform: `translateX(-${100 - progress}%)`,
-                }}
-              />
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">
-                ${formatKilo(currentRaised)} / $
-                {formatKilo(project.graduation_threshold)} until graduation
-              </span>
-              <span
-                className={priceChange >= 0 ? "text-green-500" : "text-red-500"}
-              >
-                {priceChange >= 0 ? "+" : ""}
-                {priceChange.toFixed(1)}%
-              </span>
-            </div>
-          </div>
+          <ChainProgressBar
+            progress={progress}
+            currentAmount={formatKilo(currentRaised)}
+            targetAmount={formatKilo(project.graduation_threshold)}
+            priceChange={priceChange}
+            variant="A"
+            progressColor={brandColor}
+          />
 
           {/* Bottom Stats */}
           <div className="flex items-center gap-6 pt-2 border-t border-border/50 pb-4">
             <div className="flex items-center">
-              <div className="flex -space-x-2">
-                {holderColors.map((color, i) => (
-                  <div
-                    key={i}
-                    className={`w-6 h-6 rounded-full border-2 border-card flex items-center justify-center text-[10px] font-semibold text-white ${color}`}
-                  >
-                    H{i + 1}
+              {uniqueTraders > 0 ? (
+                <>
+                  <div className="flex -space-x-2">
+                    {Array.from({ length: visibleHoldersCount }).map((_, i) => (
+                      <div
+                        key={i}
+                        className={`w-6 h-6 rounded-full border-2 border-card flex items-center justify-center text-[10px] font-semibold text-white ${
+                          holderColors[i % holderColors.length]
+                        }`}
+                      >
+                        {String.fromCharCode(65 + i)}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <span className="ml-3 text-xs text-muted-foreground">
-                {formatKilo(uniqueTraders)}+ all
-              </span>
+                  <span className="ml-3 text-xs text-muted-foreground">
+                    {remainingHolders > 0
+                      ? `+${formatKilo(remainingHolders)} more`
+                      : `${formatKilo(uniqueTraders)} holder${
+                          uniqueTraders !== 1 ? "s" : ""
+                        }`}
+                  </span>
+                </>
+              ) : (
+                <span className="text-xs text-muted-foreground">0 holders</span>
+              )}
             </div>
             <div className="flex items-center gap-6 text-xs">
               <div>
@@ -241,7 +212,45 @@ export const ProjectCard = ({
         {/* Right Column - Chart */}
         <div className="flex items-center">
           <div className="w-full h-[280px]">
-            <FeaturelessChart data={sampleChartData} isDark={true} />
+            {chartData && chartData.length > 0 ? (
+              <FeaturelessChart
+                data={chartData}
+                isDark={true}
+                lineColor={brandColor}
+              />
+            ) : chartData === undefined ? (
+              // Loading state
+              <div className="w-full h-full flex items-center justify-center bg-muted/50 rounded-lg">
+                <div className="text-center space-y-2">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                  <p className="text-xs text-muted-foreground">
+                    Loading chart data...
+                  </p>
+                </div>
+              </div>
+            ) : (
+              // No data available
+              <div className="w-full h-full flex items-center justify-center bg-muted/50 rounded-lg">
+                <div className="text-center space-y-2 px-4">
+                  <svg
+                    className="w-12 h-12 mx-auto text-muted-foreground/50"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                    />
+                  </svg>
+                  <p className="text-sm text-muted-foreground">
+                    Currently we don&apos;t have chart data available
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

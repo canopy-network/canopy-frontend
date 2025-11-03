@@ -44,7 +44,7 @@ export default function LaunchpadSidebar({
   const showAutoSave = repoConnected;
 
   return (
-    <aside className="w-[280px] border-r border-zinc-800 bg-card flex flex-col p-6 pt-5.5 overflow-y-auto flex-shrink-0">
+    <aside className="w-[280px] border-r border-zinc-800 bg-card flex flex-col p-6 pt-5.5 overflow-y-auto flex-shrink-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       {/* Progress Section */}
       <div className="space-y-3 mb-6">
         <h3 className="text-lg font-semibold">Progress</h3>

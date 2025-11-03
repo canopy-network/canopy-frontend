@@ -369,18 +369,19 @@ export default function LaunchpadPage() {
         }
       }
 
-      // Show success message
-      alert(
-        `Chain "${chain.token_name}" created successfully! (Status: ${chain.status})`
-      );
-
-      // Reset form and navigate to chain page
+      // Reset form and navigate to chain page with success flag
       resetFormData();
-      router.push(`/chain/${chain.id}`);
-    } catch (err: any) {
+      router.push(
+        `/chain/${chain.id}?success=true&name=${encodeURIComponent(
+          chain.chain_name
+        )}`
+      );
+    } catch (err: unknown) {
       console.error("Error creating chain:", err);
       setSubmitError(
-        err?.message || "Failed to create chain. Please try again."
+        err instanceof Error
+          ? err.message
+          : "Failed to create chain. Please try again."
       );
     } finally {
       setIsSubmitting(false);

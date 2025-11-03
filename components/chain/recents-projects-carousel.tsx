@@ -3,6 +3,10 @@
 import React, { useState, useEffect } from "react";
 import { Chain, VirtualPool } from "@/types/chains";
 import { ProjectCard } from "./project-card";
+import {
+  getChainPriceHistory,
+  convertPriceHistoryToChart,
+} from "@/lib/api/price-history";
 
 interface RecentsProjectsCarouselProps {
   projects: Chain[];
@@ -10,13 +14,6 @@ interface RecentsProjectsCarouselProps {
   onBuyClick: (project: Chain) => void;
 }
 
-const SAMPLE_CHART_DATA = [
-  { time: "2024-01-01", value: 0.1 },
-  { time: "2024-01-02", value: 0.12 },
-  { time: "2024-01-03", value: 0.15 },
-  { time: "2024-01-04", value: 0.18 },
-  { time: "2024-01-05", value: 0.22 },
-];
 export const RecentsProjectsCarousel = ({
   projects,
   virtualPools = {},
@@ -24,9 +21,62 @@ export const RecentsProjectsCarousel = ({
 }: RecentsProjectsCarouselProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [priceHistoryData, setPriceHistoryData] = useState<
+    Record<string, Array<{ value: number; time: number }>>
+  >({});
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>(
+    {}
+  );
 
   // Get first 4 projects
   const displayProjects = projects.slice(0, 4);
+
+  // Fetch price history for all display projects
+  useEffect(() => {
+    const fetchPriceHistories = async () => {
+      for (const project of displayProjects) {
+        // Skip if already loaded or loading
+        if (priceHistoryData[project.id] || loadingStates[project.id]) {
+          continue;
+        }
+
+        // Set loading state
+        setLoadingStates((prev) => ({ ...prev, [project.id]: true }));
+
+        try {
+          const response = await getChainPriceHistory(project.id);
+          if (response.data && response.data.length > 0) {
+            const chartData = convertPriceHistoryToChart(response.data);
+            setPriceHistoryData((prev) => ({
+              ...prev,
+              [project.id]: chartData,
+            }));
+          } else {
+            // No data available - set empty array
+            setPriceHistoryData((prev) => ({
+              ...prev,
+              [project.id]: [],
+            }));
+          }
+        } catch (error) {
+          console.error(
+            `Failed to fetch price history for ${project.id}:`,
+            error
+          );
+          // Set empty array to indicate no data available
+          setPriceHistoryData((prev) => ({
+            ...prev,
+            [project.id]: [],
+          }));
+        } finally {
+          setLoadingStates((prev) => ({ ...prev, [project.id]: false }));
+        }
+      }
+    };
+
+    fetchPriceHistories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displayProjects.map((p) => p.id).join(",")]); // Only re-run if projects change
 
   // Auto-advance carousel every 3 seconds
   useEffect(() => {
@@ -78,7 +128,10 @@ export const RecentsProjectsCarousel = ({
           style={{ transform: `translateX(-${currentIndex * 100}%)` }}
         >
           {displayProjects.map((project, index) => {
-            const virtualPool = virtualPools[project.id];
+            // Use embedded virtual_pool from project, or fallback to virtualPools prop
+            const virtualPool =
+              project.virtual_pool || virtualPools[project.id];
+            const chartData = priceHistoryData[project.id];
 
             return (
               <div
@@ -92,7 +145,7 @@ export const RecentsProjectsCarousel = ({
                 <ProjectCard
                   project={project}
                   virtualPool={virtualPool}
-                  chartData={SAMPLE_CHART_DATA}
+                  chartData={chartData}
                   onBuyClick={onBuyClick}
                 />
               </div>

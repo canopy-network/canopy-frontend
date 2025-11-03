@@ -61,9 +61,11 @@ const smoothData = (
 export const FeaturelessChart = ({
   data,
   isDark = true,
+  lineColor = "#1dd13a",
 }: {
   data: Array<{ time: string | number; value: number }>;
   isDark?: boolean;
+  lineColor?: string;
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
@@ -95,6 +97,14 @@ export const FeaturelessChart = ({
     handleScale: false,
   };
 
+  // Convert hex color to rgba for gradient
+  const hexToRgba = (hex: string, alpha: number) => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+
   const areaSeriesOptions = {
     lineWidth: 2 as LineWidth,
     relativeGradient: false,
@@ -102,8 +112,9 @@ export const FeaturelessChart = ({
     crosshairMarkerVisible: false,
     priceLineVisible: false,
     crosshairMarkerBorderColor: "red",
-    topColor: "rgba(29, 209, 58, 0.3)",
-    bottomColor: "rgba(29, 209, 58, 0)",
+    lineColor: lineColor,
+    topColor: hexToRgba(lineColor, 0.3),
+    bottomColor: hexToRgba(lineColor, 0),
   };
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -203,7 +214,7 @@ export const FeaturelessChart = ({
       window.removeEventListener("resize", handleResize);
       chart.remove();
     };
-  }, [data]);
+  }, [data, lineColor]);
 
   return <div ref={chartContainerRef} className="w-full h-full relative" />;
 };

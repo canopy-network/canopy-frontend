@@ -5,6 +5,8 @@ import { chainsApi } from "@/lib/api";
 import { ChainExtended } from "@/types/chains";
 import { ChainDetailsHeader } from "@/components/chain/chain-details-header";
 import { WalletContent } from "@/components/wallet/wallet-content";
+import { ChainSuccessBanner } from "@/components/chain/chain-success-banner";
+import { ChainLaunchCountdown } from "@/components/chain/chain-launch-countdown";
 
 // Force dynamic rendering to ensure params are always fresh
 export const dynamic = "force-dynamic";
@@ -71,12 +73,22 @@ export default async function ChainPage(props: ChainPageProps) {
         <div className="w-full max-w-7xl mx-auto lg:flex gap-4">
           {/* Main Content */}
           <main id="chain-details" className="flex-1 min-w-0">
+            <ChainSuccessBanner />
             <ChainDetailsHeader chain={chain} />
             <ChainDetails chain={chain} />
           </main>
 
-          <aside className="w-[352px] flex-shrink-0 card h-fit p-4 lg:block hidden">
-            <WalletContent showBalance={false} />
+          <aside className="w-[352px] flex-shrink-0 h-fit lg:block hidden">
+            {chain.status === "draft" ? (
+              <ChainLaunchCountdown
+                publicationDate={chain.scheduled_launch_time}
+                chainId={chain.id}
+              />
+            ) : (
+              <div className="card p-4">
+                <WalletContent showBalance={false} />
+              </div>
+            )}
           </aside>
         </div>
       </Container>
