@@ -147,6 +147,23 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
       }
     }
 
+    if (field === "tokenSupply") {
+      const numValue = parseFloat(value);
+      if (!value || isNaN(numValue)) {
+        newErrors.tokenSupply = "Token supply is required";
+        setErrors(newErrors);
+        return false;
+      } else if (numValue < 1000000) {
+        newErrors.tokenSupply = "Token supply must be at least 1,000,000";
+        setErrors(newErrors);
+        return false;
+      } else if (numValue > 3500000000) {
+        newErrors.tokenSupply = "Token supply cannot exceed 3,500,000,000";
+        setErrors(newErrors);
+        return false;
+      }
+    }
+
     if (field === "halvingDays") {
       if (!value || parseFloat(value) <= 0) {
         newErrors.halvingDays = "Halving schedule must be greater than 0";
@@ -205,6 +222,15 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
       newErrors.ticker = "Ticker must be 3-5 characters";
     }
 
+    const tokenSupplyValue = parseFloat(formData.tokenSupply);
+    if (!formData.tokenSupply || isNaN(tokenSupplyValue)) {
+      newErrors.tokenSupply = "Token supply is required";
+    } else if (tokenSupplyValue < 1000000) {
+      newErrors.tokenSupply = "Token supply must be at least 1,000,000";
+    } else if (tokenSupplyValue > 3500000000) {
+      newErrors.tokenSupply = "Token supply cannot exceed 3,500,000,000";
+    }
+
     if (!formData.halvingDays || parseFloat(formData.halvingDays) <= 0) {
       newErrors.halvingDays = "Halving schedule must be greater than 0";
     }
@@ -248,6 +274,7 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
       field === "chainName" ||
       field === "tokenName" ||
       field === "ticker" ||
+      field === "tokenSupply" ||
       field === "halvingDays"
     ) {
       debounceTimers.current[field] = setTimeout(() => {
@@ -462,18 +489,43 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
                   className="flex items-center gap-2 text-sm font-medium"
                 >
                   Token Supply
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>The total number of tokens that will ever exist</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Min: 1,000,000 | Max: 3,500,000,000
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
                 </Label>
                 <Input
                   id="tokenSupply"
                   type="number"
+                  placeholder="1000000000"
                   value={formData.tokenSupply}
-                  readOnly
-                  disabled
-                  className="bg-muted opacity-75 cursor-not-allowed"
+                  onChange={(e) => updateField("tokenSupply", e.target.value)}
+                  min={1000000}
+                  max={3500000000}
+                  className={
+                    touched.tokenSupply && errors.tokenSupply
+                      ? "border-destructive"
+                      : ""
+                  }
                 />
-                <p className="text-sm text-muted-foreground">
-                  The total number of tokens that will ever exist.
-                </p>
+                {touched.tokenSupply && errors.tokenSupply && (
+                  <p className="text-sm text-destructive">
+                    {errors.tokenSupply}
+                  </p>
+                )}
+                {!errors.tokenSupply && formData.tokenSupply && (
+                  <p className="text-sm text-muted-foreground">
+                    Total supply:{" "}
+                    {parseFloat(formData.tokenSupply).toLocaleString()} tokens
+                  </p>
+                )}
               </div>
 
               {/* Halving Schedule */}

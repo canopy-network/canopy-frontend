@@ -2,10 +2,10 @@
 
 import React from "react";
 import { Card } from "@/components/ui/card";
-import { TrendingUp, Users, Target } from "lucide-react";
+import { TrendingUp, Users, Target, Star } from "lucide-react";
 import Link from "next/link";
-import { Chain, VirtualPool } from "@/types/chains";
-import { formatKilo } from "@/lib/utils";
+import { Chain, ChainExtended, VirtualPool } from "@/types/chains";
+import { formatKilo, cn } from "@/lib/utils";
 import { FeaturelessChart } from "../charts/featureless-chart";
 import { HexagonIcon } from "@/components/icons";
 import { ChainProgressBar } from "./chain-progress-bar";
@@ -15,6 +15,7 @@ import {
   calculateAge,
   generateChainColor,
 } from "@/lib/utils/chain-ui-helpers";
+import { useChainFavorite } from "@/lib/hooks/use-chain-favorite";
 
 /**
  * Props interface for the ProjectCard component
@@ -38,9 +39,24 @@ export const ProjectCard = ({
   onBuyClick,
   chartData,
 }: ProjectCardProps) => {
-  // Calculate metrics from virtual pool data using utility functions
-  const progress = calculateGraduationProgress(project, virtualPool);
-  const currentRaised = virtualPool?.cnpy_reserve || 0;
+  // Favorite hook
+  const { isFavorited, isLoading, toggleFavorite, isAuthenticated } =
+    useChainFavorite(project.id);
+
+  // Calculate metrics from graduation data if available, otherwise fallback to virtual pool
+  const extendedProject = project as ChainExtended;
+  const progress = extendedProject.graduation?.completion_percentage
+    ? Math.min(
+        Math.round(extendedProject.graduation.completion_percentage),
+        100
+      )
+    : calculateGraduationProgress(project, virtualPool);
+  const currentRaised =
+    extendedProject.graduation?.current_cnpy_reserve ??
+    virtualPool?.cnpy_reserve ??
+    0;
+  const graduationThreshold =
+    extendedProject.graduation?.threshold_cnpy ?? project.graduation_threshold;
   const priceChange = virtualPool?.price_24h_change_percent || 0;
   const volume24h = virtualPool?.volume_24h_cnpy || 0;
   const marketCap = virtualPool?.market_cap_usd || 0;
@@ -67,7 +83,29 @@ export const ProjectCard = ({
   const chainInitials = project.chain_name.slice(0, 2).toUpperCase();
 
   return (
-    <Card className="rounded-xl border text-card-foreground   p-6 pb-0 bg-gradient-to-br from-card to-muted/20  hover:ring-2 hover:ring-primary/20 transition-all">
+    <Card className="rounded-xl border text-card-foreground   p-6 pb-0 bg-gradient-to-br from-card to-muted/20  hover:ring-2 hover:ring-primary/20 transition-all relative">
+      {/* Favorite Button - Absolute positioned */}
+      {isAuthenticated && (
+        <button
+          onClick={toggleFavorite}
+          disabled={isLoading}
+          className={cn(
+            "absolute top-4 right-4 p-2 rounded-lg transition-all hover:scale-110 z-10",
+            isFavorited
+              ? "bg-yellow-500/20 hover:bg-yellow-500/30"
+              : "bg-muted/50 hover:bg-muted"
+          )}
+          title={isFavorited ? "Remove from favorites" : "Add to favorites"}
+        >
+          <Star
+            className={cn(
+              "w-4 h-4 transition-all",
+              isFavorited && "fill-yellow-500 text-yellow-500"
+            )}
+          />
+        </button>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8">
         {/* Left Column */}
         <div className="space-y-6">
@@ -91,7 +129,7 @@ export const ProjectCard = ({
                 )}
               </div>
             </Link>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 pr-12">
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-medium">${project.token_symbol}</h3>
                 <div className="flex items-center gap-1">
@@ -141,7 +179,7 @@ export const ProjectCard = ({
           <ChainProgressBar
             progress={progress}
             currentAmount={formatKilo(currentRaised)}
-            targetAmount={formatKilo(project.graduation_threshold)}
+            targetAmount={formatKilo(graduationThreshold)}
             priceChange={priceChange}
             variant="A"
             progressColor={brandColor}
@@ -210,48 +248,46 @@ export const ProjectCard = ({
         </div>
 
         {/* Right Column - Chart */}
-        <div className="flex items-center">
-          <div className="w-full h-[280px]">
-            {chartData && chartData.length > 0 ? (
-              <FeaturelessChart
-                data={chartData}
-                isDark={true}
-                lineColor={brandColor}
-              />
-            ) : chartData === undefined ? (
-              // Loading state
-              <div className="w-full h-full flex items-center justify-center bg-muted/50 rounded-lg">
-                <div className="text-center space-y-2">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                  <p className="text-xs text-muted-foreground">
-                    Loading chart data...
-                  </p>
-                </div>
+        <div className="flex items-center w-full h-[280px] flex-col justify-center">
+          {chartData && chartData.length > 0 ? (
+            <FeaturelessChart
+              data={chartData}
+              isDark={true}
+              lineColor={brandColor}
+            />
+          ) : chartData === undefined ? (
+            // Loading state
+            <div className="w-full h-full flex items-center justify-center  rounded-xl">
+              <div className="text-center space-y-2">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                <p className="text-xs text-muted-foreground">
+                  Loading chart data...
+                </p>
               </div>
-            ) : (
-              // No data available
-              <div className="w-full h-full flex items-center justify-center bg-muted/50 rounded-lg">
-                <div className="text-center space-y-2 px-4">
-                  <svg
-                    className="w-12 h-12 mx-auto text-muted-foreground/50"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                    />
-                  </svg>
-                  <p className="text-sm text-muted-foreground">
-                    Currently we don&apos;t have chart data available
-                  </p>
-                </div>
+            </div>
+          ) : (
+            // No data available
+            <div className="w-full h-full flex items-center justify-center bg-muted/25 rounded-xl !h-[200px]">
+              <div className="text-center space-y-2 px-4">
+                <svg
+                  className="w-12 h-12 mx-auto text-muted-foreground/50"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                  />
+                </svg>
+                <p className="text-sm text-muted-foreground">
+                  Currently we don&apos;t have chart data available
+                </p>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </Card>

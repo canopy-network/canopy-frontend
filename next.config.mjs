@@ -14,14 +14,13 @@ const nextConfig = {
     serverComponentsExternalPackages: ['zustand'],
   },
   // Force SSR for all pages - disable static generation
-  trailingSlash: false,
+  trailingSlash: true,
   generateEtags: false,
   // Disable static optimization completely
   generateBuildId: async () => {
     return 'build-' + Date.now()
   },
   // Force all pages to be dynamic
-  skipTrailingSlashRedirect: true,
   skipMiddlewareUrlNormalize: true,
   async rewrites() {
     return [

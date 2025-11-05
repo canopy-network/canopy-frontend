@@ -3,6 +3,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLaunchpadDashboard } from "@/lib/hooks/use-launchpad-dashboard";
 import { useCreateChainDialog } from "@/lib/stores/use-create-chain-dialog";
+import { useAuthStore } from "@/lib/stores/auth-store";
+import { listUserFavorites } from "@/lib/api/chain-favorites";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BondingCurveChart } from "./bonding-curve-chart";
@@ -26,6 +28,7 @@ import {
   LucideIcon,
   Grid3x3,
   List,
+  GraduationCap,
 } from "lucide-react";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Container } from "@/components/layout/container";
@@ -39,19 +42,24 @@ interface TabConfig {
 
 const tabsConfig: TabConfig[] = [
   { value: "all", label: "All", icon: Home },
-  { value: "pending_launch", label: "Scheduled", icon: Calendar },
   { value: "virtual_active", label: "Trending", icon: TrendingUp },
-  { value: "graduated", label: "Favorites", icon: Heart },
+  { value: "graduated", label: "Graduated", icon: GraduationCap },
+  { value: "pending_launch", label: "New", icon: Calendar },
+  { value: "favorites", label: "Favorites", icon: Heart },
 ];
 
 // No fallback data needed - working directly with API responses
 
 export function LaunchpadDashboard() {
   const { open: openCreateChainDialog } = useCreateChainDialog();
+  const { user, isAuthenticated } = useAuthStore();
   const [selectedProject, setSelectedProject] = useState<Chain | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sortOption, setSortOption] = useState("default");
+  const [favoritedChainIds, setFavoritedChainIds] = useState<string[]>([]);
+  const [loadingFavorites, setLoadingFavorites] = useState(false);
+  const [localActiveTab, setLocalActiveTab] = useState("all");
 
   const {
     // Data
@@ -72,17 +80,55 @@ export function LaunchpadDashboard() {
     setSearchQuery,
     selectedCategory,
     setSelectedCategory,
-    activeTab,
-    setActiveTab,
+    setActiveTab: setStoreActiveTab,
   } = useLaunchpadDashboard({
     autoFetch: true,
-    includeVirtualPools: true,
   });
 
-  // Sort the filtered chains based on the selected sort option
-  const sortedChains = useMemo(() => {
-    const chainsCopy = [...filteredChains];
+  // Custom handler for tab changes
+  const handleTabChange = (tab: string) => {
+    setLocalActiveTab(tab);
+    // Handle tabs that use local filtering (favorites, graduated)
+    if (tab === "favorites" || tab === "graduated") {
+      setStoreActiveTab("all"); // Clear status filter for local filtering
+    } else {
+      setStoreActiveTab(tab);
+    }
+  };
 
+  // Filter tabs based on authentication
+  const visibleTabs = useMemo(() => {
+    if (isAuthenticated) {
+      return tabsConfig;
+    }
+    return tabsConfig.filter((tab) => tab.value !== "favorites");
+  }, [isAuthenticated]);
+
+  // If user logs out while on favorites tab, switch to all
+  useEffect(() => {
+    if (!isAuthenticated && localActiveTab === "favorites") {
+      setLocalActiveTab("all");
+      setStoreActiveTab("all");
+    }
+  }, [isAuthenticated, localActiveTab, setStoreActiveTab]);
+
+  // Filter and sort chains based on active tab and sort option
+  const sortedChains = useMemo(() => {
+    let chainsCopy = [...filteredChains];
+
+    // If favorites tab is active, filter by favorited chain IDs
+    if (localActiveTab === "favorites") {
+      chainsCopy = chainsCopy.filter((chain) =>
+        favoritedChainIds.includes(chain.id)
+      );
+    }
+
+    // If graduated tab is active, filter by is_graduated = true
+    if (localActiveTab === "graduated") {
+      chainsCopy = chainsCopy.filter((chain) => chain.is_graduated === true);
+    }
+
+    // Apply sorting
     switch (sortOption) {
       case "market-cap-high":
         return chainsCopy.sort(
@@ -125,13 +171,34 @@ export function LaunchpadDashboard() {
         // Return chains in their original order (as received from API)
         return chainsCopy;
     }
-  }, [filteredChains, sortOption]);
+  }, [filteredChains, sortOption, localActiveTab, favoritedChainIds]);
 
   // Handle buy button click
   const handleBuyClick = (project: Chain) => {
     console.log("Buy clicked for project:", project.chain_name);
     // TODO: Implement buy functionality
   };
+
+  // Fetch favorited chains when Favorites tab is active
+  useEffect(() => {
+    const fetchFavorites = async () => {
+      if (localActiveTab === "favorites" && isAuthenticated && user) {
+        setLoadingFavorites(true);
+        try {
+          const result = await listUserFavorites(user.id, "like");
+          if (result.success && result.chains) {
+            setFavoritedChainIds(result.chains.map((c) => c.chain_id));
+          }
+        } catch (error) {
+          console.error("Error fetching favorites:", error);
+        } finally {
+          setLoadingFavorites(false);
+        }
+      }
+    };
+
+    fetchFavorites();
+  }, [localActiveTab, isAuthenticated, user]);
 
   // Show onboarding on first visit
   useEffect(() => {
@@ -198,22 +265,22 @@ export function LaunchpadDashboard() {
         </div>
 
         <Tabs
-          value={activeTab}
-          onValueChange={setActiveTab}
+          value={localActiveTab}
+          onValueChange={handleTabChange}
           className="min-h-[400px]"
         >
           {/* Filter Bar */}
           <div className="rounded-xl border border-border bg-card text-card-foreground shadow p-1 flex items-center justify-between mb-8">
             {/* Left: Tab Buttons */}
             <div className="flex items-center gap-1">
-              {tabsConfig.map((tab) => (
+              {visibleTabs.map((tab) => (
                 <Button
                   key={tab.value}
-                  onClick={() => setActiveTab(tab.value)}
-                  variant={activeTab === tab.value ? "secondary" : "ghost"}
+                  onClick={() => handleTabChange(tab.value)}
+                  variant={localActiveTab === tab.value ? "secondary" : "ghost"}
                   size="sm"
                   className={`rounded-md gap-1.5 h-9 px-4 ${
-                    activeTab === tab.value
+                    localActiveTab === tab.value
                       ? "bg-secondary text-secondary-foreground hover:bg-secondary/80"
                       : "hover:bg-accent hover:text-accent-foreground"
                   }`}
@@ -288,7 +355,7 @@ export function LaunchpadDashboard() {
                   onClick={() => {
                     setSearchQuery("");
                     setSelectedCategory("all");
-                    setActiveTab("all");
+                    handleTabChange("all");
                   }}
                   variant="outline"
                   className="mt-4 border-[#2a2a2a] text-white hover:bg-[#1a1a1a]"
@@ -316,7 +383,7 @@ export function LaunchpadDashboard() {
               />
             ))}
             {sortedChains.length === 0 && (
-              <div className="text-center py-12">
+              <div className="text-center py-12 w-full col-span-4">
                 <p className="text-gray-400 text-lg">No new projects</p>
               </div>
             )}
@@ -339,7 +406,7 @@ export function LaunchpadDashboard() {
               />
             ))}
             {sortedChains.length === 0 && (
-              <div className="text-center py-12">
+              <div className="text-center py-12 w-full col-span-4 ">
                 <p className="text-gray-400 text-lg">No trending projects</p>
               </div>
             )}
@@ -362,9 +429,63 @@ export function LaunchpadDashboard() {
               />
             ))}
             {sortedChains.length === 0 && (
-              <div className="text-center py-12">
+              <div className="text-center py-12 w-full col-span-4">
                 <p className="text-gray-400 text-lg">No graduated projects</p>
               </div>
+            )}
+          </TabsContent>
+
+          <TabsContent
+            value="favorites"
+            className={
+              viewMode === "grid"
+                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                : "flex flex-col gap-3"
+            }
+          >
+            {loadingFavorites ? (
+              <div className="text-center py-12 w-full col-span-4">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                <p className="text-gray-400 text-sm mt-4">
+                  Loading your favorites...
+                </p>
+              </div>
+            ) : !isAuthenticated ? (
+              <div className="text-center py-12 w-full col-span-4">
+                <Heart className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                <p className="text-gray-400 text-lg mb-2">
+                  Login to see your favorites
+                </p>
+                <p className="text-gray-500 text-sm">
+                  Star chains to save them here for quick access
+                </p>
+              </div>
+            ) : sortedChains.length === 0 ? (
+              <div className="text-center py-12 w-full col-span-4">
+                <Heart className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                <p className="text-gray-400 text-lg mb-2">
+                  No favorite chains yet
+                </p>
+                <p className="text-gray-500 text-sm mb-4">
+                  Click the star icon on any chain to add it to your favorites
+                </p>
+                <Button
+                  onClick={() => handleTabChange("all")}
+                  variant="outline"
+                  className="border-[#2a2a2a] text-white hover:bg-[#1a1a1a]"
+                >
+                  Browse All Chains
+                </Button>
+              </div>
+            ) : (
+              sortedChains.map((project) => (
+                <SmallProjectCard
+                  key={project.id}
+                  project={project}
+                  href={`/chain/${project.id}`}
+                  viewMode={viewMode}
+                />
+              ))
             )}
           </TabsContent>
         </Tabs>

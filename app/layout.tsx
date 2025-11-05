@@ -7,6 +7,7 @@ import { WalletPopup } from "@/components/wallet/wallet-popup";
 import { Sidebar } from "@/components/layout/sidebar";
 import { StoreProvider } from "@/components/providers/store-provider";
 import { ErrorBoundary } from "@/components/providers/error-boundary";
+import { AuthCookieSync } from "@/components/auth/auth-cookie-sync";
 import { Toaster } from "sonner";
 import { Toaster as HotToaster } from "react-hot-toast";
 import "./globals.css";
@@ -34,6 +35,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <ErrorBoundary>
           <StoreProvider>
+            <AuthCookieSync />
             <WalletProvider>
               <div className="flex h-screen bg-background overflow-hidden">
                 {/* Desktop Sidebar - hidden on mobile */}

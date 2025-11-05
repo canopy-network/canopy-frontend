@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Chain, ChainExtended } from "@/types/chains";
 import { useMemo } from "react";
 import { HexagonIcon } from "@/components/icons/hexagon-icon";
-import { Users, TrendingUp } from "lucide-react";
+import { Users, TrendingUp, Star } from "lucide-react";
 import { ChainProgressBar } from "./chain-progress-bar";
 import {
   calculateGraduationProgress,
@@ -13,6 +13,8 @@ import {
   getMarketCap,
   getPriceChange24h,
 } from "@/lib/utils/chain-ui-helpers";
+import { useChainFavorite } from "@/lib/hooks/use-chain-favorite";
+import { cn } from "@/lib/utils";
 
 /**
  * SmallProjectCard component - A compact project card that functions as a clickable link
@@ -30,6 +32,10 @@ export const SmallProjectCard = ({
   href = `/chain/${project.id}`,
   viewMode = "grid",
 }: SmallProjectCardProps) => {
+  // Favorite hook
+  const { isFavorited, isLoading, toggleFavorite, isAuthenticated } =
+    useChainFavorite(project.id);
+
   // Get virtual pool data if included
   const virtualPool = project.virtual_pool;
 
@@ -86,10 +92,16 @@ export const SmallProjectCard = ({
     };
   }, [project.template?.template_category]);
 
-  // Calculate market cap and target based on actual project data
-  const marketCap = getMarketCap(virtualPool);
-  const marketCapFormatted = formatNumber(marketCap || 25000);
-  const targetFormatted = formatNumber(project.graduation_threshold);
+  // Calculate current amount and target from graduation data if available
+  const extendedProject = project as ChainExtended;
+  const currentAmount =
+    extendedProject.graduation?.current_cnpy_reserve ??
+    virtualPool?.cnpy_reserve ??
+    0;
+  const graduationThreshold =
+    extendedProject.graduation?.threshold_cnpy ?? project.graduation_threshold;
+  const marketCapFormatted = formatNumber(currentAmount);
+  const targetFormatted = formatNumber(graduationThreshold);
 
   // Use brand_color from API or fallback to generated gradient
   const brandColor = project.brand_color;
@@ -150,7 +162,7 @@ export const SmallProjectCard = ({
     return (
       <Link
         href={href}
-        className="rounded-xl border bg-card text-card-foreground shadow cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all group"
+        className="rounded-xl border bg-card text-card-foreground shadow cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all group relative"
       >
         <div className="flex items-center gap-4 p-4">
           {/* Avatar + Name */}
@@ -179,7 +191,31 @@ export const SmallProjectCard = ({
               </div>
             )}
             <div>
-              <h3 className="text-sm font-semibold">{project.chain_name}</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold">{project.chain_name}</h3>
+                {isAuthenticated && (
+                  <button
+                    onClick={toggleFavorite}
+                    disabled={isLoading}
+                    className={cn(
+                      "p-1 rounded transition-all hover:scale-110",
+                      isFavorited
+                        ? "bg-yellow-500/20 hover:bg-yellow-500/30"
+                        : "hover:bg-muted"
+                    )}
+                    title={
+                      isFavorited ? "Remove from favorites" : "Add to favorites"
+                    }
+                  >
+                    <Star
+                      className={cn(
+                        "w-3 h-3 transition-all",
+                        isFavorited && "fill-yellow-500 text-yellow-500"
+                      )}
+                    />
+                  </button>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground">
                 ${project.token_symbol}
               </p>
@@ -250,8 +286,30 @@ export const SmallProjectCard = ({
   return (
     <Link
       href={href}
-      className="rounded-xl border bg-card text-card-foreground shadow p-4 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all group h-40  flex flex-col gap-3"
+      className="rounded-xl border bg-card text-card-foreground shadow p-4 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all group h-40  flex flex-col gap-3 relative"
     >
+      {/* Favorite Button - Positioned absolutely */}
+      {isAuthenticated && (
+        <button
+          onClick={toggleFavorite}
+          disabled={isLoading}
+          className={cn(
+            "absolute top-2 right-2 p-1.5 rounded-lg transition-all hover:scale-110 z-10",
+            isFavorited
+              ? "bg-yellow-500/20 hover:bg-yellow-500/30"
+              : "bg-muted/50 hover:bg-muted"
+          )}
+          title={isFavorited ? "Remove from favorites" : "Add to favorites"}
+        >
+          <Star
+            className={cn(
+              "w-3.5 h-3.5 transition-all",
+              isFavorited && "fill-yellow-500 text-yellow-500"
+            )}
+          />
+        </button>
+      )}
+
       {/* Header: Avatar + Title + Icons */}
       <div className="flex items-center gap-3">
         {/* Avatar */}
@@ -280,7 +338,7 @@ export const SmallProjectCard = ({
         )}
 
         {/* Title, Ticker, and Hexagon Icons */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 pr-8">
           <div className="flex items-center gap-1.5">
             <h3 className="text-sm font-semibold truncate">
               {project.chain_name}
