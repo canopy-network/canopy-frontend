@@ -32,8 +32,8 @@ export async function GET(request: NextRequest) {
           Accept: "application/json",
         },
         body: JSON.stringify({
-          client_id: process.env.GITHUB_CLIENT_ID,
-          client_secret: process.env.GITHUB_CLIENT_SECRET,
+          client_id: process.env.GH_CLIENT_ID,
+          client_secret: process.env.GH_CLIENT_SECRET,
           code,
           redirect_uri: `${process.env.NEXTAUTH_URL}/api/github/callback`,
         }),
