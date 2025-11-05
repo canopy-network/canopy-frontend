@@ -13,6 +13,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn, WINDOW_BREAKPOINTS } from "@/lib/utils";
 import LaunchOverviewDialog from "@/components/launchpad/launch-overview-dialog";
+import Image from "next/image";
 
 export function Sidebar() {
   const { user, isAuthenticated } = useAuthStore();
@@ -87,7 +88,9 @@ export function Sidebar() {
               : "w-38 mr-auto xl:px-4"
           )}
         >
-          <img
+          <Image
+            width={128}
+            height={128}
             src="/images/logo.svg"
             alt="Logo"
             className={cn("invert w-32 min-w-32")}
