@@ -1,5 +1,6 @@
 services:
   canopy-frontend:
+    image: canopy-frontend
     build:
       context: .
       dockerfile: Dockerfile
