@@ -99,6 +99,14 @@ export const useAuthStore = create<AuthState>()(
           console.log("🔑 Authorization token stored");
         }
 
+        // Store authentication state in cookie for middleware access
+        if (typeof window !== "undefined") {
+          document.cookie = `canopy_auth=true; path=/; max-age=2592000; SameSite=Lax`;
+          if (user?.id) {
+            document.cookie = `canopy_user_id=${user.id}; path=/; max-age=2592000; SameSite=Lax`;
+          }
+        }
+
         set({
           user,
           token,
@@ -128,6 +136,9 @@ export const useAuthStore = create<AuthState>()(
         clearUserId();
         if (typeof window !== "undefined") {
           localStorage.removeItem("auth_token");
+          // Clear authentication cookies
+          document.cookie = "canopy_auth=; path=/; max-age=0";
+          document.cookie = "canopy_user_id=; path=/; max-age=0";
         }
         set({
           user: null,
@@ -150,6 +161,9 @@ export const useAuthStore = create<AuthState>()(
         clearUserId();
         if (typeof window !== "undefined") {
           localStorage.removeItem("auth_token");
+          // Clear authentication cookies
+          document.cookie = "canopy_auth=; path=/; max-age=0";
+          document.cookie = "canopy_user_id=; path=/; max-age=0";
         }
         set({
           user: null,
@@ -184,6 +198,14 @@ export const useAuthStore = create<AuthState>()(
               const storedToken = localStorage.getItem("auth_token");
               if (!storedToken) {
                 localStorage.setItem("auth_token", state.token);
+              }
+            }
+
+            // Restore authentication cookies for middleware access
+            if (state.isAuthenticated && typeof window !== "undefined") {
+              document.cookie = `canopy_auth=true; path=/; max-age=2592000; SameSite=Lax`;
+              if (state.user?.id) {
+                document.cookie = `canopy_user_id=${state.user.id}; path=/; max-age=2592000; SameSite=Lax`;
               }
             }
           }

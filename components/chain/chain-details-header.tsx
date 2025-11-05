@@ -5,12 +5,17 @@ import { Star, Upload, Users, TrendingUp, Zap } from "lucide-react";
 import { HexagonIcon } from "@/components/icons/hexagon-icon";
 import { formatDistanceToNow } from "date-fns";
 import { ChainExtended } from "@/types/chains";
+import { useChainFavorite } from "@/lib/hooks/use-chain-favorite";
+import { cn } from "@/lib/utils";
 
 interface ChainDetailsHeaderProps {
   chain: ChainExtended;
 }
 
 export function ChainDetailsHeader({ chain }: ChainDetailsHeaderProps) {
+  const { isFavorited, isLoading, toggleFavorite, isAuthenticated } =
+    useChainFavorite(chain.id);
+
   const shareProject = () => {
     if (navigator.share) {
       navigator.share({
@@ -107,15 +112,33 @@ export function ChainDetailsHeader({ chain }: ChainDetailsHeaderProps) {
           <Button
             variant="outline"
             size="sm"
-            className="size-9 h-[30px] w-[30px] rounded-lg"
+            onClick={toggleFavorite}
+            disabled={!isAuthenticated || isLoading}
+            className={cn(
+              "size-9 h-[30px] w-[30px] rounded-lg transition-all",
+              isFavorited && "bg-yellow-500/10 border-yellow-500/50"
+            )}
+            title={
+              !isAuthenticated
+                ? "Login to favorite"
+                : isFavorited
+                ? "Remove from favorites"
+                : "Add to favorites"
+            }
           >
-            <Star className="w-4 h-4" />
+            <Star
+              className={cn(
+                "w-4 h-4 transition-all",
+                isFavorited && "fill-yellow-500 text-yellow-500"
+              )}
+            />
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={shareProject}
             className="size-9 h-[30px] w-[30px] rounded-lg"
+            title="Share project"
           >
             <Upload className="w-4 h-4" />
           </Button>

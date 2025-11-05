@@ -10,15 +10,19 @@ import { Search, Plus, Mail, Wallet } from "lucide-react";
 import { useCreateChainDialog } from "@/lib/stores/use-create-chain-dialog";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn, WINDOW_BREAKPOINTS } from "@/lib/utils";
+import LaunchOverviewDialog from "@/components/launchpad/launch-overview-dialog";
+import Image from "next/image";
 
 export function Sidebar() {
   const { user, isAuthenticated } = useAuthStore();
+  const router = useRouter();
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [showCommandSearch, setShowCommandSearch] = useState(false);
   const [isCompact, setIsCompact] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [showLaunchDialog, setShowLaunchDialog] = useState(false);
   const pathname = usePathname();
 
   // User is considered logged in if either email auth or GitHub auth is active
@@ -78,11 +82,15 @@ export function Sidebar() {
         <Link
           href="/"
           className={cn(
-            "overflow-hidden transition-all duration-300  block",
-            isCondensed ? "w-[16px] max-w-[16px] mx-auto" : "w-32 mr-auto"
+            "overflow-hidden transition-all duration-300  block  ",
+            isCondensed
+              ? "w-[16px] max-w-[16px] mx-auto"
+              : "w-38 mr-auto xl:px-4"
           )}
         >
-          <img
+          <Image
+            width={128}
+            height={128}
             src="/images/logo.svg"
             alt="Logo"
             className={cn("invert w-32 min-w-32")}
@@ -130,8 +138,19 @@ export function Sidebar() {
         </button>
 
         {isLoggedIn && (
-          <Link
-            href="/launchpad/"
+          <Button
+            onClick={() => {
+              // Check if dialog has been shown this session
+              const hasSeenDialog = sessionStorage.getItem(
+                "hasSeenLaunchDialog"
+              );
+              if (!hasSeenDialog) {
+                setShowLaunchDialog(true);
+                sessionStorage.setItem("hasSeenLaunchDialog", "true");
+              } else {
+                router.push("/launchpad/");
+              }
+            }}
             className={cn(
               "flex items-center rounded-full bg-transparent text-sm font-medium text-white hover:bg-white/5 transition-colors",
               isCondensed ? "w-10 h-10 justify-center" : "w-full h-9 gap-3 pl-4"
@@ -146,7 +165,7 @@ export function Sidebar() {
             >
               Create L1 chain
             </span>
-          </Link>
+          </Button>
         )}
       </div>
 
@@ -234,6 +253,16 @@ export function Sidebar() {
       <CommandSearchDialog
         open={showCommandSearch}
         onOpenChange={setShowCommandSearch}
+      />
+
+      {/* Launch Overview Dialog */}
+      <LaunchOverviewDialog
+        open={showLaunchDialog}
+        onClose={() => setShowLaunchDialog(false)}
+        onStart={() => {
+          setShowLaunchDialog(false);
+          router.push("/launchpad/");
+        }}
       />
     </div>
   );
