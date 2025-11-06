@@ -162,6 +162,7 @@ export const useAuthStore = create<AuthState>()(
     {
       name: "canopy-auth-storage",
       storage: createJSONStorage(() => zustandStorage),
+      skipHydration: true,
       onRehydrateStorage: () => {
         return (state, error) => {
           if (error) {

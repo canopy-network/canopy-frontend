@@ -231,6 +231,7 @@ export class ApiClient {
         // Add authentication headers for all mutation operations
         const method = config.method?.toUpperCase();
         if (
+          method === "GET" ||
           method === "PUT" ||
           method === "POST" ||
           method === "PATCH" ||

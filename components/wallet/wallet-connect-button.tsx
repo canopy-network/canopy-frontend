@@ -2,26 +2,47 @@
 
 import { Button } from "@/components/ui/button";
 import { useWallet } from "./wallet-provider";
-import { Wallet, Loader2 } from "lucide-react";
+import { Wallet, Loader2, ChevronDown } from "lucide-react";
+import { useAuthStore } from "@/lib/stores/auth-store";
 
 export function WalletConnectButton() {
-  const { currentAccount, isConnecting, connectWallet, togglePopup } =
+  const { isAuthenticated } = useAuthStore();
+  const { currentWallet, isConnecting, connectWallet, togglePopup } =
     useWallet();
 
-  if (currentAccount) {
+  // Format address for display
+  const formatAddress = (address: string) => {
+    if (!address) return "";
+    // Add 0x prefix if not present
+    const fullAddress = address.startsWith("0x") ? address : `0x${address}`;
+    return `${fullAddress.slice(0, 6)}...${fullAddress.slice(-4)}`;
+  };
+
+  // If user is not authenticated, don't show wallet button
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  // If wallet is connected, show wallet info button
+  if (currentWallet) {
     return (
       <Button
         variant="outline"
         onClick={togglePopup}
-        className="gap-2 bg-transparent border-[#2a2a2a] text-white hover:bg-[#1a1a1a] w-full justify-start"
+        className="gap-2 bg-transparent border-[#2a2a2a] text-white hover:bg-[#1a1a1a] w-full justify-between"
       >
-        <Wallet className="h-4 w-4" />
-        {currentAccount.address.slice(0, 6)}...
-        {currentAccount.address.slice(-4)}
+        <div className="flex items-center gap-2">
+          <Wallet className="h-4 w-4" />
+          <span className="font-mono text-sm">
+            {formatAddress(currentWallet.address)}
+          </span>
+        </div>
+        <ChevronDown className="h-4 w-4 text-muted-foreground" />
       </Button>
     );
   }
 
+  // Otherwise, show connect button
   return (
     <Button
       onClick={connectWallet}
@@ -30,11 +51,16 @@ export function WalletConnectButton() {
       variant="outline"
     >
       {isConnecting ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
+        <>
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Connecting...
+        </>
       ) : (
-        <Wallet className="h-4 w-4" />
+        <>
+          <Wallet className="h-4 w-4" />
+          Connect wallet
+        </>
       )}
-      {isConnecting ? "Connecting..." : "Connect wallet"}
     </Button>
   );
 }

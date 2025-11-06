@@ -105,6 +105,9 @@ export {
   type Repository as GitHubRepository,
 } from "./github-repos";
 
+// Wallet API
+export { walletApi } from "./wallet";
+
 // ============================================================================
 // CONVENIENCE RE-EXPORTS
 // ============================================================================
@@ -140,3 +143,18 @@ export type {
   ComplexityLevel,
   GetTemplatesParams,
 } from "@/types/templates";
+
+export type {
+  Wallet,
+  CreateWalletRequest,
+  UpdateWalletRequest,
+  DecryptWalletRequest,
+  DecryptWalletResponse,
+  GetWalletsParams,
+  WalletsListResponse,
+  LocalWallet,
+  WalletCreationResult,
+  WalletBalance,
+  TokenBalance,
+  WalletTransaction,
+} from "@/types/wallet";
