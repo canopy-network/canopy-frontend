@@ -10,9 +10,7 @@ const nextConfig = {
     unoptimized: true,
   },
   output: 'standalone',
-  experimental: {
-    serverComponentsExternalPackages: ['zustand'],
-  },
+  serverExternalPackages: ['zustand', '@noble/curves', '@noble/hashes', '@scure/bip39'],
   // Force SSR for all pages - disable static generation
   trailingSlash: false,
   generateEtags: false,

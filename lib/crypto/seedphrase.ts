@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Seedphrase (BIP39 Mnemonic) generation and validation module
  *

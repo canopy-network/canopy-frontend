@@ -23,7 +23,10 @@ import {
 import { walletApi } from "@/lib/api";
 import {
   generateEncryptedKeyPair,
+  decryptPrivateKey,
+  EncryptedKeyPair,
 } from "@/lib/crypto/wallet";
+import { bytesToHex } from '@noble/hashes/utils.js';
 import { validateSeedphrase } from "@/lib/crypto/seedphrase";
 
 export interface WalletState {
@@ -89,13 +92,31 @@ export const useWalletStore = create<WalletState>()(
       transactions: [],
 
       // Fetch all wallets for the current user
+      // Uses both getWallets (for metadata) and exportWallets (for encryption data)
       fetchWallets: async () => {
         try {
           set({ isLoading: true, error: null });
 
-          const response = await walletApi.getWallets();
-          const wallets: LocalWallet[] = response.data.map((wallet) => ({
+          // Fetch wallets with metadata (id, timestamps, status, etc)
+          const walletsResponse = await walletApi.getWallets();
+
+          // Try to fetch encryption data from export endpoint
+          let exportData: Record<string, any> = {};
+          try {
+            const exportResponse = await walletApi.exportWallets();
+            exportData = exportResponse.data.addressMap || {};
+          } catch (exportError) {
+            console.warn('Failed to fetch wallet encryption data from export endpoint:', exportError);
+            // Continue without encryption data - wallets will be listed but cannot be unlocked
+          }
+
+          // Merge wallet metadata with encryption data
+          const wallets: LocalWallet[] = walletsResponse.data.map((wallet) => ({
             ...wallet,
+            // Add encryption data if available from export
+            encrypted_private_key: exportData[wallet.address]?.encrypted || wallet.encrypted_private_key,
+            salt: exportData[wallet.address]?.salt || wallet.salt,
+            // Local state
             isUnlocked: false,
           }));
 
@@ -249,7 +270,7 @@ export const useWalletStore = create<WalletState>()(
       },
 
       // Unlock wallet with password (decrypt private key)
-      // TODO: Enable this once backend provides encryption data
+      // Uses local decryption with data from export endpoint
       unlockWallet: async (walletId: string, password: string) => {
         try {
           set({ isLoading: true, error: null });
@@ -262,8 +283,11 @@ export const useWalletStore = create<WalletState>()(
             throw new Error("Wallet not found");
           }
 
-          // TODO: Uncomment when backend provides these fields in GET /wallet response
-          /*
+          // Verify we have encryption data (should be available from export)
+          if (!wallet.encrypted_private_key || !wallet.salt) {
+            throw new Error("Wallet encryption data not available. Please refresh your wallets.");
+          }
+
           // Remove spaces from password/seedphrase
           const passwordNoSpaces = password.replace(/\s+/g, "");
 
@@ -305,13 +329,6 @@ export const useWalletStore = create<WalletState>()(
                 : state.currentWallet,
             isLoading: false,
           }));
-          */
-
-          // Temporary error until backend provides encryption data
-          set({ isLoading: false });
-          throw new Error(
-            "Wallet unlock not available yet. Backend needs to provide encryption data (public_key, encrypted_private_key, salt) in GET /wallet or GET /wallet/export endpoint."
-          );
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : "Failed to unlock wallet";
