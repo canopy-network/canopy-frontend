@@ -110,6 +110,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Ensure chain_id is a string (DynamoDB requires string type)
+    const chainIdString = String(chainId);
+
     // Check for required environment variables
     if (!TABLE_NAME) {
       console.error("Missing FAVORITED_CHAINS_TABLE_ARN environment variable");
@@ -127,7 +130,7 @@ export async function GET(request: NextRequest) {
       TableName: TABLE_NAME,
       Key: marshall({
         user_id: authenticatedUserId,
-        chain_id: chainId,
+        chain_id: chainIdString,
       }),
     });
 
@@ -226,6 +229,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Ensure chain_id is a string (DynamoDB requires string type)
+    const chainIdString = String(chain_id);
+
     if (!preference || !["like", "dislike"].includes(preference)) {
       return NextResponse.json(
         {
@@ -266,7 +272,7 @@ export async function POST(request: NextRequest) {
     const now = new Date().toISOString();
     const item: FavoriteItem = {
       user_id: authenticatedUserId,
-      chain_id,
+      chain_id: chainIdString,
       preference,
       created_at: now,
       updated_at: now,
@@ -284,7 +290,7 @@ export async function POST(request: NextRequest) {
         success: true,
         message: `Successfully ${preference}d chain`,
         preference,
-        chain_id,
+        chain_id: chainIdString,
       },
       { status: 200 }
     );
@@ -358,6 +364,9 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    // Ensure chain_id is a string (DynamoDB requires string type)
+    const chainIdString = String(chain_id);
+
     // SECURITY: Verify the user_id matches the authenticated user
     if (user_id !== authenticatedUserId) {
       console.warn(
@@ -389,7 +398,7 @@ export async function DELETE(request: NextRequest) {
       TableName: TABLE_NAME,
       Key: marshall({
         user_id: authenticatedUserId,
-        chain_id,
+        chain_id: chainIdString,
       }),
     });
 
@@ -399,7 +408,7 @@ export async function DELETE(request: NextRequest) {
       {
         success: true,
         message: "Successfully removed chain preference",
-        chain_id,
+        chain_id: chainIdString,
       },
       { status: 200 }
     );
