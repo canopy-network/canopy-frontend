@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { TrendingUp, Users, Target, Star } from "lucide-react";
 import Link from "next/link";
@@ -82,6 +82,9 @@ export const ProjectCard = ({
   // Get first 2 letters of chain name for logo fallback
   const chainInitials = project.chain_name.slice(0, 2).toUpperCase();
 
+  // State to track if image failed to load
+  const [imageError, setImageError] = useState(false);
+
   return (
     <Card className="rounded-xl border text-card-foreground   p-6 pb-0 bg-gradient-to-br from-card to-muted/20  hover:ring-2 hover:ring-primary/20 transition-all relative">
       {/* Favorite Button - Absolute positioned */}
@@ -113,14 +116,15 @@ export const ProjectCard = ({
           <div className="flex items-start gap-3">
             <Link href={`/chain/${project.id}`}>
               <div
-                className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                className="w-10 h-10 rounded-full flex items-center justify-center"
                 style={{ backgroundColor: brandColor }}
               >
-                {project.branding ? (
+                {project.branding && !imageError ? (
                   <img
                     src={project.branding}
                     alt={`logo - ${project.chain_name}`}
                     className="w-10 h-10 rounded-full"
+                    onError={() => setImageError(true)}
                   />
                 ) : (
                   <span className="text-base font-bold text-white">

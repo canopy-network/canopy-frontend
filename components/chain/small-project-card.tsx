@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Chain, ChainExtended } from "@/types/chains";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { HexagonIcon } from "@/components/icons/hexagon-icon";
 import { Users, TrendingUp, Star } from "lucide-react";
 import { ChainProgressBar } from "./chain-progress-bar";
@@ -109,6 +109,9 @@ export const SmallProjectCard = ({
   // Get first 2 letters of chain name for logo fallback
   const chainInitials = project.chain_name.slice(0, 2).toUpperCase();
 
+  // State to track if image failed to load
+  const [imageError, setImageError] = useState(false);
+
   // Calculate visible and overflow hexagon icons
   const hexagonIcons = useMemo(() => {
     const icons = [];
@@ -167,20 +170,21 @@ export const SmallProjectCard = ({
         <div className="flex items-center gap-4 p-4">
           {/* Avatar + Name */}
           <div className="flex items-center gap-3 min-w-[200px]">
-            {project.branding ? (
+            {project.branding && !imageError ? (
               <div
-                className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                className="w-10 h-10 rounded-full flex items-center justify-center"
                 style={{ backgroundColor: brandColor }}
               >
                 <img
                   src={project.branding}
                   alt={`logo - ${project.chain_name}`}
                   className="w-10 h-10 rounded-full"
+                  onError={() => setImageError(true)}
                 />
               </div>
             ) : (
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                className={`w-10 h-10 rounded-full flex items-center justify-center ${
                   brandColor ? "" : `bg-gradient-to-br ${iconData.gradient}`
                 }`}
                 style={brandColor ? { backgroundColor: brandColor } : undefined}
@@ -313,20 +317,21 @@ export const SmallProjectCard = ({
       {/* Header: Avatar + Title + Icons */}
       <div className="flex items-center gap-3">
         {/* Avatar */}
-        {project.branding ? (
+        {project.branding && !imageError ? (
           <div
-            className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+            className="w-10 h-10 rounded-full flex items-center justify-center"
             style={{ backgroundColor: brandColor }}
           >
             <img
               src={project.branding}
               alt={`logo - ${project.chain_name}`}
               className="w-10 h-10 rounded-full"
+              onError={() => setImageError(true)}
             />
           </div>
         ) : (
           <div
-            className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+            className={`w-10 h-10 rounded-full flex items-center justify-center ${
               brandColor ? "" : `bg-gradient-to-br ${iconData.gradient}`
             }`}
             style={brandColor ? { backgroundColor: brandColor } : undefined}

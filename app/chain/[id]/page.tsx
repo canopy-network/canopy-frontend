@@ -20,23 +20,14 @@ interface ChainPageProps {
 
 export default async function ChainPage(props: ChainPageProps) {
   try {
-    // Await params as per Next.js 15 requirements
     const params = await props.params;
-
-    // Decode the chain ID in case it's URL encoded
     const chainId = decodeURIComponent(params.id);
-
-    console.log("Chain ID from params (raw):", params.id);
-    console.log("Chain ID from params (decoded):", chainId);
-    console.log("Server-side fetch starting at:", new Date().toISOString());
 
     // Fetch chain data with all required includes
     const response = await chainsApi.getChain(chainId, {
       include:
         "creator,template,assets,holders,graduation,repository,social_links,graduated_pool,virtual_pool",
     });
-
-    console.log("Response received at:", new Date().toISOString());
 
     if (!response.data) {
       console.error("API returned no chain data:", {
@@ -45,8 +36,6 @@ export default async function ChainPage(props: ChainPageProps) {
       });
       notFound();
     }
-
-    console.log("DEEP: Chain Page - getChain data:", response.data);
 
     // Extract branding and media from assets
     const branding = response.data.assets?.find(
@@ -58,8 +47,6 @@ export default async function ChainPage(props: ChainPageProps) {
         ["media", "screenshot", "banner"].includes(asset.asset_type)
       )
       ?.map((asset) => asset.file_url);
-
-    console.log(`DEEP: Chain Page - media:`, media);
 
     // Augment chain data with computed branding and media
     const chain: ChainExtended = {

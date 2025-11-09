@@ -206,7 +206,7 @@ export default function LaunchpadPage() {
         graduation_threshold: formData.graduationThreshold,
         creation_fee_cnpy: 100.0,
         initial_cnpy_reserve: 10000.0,
-        initial_token_supply: Math.floor(Number(formData.tokenSupply) * 0.8),
+        initial_token_supply: Number(formData.tokenSupply),
         bonding_curve_slope: 0.00000001,
         validator_min_stake: 1000.0,
         creator_initial_purchase_cnpy: parseFloat(

@@ -182,10 +182,17 @@ export function ChainOverview({
           <AchievementsList />
         </div>
 
-        {chain.media && chain.media.length > 0 && (
+        {((chain.media && chain.media.length > 0) ||
+          (chain.assets &&
+            chain.assets.some(
+              (asset) =>
+                asset.asset_type === "media" ||
+                asset.asset_type === "video" ||
+                asset.asset_type === "banner"
+            ))) && (
           <div className="flex flex-col gap-4">
             <h3 className="text-lg font-semibold">Gallery</h3>
-            <MediaGallery media={chain.media || []} />
+            <MediaGallery media={chain.media || []} assets={chain.assets} />
           </div>
         )}
       </Card>
@@ -225,7 +232,7 @@ export function ChainOverview({
         data={{
           totalSupply:
             chain.token_total_supply && chain.token_total_supply > 0
-              ? chain.token_total_supply.toLocaleString()
+              ? chain.initial_token_supply.toLocaleString()
               : "1,000,000,000",
           tokenSymbol: chain.token_symbol || "TOKEN",
           blockTime: chain.block_time || "10s", // Placeholder - not available in API

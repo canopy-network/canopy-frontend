@@ -7,6 +7,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ChainExtended } from "@/types/chains";
 import { useChainFavorite } from "@/lib/hooks/use-chain-favorite";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 interface ChainDetailsHeaderProps {
   chain: ChainExtended;
@@ -30,6 +31,28 @@ export function ChainDetailsHeader({ chain }: ChainDetailsHeaderProps) {
 
   // Get first letter of chain name for avatar
   const firstLetter = chain.chain_name.charAt(0).toUpperCase();
+
+  // Combined function to get creator display name and link ID
+  const getCreatorInfo = () => {
+    if (!chain.creator) {
+      return {
+        displayName: "Unknown",
+        linkId: null,
+      };
+    }
+    const truncateWalletAddress = (address: string): string => {
+      if (address.length <= 7) return address;
+      return `${address.slice(0, 4)}...${address.slice(-3)}`;
+    };
+    const displayName =
+      chain.creator.display_name?.trim() ||
+      truncateWalletAddress(chain.creator.wallet_address);
+    const linkId = chain.creator.username || chain.creator.wallet_address;
+    return {
+      displayName,
+      linkId,
+    };
+  };
 
   return (
     <div className="rounded-xl border bg-card text-card-foreground shadow p-4">
@@ -103,6 +126,18 @@ export function ChainDetailsHeader({ chain }: ChainDetailsHeaderProps) {
               {formatDistanceToNow(new Date(chain.created_at), {
                 addSuffix: true,
               })}
+              {chain.creator && getCreatorInfo().linkId && (
+                <>
+                  {" • "}
+                  <span>Created by: </span>
+                  <Link
+                    href={`/creator/${getCreatorInfo().linkId}`}
+                    className="text-primary hover:underline"
+                  >
+                    {getCreatorInfo().displayName}
+                  </Link>
+                </>
+              )}
             </p>
           </div>
         </div>
