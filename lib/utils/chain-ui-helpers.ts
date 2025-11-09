@@ -10,7 +10,7 @@
  * @since 2024-01-01
  */
 
-import { Chain, ChainStatus, VirtualPool } from "@/types/chains";
+import { Chain, ChainStatus, VirtualPool, Accolade } from "@/types/chains";
 
 // ============================================================================
 // PROGRESS & GRADUATION CALCULATIONS
@@ -346,4 +346,52 @@ export function generateChainColor(name: string): string {
  */
 export function getPriceChangeColor(priceChange: number): string {
   return priceChange >= 0 ? "text-green-500" : "text-red-500";
+}
+
+// ============================================================================
+// ACCOLADES UTILITIES
+// ============================================================================
+
+/**
+ * Filter accolades to show only one per category - the highest achieved one
+ * An accolade is considered "achieved" when current_value >= threshold
+ *
+ * @param accolades - Array of all accolades from the API
+ * @returns Filtered array with one accolade per category (the highest achieved)
+ *
+ * @example
+ * ```typescript
+ * const filtered = filterAccoladesByCategory(allAccolades);
+ * // Returns: [{ category: "holder", threshold: 100, ... }, { category: "market_cap", threshold: 10000, ... }]
+ * ```
+ */
+export function filterAccoladesByCategory(accolades: Accolade[]): Accolade[] {
+  // Group accolades by category
+  const byCategory = new Map<string, Accolade[]>();
+
+  accolades.forEach((accolade) => {
+    const category = accolade.category;
+    if (!byCategory.has(category)) {
+      byCategory.set(category, []);
+    }
+    byCategory.get(category)!.push(accolade);
+  });
+
+  // For each category, find the highest achieved accolade
+  const result: Accolade[] = [];
+
+  byCategory.forEach((categoryAccolades) => {
+    // Filter to only achieved accolades (current_value >= threshold)
+    const achieved = categoryAccolades.filter(
+      (a) => a.current_value >= a.threshold
+    );
+
+    if (achieved.length > 0) {
+      // Sort by threshold descending to get the highest achieved
+      achieved.sort((a, b) => b.threshold - a.threshold);
+      result.push(achieved[0]);
+    }
+  });
+
+  return result;
 }

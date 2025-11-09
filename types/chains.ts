@@ -601,3 +601,34 @@ export interface GetHoldersParams {
   page?: number;
   limit?: number;
 }
+
+// ============================================================================
+// ACCOLADES TYPES
+// ============================================================================
+
+/**
+ * Accolade category enumeration
+ */
+export type AccoladeCategory = "holder" | "market_cap" | "transaction";
+
+/**
+ * Accolade interface matching the /api/v1/chains/{id}/accolades response
+ */
+export interface Accolade {
+  /** Unique identifier for the accolade */
+  name: string;
+  /** Display name for the accolade */
+  display_name: string;
+  /** Description of what the accolade represents */
+  description: string;
+  /** Category of the accolade */
+  category: AccoladeCategory;
+  /** Threshold value required to earn this accolade */
+  threshold: number;
+  /** Current value for this accolade metric */
+  current_value: number;
+  /** Whether this accolade has been earned */
+  is_earned: boolean;
+  /** Timestamp when the accolade was earned (null if not earned) */
+  earned_at: string | null;
+}
