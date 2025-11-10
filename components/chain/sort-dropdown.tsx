@@ -9,12 +9,12 @@ import {
 } from "@/components/ui/select";
 import {
   TrendingUp,
-  Users,
   Activity,
   DollarSign,
   ArrowUpDown,
   LucideIcon,
   Sparkles,
+  Target,
 } from "lucide-react";
 
 // Sort options configuration
@@ -28,23 +28,13 @@ const sortOptions: SortOption[] = [
   { value: "default", label: "Default", icon: Sparkles },
   {
     value: "market-cap-high",
-    label: "Market Cap: High to Low",
+    label: "Market Cap:[split]High to Low",
     icon: TrendingUp,
   },
   {
     value: "market-cap-low",
-    label: "Market Cap: Low to High",
+    label: "Market Cap:[split]Low to High",
     icon: TrendingUp,
-  },
-  {
-    value: "holders-high",
-    label: "Holders:[split]High to Low",
-    icon: Users,
-  },
-  {
-    value: "holders-low",
-    label: "Holders:[split]Low to High",
-    icon: Users,
   },
   {
     value: "volume-high",
@@ -65,6 +55,16 @@ const sortOptions: SortOption[] = [
     value: "price-low",
     label: "Price:[split]Low to High",
     icon: DollarSign,
+  },
+  {
+    value: "completion-percentage-high",
+    label: "Completion:[split]High to Low",
+    icon: Target,
+  },
+  {
+    value: "completion-percentage-low",
+    label: "Completion:[split]Low to High",
+    icon: Target,
   },
 ];
 

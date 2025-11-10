@@ -15,11 +15,7 @@ import { RecentsProjectsCarousel } from "./recents-projects-carousel";
 import { SortDropdown } from "./sort-dropdown";
 import { HomePageSkeleton } from "@/components/skeletons";
 import { Chain } from "@/types/chains";
-import {
-  getMarketCap,
-  getVolume24h,
-  getPrice,
-} from "@/lib/utils/chain-ui-helpers";
+import { getMarketCap } from "@/lib/utils/chain-ui-helpers";
 import {
   AlertCircle,
   Home,
@@ -132,35 +128,41 @@ export function LaunchpadDashboard() {
             (a, b) =>
               getMarketCap(a.virtual_pool) - getMarketCap(b.virtual_pool)
           );
-        case "holders-high":
-          return chainsCopy.sort(
-            (a, b) =>
-              (b.virtual_pool?.unique_traders || 0) -
-              (a.virtual_pool?.unique_traders || 0)
-          );
-        case "holders-low":
-          return chainsCopy.sort(
-            (a, b) =>
-              (a.virtual_pool?.unique_traders || 0) -
-              (b.virtual_pool?.unique_traders || 0)
-          );
         case "volume-high":
           return chainsCopy.sort(
             (a, b) =>
-              getVolume24h(b.virtual_pool) - getVolume24h(a.virtual_pool)
+              (b.virtual_pool?.total_volume_cnpy || 0) -
+              (a.virtual_pool?.total_volume_cnpy || 0)
           );
         case "volume-low":
           return chainsCopy.sort(
             (a, b) =>
-              getVolume24h(a.virtual_pool) - getVolume24h(b.virtual_pool)
+              (a.virtual_pool?.total_volume_cnpy || 0) -
+              (b.virtual_pool?.total_volume_cnpy || 0)
           );
         case "price-high":
           return chainsCopy.sort(
-            (a, b) => getPrice(b.virtual_pool) - getPrice(a.virtual_pool)
+            (a, b) =>
+              (b.virtual_pool?.current_price_cnpy || 0) -
+              (a.virtual_pool?.current_price_cnpy || 0)
           );
         case "price-low":
           return chainsCopy.sort(
-            (a, b) => getPrice(a.virtual_pool) - getPrice(b.virtual_pool)
+            (a, b) =>
+              (a.virtual_pool?.current_price_cnpy || 0) -
+              (b.virtual_pool?.current_price_cnpy || 0)
+          );
+        case "completion-percentage-high":
+          return chainsCopy.sort(
+            (a, b) =>
+              (b.graduation?.completion_percentage || 0) -
+              (a.graduation?.completion_percentage || 0)
+          );
+        case "completion-percentage-low":
+          return chainsCopy.sort(
+            (a, b) =>
+              (a.graduation?.completion_percentage || 0) -
+              (b.graduation?.completion_percentage || 0)
           );
         case "default":
         default:
@@ -186,33 +188,41 @@ export function LaunchpadDashboard() {
         return chainsCopy.sort(
           (a, b) => getMarketCap(a.virtual_pool) - getMarketCap(b.virtual_pool)
         );
-      case "holders-high":
-        return chainsCopy.sort(
-          (a, b) =>
-            (b.virtual_pool?.unique_traders || 0) -
-            (a.virtual_pool?.unique_traders || 0)
-        );
-      case "holders-low":
-        return chainsCopy.sort(
-          (a, b) =>
-            (a.virtual_pool?.unique_traders || 0) -
-            (b.virtual_pool?.unique_traders || 0)
-        );
       case "volume-high":
         return chainsCopy.sort(
-          (a, b) => getVolume24h(b.virtual_pool) - getVolume24h(a.virtual_pool)
+          (a, b) =>
+            (b.virtual_pool?.total_volume_cnpy || 0) -
+            (a.virtual_pool?.total_volume_cnpy || 0)
         );
       case "volume-low":
         return chainsCopy.sort(
-          (a, b) => getVolume24h(a.virtual_pool) - getVolume24h(b.virtual_pool)
+          (a, b) =>
+            (a.virtual_pool?.total_volume_cnpy || 0) -
+            (b.virtual_pool?.total_volume_cnpy || 0)
         );
       case "price-high":
         return chainsCopy.sort(
-          (a, b) => getPrice(b.virtual_pool) - getPrice(a.virtual_pool)
+          (a, b) =>
+            (b.virtual_pool?.current_price_cnpy || 0) -
+            (a.virtual_pool?.current_price_cnpy || 0)
         );
       case "price-low":
         return chainsCopy.sort(
-          (a, b) => getPrice(a.virtual_pool) - getPrice(b.virtual_pool)
+          (a, b) =>
+            (a.virtual_pool?.current_price_cnpy || 0) -
+            (b.virtual_pool?.current_price_cnpy || 0)
+        );
+      case "completion-percentage-high":
+        return chainsCopy.sort(
+          (a, b) =>
+            (b.graduation?.completion_percentage || 0) -
+            (a.graduation?.completion_percentage || 0)
+        );
+      case "completion-percentage-low":
+        return chainsCopy.sort(
+          (a, b) =>
+            (a.graduation?.completion_percentage || 0) -
+            (b.graduation?.completion_percentage || 0)
         );
       case "default":
       default:
