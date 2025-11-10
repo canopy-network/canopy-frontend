@@ -180,15 +180,14 @@ export function ChainOverview({
           </p>
         </div>
 
-        <div className="flex flex-col gap-4 border-b pb-8">
-          <AchievementsList accolades={accolades} />
-        </div>
+        <AchievementsList accolades={accolades} />
 
         {((chain.media && chain.media.length > 0) ||
           (chain.assets &&
             chain.assets.some(
               (asset) =>
                 asset.asset_type === "media" ||
+                asset.asset_type === "screenshot" ||
                 asset.asset_type === "video" ||
                 asset.asset_type === "banner"
             ))) && (

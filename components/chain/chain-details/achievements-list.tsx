@@ -143,12 +143,17 @@ export function AchievementsList({
   const accoladesAsAchievements =
     accolades.length > 0 ? convertAccoladesToAchievements(accolades) : null;
 
-  // Use accolades if provided, otherwise use achievements prop, otherwise use placeholders
-  const displayAchievements =
-    accoladesAsAchievements || achievements || PLACEHOLDER_ACHIEVEMENTS;
+  // Use accolades if provided, otherwise use achievements prop
+  // Don't use placeholders - return null if no achievements
+  const displayAchievements = accoladesAsAchievements || achievements;
+
+  // Don't render if there are no achievements
+  if (!displayAchievements || displayAchievements.length === 0) {
+    return null;
+  }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 border-b pb-8">
       <div className="flex items-center gap-2">
         <h3 className="text-lg font-semibold">Achievements</h3>
         <ArrowRight className="w-4 h-4 text-muted-foreground" />

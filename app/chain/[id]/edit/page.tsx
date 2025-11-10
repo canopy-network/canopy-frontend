@@ -103,7 +103,7 @@ export default function EditChainPage(props: EditChainPageProps) {
         const galleryAssets =
           chainData.assets?.filter(
             (asset) =>
-              asset.asset_type === "media" ||
+              asset.asset_type === "screenshot" ||
               asset.asset_type === "video" ||
               asset.asset_type === "banner"
           ) || [];
@@ -279,7 +279,7 @@ export default function EditChainPage(props: EditChainPageProps) {
           const galleryAssetData = {
             asset_type: originalFile.type.startsWith("video/")
               ? ("video" as const)
-              : ("media" as const),
+              : ("screenshot" as const),
             file_name: uploadedFile.originalName,
             file_url: uploadedFile.url,
             file_size_bytes: originalFile.size,
