@@ -220,6 +220,24 @@ export default function LaunchpadPage() {
 
       // Chain created successfully! Now proceed with additional operations
 
+      // Step 1.5: Store chain data in DynamoDB
+      try {
+        await fetch("/api/chains/store", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ticker: formData.ticker,
+            chain_name: formData.chainName,
+            token_name: formData.tokenName,
+          }),
+        });
+      } catch (storeErr) {
+        console.error("Error storing chain data in DynamoDB:", storeErr);
+        // Don't fail the entire process if DynamoDB storage fails
+      }
+
       // Step 2: Create repository data if GitHub repo is connected
       if (
         formData.githubRepo &&

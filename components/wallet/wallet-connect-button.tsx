@@ -3,8 +3,13 @@
 import { Button } from "@/components/ui/button";
 import { useWallet } from "./wallet-provider";
 import { Wallet, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-export function WalletConnectButton() {
+export function WalletConnectButton({
+  isCondensed = false,
+}: {
+  isCondensed?: boolean;
+}) {
   const { currentAccount, isConnecting, connectWallet, togglePopup } =
     useWallet();
 
@@ -26,7 +31,10 @@ export function WalletConnectButton() {
     <Button
       onClick={connectWallet}
       disabled={isConnecting}
-      className="gap-2 w-full bg-transparent border-green-600/50 text-green-500 hover:bg-green-950/30 hover:border-green-600 h-12 rounded-2xl font-medium"
+      className={cn(
+        "gap-2 w-full bg-transparent border-green-600/50 text-green-500 hover:bg-green-950/30 hover:border-green-600 h-12 rounded-2xl font-medium",
+        isCondensed ? "h-10 w-10" : "h-12"
+      )}
       variant="outline"
     >
       {isConnecting ? (
@@ -34,7 +42,7 @@ export function WalletConnectButton() {
       ) : (
         <Wallet className="h-4 w-4" />
       )}
-      {isConnecting ? "Connecting..." : "Connect wallet"}
+      {isCondensed ? null : isConnecting ? "Connecting..." : "Connect wallet"}
     </Button>
   );
 }
