@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useLaunchpadDashboard } from "@/lib/hooks/use-launchpad-dashboard";
 import { useCreateChainDialog } from "@/lib/stores/use-create-chain-dialog";
 import { useAuthStore } from "@/lib/stores/auth-store";
@@ -14,8 +14,11 @@ import { SmallProjectCard } from "./small-project-card";
 import { RecentsProjectsCarousel } from "./recents-projects-carousel";
 import { SortDropdown } from "./sort-dropdown";
 import { HomePageSkeleton } from "@/components/skeletons";
-import { Chain } from "@/types/chains";
-import { getMarketCap } from "@/lib/utils/chain-ui-helpers";
+import { Chain, Accolade } from "@/types/chains";
+import {
+  getMarketCap,
+  filterAccoladesByCategory,
+} from "@/lib/utils/chain-ui-helpers";
 import {
   AlertCircle,
   Home,
@@ -58,6 +61,10 @@ export function LaunchpadDashboard() {
   const [favoriteChains, setFavoriteChains] = useState<Chain[]>([]);
   const [loadingFavorites, setLoadingFavorites] = useState(false);
   const [localActiveTab, setLocalActiveTab] = useState("all");
+  const [accoladesData, setAccoladesData] = useState<
+    Record<string, Accolade[]>
+  >({});
+  const fetchedChainIdsRef = useRef<Set<string>>(new Set());
 
   const {
     // Data
@@ -230,6 +237,54 @@ export function LaunchpadDashboard() {
         return chainsCopy;
     }
   }, [filteredChains, sortOption, localActiveTab, favoriteChains]);
+
+  // Fetch accolades for sorted chains (batch fetch with limit to avoid performance issues)
+  useEffect(() => {
+    const fetchAccolades = async () => {
+      // Only fetch for first 20 chains to avoid too many requests
+      const chainsToFetch = sortedChains.slice(0, 20);
+      const chainIdsToFetch = chainsToFetch
+        .map((c) => c.id)
+        .filter((id) => !fetchedChainIdsRef.current.has(id)); // Only fetch if not already fetched
+
+      if (chainIdsToFetch.length === 0) return;
+
+      // Mark as fetching
+      chainIdsToFetch.forEach((id) => fetchedChainIdsRef.current.add(id));
+
+      // Fetch in batches of 5 to avoid overwhelming the API
+      const batchSize = 5;
+      for (let i = 0; i < chainIdsToFetch.length; i += batchSize) {
+        const batch = chainIdsToFetch.slice(i, i + batchSize);
+        const promises = batch.map(async (chainId) => {
+          try {
+            const response = await chainsApi.getAccolades(chainId);
+            if (response.data) {
+              const filteredAccolades = filterAccoladesByCategory(
+                response.data
+              );
+              return { chainId, accolades: filteredAccolades };
+            }
+          } catch (error) {
+            console.error(`Failed to fetch accolades for ${chainId}:`, error);
+          }
+          return { chainId, accolades: [] };
+        });
+
+        const results = await Promise.all(promises);
+        setAccoladesData((prev) => {
+          const updated = { ...prev };
+          results.forEach(({ chainId, accolades }) => {
+            updated[chainId] = accolades;
+          });
+          return updated;
+        });
+      }
+    };
+
+    fetchAccolades();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortedChains.map((c) => c.id).join(",")]); // Only re-run if chain IDs change
 
   // Handle buy button click
   const handleBuyClick = (project: Chain) => {
@@ -431,6 +486,7 @@ export function LaunchpadDashboard() {
                   project={project}
                   href={`/chain/${project.id}`}
                   viewMode={viewMode}
+                  accolades={accoladesData[project.id] || []}
                 />
               ))}
             </div>

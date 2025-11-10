@@ -395,3 +395,31 @@ export function filterAccoladesByCategory(accolades: Accolade[]): Accolade[] {
 
   return result;
 }
+
+/**
+ * Get all achieved accolades (not filtered by category)
+ * An accolade is considered "achieved" when current_value >= threshold
+ *
+ * @param accolades - Array of all accolades from the API
+ * @returns Array of all achieved accolades, sorted by category then threshold
+ *
+ * @example
+ * ```typescript
+ * const achieved = getAllAchievedAccolades(allAccolades);
+ * // Returns: All accolades where current_value >= threshold
+ * ```
+ */
+export function getAllAchievedAccolades(accolades: Accolade[]): Accolade[] {
+  // Filter to only achieved accolades (current_value >= threshold)
+  const achieved = accolades.filter(
+    (accolade) => accolade.current_value >= accolade.threshold
+  );
+
+  // Sort by category, then by threshold (descending)
+  return achieved.sort((a, b) => {
+    if (a.category !== b.category) {
+      return a.category.localeCompare(b.category);
+    }
+    return b.threshold - a.threshold;
+  });
+}

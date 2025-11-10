@@ -373,6 +373,7 @@ export const SmallProjectCard = ({
                   <HexagonIcon
                     key={accolade.name}
                     tooltip={accolade.display_name}
+                    description={accolade.description}
                     className="w-3.5 h-3.5"
                   >
                     {getAccoladeIcon(accolade.category)}
