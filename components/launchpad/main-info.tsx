@@ -20,7 +20,7 @@ import {
 import { HelpCircle, Info, Check, Loader2 } from "lucide-react";
 
 // Toggle this to disable API validation when the API is unavailable
-const FORCE_ENABLE = true;
+const FORCE_ENABLE = false;
 
 const BLOCK_TIME_OPTIONS = [
   { value: "5", label: "5 seconds" },
@@ -79,32 +79,57 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
 
   const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
 
-  // API validation for chain name, token name, and ticker
-  const validateWithAPI = async (
-    chainName: string,
-    tokenName: string,
-    ticker: string
-  ) => {
+  // API validation for a single field (chain_name, token_name, or ticker)
+  const validateWithAPI = async (field: string, value: string) => {
     try {
+      // Map frontend field names to API field names
+      const fieldMap: Record<string, string> = {
+        chainName: "chain_name",
+        tokenName: "token_name",
+        ticker: "ticker",
+      };
+
+      const apiField = fieldMap[field];
+      if (!apiField) {
+        return {
+          success: false,
+          message: "Invalid field for validation",
+        };
+      }
+
       const params = new URLSearchParams({
-        name: chainName,
-        symbol: ticker,
-        token_name: tokenName,
+        field: apiField,
+        value: value,
       });
 
-      const response = await fetch(
-        `/api/v1/chains/validate?${params.toString()}`
-      );
+      const response = await fetch(`/api/chains/validate?${params.toString()}`);
+
+      if (!response.ok) {
+        return {
+          success: false,
+          message: "Validation failed. Please try again.",
+        };
+      }
+
       const data = await response.json();
 
+      if (!data.success) {
+        return {
+          success: false,
+          message: data.error || data.message || "Validation failed",
+        };
+      }
+
       return {
-        success: response.ok && data.available !== false,
-        message: data.message || (response.ok ? "Available" : "Not available"),
+        success: data.available === true,
+        message:
+          data.message || (data.available ? "Available" : "Not available"),
       };
-    } catch {
+    } catch (error) {
+      console.error("Validation error:", error);
       return {
         success: false,
-        message: "Unable to validate",
+        message: "Unable to validate. Please check your connection.",
       };
     }
   };
@@ -178,14 +203,10 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
         // Skip API validation, just mark as valid after basic validation passes
         setValidatedFields((prev) => ({ ...prev, [field]: true }));
       } else {
-        // Perform API validation
+        // Perform API validation for the specific field only
         setValidatingFields((prev) => ({ ...prev, [field]: true }));
 
-        const result = await validateWithAPI(
-          field === "chainName" ? value : formData.chainName,
-          field === "tokenName" ? value : formData.tokenName,
-          field === "ticker" ? value : formData.ticker
-        );
+        const result = await validateWithAPI(field, value);
 
         setValidatingFields((prev) => ({ ...prev, [field]: false }));
 
@@ -507,7 +528,7 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
                   placeholder="1000000000"
                   value={formData.tokenSupply}
                   onChange={(e) => updateField("tokenSupply", e.target.value)}
-                  min={1000000}
+                  min={100000}
                   max={3500000000}
                   className={
                     touched.tokenSupply && errors.tokenSupply

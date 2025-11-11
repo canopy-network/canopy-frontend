@@ -20,6 +20,7 @@ import {
   CreateAssetRequest,
   ChainHolder,
   GetHoldersParams,
+  Accolade,
 } from "@/types/chains";
 import { PaginatedResponse } from "@/types/api";
 
@@ -246,6 +247,20 @@ export const chainsApi = {
       display_order?: number;
     }
   ) => apiClient.post<any>(`/api/v1/chains/${chainId}/socials`, data),
+
+  /**
+   * Get accolades for a chain
+   *
+   * @param chainId - Chain ID
+   * @returns Promise resolving to accolades data
+   *
+   * @example
+   * ```typescript
+   * const accolades = await chainsApi.getAccolades('chain-id');
+   * ```
+   */
+  getAccolades: (chainId: string) =>
+    apiClient.get<Accolade[]>(`/api/v1/chains/${chainId}/accolades`),
 };
 
 // ============================================================================

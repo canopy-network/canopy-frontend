@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Chain, ChainExtended } from "@/types/chains";
-import { useMemo } from "react";
+import { Chain, ChainExtended, Accolade } from "@/types/chains";
+import { useMemo, useState } from "react";
 import { HexagonIcon } from "@/components/icons/hexagon-icon";
-import { Users, TrendingUp, Star } from "lucide-react";
+import { Users, TrendingUp, Star, Target } from "lucide-react";
 import { ChainProgressBar } from "./chain-progress-bar";
 import {
   calculateGraduationProgress,
@@ -25,16 +25,33 @@ interface SmallProjectCardProps {
   project: Chain | ChainExtended;
   href?: string;
   viewMode?: "grid" | "list";
+  /** Filtered accolades to display (one per category) */
+  accolades?: Accolade[];
 }
 
 export const SmallProjectCard = ({
   project,
   href = `/chain/${project.id}`,
   viewMode = "grid",
+  accolades = [],
 }: SmallProjectCardProps) => {
   // Favorite hook
   const { isFavorited, isLoading, toggleFavorite, isAuthenticated } =
     useChainFavorite(project.id);
+
+  // Map accolade categories to icons
+  const getAccoladeIcon = (category: string) => {
+    switch (category) {
+      case "holder":
+        return <Users className="w-1.5 h-1.5" />;
+      case "market_cap":
+        return <TrendingUp className="w-1.5 h-1.5" />;
+      case "transaction":
+        return <Target className="w-1.5 h-1.5" />;
+      default:
+        return <TrendingUp className="w-1.5 h-1.5" />;
+    }
+  };
 
   // Get virtual pool data if included
   const virtualPool = project.virtual_pool;
@@ -109,6 +126,9 @@ export const SmallProjectCard = ({
   // Get first 2 letters of chain name for logo fallback
   const chainInitials = project.chain_name.slice(0, 2).toUpperCase();
 
+  // State to track if image failed to load
+  const [imageError, setImageError] = useState(false);
+
   // Calculate visible and overflow hexagon icons
   const hexagonIcons = useMemo(() => {
     const icons = [];
@@ -167,20 +187,21 @@ export const SmallProjectCard = ({
         <div className="flex items-center gap-4 p-4">
           {/* Avatar + Name */}
           <div className="flex items-center gap-3 min-w-[200px]">
-            {project.branding ? (
+            {project.branding && !imageError ? (
               <div
-                className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                className="w-10 h-10 rounded-full flex items-center justify-center"
                 style={{ backgroundColor: brandColor }}
               >
                 <img
                   src={project.branding}
                   alt={`logo - ${project.chain_name}`}
                   className="w-10 h-10 rounded-full"
+                  onError={() => setImageError(true)}
                 />
               </div>
             ) : (
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                className={`w-10 h-10 rounded-full flex items-center justify-center ${
                   brandColor ? "" : `bg-gradient-to-br ${iconData.gradient}`
                 }`}
                 style={brandColor ? { backgroundColor: brandColor } : undefined}
@@ -313,20 +334,21 @@ export const SmallProjectCard = ({
       {/* Header: Avatar + Title + Icons */}
       <div className="flex items-center gap-3">
         {/* Avatar */}
-        {project.branding ? (
+        {project.branding && !imageError ? (
           <div
-            className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+            className="w-10 h-10 rounded-full flex items-center justify-center"
             style={{ backgroundColor: brandColor }}
           >
             <img
               src={project.branding}
               alt={`logo - ${project.chain_name}`}
               className="w-10 h-10 rounded-full"
+              onError={() => setImageError(true)}
             />
           </div>
         ) : (
           <div
-            className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+            className={`w-10 h-10 rounded-full flex items-center justify-center ${
               brandColor ? "" : `bg-gradient-to-br ${iconData.gradient}`
             }`}
             style={brandColor ? { backgroundColor: brandColor } : undefined}
@@ -344,34 +366,49 @@ export const SmallProjectCard = ({
               {project.chain_name}
             </h3>
 
-            {/* Hexagon Icons */}
-            <div className="flex items-center gap-0.5 flex-shrink-0">
-              {hexagonIcons.visible.map((icon, index) => (
-                <HexagonIcon
-                  key={index}
-                  tooltip={icon.tooltip}
-                  className="w-3.5 h-3.5"
-                >
-                  {icon.type === "users" ? (
-                    <Users className="w-1.5 h-1.5" />
-                  ) : (
-                    <TrendingUp className="w-1.5 h-1.5" />
-                  )}
-                </HexagonIcon>
-              ))}
+            {/* Hexagon Icons - Use Accolades if available, otherwise fallback to computed icons */}
+            {accolades.length > 0 ? (
+              <div className="flex items-center gap-0.5 flex-shrink-0">
+                {accolades.map((accolade) => (
+                  <HexagonIcon
+                    key={accolade.name}
+                    tooltip={accolade.display_name}
+                    description={accolade.description}
+                    className="w-3.5 h-3.5"
+                  >
+                    {getAccoladeIcon(accolade.category)}
+                  </HexagonIcon>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center gap-0.5 flex-shrink-0">
+                {hexagonIcons.visible.map((icon, index) => (
+                  <HexagonIcon
+                    key={index}
+                    tooltip={icon.tooltip}
+                    className="w-3.5 h-3.5"
+                  >
+                    {icon.type === "users" ? (
+                      <Users className="w-1.5 h-1.5" />
+                    ) : (
+                      <TrendingUp className="w-1.5 h-1.5" />
+                    )}
+                  </HexagonIcon>
+                ))}
 
-              {/* Overflow indicator */}
-              {hexagonIcons.overflow > 0 && (
-                <HexagonIcon
-                  className="w-3.5 h-3.5"
-                  tooltip={`${hexagonIcons.overflow} more features`}
-                >
-                  <span className="text-[6px] font-bold">
-                    +{hexagonIcons.overflow}
-                  </span>
-                </HexagonIcon>
-              )}
-            </div>
+                {/* Overflow indicator */}
+                {hexagonIcons.overflow > 0 && (
+                  <HexagonIcon
+                    className="w-3.5 h-3.5"
+                    tooltip={`${hexagonIcons.overflow} more features`}
+                  >
+                    <span className="text-[6px] font-bold">
+                      +{hexagonIcons.overflow}
+                    </span>
+                  </HexagonIcon>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Token Symbol */}

@@ -1,20 +1,39 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Star, Upload, Users, TrendingUp, Zap } from "lucide-react";
+import { Star, Upload, Users, TrendingUp, Zap, Target } from "lucide-react";
 import { HexagonIcon } from "@/components/icons/hexagon-icon";
 import { formatDistanceToNow } from "date-fns";
-import { ChainExtended } from "@/types/chains";
+import { ChainExtended, Accolade } from "@/types/chains";
 import { useChainFavorite } from "@/lib/hooks/use-chain-favorite";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 interface ChainDetailsHeaderProps {
   chain: ChainExtended;
+  accolades?: Accolade[];
 }
 
-export function ChainDetailsHeader({ chain }: ChainDetailsHeaderProps) {
+export function ChainDetailsHeader({
+  chain,
+  accolades = [],
+}: ChainDetailsHeaderProps) {
   const { isFavorited, isLoading, toggleFavorite, isAuthenticated } =
     useChainFavorite(chain.id);
+
+  // Map accolade categories to icons
+  const getAccoladeIcon = (category: string) => {
+    switch (category) {
+      case "holder":
+        return <Users className="w-2.5 h-2.5" />;
+      case "market_cap":
+        return <TrendingUp className="w-2.5 h-2.5" />;
+      case "transaction":
+        return <Target className="w-2.5 h-2.5" />;
+      default:
+        return <Zap className="w-2.5 h-2.5" />;
+    }
+  };
 
   const shareProject = () => {
     if (navigator.share) {
@@ -30,6 +49,28 @@ export function ChainDetailsHeader({ chain }: ChainDetailsHeaderProps) {
 
   // Get first letter of chain name for avatar
   const firstLetter = chain.chain_name.charAt(0).toUpperCase();
+
+  // Combined function to get creator display name and link ID
+  const getCreatorInfo = () => {
+    if (!chain.creator) {
+      return {
+        displayName: "Unknown",
+        linkId: null,
+      };
+    }
+    const truncateWalletAddress = (address: string): string => {
+      if (address.length <= 7) return address;
+      return `${address.slice(0, 4)}...${address.slice(-3)}`;
+    };
+    const displayName =
+      chain.creator.display_name?.trim() ||
+      truncateWalletAddress(chain.creator.wallet_address);
+    const linkId = chain.creator.username || chain.creator.wallet_address;
+    return {
+      displayName,
+      linkId,
+    };
+  };
 
   return (
     <div className="rounded-xl border bg-card text-card-foreground shadow p-4">
@@ -59,42 +100,19 @@ export function ChainDetailsHeader({ chain }: ChainDetailsHeaderProps) {
             <div className="flex items-center gap-2">
               <h2 className="text-base font-medium">{chain.chain_name}</h2>
 
-              {/* Hexagon Badges */}
-              <div className="flex items-center gap-1">
-                <HexagonIcon tooltip="Community">
-                  <Users className="w-2.5 h-2.5" />
-                </HexagonIcon>
-                <HexagonIcon tooltip="Trending">
-                  <TrendingUp className="w-2.5 h-2.5" />
-                </HexagonIcon>
-                <HexagonIcon tooltip="Active">
-                  <Users className="w-2.5 h-2.5" />
-                </HexagonIcon>
-                <HexagonIcon tooltip="Fast Growing">
-                  <Zap className="w-2.5 h-2.5" />
-                </HexagonIcon>
-                <HexagonIcon tooltip="Top Performer">
-                  <TrendingUp className="w-2.5 h-2.5" />
-                </HexagonIcon>
-                <HexagonIcon tooltip="Popular">
-                  <Users className="w-2.5 h-2.5" />
-                </HexagonIcon>
-                <div className="relative w-5 h-5 flex items-center justify-center cursor-help">
-                  <svg
-                    viewBox="0 0 100 100"
-                    className="absolute inset-0 w-full h-full"
-                  >
-                    <polygon
-                      points="50 0, 93.3 25, 93.3 75, 50 100, 6.7 75, 6.7 25"
-                      className="fill-primary/20 stroke-primary"
-                      strokeWidth="4"
-                    />
-                  </svg>
-                  <span className="text-[8px] font-bold relative z-10 text-primary">
-                    +4
-                  </span>
+              {/* Hexagon Badges - Display Accolades */}
+              {accolades.length > 0 && (
+                <div className="flex items-center gap-1">
+                  {accolades.map((accolade, index) => (
+                    <HexagonIcon
+                      key={accolade.name}
+                      tooltip={accolade.display_name}
+                    >
+                      {getAccoladeIcon(accolade.category)}
+                    </HexagonIcon>
+                  ))}
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Subtitle */}
@@ -103,6 +121,18 @@ export function ChainDetailsHeader({ chain }: ChainDetailsHeaderProps) {
               {formatDistanceToNow(new Date(chain.created_at), {
                 addSuffix: true,
               })}
+              {chain.creator && getCreatorInfo().linkId && (
+                <>
+                  {" • "}
+                  <span>Created by: </span>
+                  <Link
+                    href={`/creator/${getCreatorInfo().linkId}`}
+                    className="text-primary hover:underline"
+                  >
+                    {getCreatorInfo().displayName}
+                  </Link>
+                </>
+              )}
             </p>
           </div>
         </div>

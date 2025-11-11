@@ -1,10 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { TrendingUp, Users, Target, Star } from "lucide-react";
 import Link from "next/link";
-import { Chain, ChainExtended, VirtualPool } from "@/types/chains";
+import { Chain, ChainExtended, VirtualPool, Accolade } from "@/types/chains";
 import { formatKilo, cn } from "@/lib/utils";
 import { FeaturelessChart } from "../charts/featureless-chart";
 import { HexagonIcon } from "@/components/icons";
@@ -31,6 +31,8 @@ export interface ProjectCardProps {
   onBuyClick: (project: Chain) => void;
   /** Historical price data points for rendering price charts and trend analysis */
   chartData?: Array<{ value: number; time: number }>;
+  /** Filtered accolades to display (one per category) */
+  accolades?: Accolade[];
 }
 
 export const ProjectCard = ({
@@ -38,10 +40,25 @@ export const ProjectCard = ({
   virtualPool,
   onBuyClick,
   chartData,
+  accolades = [],
 }: ProjectCardProps) => {
   // Favorite hook
   const { isFavorited, isLoading, toggleFavorite, isAuthenticated } =
     useChainFavorite(project.id);
+
+  // Map accolade categories to icons
+  const getAccoladeIcon = (category: string) => {
+    switch (category) {
+      case "holder":
+        return <Users className="w-2 h-2" />;
+      case "market_cap":
+        return <TrendingUp className="w-2 h-2" />;
+      case "transaction":
+        return <Target className="w-2 h-2" />;
+      default:
+        return <Target className="w-2 h-2" />;
+    }
+  };
 
   // Calculate metrics from graduation data if available, otherwise fallback to virtual pool
   const extendedProject = project as ChainExtended;
@@ -82,6 +99,9 @@ export const ProjectCard = ({
   // Get first 2 letters of chain name for logo fallback
   const chainInitials = project.chain_name.slice(0, 2).toUpperCase();
 
+  // State to track if image failed to load
+  const [imageError, setImageError] = useState(false);
+
   return (
     <Card className="rounded-xl border text-card-foreground   p-6 pb-0 bg-gradient-to-br from-card to-muted/20  hover:ring-2 hover:ring-primary/20 transition-all relative">
       {/* Favorite Button - Absolute positioned */}
@@ -113,14 +133,15 @@ export const ProjectCard = ({
           <div className="flex items-start gap-3">
             <Link href={`/chain/${project.id}`}>
               <div
-                className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                className="w-10 h-10 rounded-full flex items-center justify-center"
                 style={{ backgroundColor: brandColor }}
               >
-                {project.branding ? (
+                {project.branding && !imageError ? (
                   <img
                     src={project.branding}
                     alt={`logo - ${project.chain_name}`}
                     className="w-10 h-10 rounded-full"
+                    onError={() => setImageError(true)}
                   />
                 ) : (
                   <span className="text-base font-bold text-white">
@@ -132,29 +153,20 @@ export const ProjectCard = ({
             <div className="flex-1 min-w-0 pr-12">
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-medium">${project.token_symbol}</h3>
-                <div className="flex items-center gap-1">
-                  <HexagonIcon tooltip="50 holders milestone">
-                    <Users className="w-2 h-2" />
-                  </HexagonIcon>
-                  <HexagonIcon tooltip="Top trending today">
-                    <TrendingUp className="w-2 h-2" />
-                  </HexagonIcon>
-                  <HexagonIcon tooltip="100+ active traders">
-                    <Users className="w-2 h-2" />
-                  </HexagonIcon>
-                  <HexagonIcon tooltip="Price up 25% today">
-                    <TrendingUp className="w-2 h-2" />
-                  </HexagonIcon>
-                  <HexagonIcon tooltip="Most popular in category">
-                    <Users className="w-2 h-2" />
-                  </HexagonIcon>
-                  <HexagonIcon tooltip="50% to graduation goal">
-                    <Target className="w-2 h-2" />
-                  </HexagonIcon>
-                  <HexagonIcon tooltip="3 more achievements">
-                    <span className="text-[7px] font-bold">+3</span>
-                  </HexagonIcon>
-                </div>
+                {/* Display Accolades */}
+                {accolades.length > 0 && (
+                  <div className="flex items-center gap-1">
+                    {accolades.map((accolade) => (
+                      <HexagonIcon
+                        key={accolade.name}
+                        tooltip={accolade.display_name}
+                        description={accolade.description}
+                      >
+                        {getAccoladeIcon(accolade.category)}
+                      </HexagonIcon>
+                    ))}
+                  </div>
+                )}
               </div>
               <p className="text-xs text-muted-foreground">
                 {project.chain_name} • created{" "}

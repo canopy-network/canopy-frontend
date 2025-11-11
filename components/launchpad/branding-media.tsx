@@ -9,14 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import {
   Upload,
-  FileText,
-  X,
   UploadCloud,
   ChevronLeft,
   ChevronRight,
   Trash2,
   GripVertical,
 } from "lucide-react";
+import { showErrorToast } from "@/lib/utils/error-handler";
 
 interface GalleryItem {
   file: File;
@@ -25,11 +24,27 @@ interface GalleryItem {
   customName?: string;
 }
 
+// Video validation constants
+const ALLOWED_VIDEO_TYPES = [
+  "video/webm",
+  "video/mp4",
+  "video/x-msvideo", // AVI
+  "video/quicktime", // MOV
+];
+const ALLOWED_VIDEO_EXTENSIONS = /\.(webm|mp4|avi|mov)$/i;
+const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100MB
+
 interface BrandingMediaProps {
   initialData?: {
     logo?: File | null;
+    logoUrl?: string; // For existing logo preview
     chainDescription?: string;
     gallery?: File[];
+    existingGalleryUrls?: Array<{
+      url: string;
+      type: "image" | "video";
+      id?: string;
+    }>; // For existing gallery previews
     brandColor?: string;
   };
   onDataSubmit?: (
@@ -58,10 +73,16 @@ export default function BrandingMedia({
   };
 
   const [logo, setLogo] = useState<File | null>(initialData?.logo || null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(
+    initialData?.logoUrl || null
+  );
   const [chainDescription, setChainDescription] = useState(
     initialData?.chainDescription || ""
   );
   const [gallery, setGallery] = useState<File[]>(initialData?.gallery || []);
+  const [existingGalleryUrls, setExistingGalleryUrls] = useState<
+    Array<{ url: string; type: "image" | "video"; id?: string }>
+  >(initialData?.existingGalleryUrls || []);
   const [brandColor, setBrandColor] = useState<string>(
     initialData?.brandColor || ""
   );
@@ -74,39 +95,161 @@ export default function BrandingMedia({
 
   // Generate random color when logo is set (only once)
   useEffect(() => {
-    if (logo && !brandColor) {
+    if ((logo || logoUrl) && !brandColor) {
       setBrandColor(generateRandomColor());
     }
-  }, [logo]);
+  }, [logo, logoUrl, brandColor]);
 
-  // Initialize gallery items from files
+  // Update logoUrl when initialData changes
   useEffect(() => {
-    const items: GalleryItem[] = gallery.map((file) => ({
+    if (initialData?.logoUrl && !logo) {
+      setLogoUrl(initialData.logoUrl);
+    }
+  }, [initialData?.logoUrl, logo]);
+
+  // Update existing gallery URLs when initialData changes
+  useEffect(() => {
+    if (initialData?.existingGalleryUrls) {
+      setExistingGalleryUrls(initialData.existingGalleryUrls);
+    }
+  }, [initialData?.existingGalleryUrls]);
+
+  // Initialize gallery items from files and existing URLs
+  useEffect(() => {
+    // Create items from existing URLs (these are read-only previews)
+    const existingItems: GalleryItem[] = existingGalleryUrls.map((item) => ({
+      file: new File([], item.url.split("/").pop() || "existing", {
+        type: item.type === "video" ? "video/mp4" : "image/png",
+      }),
+      preview: item.url,
+      type: item.type,
+    }));
+
+    // Create items from new file uploads
+    const newItems: GalleryItem[] = gallery.map((file) => ({
       file,
       preview: URL.createObjectURL(file),
       type: file.type.startsWith("image/") ? "image" : "video",
     }));
-    setGalleryItems(items);
 
-    // Cleanup URLs
+    const allItems = [...existingItems, ...newItems];
+    setGalleryItems(allItems);
+
+    // Reset current index if out of bounds
+    setCurrentGalleryIndex((prevIndex) => {
+      if (prevIndex >= allItems.length && allItems.length > 0) {
+        return 0;
+      } else if (allItems.length === 0) {
+        return 0;
+      }
+      return prevIndex;
+    });
+
+    // Cleanup URLs for new file uploads only
     return () => {
-      items.forEach((item) => URL.revokeObjectURL(item.preview));
+      newItems.forEach((item) => URL.revokeObjectURL(item.preview));
     };
-  }, [gallery]);
+  }, [gallery, existingGalleryUrls]);
 
   // Notify parent when data changes
   useEffect(() => {
     if (onDataSubmit) {
-      const isValid = logo !== null && chainDescription.length >= 10;
+      // Logo is valid if we have either a new file or an existing URL
+      const isValid =
+        (logo !== null || logoUrl !== null) && chainDescription.length >= 10;
       onDataSubmit({ logo, chainDescription, gallery, brandColor }, isValid);
     }
-  }, [logo, chainDescription, gallery, brandColor, onDataSubmit]);
+  }, [logo, logoUrl, chainDescription, gallery, brandColor, onDataSubmit]);
+
+  // Validation functions
+  const isValidVideoFormat = (file: File): boolean => {
+    return (
+      ALLOWED_VIDEO_TYPES.includes(file.type) ||
+      ALLOWED_VIDEO_EXTENSIONS.test(file.name)
+    );
+  };
+
+  const isValidVideoSize = (file: File): boolean => {
+    return file.size <= MAX_VIDEO_SIZE;
+  };
+
+  const validateVideoFile = (
+    file: File
+  ): { valid: boolean; error?: string } => {
+    if (
+      !file.type.startsWith("video/") &&
+      !ALLOWED_VIDEO_EXTENSIONS.test(file.name)
+    ) {
+      // Not a video, skip video validation (will be handled as image)
+      return { valid: true };
+    }
+
+    if (!isValidVideoFormat(file)) {
+      return {
+        valid: false,
+        error: `${file.name}: Invalid video format. Supported formats: WebM, MP4, or H264 (AVI/MOV)`,
+      };
+    }
+
+    if (!isValidVideoSize(file)) {
+      const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+      return {
+        valid: false,
+        error: `${file.name}: File size (${sizeMB}MB) exceeds the 100MB limit for videos`,
+      };
+    }
+
+    return { valid: true };
+  };
 
   // Gallery handlers
   const handleGalleryUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const newFiles = files.slice(0, 10 - gallery.length);
-    setGallery([...gallery, ...newFiles]);
+    const validFiles: File[] = [];
+    const errors: string[] = [];
+
+    // Validate each file
+    files.forEach((file) => {
+      // Check if it's a video file
+      if (
+        file.type.startsWith("video/") ||
+        ALLOWED_VIDEO_EXTENSIONS.test(file.name)
+      ) {
+        const validation = validateVideoFile(file);
+        if (!validation.valid) {
+          errors.push(validation.error || "Invalid video file");
+        } else {
+          validFiles.push(file);
+        }
+      } else {
+        // Image files - add without validation (existing behavior)
+        validFiles.push(file);
+      }
+    });
+
+    // Show errors if any
+    if (errors.length > 0) {
+      errors.forEach((error) => {
+        showErrorToast(new Error(error), error);
+      });
+    }
+
+    // Add valid files (respecting the 10 file limit)
+    const remainingSlots = 10 - gallery.length;
+    const filesToAdd = validFiles.slice(0, remainingSlots);
+
+    if (filesToAdd.length > 0) {
+      setGallery([...gallery, ...filesToAdd]);
+    }
+
+    // Warn if some files were skipped due to limit
+    if (validFiles.length > remainingSlots) {
+      showErrorToast(
+        new Error("File limit reached"),
+        `Only ${remainingSlots} file(s) were added. Maximum of 10 files allowed.`
+      );
+    }
+
     e.target.value = ""; // Reset input
   };
 
@@ -178,14 +321,14 @@ export default function BrandingMedia({
             This appears in wallets, explorers, and trading interfaces.
           </p>
 
-          {logo ? (
+          {logo || logoUrl ? (
             /* Show file card when logo is set */
             <Card className="p-4">
               <div className="flex items-center gap-4">
                 {/* Thumbnail */}
                 <div className="flex-shrink-0">
                   <img
-                    src={URL.createObjectURL(logo)}
+                    src={logo ? URL.createObjectURL(logo) : logoUrl || ""}
                     alt="Logo preview"
                     className="w-20 h-20 rounded-lg object-cover border border-border"
                   />
@@ -193,9 +336,13 @@ export default function BrandingMedia({
 
                 {/* File info */}
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{logo.name}</p>
+                  <p className="font-medium truncate">
+                    {logo ? logo.name : "Current Logo"}
+                  </p>
                   <p className="text-sm text-muted-foreground">
-                    {(logo.size / 1024).toFixed(2)} KB
+                    {logo
+                      ? `${(logo.size / 1024).toFixed(2)} KB`
+                      : "Existing logo"}
                   </p>
                 </div>
 
@@ -203,7 +350,10 @@ export default function BrandingMedia({
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setLogo(null)}
+                  onClick={() => {
+                    setLogo(null);
+                    setLogoUrl(null);
+                  }}
                   className="flex-shrink-0"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -277,10 +427,10 @@ export default function BrandingMedia({
             maxLength={500}
           />
           <p className="text-sm text-muted-foreground">
-            A detailed description of your blockchain's purpose and features.
-            Example: "A revolutionary blockchain designed specifically for
-            gaming applications, enabling seamless in-game asset
-            transactions..."
+            A detailed description of your blockchain&apos;s purpose and
+            features. Example: &quot;A revolutionary blockchain designed
+            specifically for gaming applications, enabling seamless in-game
+            asset transactions...&quot;
           </p>
           <p className="text-sm text-muted-foreground">
             {chainDescription.length}/500 characters
@@ -300,7 +450,7 @@ export default function BrandingMedia({
             recommend adding at least three images or videos.
           </p>
 
-          {galleryItems.length === 0 ? (
+          {galleryItems.length === 0 && existingGalleryUrls.length === 0 ? (
             /* Upload Area - Show when no gallery items */
             <div
               className="border-2 border-dashed border-border rounded-lg p-12 flex flex-col items-center justify-center hover:border-primary/50 transition-colors cursor-pointer"
@@ -311,8 +461,8 @@ export default function BrandingMedia({
                 Upload from your device.
               </p>
               <p className="text-sm text-muted-foreground">
-                Add up to 10 images or videos. PNG, JPG, and MP4 formats are
-                supported.
+                Add up to 10 images or videos. Images: PNG, JPG. Videos: WebM,
+                MP4, H264 (max 100MB).
               </p>
             </div>
           ) : (
@@ -349,60 +499,63 @@ export default function BrandingMedia({
                     </Button>
                   )}
 
-                  {galleryItems[currentGalleryIndex].type === "image" ? (
-                    <img
-                      src={galleryItems[currentGalleryIndex].preview}
-                      alt={`Gallery item ${currentGalleryIndex + 1}`}
-                      className="w-full h-80 object-contain rounded-lg bg-muted"
-                    />
-                  ) : (
-                    <video
-                      src={galleryItems[currentGalleryIndex].preview}
-                      controls
-                      className="w-full h-80 rounded-lg bg-muted"
-                    />
-                  )}
+                  {galleryItems[currentGalleryIndex] &&
+                    (galleryItems[currentGalleryIndex].type === "image" ? (
+                      <img
+                        src={galleryItems[currentGalleryIndex].preview}
+                        alt={`Gallery item ${currentGalleryIndex + 1}`}
+                        className="w-full h-80 object-contain rounded-lg bg-muted"
+                      />
+                    ) : (
+                      <video
+                        src={galleryItems[currentGalleryIndex].preview}
+                        controls
+                        className="w-full h-80 rounded-lg bg-muted"
+                      />
+                    ))}
                 </div>
 
                 {/* Current item info with editable name */}
-                <div className="flex items-center justify-between mt-4">
-                  <div className="flex-1 min-w-0 mr-4">
-                    {editingNameIndex === currentGalleryIndex ? (
-                      <Input
-                        value={
-                          galleryItems[currentGalleryIndex].customName ||
-                          galleryItems[currentGalleryIndex].file.name
-                        }
-                        onChange={(e) =>
-                          handleNameEdit(currentGalleryIndex, e.target.value)
-                        }
-                        onBlur={handleNameBlur}
-                        onKeyDown={handleNameKeyDown}
-                        autoFocus
-                        className="font-medium"
-                      />
-                    ) : (
-                      <p
-                        className="font-medium cursor-text hover:bg-muted px-2 py-1 -mx-2 -my-1 rounded transition-colors truncate"
-                        onClick={() => handleNameClick(currentGalleryIndex)}
-                        title="Click to edit name"
-                      >
-                        {galleryItems[currentGalleryIndex].customName ||
-                          galleryItems[currentGalleryIndex].file.name}
+                {galleryItems[currentGalleryIndex] && (
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="flex-1 min-w-0 mr-4">
+                      {editingNameIndex === currentGalleryIndex ? (
+                        <Input
+                          value={
+                            galleryItems[currentGalleryIndex].customName ||
+                            galleryItems[currentGalleryIndex].file.name
+                          }
+                          onChange={(e) =>
+                            handleNameEdit(currentGalleryIndex, e.target.value)
+                          }
+                          onBlur={handleNameBlur}
+                          onKeyDown={handleNameKeyDown}
+                          autoFocus
+                          className="font-medium"
+                        />
+                      ) : (
+                        <p
+                          className="font-medium cursor-text hover:bg-muted px-2 py-1 -mx-2 -my-1 rounded transition-colors truncate"
+                          onClick={() => handleNameClick(currentGalleryIndex)}
+                          title="Click to edit name"
+                        >
+                          {galleryItems[currentGalleryIndex].customName ||
+                            galleryItems[currentGalleryIndex].file.name}
+                        </p>
+                      )}
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {currentGalleryIndex + 1} of {galleryItems.length}
                       </p>
-                    )}
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {currentGalleryIndex + 1} of {galleryItems.length}
-                    </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleGalleryRemove(currentGalleryIndex)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleGalleryRemove(currentGalleryIndex)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
+                )}
               </Card>
 
               {/* Thumbnail Scrollable List */}
@@ -497,7 +650,7 @@ export default function BrandingMedia({
           <input
             ref={galleryInputRef}
             type="file"
-            accept="image/*,video/*"
+            accept="image/*,video/webm,video/mp4,video/x-msvideo,video/quicktime,.webm,.mp4,.avi,.mov"
             multiple
             onChange={handleGalleryUpload}
             className="hidden"
