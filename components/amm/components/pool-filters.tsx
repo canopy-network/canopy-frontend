@@ -15,6 +15,8 @@ import { Filter } from "lucide-react";
 import { PoolType } from "../types/amm/pool";
 import { PoolFilters as PoolFiltersType } from "../types/amm/filters";
 
+const POOLS_TYPE_QUANTITY = Object.keys(PoolType).length;
+
 interface PoolFiltersProps {
   filters: PoolFiltersType;
   onFiltersChange: (filters: PoolFiltersType) => void;
@@ -51,7 +53,7 @@ export function PoolFilters({ filters, onFiltersChange }: PoolFiltersProps) {
   };
 
   const hasActiveFilters =
-    filters.poolTypes.length !== 2 ||
+    filters.poolTypes.length !== POOLS_TYPE_QUANTITY ||
     filters.tvlMin !== undefined ||
     filters.tvlMax !== undefined ||
     filters.volume24hMin !== undefined ||
