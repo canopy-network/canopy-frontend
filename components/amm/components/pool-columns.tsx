@@ -1,6 +1,7 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
+import Link from "next/link";
+import { ColumnDef, Column } from "@tanstack/react-table";
 import { ArrowUpDown, TrendingUp, TrendingDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LiquidityPool, PoolType } from "../types/amm/pool";
 
 interface SortableHeaderProps {
-  column: any;
+  column: Column<LiquidityPool, unknown>;
   label: string;
 }
 
@@ -54,7 +55,10 @@ export const columns: ColumnDef<LiquidityPool>[] = [
     cell: ({ row }) => {
       const pool = row.original;
       return (
-        <div className="flex items-center gap-3">
+        <Link
+          href={`/amm/pool/${pool.id}`}
+          className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+        >
           <div className="flex -space-x-2">
             <Avatar className="h-8 w-8 border-2 border-background">
               <AvatarImage src={pool.baseToken.icon} />
@@ -66,7 +70,7 @@ export const columns: ColumnDef<LiquidityPool>[] = [
             </Avatar>
           </div>
           <div>
-            <div className="font-medium">{pool.pair}</div>
+            <div className="font-medium hover:underline">{pool.pair}</div>
             <div className="flex items-center gap-2">
               <Badge
                 variant={
@@ -78,7 +82,7 @@ export const columns: ColumnDef<LiquidityPool>[] = [
               </Badge>
             </div>
           </div>
-        </div>
+        </Link>
       );
     },
   },

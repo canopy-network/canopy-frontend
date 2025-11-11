@@ -11,6 +11,10 @@ import {
 import { PoolGrowthPoint } from "../types/api/metrics";
 import { ChartMetric } from "../types/amm/chart";
 
+// TODO: Replace with actual volume data from API when available
+// This is a mock multiplier to estimate volume as a percentage of TVL
+const MOCK_VOLUME_MULTIPLIER = 0.15;
+
 interface AMMMetricsChartProps {
   data: PoolGrowthPoint[];
   metric: ChartMetric;
@@ -96,10 +100,10 @@ export function AMMMetricsChart({
           value = point.tvl_usd;
           break;
         case ChartMetric.Volume:
-          value = point.tvl_usd;
+          value = point.tvl_usd * MOCK_VOLUME_MULTIPLIER;
           break;
-        case ChartMetric.LPCount:
-          value = point.lp_count;
+        case ChartMetric.Price:
+          value = point.tvl_usd / point.tvl;
           break;
         default:
           value = point.tvl_usd;

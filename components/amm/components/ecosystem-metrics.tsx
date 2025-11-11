@@ -12,6 +12,10 @@ import {
 } from "../mock/metrics-data";
 import { PoolGrowthHistory } from "../types/api/metrics";
 
+// TODO: Replace with actual volume data from API when available
+// This is a mock multiplier to estimate volume as a percentage of TVL
+const MOCK_VOLUME_MULTIPLIER = 0.15;
+
 const TIMEFRAMES = [
   { label: "7D", value: "7d" },
   { label: "30D", value: "30d" },
@@ -22,7 +26,7 @@ type TimeframeValue = (typeof TIMEFRAMES)[number]["value"];
 
 const METRICS = [
   { label: "TVL", value: ChartMetric.TVL },
-  { label: "LP Count", value: ChartMetric.LPCount },
+  { label: "Volume", value: ChartMetric.Volume },
 ] as const;
 
 const TIMEFRAME_DATA: Record<TimeframeValue, PoolGrowthHistory> = {
@@ -45,13 +49,14 @@ export function EcosystemMetrics() {
   const formatValue = (metric: ChartMetric, value: number) => {
     switch (metric) {
       case ChartMetric.TVL:
+      case ChartMetric.Volume:
         return new Intl.NumberFormat("en-US", {
           style: "currency",
           currency: "USD",
           notation: "compact",
           maximumFractionDigits: 2,
         }).format(value);
-      case ChartMetric.LPCount:
+      case ChartMetric.Price:
         return value.toLocaleString();
       default:
         return value.toString();
@@ -62,8 +67,10 @@ export function EcosystemMetrics() {
     switch (metric) {
       case ChartMetric.TVL:
         return "Total Value Locked";
-      case ChartMetric.LPCount:
-        return "Liquidity Providers";
+      case ChartMetric.Volume:
+        return "Trading Volume";
+      case ChartMetric.Price:
+        return "Price";
       default:
         return "Metric";
     }
@@ -73,8 +80,10 @@ export function EcosystemMetrics() {
     switch (selectedMetric) {
       case ChartMetric.TVL:
         return latestPoint.tvl_usd;
-      case ChartMetric.LPCount:
-        return latestPoint.lp_count;
+      case ChartMetric.Volume:
+        return latestPoint.tvl_usd * MOCK_VOLUME_MULTIPLIER;
+      case ChartMetric.Price:
+        return latestPoint.tvl_usd / latestPoint.tvl;
       default:
         return 0;
     }

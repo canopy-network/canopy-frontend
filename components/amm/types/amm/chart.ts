@@ -1,5 +1,5 @@
 export enum ChartMetric {
-  TVL = "tvl",
+  Price = "price",
   Volume = "volume",
-  LPCount = "lp_count",
+  TVL = "tvl",
 }
