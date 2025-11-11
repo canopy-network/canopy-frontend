@@ -46,7 +46,7 @@ export async function getChainPreference(
 ): Promise<FavoriteResponse> {
   try {
     const response = await fetch(
-      `/api/chains/favorite?chain_id=${encodeURIComponent(chainId)}`,
+      `/api/chains/favorite?chain_id=${encodeURIComponent(String(chainId))}`,
       {
         method: "GET",
         credentials: "include", // Include cookies for authentication
@@ -86,7 +86,7 @@ export async function setChainPreference(
       credentials: "include", // Include cookies for authentication
       body: JSON.stringify({
         user_id: userId,
-        chain_id: chainId,
+        chain_id: String(chainId),
         preference,
       }),
     });
@@ -122,7 +122,7 @@ export async function removeChainPreference(
       credentials: "include", // Include cookies for authentication
       body: JSON.stringify({
         user_id: userId,
-        chain_id: chainId,
+        chain_id: String(chainId),
       }),
     });
 

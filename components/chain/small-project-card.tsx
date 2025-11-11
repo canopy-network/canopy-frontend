@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Chain, ChainExtended } from "@/types/chains";
+import { Chain, ChainExtended, Accolade } from "@/types/chains";
 import { useMemo, useState } from "react";
 import { HexagonIcon } from "@/components/icons/hexagon-icon";
-import { Users, TrendingUp, Star } from "lucide-react";
+import { Users, TrendingUp, Star, Target } from "lucide-react";
 import { ChainProgressBar } from "./chain-progress-bar";
 import {
   calculateGraduationProgress,
@@ -25,16 +25,33 @@ interface SmallProjectCardProps {
   project: Chain | ChainExtended;
   href?: string;
   viewMode?: "grid" | "list";
+  /** Filtered accolades to display (one per category) */
+  accolades?: Accolade[];
 }
 
 export const SmallProjectCard = ({
   project,
   href = `/chain/${project.id}`,
   viewMode = "grid",
+  accolades = [],
 }: SmallProjectCardProps) => {
   // Favorite hook
   const { isFavorited, isLoading, toggleFavorite, isAuthenticated } =
     useChainFavorite(project.id);
+
+  // Map accolade categories to icons
+  const getAccoladeIcon = (category: string) => {
+    switch (category) {
+      case "holder":
+        return <Users className="w-1.5 h-1.5" />;
+      case "market_cap":
+        return <TrendingUp className="w-1.5 h-1.5" />;
+      case "transaction":
+        return <Target className="w-1.5 h-1.5" />;
+      default:
+        return <TrendingUp className="w-1.5 h-1.5" />;
+    }
+  };
 
   // Get virtual pool data if included
   const virtualPool = project.virtual_pool;
@@ -349,34 +366,49 @@ export const SmallProjectCard = ({
               {project.chain_name}
             </h3>
 
-            {/* Hexagon Icons */}
-            <div className="flex items-center gap-0.5 flex-shrink-0">
-              {hexagonIcons.visible.map((icon, index) => (
-                <HexagonIcon
-                  key={index}
-                  tooltip={icon.tooltip}
-                  className="w-3.5 h-3.5"
-                >
-                  {icon.type === "users" ? (
-                    <Users className="w-1.5 h-1.5" />
-                  ) : (
-                    <TrendingUp className="w-1.5 h-1.5" />
-                  )}
-                </HexagonIcon>
-              ))}
+            {/* Hexagon Icons - Use Accolades if available, otherwise fallback to computed icons */}
+            {accolades.length > 0 ? (
+              <div className="flex items-center gap-0.5 flex-shrink-0">
+                {accolades.map((accolade) => (
+                  <HexagonIcon
+                    key={accolade.name}
+                    tooltip={accolade.display_name}
+                    description={accolade.description}
+                    className="w-3.5 h-3.5"
+                  >
+                    {getAccoladeIcon(accolade.category)}
+                  </HexagonIcon>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center gap-0.5 flex-shrink-0">
+                {hexagonIcons.visible.map((icon, index) => (
+                  <HexagonIcon
+                    key={index}
+                    tooltip={icon.tooltip}
+                    className="w-3.5 h-3.5"
+                  >
+                    {icon.type === "users" ? (
+                      <Users className="w-1.5 h-1.5" />
+                    ) : (
+                      <TrendingUp className="w-1.5 h-1.5" />
+                    )}
+                  </HexagonIcon>
+                ))}
 
-              {/* Overflow indicator */}
-              {hexagonIcons.overflow > 0 && (
-                <HexagonIcon
-                  className="w-3.5 h-3.5"
-                  tooltip={`${hexagonIcons.overflow} more features`}
-                >
-                  <span className="text-[6px] font-bold">
-                    +{hexagonIcons.overflow}
-                  </span>
-                </HexagonIcon>
-              )}
-            </div>
+                {/* Overflow indicator */}
+                {hexagonIcons.overflow > 0 && (
+                  <HexagonIcon
+                    className="w-3.5 h-3.5"
+                    tooltip={`${hexagonIcons.overflow} more features`}
+                  >
+                    <span className="text-[6px] font-bold">
+                      +{hexagonIcons.overflow}
+                    </span>
+                  </HexagonIcon>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Token Symbol */}

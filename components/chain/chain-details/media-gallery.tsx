@@ -23,6 +23,7 @@ export function MediaGallery({ media, assets }: MediaGalleryProps) {
       .filter(
         (asset) =>
           asset.asset_type === "media" ||
+          asset.asset_type === "screenshot" ||
           asset.asset_type === "video" ||
           asset.asset_type === "banner"
       )

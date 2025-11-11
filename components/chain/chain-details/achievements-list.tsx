@@ -1,6 +1,7 @@
 import { Users, TrendingUp, Zap, Award, Trophy, Target } from "lucide-react";
 import { AchievementBadge, Achievement } from "./achievement-badge";
 import { ArrowRight } from "lucide-react";
+import { Accolade } from "@/types/chains";
 
 // Placeholder achievements data
 const PLACEHOLDER_ACHIEVEMENTS: Achievement[] = [
@@ -68,13 +69,91 @@ const PLACEHOLDER_ACHIEVEMENTS: Achievement[] = [
 
 interface AchievementsListProps {
   achievements?: Achievement[];
+  accolades?: Accolade[];
 }
 
-export function AchievementsList({ achievements }: AchievementsListProps) {
-  const displayAchievements = achievements || PLACEHOLDER_ACHIEVEMENTS;
+// Map accolade category to icon
+const getAccoladeIcon = (category: string) => {
+  switch (category) {
+    case "holder":
+      return Users;
+    case "market_cap":
+      return TrendingUp;
+    case "transaction":
+      return Zap;
+    default:
+      return Award;
+  }
+};
+
+// Map accolade category to achievement type
+const getAccoladeType = (
+  category: string
+): "holders" | "value" | "transactions" | "other" => {
+  switch (category) {
+    case "holder":
+      return "holders";
+    case "market_cap":
+      return "value";
+    case "transaction":
+      return "transactions";
+    default:
+      return "other";
+  }
+};
+
+// Convert Accolade[] to Achievement[]
+const convertAccoladesToAchievements = (
+  accolades: Accolade[]
+): Achievement[] => {
+  // Filter to only show accolades where current_value >= threshold
+  const achieved = accolades.filter(
+    (accolade) => accolade.current_value >= accolade.threshold
+  );
+
+  // Sort accolades: by category, then by threshold
+  const sorted = [...achieved].sort((a, b) => {
+    // First by category
+    if (a.category !== b.category) {
+      return a.category.localeCompare(b.category);
+    }
+    // Then by threshold (ascending)
+    return a.threshold - b.threshold;
+  });
+
+  return sorted.map((accolade) => ({
+    id: accolade.name,
+    label: accolade.display_name,
+    icon: getAccoladeIcon(accolade.category),
+    unlocked: accolade.is_earned,
+    title: accolade.display_name,
+    description: accolade.description,
+    current: accolade.current_value,
+    requirement: accolade.threshold,
+    type: getAccoladeType(accolade.category),
+    isLocked: !accolade.is_earned,
+  }));
+};
+
+export function AchievementsList({
+  achievements,
+  accolades = [],
+}: AchievementsListProps) {
+  // Convert accolades to achievements format if provided
+  const accoladesAsAchievements =
+    accolades.length > 0 ? convertAccoladesToAchievements(accolades) : null;
+
+  // Use accolades if provided, otherwise use achievements prop
+  // Don't use placeholders - return null if no achievements
+  const displayAchievements = accoladesAsAchievements || achievements;
+
+  // Don't render if there are no achievements
+  if (!displayAchievements || displayAchievements.length === 0) {
+    return null;
+  }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 border-b pb-8">
       <div className="flex items-center gap-2">
         <h3 className="text-lg font-semibold">Achievements</h3>
         <ArrowRight className="w-4 h-4 text-muted-foreground" />

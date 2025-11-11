@@ -182,68 +182,49 @@ export function Sidebar() {
       {/* Bottom Section */}
       <div
         className={cn(
-          "border-t border-[#2a2a2a] transition-all duration-300 py-4",
-          isCondensed ? "px-5" : "px-4"
+          "border-t border-[#2a2a2a] transition-all duration-300 py-4 transition-all duration-300 flex flex-col gap-3 items-center"
         )}
       >
-        {/* Compact wallet icon - shown when condensed */}
-        <div
-          className={cn(
-            "flex justify-center transition-all duration-300",
-            isCondensed ? "block" : "hidden"
-          )}
-        >
-          <button
-            onClick={() => setLoginDialogOpen(true)}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-[#1a1a1a] hover:bg-[#2a2a2a] transition-colors"
-          >
-            <Wallet className="w-4 h-4 text-white" />
-          </button>
-        </div>
-
-        {/* Full auth section - shown when expanded */}
-        <div className={cn("space-y-3 transition-all duration-300")}>
-          {/* Email Authentication */}
-          {isLoggedIn && user ? (
-            <>
-              <Button
-                onClick={() => setLoginDialogOpen(true)}
-                variant="clear"
-                className="w-full  py-3 px-2 rounded-xl"
-              >
-                <div className="h-6 w-6 min-w-6  rounded-full bg-primary flex items-center justify-center">
-                  {user.avatar_url ? (
-                    <img
-                      src={user.avatar_url}
-                      alt={user.email || ""}
-                      className="h-6 w-6  min-w-6 rounded-full"
-                    />
-                  ) : (
-                    <span className="text-primary-foreground text-xs font-bold">
-                      {user.email?.slice(0, 2).toUpperCase()}
-                    </span>
-                  )}
-                </div>
-                {isCondensed ? null : (
-                  <span className="text-sm text-white truncate">
-                    {user.email}
-                  </span>
-                )}
-              </Button>
-            </>
-          ) : (
+        {/* Email Authentication */}
+        {isLoggedIn && user ? (
+          <>
             <Button
               onClick={() => setLoginDialogOpen(true)}
-              variant="outline"
-              size="sm"
-              className="w-full text-xs"
+              variant="clear"
+              className="w-full  py-3 px-2 rounded-xl"
             >
-              Login
+              <div className="h-6 w-6 min-w-6  rounded-full bg-primary flex items-center justify-center">
+                {user.avatar_url ? (
+                  <img
+                    src={user.avatar_url}
+                    alt={user.email || ""}
+                    className="h-6 w-6  min-w-6 rounded-full"
+                  />
+                ) : (
+                  <span className="text-primary-foreground text-xs font-bold">
+                    {user.email?.slice(0, 2).toUpperCase()}
+                  </span>
+                )}
+              </div>
+              {isCondensed ? null : (
+                <span className="text-sm text-white truncate">
+                  {user.email}
+                </span>
+              )}
             </Button>
-          )}
+          </>
+        ) : (
+          <Button
+            onClick={() => setLoginDialogOpen(true)}
+            variant="outline"
+            size="sm"
+            className="w-full text-xs"
+          >
+            Login
+          </Button>
+        )}
 
-          {isLoggedIn && <WalletConnectButton />}
-        </div>
+        {isLoggedIn && <WalletConnectButton isCondensed={isCondensed} />}
       </div>
 
       {/* Login Dialog */}

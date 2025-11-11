@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useLaunchpadDashboard } from "@/lib/hooks/use-launchpad-dashboard";
 import { useCreateChainDialog } from "@/lib/stores/use-create-chain-dialog";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { listUserFavorites } from "@/lib/api/chain-favorites";
+import { chainsApi } from "@/lib/api/chains";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BondingCurveChart } from "./bonding-curve-chart";
@@ -13,11 +14,10 @@ import { SmallProjectCard } from "./small-project-card";
 import { RecentsProjectsCarousel } from "./recents-projects-carousel";
 import { SortDropdown } from "./sort-dropdown";
 import { HomePageSkeleton } from "@/components/skeletons";
-import { Chain } from "@/types/chains";
+import { Chain, Accolade } from "@/types/chains";
 import {
   getMarketCap,
-  getVolume24h,
-  getPrice,
+  filterAccoladesByCategory,
 } from "@/lib/utils/chain-ui-helpers";
 import {
   AlertCircle,
@@ -58,8 +58,13 @@ export function LaunchpadDashboard() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sortOption, setSortOption] = useState("default");
   const [favoritedChainIds, setFavoritedChainIds] = useState<string[]>([]);
+  const [favoriteChains, setFavoriteChains] = useState<Chain[]>([]);
   const [loadingFavorites, setLoadingFavorites] = useState(false);
   const [localActiveTab, setLocalActiveTab] = useState("all");
+  const [accoladesData, setAccoladesData] = useState<
+    Record<string, Accolade[]>
+  >({});
+  const fetchedChainIdsRef = useRef<Set<string>>(new Set());
 
   const {
     // Data
@@ -114,14 +119,66 @@ export function LaunchpadDashboard() {
 
   // Filter and sort chains based on active tab and sort option
   const sortedChains = useMemo(() => {
-    let chainsCopy = [...filteredChains];
-
-    // If favorites tab is active, filter by favorited chain IDs
+    // If favorites tab is active, use the favorite chains directly
     if (localActiveTab === "favorites") {
-      chainsCopy = chainsCopy.filter((chain) =>
-        favoritedChainIds.includes(chain.id)
-      );
+      const chainsCopy = [...favoriteChains];
+
+      // Apply sorting
+      switch (sortOption) {
+        case "market-cap-high":
+          return chainsCopy.sort(
+            (a, b) =>
+              getMarketCap(b.virtual_pool) - getMarketCap(a.virtual_pool)
+          );
+        case "market-cap-low":
+          return chainsCopy.sort(
+            (a, b) =>
+              getMarketCap(a.virtual_pool) - getMarketCap(b.virtual_pool)
+          );
+        case "volume-high":
+          return chainsCopy.sort(
+            (a, b) =>
+              (b.virtual_pool?.total_volume_cnpy || 0) -
+              (a.virtual_pool?.total_volume_cnpy || 0)
+          );
+        case "volume-low":
+          return chainsCopy.sort(
+            (a, b) =>
+              (a.virtual_pool?.total_volume_cnpy || 0) -
+              (b.virtual_pool?.total_volume_cnpy || 0)
+          );
+        case "price-high":
+          return chainsCopy.sort(
+            (a, b) =>
+              (b.virtual_pool?.current_price_cnpy || 0) -
+              (a.virtual_pool?.current_price_cnpy || 0)
+          );
+        case "price-low":
+          return chainsCopy.sort(
+            (a, b) =>
+              (a.virtual_pool?.current_price_cnpy || 0) -
+              (b.virtual_pool?.current_price_cnpy || 0)
+          );
+        case "completion-percentage-high":
+          return chainsCopy.sort(
+            (a, b) =>
+              (b.graduation?.completion_percentage || 0) -
+              (a.graduation?.completion_percentage || 0)
+          );
+        case "completion-percentage-low":
+          return chainsCopy.sort(
+            (a, b) =>
+              (a.graduation?.completion_percentage || 0) -
+              (b.graduation?.completion_percentage || 0)
+          );
+        case "default":
+        default:
+          // Return chains in their original order (as received from API)
+          return chainsCopy;
+      }
     }
+
+    let chainsCopy = [...filteredChains];
 
     // If graduated tab is active, filter by is_graduated = true
     if (localActiveTab === "graduated") {
@@ -138,40 +195,96 @@ export function LaunchpadDashboard() {
         return chainsCopy.sort(
           (a, b) => getMarketCap(a.virtual_pool) - getMarketCap(b.virtual_pool)
         );
-      case "holders-high":
-        return chainsCopy.sort(
-          (a, b) =>
-            (b.virtual_pool?.unique_traders || 0) -
-            (a.virtual_pool?.unique_traders || 0)
-        );
-      case "holders-low":
-        return chainsCopy.sort(
-          (a, b) =>
-            (a.virtual_pool?.unique_traders || 0) -
-            (b.virtual_pool?.unique_traders || 0)
-        );
       case "volume-high":
         return chainsCopy.sort(
-          (a, b) => getVolume24h(b.virtual_pool) - getVolume24h(a.virtual_pool)
+          (a, b) =>
+            (b.virtual_pool?.total_volume_cnpy || 0) -
+            (a.virtual_pool?.total_volume_cnpy || 0)
         );
       case "volume-low":
         return chainsCopy.sort(
-          (a, b) => getVolume24h(a.virtual_pool) - getVolume24h(b.virtual_pool)
+          (a, b) =>
+            (a.virtual_pool?.total_volume_cnpy || 0) -
+            (b.virtual_pool?.total_volume_cnpy || 0)
         );
       case "price-high":
         return chainsCopy.sort(
-          (a, b) => getPrice(b.virtual_pool) - getPrice(a.virtual_pool)
+          (a, b) =>
+            (b.virtual_pool?.current_price_cnpy || 0) -
+            (a.virtual_pool?.current_price_cnpy || 0)
         );
       case "price-low":
         return chainsCopy.sort(
-          (a, b) => getPrice(a.virtual_pool) - getPrice(b.virtual_pool)
+          (a, b) =>
+            (a.virtual_pool?.current_price_cnpy || 0) -
+            (b.virtual_pool?.current_price_cnpy || 0)
+        );
+      case "completion-percentage-high":
+        return chainsCopy.sort(
+          (a, b) =>
+            (b.graduation?.completion_percentage || 0) -
+            (a.graduation?.completion_percentage || 0)
+        );
+      case "completion-percentage-low":
+        return chainsCopy.sort(
+          (a, b) =>
+            (a.graduation?.completion_percentage || 0) -
+            (b.graduation?.completion_percentage || 0)
         );
       case "default":
       default:
         // Return chains in their original order (as received from API)
         return chainsCopy;
     }
-  }, [filteredChains, sortOption, localActiveTab, favoritedChainIds]);
+  }, [filteredChains, sortOption, localActiveTab, favoriteChains]);
+
+  // Fetch accolades for sorted chains (batch fetch with limit to avoid performance issues)
+  useEffect(() => {
+    const fetchAccolades = async () => {
+      // Only fetch for first 20 chains to avoid too many requests
+      const chainsToFetch = sortedChains.slice(0, 20);
+      const chainIdsToFetch = chainsToFetch
+        .map((c) => c.id)
+        .filter((id) => !fetchedChainIdsRef.current.has(id)); // Only fetch if not already fetched
+
+      if (chainIdsToFetch.length === 0) return;
+
+      // Mark as fetching
+      chainIdsToFetch.forEach((id) => fetchedChainIdsRef.current.add(id));
+
+      // Fetch in batches of 5 to avoid overwhelming the API
+      const batchSize = 5;
+      for (let i = 0; i < chainIdsToFetch.length; i += batchSize) {
+        const batch = chainIdsToFetch.slice(i, i + batchSize);
+        const promises = batch.map(async (chainId) => {
+          try {
+            const response = await chainsApi.getAccolades(chainId);
+            if (response.data) {
+              const filteredAccolades = filterAccoladesByCategory(
+                response.data
+              );
+              return { chainId, accolades: filteredAccolades };
+            }
+          } catch (error) {
+            console.error(`Failed to fetch accolades for ${chainId}:`, error);
+          }
+          return { chainId, accolades: [] };
+        });
+
+        const results = await Promise.all(promises);
+        setAccoladesData((prev) => {
+          const updated = { ...prev };
+          results.forEach(({ chainId, accolades }) => {
+            updated[chainId] = accolades;
+          });
+          return updated;
+        });
+      }
+    };
+
+    fetchAccolades();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortedChains.map((c) => c.id).join(",")]); // Only re-run if chain IDs change
 
   // Handle buy button click
   const handleBuyClick = (project: Chain) => {
@@ -184,16 +297,49 @@ export function LaunchpadDashboard() {
     const fetchFavorites = async () => {
       if (localActiveTab === "favorites" && isAuthenticated && user) {
         setLoadingFavorites(true);
+        setFavoriteChains([]); // Clear previous favorites
         try {
+          // First, get the list of favorite chain IDs
           const result = await listUserFavorites(user.id, "like");
-          if (result.success && result.chains) {
-            setFavoritedChainIds(result.chains.map((c) => c.chain_id));
+          if (result.success && result.chains && result.chains.length > 0) {
+            const chainIds = result.chains.map((c) => c.chain_id);
+            setFavoritedChainIds(chainIds);
+
+            // Then, fetch full chain data for each favorite ID
+            const chainPromises = chainIds.map(async (chainId) => {
+              try {
+                const response = await chainsApi.getChain(chainId, {
+                  include:
+                    "creator,template,assets,virtual_pool,graduated_pool",
+                });
+                return response.data;
+              } catch (error) {
+                console.error(`Error fetching chain ${chainId}:`, error);
+                return null;
+              }
+            });
+
+            const fetchedChains = await Promise.all(chainPromises);
+            // Filter out any null values (failed fetches)
+            const validChains = fetchedChains.filter(
+              (chain): chain is Chain => chain !== null
+            );
+            setFavoriteChains(validChains);
+          } else {
+            // No favorites found
+            setFavoritedChainIds([]);
+            setFavoriteChains([]);
           }
         } catch (error) {
           console.error("Error fetching favorites:", error);
+          setFavoriteChains([]);
         } finally {
           setLoadingFavorites(false);
         }
+      } else {
+        // Clear favorites when not on favorites tab
+        setFavoriteChains([]);
+        setFavoritedChainIds([]);
       }
     };
 
@@ -340,6 +486,7 @@ export function LaunchpadDashboard() {
                   project={project}
                   href={`/chain/${project.id}`}
                   viewMode={viewMode}
+                  accolades={accoladesData[project.id] || []}
                 />
               ))}
             </div>

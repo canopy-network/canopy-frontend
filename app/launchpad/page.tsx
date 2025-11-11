@@ -96,6 +96,8 @@ export default function LaunchpadPage() {
         tokenSupply: string;
         decimals: string;
         description: string;
+        halvingDays: string;
+        blockTime: string;
       },
       isValid: boolean
     ) => {
@@ -195,6 +197,13 @@ export default function LaunchpadPage() {
 
     try {
       // Step 1: Create chain via API
+      // Calculate halving_schedule: convert halvingDays to blocks between halvings
+      const blockTimeSeconds = parseInt(formData.blockTime || "10", 10);
+      const halvingDays = parseFloat(formData.halvingDays || "365");
+      const secondsPerDay = 24 * 60 * 60;
+      const blocksPerDay = secondsPerDay / blockTimeSeconds;
+      const halvingSchedule = Math.floor(blocksPerDay * halvingDays);
+
       const chainData = {
         chain_name: formData.chainName,
         token_name: formData.tokenName,
@@ -213,12 +222,33 @@ export default function LaunchpadPage() {
           formData.initialPurchaseAmount || "0"
         ),
         brand_color: formData.brandColor,
+        block_time_seconds: blockTimeSeconds,
+        halving_schedule: halvingSchedule,
+        block_reward_amount: 50.0,
       };
 
       const response = await chainsApi.createChain(chainData);
       const chain = response.data;
 
       // Chain created successfully! Now proceed with additional operations
+
+      // Step 1.5: Store chain data in DynamoDB
+      try {
+        await fetch("/api/chains/store", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ticker: formData.ticker,
+            chain_name: formData.chainName,
+            token_name: formData.tokenName,
+          }),
+        });
+      } catch (storeErr) {
+        console.error("Error storing chain data in DynamoDB:", storeErr);
+        // Don't fail the entire process if DynamoDB storage fails
+      }
 
       // Step 2: Create repository data if GitHub repo is connected
       if (
