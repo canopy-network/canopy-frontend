@@ -347,6 +347,9 @@ export interface CreateChainRequest {
   validator_min_stake?: number;
   creator_initial_purchase_cnpy?: number;
   brand_color?: string;
+  block_time_seconds?: number;
+  halving_schedule?: number;
+  block_reward_amount?: number;
 }
 
 /**

@@ -41,7 +41,7 @@ export default function LaunchSettings({
   const [initialPurchaseAmount, setInitialPurchaseAmount] = useState(
     initialData?.initialPurchaseAmount || ""
   );
-  const [graduationThreshold] = useState(
+  const [graduationThreshold, setGraduationThreshold] = useState(
     initialData?.graduationThreshold || 50000
   );
 
@@ -91,34 +91,62 @@ export default function LaunchSettings({
             <h2 className="text-xl font-semibold">Graduation Threshold</h2>
           </div>
 
-          <div className="bg-muted/30 rounded-lg p-6 space-y-4">
-            <p className="text-lg">
-              Your chain becomes real at:{" "}
-              <span className="font-bold">
-                ${graduationThreshold.toLocaleString()}
-              </span>
-            </p>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Label
+                  htmlFor="graduationThreshold"
+                  className="text-sm font-medium"
+                >
+                  Threshold Amount in USD
+                </Label>
+                <HelpCircle className="h-4 w-4 text-muted-foreground" />
+              </div>
 
-            <div className="space-y-3 text-sm text-muted-foreground">
-              <p>
-                Your chain starts as a{" "}
-                <span className="font-semibold text-foreground">
-                  virtual chain
-                </span>{" "}
-                — a lightweight environment where users can buy and trade your
-                tokens without the full blockchain infrastructure running yet.
-              </p>
-              <p>
-                Once total purchases reach{" "}
-                <span className="font-semibold text-foreground">
+              <Input
+                id="graduationThreshold"
+                type="number"
+                placeholder="50000"
+                value={graduationThreshold}
+                onChange={(e) =>
+                  setGraduationThreshold(parseFloat(e.target.value) || 0)
+                }
+                min="0"
+                step="1000"
+              />
+            </div>
+
+            <div className="bg-muted/30 rounded-lg p-6 space-y-4">
+              <p className="text-lg">
+                Your chain becomes real at:{" "}
+                <span className="font-bold">
                   ${graduationThreshold.toLocaleString()}
                 </span>
-                , your chain{" "}
-                <span className="font-semibold text-foreground">graduates</span>
-                . At this point, we deploy your repository and launch the full
-                blockchain network, making it a real, operational chain on the
-                Canopy ecosystem.
               </p>
+
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <p>
+                  Your chain starts as a{" "}
+                  <span className="font-semibold text-foreground">
+                    virtual chain
+                  </span>{" "}
+                  — a lightweight environment where users can buy and trade your
+                  tokens without the full blockchain infrastructure running yet.
+                </p>
+                <p>
+                  Once total purchases reach{" "}
+                  <span className="font-semibold text-foreground">
+                    ${graduationThreshold.toLocaleString()}
+                  </span>
+                  , your chain{" "}
+                  <span className="font-semibold text-foreground">
+                    graduates
+                  </span>
+                  . At this point, we deploy your repository and launch the full
+                  blockchain network, making it a real, operational chain on the
+                  Canopy ecosystem.
+                </p>
+              </div>
             </div>
           </div>
         </div>
