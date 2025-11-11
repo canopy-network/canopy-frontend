@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react";
+import { useState, useMemo } from "react";
 import {
   flexRender,
   getCoreRowModel,
@@ -8,8 +8,6 @@ import {
   SortingState,
   useReactTable,
   getPaginationRowModel,
-  ColumnFiltersState,
-  getFilteredRowModel,
 } from "@tanstack/react-table";
 import {
   Table,
@@ -20,54 +18,77 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { LiquidityPool } from "../types/amm/pool";
+import { PoolFilters } from "../types/amm/filters";
 import { columns } from "./pool-columns";
 
 interface LiquidityPoolTableProps {
   data: LiquidityPool[];
+  filters: PoolFilters;
 }
 
-export function LiquidityPoolTable({ data }: LiquidityPoolTableProps) {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    [],
-  );
-  const [pagination, setPagination] = React.useState({
+export function LiquidityPoolTable({ data, filters }: LiquidityPoolTableProps) {
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [pagination, setPagination] = useState({
     pageIndex: 0,
     pageSize: 10,
   });
 
+  const filteredData = useMemo(() => {
+    return data.filter((pool) => {
+      if (filters.search && !pool.pair.toLowerCase().includes(filters.search.toLowerCase())) {
+        return false;
+      }
+
+      if (!filters.poolTypes.includes(pool.type)) {
+        return false;
+      }
+
+      const tvlValue = parseFloat(pool.tvl.replace(/[$,]/g, ""));
+      if (filters.tvlMin !== undefined && tvlValue < filters.tvlMin) {
+        return false;
+      }
+      if (filters.tvlMax !== undefined && tvlValue > filters.tvlMax) {
+        return false;
+      }
+
+      const volume24hValue = parseFloat(pool.volume24h.replace(/[$,]/g, ""));
+      if (filters.volume24hMin !== undefined && volume24hValue < filters.volume24hMin) {
+        return false;
+      }
+      if (filters.volume24hMax !== undefined && volume24hValue > filters.volume24hMax) {
+        return false;
+      }
+
+      if (pool.apr !== undefined) {
+        if (filters.aprMin !== undefined && pool.apr < filters.aprMin) {
+          return false;
+        }
+        if (filters.aprMax !== undefined && pool.apr > filters.aprMax) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [data, filters]);
+
   const table = useReactTable({
-    data,
+    data: filteredData,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
-    onColumnFiltersChange: setColumnFilters,
-    getFilteredRowModel: getFilteredRowModel(),
     onPaginationChange: setPagination,
     state: {
       sorting,
-      columnFilters,
       pagination,
     },
   });
 
   return (
     <div className="w-full space-y-4">
-      <div className="flex items-center justify-between">
-        <Input
-          placeholder="Search pools..."
-          value={(table.getColumn("pair")?.getFilterValue() as string) ?? ""}
-          onChange={(event) =>
-            table.getColumn("pair")?.setFilterValue(event.target.value)
-          }
-          className="max-w-sm"
-        />
-      </div>
-
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -119,7 +140,7 @@ export function LiquidityPoolTable({ data }: LiquidityPoolTableProps) {
 
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
-          Showing {table.getRowModel().rows.length} of {data.length} pool(s)
+          Showing {table.getRowModel().rows.length} of {filteredData.length} pool(s)
         </div>
         <div className="flex items-center gap-2">
           <Button
