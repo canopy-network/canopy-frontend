@@ -1,28 +1,7 @@
 "use client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LiquidityPools } from "./liquidity-pools";
-import { TrendingUp, Droplets, ArrowUpDown } from "lucide-react";
-
-const ammStats = [
-  {
-    title: "Total Value Locked",
-    value: "$12.4M",
-    change: "+18.2%",
-    icon: TrendingUp,
-  },
-  {
-    title: "24h Volume",
-    value: "$2.8M",
-    change: "+12.5%",
-    icon: ArrowUpDown,
-  },
-  {
-    title: "Active Pools",
-    value: "24",
-    change: "+3 this week",
-    icon: Droplets,
-  },
-];
+import { MetricsOverview } from "./components/metrics-overview";
+import { mockOverviewMetrics } from "./mock/metrics-data";
 
 export function AMMDashboard() {
   return (
@@ -35,24 +14,17 @@ export function AMMDashboard() {
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-        {ammStats.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <Card key={stat.title}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {stat.title}
-                </CardTitle>
-                <Icon className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
-                <p className="text-xs text-primary">{stat.change}</p>
-              </CardContent>
-            </Card>
-          );
-        })}
+      <div className="mb-8">
+        <MetricsOverview
+          tvl={mockOverviewMetrics.tvl}
+          tvlChange={mockOverviewMetrics.tvlChange}
+          volume24h={mockOverviewMetrics.volume24h}
+          volumeChange={mockOverviewMetrics.volumeChange}
+          totalPools={mockOverviewMetrics.totalPools}
+          poolsChange={mockOverviewMetrics.poolsChange}
+          totalLPs={mockOverviewMetrics.totalLPs}
+          lpsChange={mockOverviewMetrics.lpsChange}
+        />
       </div>
 
       <LiquidityPools />

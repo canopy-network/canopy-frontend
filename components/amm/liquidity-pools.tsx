@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { LiquidityPoolTable } from "./components/liquidity-pool-table";
 import { PoolFilters } from "./components/pool-filters";
+import { EcosystemMetrics } from "./components/ecosystem-metrics";
 import { mockPools } from "./mock/pool-data";
 import {
   PoolFilters as PoolFiltersType,
@@ -14,6 +15,7 @@ export function LiquidityPools() {
 
   return (
     <div className="space-y-6">
+      <EcosystemMetrics />
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Liquidity Pools</h2>
         <PoolFilters filters={filters} onFiltersChange={setFilters} />
