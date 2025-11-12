@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Container } from "@/components/layout/container";
+import { Spacer } from "@/components/layout/spacer";
 
 // Tab configuration
 interface TabConfig {
@@ -814,6 +815,8 @@ export function LaunchpadDashboard() {
             )}
           </TabsContent>
         </Tabs>
+
+        <Spacer height={320} />
       </Container>
 
       {/* Onboarding Modal */}

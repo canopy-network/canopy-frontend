@@ -280,7 +280,7 @@ export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
       <Card className="p-1 mt-4">
         <div className="space-y-2">
           {/* Price Tabs and Value */}
-          <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center justify-between px-2 lg:px-4 py-1 lg:py-3">
             <div className="space-y-2 flex-1">
               {/* Metric Toggle Tabs */}
               {updatedChain.status === "graduated" ? (
@@ -409,7 +409,7 @@ export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
           {/* Chart Container */}
           <div className="rounded-xl border text-card-foreground shadow relative h-[272px] bg-muted/40">
             {/* Timeframe Buttons - Overlay on Chart */}
-            <div className="absolute left-4 top-2.5 z-10 flex gap-0.5 p-0.5 bg-muted/50 rounded-lg">
+            <div className="absolute left-2 lg:left-4 top-2.5 z-10 flex gap-0.5 p-0.5 bg-muted/50 rounded-lg">
               {(["1H", "1D", "1W", "1M", "1Y", "ALL"] as const).map(
                 (timeframe) => (
                   <Button
@@ -429,7 +429,7 @@ export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
             </div>
 
             {/* Chart */}
-            <div className="h-full pt-12 px-4">
+            <div className="h-full pt-12 p-3 lg:px-4">
               {chartError ? (
                 <div className="flex items-center justify-center h-64 text-white/50">
                   {chartError}
@@ -450,10 +450,12 @@ export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
 
           {/* Live Updates */}
           <div className="rounded-xl border text-card-foreground shadow bg-muted/40">
-            <div className="flex items-center gap-6 px-5 py-3.5">
-              <p className="text-sm font-medium">Live updates</p>
+            <div className="flex items-center gap-6 p-3 lg:px-5 lg:py-3.5">
+              <p className="text-sm font-medium lg:inline-block hidden">
+                Live updates
+              </p>
 
-              <div className="flex flex-1 items-center justify-between text-sm">
+              <div className="grid grid-cols-2 w-full gap-2 lg:gap-0 lg:flex items-center justify-between text-sm">
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-xs text-muted-foreground">
                     VOL (24h)

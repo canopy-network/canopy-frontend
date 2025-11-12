@@ -9,6 +9,7 @@ import { ChainSuccessBanner } from "@/components/chain/chain-success-banner";
 import { ChainLaunchCountdown } from "@/components/chain/chain-launch-countdown";
 import { filterAccoladesByCategory } from "@/lib/utils/chain-ui-helpers";
 import type { Metadata } from "next";
+import { Spacer } from "@/components/layout/spacer";
 
 // Force dynamic rendering to ensure params are always fresh
 export const dynamic = "force-dynamic";
@@ -172,6 +173,7 @@ export default async function ChainPage(props: ChainPageProps) {
             )}
           </aside>
         </div>
+        <Spacer height={160} />
       </Container>
     );
   } catch (error) {

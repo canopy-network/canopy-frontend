@@ -96,7 +96,7 @@ export function SortDropdown({
             <ArrowUpDown className="w-4 h-4 mx-auto text-white block" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-[220px]">
+        <DropdownMenuContent align="end" className="w-[242px]">
           {sortOptions.map((option) => {
             const OptionIcon = option.icon;
             const [mainLabel, subLabel] = option.label.split("[split]");
@@ -128,7 +128,7 @@ export function SortDropdown({
       <SelectTrigger className={`h-9 w-[180px] gap-2 ${className}`}>
         <SelectValue placeholder="Sort by" />
       </SelectTrigger>
-      <SelectContent align="end" className="w-[220px]">
+      <SelectContent align="end" className="w-[242px]">
         {sortOptions.map((option) => {
           const OptionIcon = option.icon;
           const [mainLabel, subLabel] = option.label.split("[split]");
