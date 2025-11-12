@@ -205,7 +205,7 @@ export async function decryptPrivateKey(
     } catch (error) {
         // Web Crypto throws generic errors, provide more context
         if (error instanceof Error && error.name === 'OperationError') {
-            throw new Error('Failed to decrypt: incorrect password or corrupted data');
+            throw new Error("There's a problem with your password. Please try again.");
         }
         throw new Error(`Failed to decrypt private key: ${error instanceof Error ? error.message : String(error)}`);
     }

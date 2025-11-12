@@ -20,14 +20,37 @@ import {
     WalletBalance,
     WalletTransaction, ImportWalletRequest,
 } from "@/types/wallet";
-import { walletApi } from "@/lib/api";
+import { walletApi, portfolioApi, walletTransactionApi } from "@/lib/api";
+import type {
+  SendTransactionRequest,
+  TransactionHistoryRequest,
+  EstimateFeeRequest,
+} from "@/types/wallet";
 import {
   generateEncryptedKeyPair,
   decryptPrivateKey,
   EncryptedKeyPair,
 } from "@/lib/crypto/wallet";
-import { bytesToHex } from '@noble/hashes/utils.js';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { validateSeedphrase } from "@/lib/crypto/seedphrase";
+import {
+  storeMasterSeedphrase,
+  retrieveMasterSeedphrase,
+  hasMasterSeedphrase,
+  clearMasterSeedphrase,
+  getMasterPassword,
+} from "@/lib/crypto/seed-storage";
+import {
+  microToCnpy,
+  cnpyToMicro,
+  convertApiAmountsToCnpy,
+  convertUiAmountsToMicro,
+} from "@/lib/utils/denomination";
+import {
+  createSendTransaction,
+  toSendRawTransactionRequest,
+  type NetworkParams,
+} from "@/lib/crypto/transaction";
 
 export interface WalletState {
   // State
@@ -40,13 +63,17 @@ export interface WalletState {
   balance: WalletBalance | null;
   transactions: WalletTransaction[];
 
+  // Portfolio data (cached)
+  portfolioOverview: any | null; // Full portfolio overview
+  multiChainBalance: any | null; // Balance across all chains
+
   // Actions - Wallet Management
   fetchWallets: () => Promise<void>;
   selectWallet: (walletId: string) => void;
   createWallet: (
     seedphrase: string,
     walletName?: string,
-  ) => Promise<{ wallet: Wallet; seedphrase: string }>;
+  ) => Promise<{ wallet: LocalWallet; seedphrase: string }>;
   updateWallet: (walletId: string, data: UpdateWalletRequest) => Promise<void>;
   deleteWallet: (walletId: string) => Promise<void>;
 
@@ -58,6 +85,12 @@ export interface WalletState {
   // Actions - Balance & Transactions
   fetchBalance: (walletId: string) => Promise<void>;
   fetchTransactions: (walletId: string) => Promise<void>;
+  fetchPortfolioOverview: (addresses?: string[]) => Promise<void>;
+  fetchMultiChainBalance: (addresses?: string[]) => Promise<void>;
+
+  // Actions - Send Transactions
+  sendTransaction: (request: SendTransactionRequest) => Promise<string>;
+  estimateFee: (request: EstimateFeeRequest) => Promise<string>;
 
   // Actions - Utilities
   clearError: () => void;
@@ -90,40 +123,44 @@ export const useWalletStore = create<WalletState>()(
       error: null,
       balance: null,
       transactions: [],
+      portfolioOverview: null,
+      multiChainBalance: null,
 
       // Fetch all wallets for the current user
-      // Uses both getWallets (for metadata) and exportWallets (for encryption data)
+      // Uses only exportWallets endpoint which contains all necessary data
       fetchWallets: async () => {
         try {
           set({ isLoading: true, error: null });
 
-          // Fetch wallets with metadata (id, timestamps, status, etc)
-          const walletsResponse = await walletApi.getWallets();
+          console.log('🔄 Fetching wallets from export endpoint...');
 
-          // Try to fetch encryption data from export endpoint
-          let exportData: Record<string, any> = {};
-          try {
-            const exportResponse = await walletApi.exportWallets();
-            exportData = exportResponse.data.addressMap || {};
-          } catch (exportError) {
-            console.warn('Failed to fetch wallet encryption data from export endpoint:', exportError);
-            // Continue without encryption data - wallets will be listed but cannot be unlocked
-          }
+          const exportResponse = await walletApi.exportWallets();
 
-          // Merge wallet metadata with encryption data
-          const wallets: LocalWallet[] = walletsResponse.data.map((wallet) => ({
-            ...wallet,
-            // Add encryption data if available from export
-            encrypted_private_key: exportData[wallet.address]?.encrypted || wallet.encrypted_private_key,
-            salt: exportData[wallet.address]?.salt || wallet.salt,
-            // Local state
-            isUnlocked: false,
-          }));
+          const addressMap = exportResponse?.addressMap  || {};
+
+          // Convert addressMap to LocalWallet array
+          const wallets: LocalWallet[] = Object.entries(addressMap).map(([address, data]) => {
+            return {
+              // From export endpoint
+              id: address,
+              address: data.keyAddress || address,
+              public_key: data.publicKey,
+              encrypted_private_key: data.encrypted,
+              salt: data.salt,
+              wallet_name: data.keyNickname || 'Unnamed Wallet',
+
+              // Local state only
+              isUnlocked: false,
+            };
+          });
+
+          console.log('✅ Populated', wallets.length, 'wallets successfully');
 
           set({ wallets, isLoading: false });
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : "Failed to fetch wallets";
+          console.error('❌ Failed to fetch wallets:', error);
           set({ error: errorMessage, isLoading: false });
           throw error;
         }
@@ -152,13 +189,21 @@ export const useWalletStore = create<WalletState>()(
         try {
           set({ isLoading: true, error: null });
 
+          // Normalize seedphrase (trim and collapse multiple spaces)
+          const normalizedSeedphrase = seedphrase.trim().replace(/\s+/g, " ");
+
           // Validate seedphrase
-          if (!validateSeedphrase(seedphrase)) {
+          if (!validateSeedphrase(normalizedSeedphrase)) {
             throw new Error("Invalid seedphrase");
           }
 
+          // Store master seed phrase if not already stored
+          if (!hasMasterSeedphrase()) {
+            storeMasterSeedphrase(normalizedSeedphrase);
+          }
+
           // Remove spaces from seedphrase (backend expects it without spaces)
-          const seedphraseNoSpaces = seedphrase.replace(/\s+/g, "");
+          const seedphraseNoSpaces = normalizedSeedphrase.replace(/\s+/g, "");
 
           // Generate encrypted keypair using seedphrase as password
           const { encrypted } = await generateEncryptedKeyPair(
@@ -197,12 +242,14 @@ export const useWalletStore = create<WalletState>()(
             throw new Error("No successful wallet imports");
           }
 
-          // Fetch the complete wallet data using the wallet_id
-          const wallet = await walletApi.getWallet(firstSuccess.wallet_id);
-
-          // Add to local state
+          // Create LocalWallet from the data we already have
           const localWallet: LocalWallet = {
-            ...wallet,
+            id: firstSuccess.address,
+            address: encrypted.address,
+            public_key: encrypted.publicKey,
+            encrypted_private_key: encrypted.encryptedPrivateKey,
+            salt: encrypted.salt,
+            wallet_name: walletName || 'Unnamed Wallet',
             isUnlocked: false,
           };
 
@@ -269,8 +316,15 @@ export const useWalletStore = create<WalletState>()(
         }
       },
 
-      // Unlock wallet with password (decrypt private key)
-      // Uses local decryption with data from export endpoint
+      /**
+       * Unlock wallet by decrypting the private key
+       *
+       * SECURITY:
+       * - Private key is RECALCULATED each time (never stored)
+       * - Decryption happens locally using encrypted_private_key + salt + password
+       * - Private key only exists in memory (never persisted to localStorage)
+       * - On page refresh, wallet resets to locked state
+       */
       unlockWallet: async (walletId: string, password: string) => {
         try {
           set({ isLoading: true, error: null });
@@ -288,8 +342,8 @@ export const useWalletStore = create<WalletState>()(
             throw new Error("Wallet encryption data not available. Please refresh your wallets.");
           }
 
-          // Remove spaces from password/seedphrase
-          const passwordNoSpaces = password.replace(/\s+/g, "");
+          // Normalize and remove spaces from password/seedphrase
+          const passwordNoSpaces = password.trim().replace(/\s+/g, "");
 
           // Build EncryptedKeyPair from wallet data
           const encryptedKeyPair: EncryptedKeyPair = {
@@ -299,7 +353,7 @@ export const useWalletStore = create<WalletState>()(
             address: wallet.address,
           };
 
-          // Decrypt private key locally using crypto functions
+          // RECALCULATE private key by decrypting (never read from storage)
           const privateKeyBytes = await decryptPrivateKey(
             encryptedKeyPair,
             passwordNoSpaces
@@ -308,7 +362,7 @@ export const useWalletStore = create<WalletState>()(
           // Convert bytes to hex string
           const privateKeyHex = bytesToHex(privateKeyBytes);
 
-          // Update wallet state with private key (in-memory only)
+          // Store private key in memory only (partialize will remove it before persisting)
           set((state) => ({
             wallets: state.wallets.map((w) =>
               w.id === walletId
@@ -378,38 +432,259 @@ export const useWalletStore = create<WalletState>()(
         }));
       },
 
-      // Fetch balance for a wallet (placeholder - implement with blockchain API)
+      // Fetch balance for a wallet using portfolio API
       fetchBalance: async (walletId: string) => {
         try {
-          // TODO: Implement actual blockchain balance fetching
-          // For now, return mock data
-          const mockBalance: WalletBalance = {
-            total: "0.00",
-            tokens: [],
+          const { wallets } = get();
+          const wallet = wallets.find((w) => w.id === walletId);
+
+          if (!wallet) {
+            console.warn("Wallet not found:", walletId);
+            return;
+          }
+
+          // Fetch account balances from portfolio API
+          const balancesResponse = await portfolioApi.getAccountBalances({
+            addresses: [wallet.address],
+          });
+
+          // Convert API response to WalletBalance format
+          const balanceData = balancesResponse?.balances && balancesResponse.balances[0];
+
+          if (!balanceData) {
+            // No balance data available, set empty balance
+            set({
+              balance: {
+                total: "0.00",
+                tokens: [],
+              }
+            });
+            return;
+          }
+
+          // Convert amounts from micro (uCNPY) to CNPY
+          const walletBalance: WalletBalance = {
+            total: microToCnpy(balanceData.balance_cnpy || "0"),
+            tokens: balanceData.tokens.map((token) => ({
+              symbol: token.symbol,
+              name: token.name,
+              balance: microToCnpy(token.balance),
+              usdValue: token.value_usd, // USD value doesn't need conversion
+              logo: undefined, // Logo not provided by API
+            })),
           };
 
-          set({ balance: mockBalance });
+          set({ balance: walletBalance });
         } catch (error) {
           console.error("Failed to fetch balance:", error);
+
+          // Set empty balance on error to avoid showing stale data
+          set({
+            balance: {
+              total: "0.00",
+              tokens: [],
+            }
+          });
         }
       },
 
-      // Fetch transactions for a wallet (placeholder - implement with blockchain API)
+      // Fetch transactions for a wallet using transaction history API
       fetchTransactions: async (walletId: string) => {
         try {
-          // TODO: Implement actual blockchain transaction fetching
-          // For now, return empty array
-          set({ transactions: [] });
+          const { wallets } = get();
+          const wallet = wallets.find((w) => w.id === walletId);
+
+          if (!wallet) {
+            console.warn("Wallet not found:", walletId);
+            return;
+          }
+
+          // Fetch transaction history from API
+          const historyResponse = await walletTransactionApi.getTransactionHistory({
+            addresses: [wallet.address],
+            limit: 50,
+            sort: "desc",
+          });
+
+          // Convert API response to WalletTransaction format
+          // Amounts are converted from micro (uCNPY) to CNPY
+          const walletTransactions: WalletTransaction[] = historyResponse.transactions.map(
+            (tx) => ({
+              id: tx.transaction_hash,
+              type: tx.type.toLowerCase() as any,
+              amount: microToCnpy(tx.amount), // Convert from uCNPY to CNPY
+              token: "CNPY", // Default to CNPY, could be extracted from transaction
+              from: tx.from_address,
+              to: tx.to_address,
+              status: tx.status.toLowerCase() as any,
+              timestamp: tx.timestamp,
+              txHash: tx.transaction_hash,
+            })
+          );
+
+          set({ transactions: walletTransactions });
         } catch (error) {
           console.error("Failed to fetch transactions:", error);
+          set({ transactions: [] });
+        }
+      },
+
+      // Fetch portfolio overview for all wallets or specific addresses
+      fetchPortfolioOverview: async (addresses?: string[]) => {
+        try {
+          const { wallets } = get();
+
+          // Use provided addresses or all wallet addresses
+          const targetAddresses = addresses || wallets.map((w) => w.address);
+
+          if (targetAddresses.length === 0) {
+            console.warn("No wallet addresses available for portfolio overview");
+            return;
+          }
+
+          // Fetch portfolio overview from API
+          const overview = await portfolioApi.getPortfolioOverview({
+            addresses: targetAddresses,
+          });
+
+          set({ portfolioOverview: overview });
+        } catch (error) {
+          console.error("Failed to fetch portfolio overview:", error);
+          set({ portfolioOverview: null });
+        }
+      },
+
+      // Fetch multi-chain balance for all wallets or specific addresses
+      fetchMultiChainBalance: async (addresses?: string[]) => {
+        try {
+          const { wallets } = get();
+
+          // Use provided addresses or all wallet addresses
+          const targetAddresses = addresses || wallets.map((w) => w.address);
+
+          if (targetAddresses.length === 0) {
+            console.warn("No wallet addresses available for multi-chain balance");
+            return;
+          }
+
+          // Fetch multi-chain balance from API
+          const balance = await portfolioApi.getMultiChainBalance({
+            addresses: targetAddresses,
+          });
+
+          set({ multiChainBalance: balance });
+        } catch (error) {
+          console.error("Failed to fetch multi-chain balance:", error);
+          set({ multiChainBalance: null });
+        }
+      },
+
+      // Send a transaction using send-raw endpoint with locally signed transaction
+      sendTransaction: async (request: SendTransactionRequest): Promise<string> => {
+        try {
+          set({ isLoading: true, error: null });
+
+          // Find the wallet to get the private key
+          const { wallets } = get();
+          const wallet = wallets.find((w) => w.address === request.from_address);
+
+          if (!wallet) {
+            throw new Error("Wallet not found for address: " + request.from_address);
+          }
+
+          if (!wallet.privateKey || !wallet.isUnlocked) {
+            throw new Error("Wallet is locked. Please unlock the wallet first.");
+          }
+
+          // Convert amount from CNPY to uCNPY (micro CNPY)
+          const amountInMicro = BigInt(cnpyToMicro(request.amount));
+          const feeInMicro = request.fee
+            ? BigInt(cnpyToMicro(request.fee.toString()))
+            : BigInt(1000); // Default fee of 1000 uCNPY
+
+          // Network parameters for transaction
+          // Height will be determined by the backend/blockchain
+          const networkParams: NetworkParams = {
+            height: BigInt(1), // Placeholder - backend will validate
+            networkId: BigInt(request.chain_id || 0),
+            chainId: BigInt(request.chain_id || 0),
+          };
+
+          console.log("🔨 Building transaction...");
+          console.log("  From:", request.from_address);
+          console.log("  To:", request.to_address);
+          console.log("  Amount:", amountInMicro.toString(), "uCNPY");
+          console.log("  Fee:", feeInMicro.toString(), "uCNPY");
+
+          // Create and sign the transaction locally
+          const signedTx = createSendTransaction(
+            wallet.privateKey,              // Private key (hex)
+            request.to_address,             // Recipient address (hex)
+            amountInMicro,                  // Amount in uCNPY
+            networkParams,                  // Network parameters
+            feeInMicro,                     // Fee in uCNPY
+            request.memo || ""              // Optional memo
+          );
+
+          console.log("✅ Transaction signed locally");
+
+          // Convert to send-raw request format
+          const rawTxRequest = toSendRawTransactionRequest(signedTx);
+
+          console.log("📤 Submitting raw transaction to backend...");
+
+          // Submit the raw transaction to the backend
+          const response = await walletTransactionApi.sendRawTransaction(rawTxRequest);
+
+          console.log("✅ Transaction sent:", response.transaction_hash);
+
+          // Refresh balance and transactions after sending
+          const { currentWallet, fetchBalance, fetchTransactions } = get();
+          if (currentWallet) {
+            await Promise.all([
+              fetchBalance(currentWallet.id),
+              fetchTransactions(currentWallet.id),
+            ]);
+          }
+
+          set({ isLoading: false });
+          return response.transaction_hash;
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : "Failed to send transaction";
+          console.error("❌ Failed to send transaction:", error);
+          set({ error: errorMessage, isLoading: false });
+          throw error;
+        }
+      },
+
+      // Estimate transaction fee
+      estimateFee: async (request: EstimateFeeRequest): Promise<string> => {
+        try {
+          // Convert amount from CNPY to uCNPY before sending to backend
+          const requestWithMicro = {
+            ...request,
+            amount: cnpyToMicro(request.amount),
+          };
+
+          const response = await walletTransactionApi.estimateFee(requestWithMicro);
+
+          // Convert estimated fee from uCNPY to CNPY
+          return microToCnpy(response.estimated_fee);
+        } catch (error) {
+          console.error("Failed to estimate fee:", error);
+          throw error;
         }
       },
 
       // Clear error
       clearError: () => set({ error: null }),
 
-      // Reset wallet state
+      // Reset wallet state (clears seed phrase on logout)
       resetWalletState: () => {
+        // Clear stored master seed phrase
+        clearMasterSeedphrase();
+
         set({
           wallets: [],
           currentWallet: null,
@@ -417,6 +692,8 @@ export const useWalletStore = create<WalletState>()(
           error: null,
           balance: null,
           transactions: [],
+          portfolioOverview: null,
+          multiChainBalance: null,
         });
       },
     }),
@@ -424,18 +701,23 @@ export const useWalletStore = create<WalletState>()(
       name: "canopy-wallet-storage",
       storage: createJSONStorage(() => zustandStorage),
       skipHydration: true,
-      // Only persist wallets list and currentWallet (not private keys!)
+      /**
+       * SECURITY: Only persist wallet metadata, NEVER persist private keys
+       * - privateKey is always set to undefined before saving
+       * - privateKey is recalculated on each unlock by decrypting encrypted_private_key
+       * - On page refresh, all wallets reset to locked state (isUnlocked: false)
+       */
       partialize: (state) => ({
         wallets: state.wallets.map((w) => ({
           ...w,
-          privateKey: undefined, // Never persist private keys
-          isUnlocked: false,
+          privateKey: undefined, // NEVER persist decrypted private keys
+          isUnlocked: false,     // Always reset to locked on persist
         })),
         currentWallet: state.currentWallet
           ? {
               ...state.currentWallet,
-              privateKey: undefined, // Never persist private keys
-              isUnlocked: false,
+              privateKey: undefined, // NEVER persist decrypted private keys
+              isUnlocked: false,     // Always reset to locked on persist
             }
           : null,
       }),
@@ -459,4 +741,18 @@ export function getPersistedWalletData() {
     console.error("Failed to parse persisted wallet data:", error);
     return null;
   }
+}
+
+/**
+ * Helper function to check if master seed phrase is stored
+ */
+export function hasStoredSeedphrase(): boolean {
+  return hasMasterSeedphrase();
+}
+
+/**
+ * Helper function to get stored master seed phrase
+ */
+export function getStoredSeedphrase(): string | null {
+  return retrieveMasterSeedphrase();
 }

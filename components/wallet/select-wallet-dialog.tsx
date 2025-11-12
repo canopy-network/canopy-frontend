@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -21,11 +19,12 @@ import {
   Unlock,
   AlertCircle,
 } from "lucide-react";
-import { useWalletStore } from "@/lib/stores/wallet-store";
+import { useWalletStore, hasStoredSeedphrase, getStoredSeedphrase } from "@/lib/stores/wallet-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { LocalWallet } from "@/types/wallet";
 import { showSuccessToast, showErrorToast } from "@/lib/utils/error-handler";
 import { WalletConnectionDialog } from "./wallet-connection-dialog";
+import { SeedphraseInput } from "./seedphrase-input";
 
 type SelectWalletStep = "select" | "unlock" | "unlocking";
 
@@ -52,7 +51,7 @@ export function SelectWalletDialog({
 
   const [step, setStep] = useState<SelectWalletStep>("select");
   const [selectedWalletId, setSelectedWalletId] = useState<string | null>(null);
-  const [password, setPassword] = useState("");
+  const [seedphrase, setSeedphrase] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
@@ -69,13 +68,13 @@ export function SelectWalletDialog({
       setTimeout(() => {
         setStep("select");
         setSelectedWalletId(null);
-        setPassword("");
+        setSeedphrase("");
         setLocalError(null);
       }, 300);
     }
   }, [open]);
 
-  const handleSelectWallet = (walletId: string) => {
+  const handleSelectWallet = async (walletId: string) => {
     const wallet = wallets.find((w) => w.id === walletId);
     if (!wallet) return;
 
@@ -87,20 +86,50 @@ export function SelectWalletDialog({
       showSuccessToast("Wallet connected!");
       onOpenChange(false);
       onSuccess?.();
+      return;
+    }
+
+    // Try to unlock automatically with stored seed phrase
+    const storedSeedphrase = getStoredSeedphrase();
+    if (storedSeedphrase) {
+      try {
+        setStep("unlocking");
+        setLocalError(null);
+
+        await unlockWallet(walletId, storedSeedphrase);
+        selectWallet(walletId);
+
+        showSuccessToast("Wallet unlocked and connected!");
+        onOpenChange(false);
+        onSuccess?.();
+      } catch (error) {
+        // If auto-unlock fails, show manual unlock step
+        const errorMessage =
+          error instanceof Error ? error.message : "Failed to unlock wallet";
+        setLocalError(errorMessage);
+        setStep("unlock");
+      }
     } else {
-      // Otherwise, show unlock step
+      // No stored seed phrase, show unlock step
       setStep("unlock");
     }
   };
 
   const handleUnlock = async () => {
-    if (!selectedWalletId || !password) return;
+    if (!selectedWalletId || !seedphrase) return;
+
+    // Validate word count
+    const wordCount = seedphrase.trim().split(/\s+/).length;
+    if (wordCount !== 12) {
+      setLocalError("Please enter all 12 words of your recovery phrase");
+      return;
+    }
 
     try {
       setStep("unlocking");
       setLocalError(null);
 
-      await unlockWallet(selectedWalletId, password);
+      await unlockWallet(selectedWalletId, seedphrase);
       selectWallet(selectedWalletId);
 
       showSuccessToast("Wallet unlocked and connected!");
@@ -259,7 +288,7 @@ export function SelectWalletDialog({
             <DialogHeader>
               <DialogTitle>Unlock Wallet</DialogTitle>
               <DialogDescription>
-                Enter your seed-phrase to unlock this wallet.
+                Enter your 12-word recovery phrase to unlock this wallet.
               </DialogDescription>
             </DialogHeader>
 
@@ -274,27 +303,27 @@ export function SelectWalletDialog({
                 </p>
               </div>
 
-              {/* Password Input */}
-              <div className="space-y-2">
-                <Label htmlFor="seedphrase">Seedphrase</Label>
-                <Input
-                  id="seedphrase"
-                  type="password"
-                  placeholder="Enter your 12-word seedphrase"
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    setLocalError(null);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
+              {/* Seed Phrase Input */}
+              <div
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    const wordCount = seedphrase.trim().split(/\s+/).filter(w => w).length;
+                    if (wordCount === 12) {
+                      e.preventDefault();
                       handleUnlock();
                     }
+                  }
+                }}
+              >
+                <SeedphraseInput
+                  value={seedphrase}
+                  onChange={(value) => {
+                    setSeedphrase(value);
+                    setLocalError(null);
                   }}
+                  wordCount={12}
+                  autoFocus={true}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Enter the seedphrase you saved when creating this wallet.
-                </p>
               </div>
 
               {localError && (
@@ -310,7 +339,7 @@ export function SelectWalletDialog({
                 variant="outline"
                 onClick={() => {
                   setStep("select");
-                  setPassword("");
+                  setSeedphrase("");
                   setLocalError(null);
                 }}
                 className="flex-1"
@@ -320,7 +349,7 @@ export function SelectWalletDialog({
               <Button
                 onClick={handleUnlock}
                 className="flex-1"
-                disabled={!password}
+                disabled={!seedphrase || seedphrase.trim().split(/\s+/).filter(w => w).length !== 12}
               >
                 Unlock
               </Button>
@@ -352,7 +381,7 @@ export function SelectWalletDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className={step === "unlock" ? "sm:max-w-lg" : "sm:max-w-md"}>
           {renderStepContent()}
         </DialogContent>
       </Dialog>

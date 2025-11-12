@@ -3,6 +3,7 @@
 // Force SSR for this page
 export const dynamic = "force-dynamic";
 
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -12,9 +13,13 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { SendTransactionDialog } from "@/components/wallet/send-transaction-dialog";
+import { ReceiveDialog } from "@/components/wallet/receive-dialog";
 import {
   Wallet,
   Copy,
@@ -25,16 +30,40 @@ import {
   ArrowDownLeft,
   Coins,
   AlertCircle,
+  Settings,
+  Filter,
+  Search,
+  ExternalLink,
 } from "lucide-react";
 import { showSuccessToast } from "@/lib/utils/error-handler";
 import { useRouter } from "next/navigation";
+import { formatCnpy } from "@/lib/utils/denomination";
 
 function WalletContent() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
   const { currentWallet, connectWallet, setShowSelectDialog } = useWallet();
-  const { balance, transactions, fetchBalance, fetchTransactions } =
-    useWalletStore();
+  const {
+    balance,
+    transactions,
+    fetchBalance,
+    fetchTransactions,
+    fetchPortfolioOverview,
+  } = useWalletStore();
+
+  const [showSendDialog, setShowSendDialog] = useState(false);
+  const [showReceiveDialog, setShowReceiveDialog] = useState(false);
+  const [activeTab, setActiveTab] = useState("assets");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Fetch data when wallet changes
+  useEffect(() => {
+    if (currentWallet) {
+      fetchBalance(currentWallet.id);
+      fetchTransactions(currentWallet.id);
+      fetchPortfolioOverview([currentWallet.address]);
+    }
+  }, [currentWallet]);
 
   const copyAddress = () => {
     if (currentWallet) {
@@ -47,10 +76,9 @@ function WalletContent() {
     return `${address?.slice(0, 10)}...${address.slice(-8)}`;
   };
 
-  // Mock data for demo (until blockchain integration)
-  const mockBalance = "0.00";
-  const mockUSDValue = "$0.00";
-  const mockTokens = [
+  // Use real balance data from the store, fallback to defaults
+  const displayBalance = balance?.total || "0.00";
+  const displayTokens = balance?.tokens || [
     {
       symbol: "CNPY",
       name: "Canopy",
@@ -60,7 +88,14 @@ function WalletContent() {
     },
   ];
 
-  const mockTransactions = transactions.length > 0 ? transactions : [];
+  // Calculate total USD value from tokens
+  const totalUSDValue = displayTokens.reduce((acc, token) => {
+    const usdValue = parseFloat(token.usdValue?.replace(/[^0-9.-]+/g, "") || "0");
+    return acc + usdValue;
+  }, 0);
+
+  const displayUSDValue = `$${totalUSDValue.toFixed(2)}`;
+  const displayTransactions = transactions.length > 0 ? transactions : [];
 
   if (!isAuthenticated) {
     return (
@@ -117,6 +152,13 @@ function WalletContent() {
     );
   }
 
+  // Filter transactions based on search
+  const filteredTransactions = transactions.filter(tx =>
+    tx.txHash?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    tx.to?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    tx.from?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="p-8">
       <div className="mb-8 flex items-center justify-between">
@@ -126,14 +168,24 @@ function WalletContent() {
             Manage your assets, view balances, and track transactions.
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowSelectDialog(true)}
-        >
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Switch Wallet
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowSelectDialog(true)}
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Switch Wallet
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Settings
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-6">
@@ -176,18 +228,26 @@ function WalletContent() {
             <div className="pt-4 border-t">
               <p className="text-sm text-muted-foreground mb-1">Total Balance</p>
               <div className="flex items-baseline gap-2">
-                <p className="text-3xl font-bold">{mockBalance} CNPY</p>
-                <p className="text-lg text-muted-foreground">{mockUSDValue}</p>
+                <p className="text-3xl font-bold">{formatCnpy(displayBalance)} CNPY</p>
+                <p className="text-lg text-muted-foreground">{displayUSDValue}</p>
               </div>
             </div>
 
             {/* Action Buttons */}
             <div className="grid grid-cols-3 gap-2 pt-4">
-              <Button variant="outline" className="gap-2" disabled>
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => setShowSendDialog(true)}
+              >
                 <Send className="h-4 w-4" />
                 Send
               </Button>
-              <Button variant="outline" className="gap-2" disabled>
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => setShowReceiveDialog(true)}
+              >
                 <Download className="h-4 w-4" />
                 Receive
               </Button>
@@ -199,114 +259,166 @@ function WalletContent() {
           </CardContent>
         </Card>
 
-        {/* Assets */}
+        {/* Tabs for Assets, Activity, Staking */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Assets</CardTitle>
-              <CardDescription>Your token balances</CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {mockTokens.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Coins className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No assets yet</p>
-                <p className="text-xs mt-1">
-                  Get started by receiving tokens to your wallet
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {mockTokens.map((token) => (
-                  <div
-                    key={token.symbol}
-                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-full bg-primary/10">
-                        <Coins className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium">{token.symbol}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {token.name}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium">{token.balance}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {token.usdValue}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <CardHeader>
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="assets">Assets</TabsTrigger>
+                <TabsTrigger value="activity">Activity</TabsTrigger>
+                <TabsTrigger value="staking" disabled>Staking</TabsTrigger>
+              </TabsList>
+            </CardHeader>
 
-        {/* Recent Transactions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Transactions</CardTitle>
-            <CardDescription>Your latest blockchain activity</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {mockTransactions.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <ArrowUpRight className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No transactions yet</p>
-                <p className="text-xs mt-1">
-                  Your transaction history will appear here
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {mockTransactions.map((tx) => (
-                  <div
-                    key={tx.id}
-                    className="flex items-center justify-between p-3 border rounded-lg"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`p-2 rounded-full ${
-                          tx.type === "send"
-                            ? "bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400"
-                            : "bg-green-100 text-green-600 dark:bg-green-900/20 dark:text-green-400"
-                        }`}
-                      >
-                        {tx.type === "send" ? (
-                          <ArrowUpRight className="h-4 w-4" />
-                        ) : (
-                          <ArrowDownLeft className="h-4 w-4" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium capitalize">{tx.type}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {tx.type === "send" ? `To ${tx.to}` : `From ${tx.from}`}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium">
-                        {tx.amount} {tx.token}
-                      </p>
-                      <Badge
-                        variant={
-                          tx.status === "completed" ? "default" : "secondary"
-                        }
-                      >
-                        {tx.status}
-                      </Badge>
-                    </div>
+            <CardContent>
+              {/* Assets Tab */}
+              <TabsContent value="assets" className="mt-0">
+                {displayTokens.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Coins className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-sm mb-2">No assets yet</p>
+                    <p className="text-xs">
+                      Get started by receiving tokens to your wallet
+                    </p>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
+                ) : (
+                  <div className="space-y-2">
+                    {displayTokens.map((token) => (
+                      <div
+                        key={token.symbol}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                            <Coins className="h-5 w-5 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-medium">{token.symbol}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {token.name}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">{formatCnpy(token.balance)}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {token.usdValue || "$0.00"}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* Activity Tab */}
+              <TabsContent value="activity" className="mt-0 space-y-4">
+                {/* Search and Filter */}
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by address or hash..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <Button variant="outline" size="icon" disabled>
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {/* Transactions List */}
+                {filteredTransactions.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <ArrowUpRight className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-sm mb-2">
+                      {searchQuery ? "No transactions found" : "No activity yet"}
+                    </p>
+                    <p className="text-xs">
+                      {searchQuery
+                        ? "Try a different search term"
+                        : "Your transaction history will appear here"}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {filteredTransactions.map((tx) => (
+                      <div
+                        key={tx.id}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors group"
+                      >
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div
+                            className={`p-2 rounded-full flex-shrink-0 ${
+                              tx.type === "send"
+                                ? "bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400"
+                                : "bg-green-100 text-green-600 dark:bg-green-900/20 dark:text-green-400"
+                            }`}
+                          >
+                            {tx.type === "send" ? (
+                              <ArrowUpRight className="h-4 w-4" />
+                            ) : (
+                              <ArrowDownLeft className="h-4 w-4" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium capitalize">{tx.type}</p>
+                              {tx.txHash && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={() => {
+                                    // TODO: Link to block explorer
+                                  }}
+                                  disabled
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground truncate">
+                              {tx.type === "send"
+                                ? tx.to
+                                  ? `To ${tx.to.slice(0, 10)}...${tx.to.slice(-8)}`
+                                  : "Sent"
+                                : tx.from
+                                ? `From ${tx.from.slice(0, 10)}...${tx.from.slice(-8)}`
+                                : "Received"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right flex-shrink-0 ml-4">
+                          <p className="font-medium">
+                            {formatCnpy(tx.amount)} {tx.token}
+                          </p>
+                          <Badge
+                            variant={
+                              tx.status === "completed" ? "default" : "secondary"
+                            }
+                            className="text-xs"
+                          >
+                            {tx.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* Staking Tab - Placeholder */}
+              <TabsContent value="staking" className="mt-0">
+                <div className="text-center py-12 text-muted-foreground">
+                  <Coins className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-sm">Staking coming soon</p>
+                </div>
+              </TabsContent>
+            </CardContent>
+          </Tabs>
         </Card>
 
         {/* Info Banner */}
@@ -316,17 +428,27 @@ function WalletContent() {
               <AlertCircle className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
               <div className="space-y-1">
                 <p className="text-sm font-medium text-blue-500">
-                  Blockchain Integration Coming Soon
+                  Full Blockchain Integration
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Send, receive, and swap functionality will be available once
-                  the Canopy blockchain is fully integrated. Stay tuned!
+                  You can now send and receive CNPY tokens. Swap and staking
+                  functionality will be available soon!
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Dialogs */}
+      <SendTransactionDialog
+        open={showSendDialog}
+        onOpenChange={setShowSendDialog}
+      />
+      <ReceiveDialog
+        open={showReceiveDialog}
+        onOpenChange={setShowReceiveDialog}
+      />
     </div>
   );
 }

@@ -17,7 +17,7 @@ import {
   CheckCircle,
   Copy,
 } from "lucide-react";
-import { useWalletStore } from "@/lib/stores/wallet-store";
+import { useWalletStore, hasStoredSeedphrase, getStoredSeedphrase } from "@/lib/stores/wallet-store";
 import { generateSeedphrase, splitMnemonic } from "@/lib/crypto/seedphrase";
 import { showSuccessToast, showErrorToast } from "@/lib/utils/error-handler";
 import { toast } from "sonner";
@@ -81,13 +81,24 @@ export function WalletConnectionDialog({
     return questions;
   };
 
-  // Generate seedphrase on mount
+  // Generate or retrieve seedphrase on mount
   useEffect(() => {
     if (open && !seedPhrase) {
       try {
-        const newSeedphrase = generateSeedphrase();
-        setSeedPhrase(newSeedphrase);
-        setVerificationQuestions(generateVerificationQuestions(newSeedphrase));
+        // Check if a master seed phrase already exists
+        const storedSeedphrase = getStoredSeedphrase();
+
+        if (storedSeedphrase) {
+          // Use stored seed phrase and skip directly to wallet naming
+          setSeedPhrase(storedSeedphrase);
+          setStep("name");
+        } else {
+          // Generate new seed phrase for first wallet
+          const newSeedphrase = generateSeedphrase();
+          setSeedPhrase(newSeedphrase);
+          setVerificationQuestions(generateVerificationQuestions(newSeedphrase));
+          setStep("generate");
+        }
       } catch (error) {
         setLocalError("Failed to generate seedphrase. Please try again.");
       }

@@ -108,6 +108,12 @@ export {
 // Wallet API
 export { walletApi } from "./wallet";
 
+// Portfolio API
+export { portfolioApi } from "./portfolio";
+
+// Wallet Transaction API
+export { walletTransactionApi, waitForTransactionCompletion } from "./wallet-transactions";
+
 // ============================================================================
 // CONVENIENCE RE-EXPORTS
 // ============================================================================

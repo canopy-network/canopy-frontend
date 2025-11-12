@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Sheet,
   SheetContent,
@@ -10,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useWallet } from "./wallet-provider";
 import { useWalletStore } from "@/lib/stores/wallet-store";
+import { SendTransactionDialog } from "./send-transaction-dialog";
+import { ReceiveDialog } from "./receive-dialog";
 import {
   Copy,
   LogOut,
@@ -24,13 +26,24 @@ import {
 } from "lucide-react";
 import { showSuccessToast } from "@/lib/utils/error-handler";
 import { useRouter } from "next/navigation";
+import { formatCnpy } from "@/lib/utils/denomination";
 
 export function WalletPopup() {
   const router = useRouter();
   const { isPopupOpen, closePopup, currentWallet, disconnectWallet } =
     useWallet();
-  const { balance, transactions } = useWalletStore();
+  const { balance, transactions, fetchBalance, fetchTransactions } = useWalletStore();
   const [activeTab, setActiveTab] = useState("balances");
+  const [showSendDialog, setShowSendDialog] = useState(false);
+  const [showReceiveDialog, setShowReceiveDialog] = useState(false);
+
+  // Fetch balance and transactions when wallet is connected
+  useEffect(() => {
+    if (currentWallet && isPopupOpen) {
+      fetchBalance(currentWallet.id);
+      fetchTransactions(currentWallet.id);
+    }
+  }, [currentWallet, isPopupOpen]);
 
   const formatAddress = (address: string) => {
     if (!address) return "";
@@ -56,18 +69,23 @@ export function WalletPopup() {
     router.push("/wallet");
   };
 
-  // Mock data until blockchain integration
-  const mockBalance = "0.00";
-  const mockUSDValue = "$0.00";
-  const mockAssets = [
+  // Use real balance data
+  const displayBalance = balance?.total || "0.00";
+  const displayTokens = balance?.tokens || [
     {
       symbol: "CNPY",
       name: "Canopy",
-      balance: mockBalance,
-      usdValue: mockUSDValue,
-      color: "#1dd13a",
+      balance: "0.00",
+      usdValue: "$0.00",
     },
   ];
+
+  // Calculate total USD value
+  const totalUSDValue = displayTokens.reduce((acc, token) => {
+    const usdValue = parseFloat(token.usdValue?.replace(/[^0-9.-]+/g, "") || "0");
+    return acc + usdValue;
+  }, 0);
+
   const recentTransactions = transactions.slice(0, 5);
 
   return (
@@ -110,9 +128,12 @@ export function WalletPopup() {
                   className="text-3xl font-bold cursor-pointer hover:text-primary transition-colors"
                   onClick={handleViewFullWallet}
                 >
-                  ${mockUSDValue.replace("$", "")}
+                  ${totalUSDValue.toFixed(2)}
                   <ChevronRight className="inline h-6 w-6 ml-1" />
                 </div>
+                <p className="text-sm text-muted-foreground">
+                  {formatCnpy(displayBalance)} CNPY
+                </p>
               </div>
 
               {/* Action Buttons */}
@@ -130,16 +151,16 @@ export function WalletPopup() {
                   variant="outline"
                   size="sm"
                   className="flex-col h-auto py-3 rounded-xl"
-                  disabled
+                  onClick={() => setShowReceiveDialog(true)}
                 >
                   <Download className="h-4 w-4 mb-1" />
-                  <span className="text-xs">Buy</span>
+                  <span className="text-xs">Receive</span>
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   className="flex-col h-auto py-3 rounded-xl"
-                  disabled
+                  onClick={() => setShowSendDialog(true)}
                 >
                   <SendIcon className="h-4 w-4 mb-1" />
                   <span className="text-xs">Send</span>
@@ -177,7 +198,7 @@ export function WalletPopup() {
 
               {/* Balances Tab */}
               <TabsContent value="balances" className="flex-1 overflow-y-auto mt-0 p-6 space-y-3">
-                {mockAssets.length === 0 ? (
+                {displayTokens.length === 0 ? (
                   <div className="text-center py-12">
                     <Coins className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
                     <p className="text-sm text-muted-foreground mb-4">No assets yet</p>
@@ -190,27 +211,26 @@ export function WalletPopup() {
                     </Button>
                   </div>
                 ) : (
-                  mockAssets.map((asset) => (
+                  displayTokens.map((token) => (
                     <div
-                      key={asset.symbol}
+                      key={token.symbol}
                       className="flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 transition-colors cursor-pointer"
                       onClick={handleViewFullWallet}
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold"
-                          style={{ backgroundColor: asset.color }}
+                          className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold bg-primary"
                         >
-                          {asset.symbol[0]}
+                          {token.symbol[0]}
                         </div>
                         <div>
-                          <p className="font-medium">{asset.symbol}</p>
-                          <p className="text-xs text-muted-foreground">{asset.name}</p>
+                          <p className="font-medium">{token.symbol}</p>
+                          <p className="text-xs text-muted-foreground">{token.name}</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium">{asset.balance}</p>
-                        <p className="text-xs text-muted-foreground">{asset.usdValue}</p>
+                        <p className="font-medium">{formatCnpy(token.balance)}</p>
+                        <p className="text-xs text-muted-foreground">{token.usdValue || "$0.00"}</p>
                       </div>
                     </div>
                   ))
@@ -258,7 +278,7 @@ export function WalletPopup() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-medium">
-                          {tx.amount} {tx.token}
+                          {formatCnpy(tx.amount)} {tx.token}
                         </p>
                       </div>
                     </div>
@@ -302,6 +322,18 @@ export function WalletPopup() {
           </div>
         )}
       </SheetContent>
+
+      {/* Send Transaction Dialog */}
+      <SendTransactionDialog
+        open={showSendDialog}
+        onOpenChange={setShowSendDialog}
+      />
+
+      {/* Receive Dialog */}
+      <ReceiveDialog
+        open={showReceiveDialog}
+        onOpenChange={setShowReceiveDialog}
+      />
     </Sheet>
   );
 }
