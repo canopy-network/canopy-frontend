@@ -505,6 +505,55 @@ export function LaunchpadDashboard() {
     return () => clearInterval(interval);
   }, [isLoading]); // Only depend on isLoading, not chains or refreshData
 
+  const sortComponent = () => {
+    return (
+      <>
+        {/* Right: Sort and View Controls */}
+        <div className="flex items-center gap-2">
+          {/* Sort Dropdown - Mobile: Icon only, Desktop: Full dropdown */}
+          <div className="lg:hidden">
+            <SortDropdown
+              value={sortOption}
+              onSort={setSortOption}
+              mobile={true}
+            />
+          </div>
+          <div className="hidden lg:block">
+            <SortDropdown value={sortOption} onSort={setSortOption} />
+          </div>
+
+          {/* View Toggle */}
+          <div className="hidden lg:flex items-center gap-1 bg-muted/50 rounded-lg p-1">
+            <Button
+              onClick={() => setViewMode("grid")}
+              variant={viewMode === "grid" ? "secondary" : "ghost"}
+              size="sm"
+              className={`h-8 w-8 p-0 ${
+                viewMode === "grid"
+                  ? "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                  : "hover:bg-accent hover:text-accent-foreground"
+              }`}
+            >
+              <Grid3x3 className="w-4 h-4" />
+            </Button>
+            <Button
+              onClick={() => setViewMode("list")}
+              variant={viewMode === "list" ? "secondary" : "ghost"}
+              size="sm"
+              className={`h-8 w-8 p-0 ${
+                viewMode === "list"
+                  ? "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                  : "hover:bg-accent hover:text-accent-foreground"
+              }`}
+            >
+              <List className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      </>
+    );
+  };
+
   if (isLoading) {
     return <HomePageSkeleton />;
   }
@@ -566,58 +615,37 @@ export function LaunchpadDashboard() {
           id="chain-list"
         >
           {/* Filter Bar */}
-          <div className="rounded-xl border border-border bg-card text-card-foreground shadow p-1 flex items-center justify-between mb-8">
-            {/* Left: Tab Buttons */}
-            <div className="flex items-center gap-1">
-              {visibleTabs.map((tab) => (
-                <Button
-                  key={tab.value}
-                  onClick={() => handleTabChange(tab.value)}
-                  variant={localActiveTab === tab.value ? "secondary" : "ghost"}
-                  size="sm"
-                  className={`rounded-md gap-1.5 h-9 px-4 ${
-                    localActiveTab === tab.value
-                      ? "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                      : "hover:bg-accent hover:text-accent-foreground"
-                  }`}
-                >
-                  {tab.label}
-                </Button>
-              ))}
-            </div>
-
-            {/* Right: Sort and View Controls */}
-            <div className="flex items-center gap-2">
-              {/* Sort Dropdown */}
-              <SortDropdown value={sortOption} onSort={setSortOption} />
-
-              {/* View Toggle */}
-              <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
-                <Button
-                  onClick={() => setViewMode("grid")}
-                  variant={viewMode === "grid" ? "secondary" : "ghost"}
-                  size="sm"
-                  className={`h-8 w-8 p-0 ${
-                    viewMode === "grid"
-                      ? "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                      : "hover:bg-accent hover:text-accent-foreground"
-                  }`}
-                >
-                  <Grid3x3 className="w-4 h-4" />
-                </Button>
-                <Button
-                  onClick={() => setViewMode("list")}
-                  variant={viewMode === "list" ? "secondary" : "ghost"}
-                  size="sm"
-                  className={`h-8 w-8 p-0 ${
-                    viewMode === "list"
-                      ? "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                      : "hover:bg-accent hover:text-accent-foreground"
-                  }`}
-                >
-                  <List className="w-4 h-4" />
-                </Button>
+          <div
+            className="flex items-center justify-between gap-4"
+            id="filter-bar"
+          >
+            <div className="card-like p-1 mb-4 lg:mb-8 overflow-auto no-scrollbar w-full">
+              {/* Left: Tab Buttons */}
+              <div className="flex items-center gap-1">
+                {visibleTabs.map((tab) => (
+                  <Button
+                    key={tab.value}
+                    onClick={() => handleTabChange(tab.value)}
+                    variant={
+                      localActiveTab === tab.value ? "secondary" : "ghost"
+                    }
+                    size="sm"
+                    className={`rounded-md gap-1.5 h-9 px-4 ${
+                      localActiveTab === tab.value
+                        ? "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                        : "hover:bg-accent hover:text-accent-foreground"
+                    }`}
+                  >
+                    {tab.label}
+                  </Button>
+                ))}
               </div>
+              <div className="hidden lg:block" id="filter-bar-desktop">
+                {sortComponent()}
+              </div>
+            </div>
+            <div className="block lg:hidden mb-4" id="filter-bar-mobile">
+              {sortComponent()}
             </div>
           </div>
 

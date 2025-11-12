@@ -8,6 +8,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import {
   TrendingUp,
   Activity,
   DollarSign,
@@ -72,11 +79,49 @@ interface SortDropdownProps {
   value: string;
   onSort: (value: string) => void;
   className?: string;
+  mobile?: boolean;
 }
 
-export function SortDropdown({ value, onSort, className }: SortDropdownProps) {
-  const currentOption = sortOptions.find((opt) => opt.value === value);
-  const Icon = currentOption?.icon || Sparkles;
+export function SortDropdown({
+  value,
+  onSort,
+  className,
+  mobile = false,
+}: SortDropdownProps) {
+  if (mobile) {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button className="card-like h-11.5 w-11.5 justify-center items-center flex !leading-none hover:bg-muted rounded-lg">
+            <ArrowUpDown className="w-4 h-4 mx-auto text-white block" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-[220px]">
+          {sortOptions.map((option) => {
+            const OptionIcon = option.icon;
+            const [mainLabel, subLabel] = option.label.split("[split]");
+            return (
+              <DropdownMenuItem
+                key={option.value}
+                onClick={() => onSort(option.value)}
+                className={`cursor-pointer ${
+                  value === option.value ? "bg-accent" : ""
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <OptionIcon className="w-4 h-4 text-white" />
+                  <span>{mainLabel}</span>
+                  {subLabel && (
+                    <span className="text-muted-foreground">{subLabel}</span>
+                  )}
+                </div>
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
 
   return (
     <Select value={value} onValueChange={onSort}>
