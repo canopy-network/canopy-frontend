@@ -1,16 +1,30 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
 /**
  * Component to ensure auth cookies are synced with localStorage state
  * This is needed for middleware to detect authentication status
+ * Only runs on client side to avoid SSR issues
  */
 export function AuthCookieSync() {
-  const { isAuthenticated, user } = useAuthStore();
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Only access store after component mounts (client-side only)
+  const isAuthenticated = useAuthStore(
+    (state) => state?.isAuthenticated ?? false
+  );
+  const user = useAuthStore((state) => state?.user ?? null);
 
   useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    // Only run on client side after mount
+    if (!isMounted || typeof window === "undefined") return;
+
     // Sync auth state to cookies whenever it changes
     if (isAuthenticated && user) {
       // Ensure cookies are set
@@ -25,7 +39,7 @@ export function AuthCookieSync() {
       document.cookie = "canopy_user_id=; path=/; max-age=0";
       console.log("🔒 Auth cookies cleared");
     }
-  }, [isAuthenticated, user]);
+  }, [isMounted, isAuthenticated, user]);
 
   // This component doesn't render anything
   return null;

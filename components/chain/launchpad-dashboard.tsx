@@ -2,10 +2,13 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useLaunchpadDashboard } from "@/lib/hooks/use-launchpad-dashboard";
-import { useCreateChainDialog } from "@/lib/stores/use-create-chain-dialog";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { listUserFavorites } from "@/lib/api/chain-favorites";
 import { chainsApi } from "@/lib/api/chains";
+import {
+  getChainPriceHistory,
+  convertPriceHistoryToChart,
+} from "@/lib/api/price-history";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BondingCurveChart } from "./bonding-curve-chart";
@@ -51,13 +54,11 @@ const tabsConfig: TabConfig[] = [
 // No fallback data needed - working directly with API responses
 
 export function LaunchpadDashboard() {
-  const { open: openCreateChainDialog } = useCreateChainDialog();
   const { user, isAuthenticated } = useAuthStore();
   const [selectedProject, setSelectedProject] = useState<Chain | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sortOption, setSortOption] = useState("default");
-  const [favoritedChainIds, setFavoritedChainIds] = useState<string[]>([]);
   const [favoriteChains, setFavoriteChains] = useState<Chain[]>([]);
   const [loadingFavorites, setLoadingFavorites] = useState(false);
   const [localActiveTab, setLocalActiveTab] = useState("all");
@@ -65,6 +66,11 @@ export function LaunchpadDashboard() {
     Record<string, Accolade[]>
   >({});
   const fetchedChainIdsRef = useRef<Set<string>>(new Set());
+  const [priceHistoryData, setPriceHistoryData] = useState<
+    Record<string, Array<{ value: number; time: number }>>
+  >({});
+  const chainsRef = useRef<Chain[]>([]);
+  const refreshDataRef = useRef<(() => Promise<void>) | undefined>(undefined);
 
   const {
     // Data
@@ -303,7 +309,6 @@ export function LaunchpadDashboard() {
           const result = await listUserFavorites(user.id, "like");
           if (result.success && result.chains && result.chains.length > 0) {
             const chainIds = result.chains.map((c) => c.chain_id);
-            setFavoritedChainIds(chainIds);
 
             // Then, fetch full chain data for each favorite ID
             const chainPromises = chainIds.map(async (chainId) => {
@@ -327,7 +332,6 @@ export function LaunchpadDashboard() {
             setFavoriteChains(validChains);
           } else {
             // No favorites found
-            setFavoritedChainIds([]);
             setFavoriteChains([]);
           }
         } catch (error) {
@@ -339,7 +343,6 @@ export function LaunchpadDashboard() {
       } else {
         // Clear favorites when not on favorites tab
         setFavoriteChains([]);
-        setFavoritedChainIds([]);
       }
     };
 
@@ -356,6 +359,151 @@ export function LaunchpadDashboard() {
       }
     }
   }, []);
+
+  // Keep refs in sync with latest values
+  useEffect(() => {
+    chainsRef.current = chains;
+  }, [chains]);
+
+  useEffect(() => {
+    refreshDataRef.current = refreshData;
+  }, [refreshData]);
+
+  // Polling: Refresh only virtual_pool, graduation, and price history every 10 seconds
+  // This avoids refetching all chains which causes unnecessary rerenders
+  useEffect(() => {
+    // Don't poll if component is loading
+    if (isLoading) {
+      return;
+    }
+
+    // Function to refresh virtual_pool and graduation data for each chain individually
+    // This updates only the specific fields without replacing the entire chain object
+    const refreshChainData = async () => {
+      const currentChains = chainsRef.current;
+      if (currentChains.length === 0) return;
+
+      // Fetch virtual_pool and graduation for each chain in batches
+      const batchSize = 5;
+      for (let i = 0; i < currentChains.length; i += batchSize) {
+        const batch = currentChains.slice(i, i + batchSize);
+        const promises = batch.map(async (chain) => {
+          try {
+            // Fetch chain with only virtual_pool and graduation to minimize data transfer
+            const response = await chainsApi.getChain(chain.id, {
+              include: "virtual_pool,graduation",
+            });
+
+            if (response.data) {
+              // Update the chain in the store by merging new data
+              // Only update if data actually changed to prevent unnecessary rerenders
+              const { useChainsStore } = await import(
+                "@/lib/stores/chains-store"
+              );
+              const store = useChainsStore.getState();
+              const existingChainIndex = store.chains.findIndex(
+                (c) => c.id === chain.id
+              );
+
+              if (existingChainIndex !== -1) {
+                const existingChain = store.chains[existingChainIndex];
+                const newVirtualPool = response.data.virtual_pool;
+                const newGraduation = (response.data as any).graduation;
+
+                // Only update if data actually changed (shallow comparison)
+                const virtualPoolChanged =
+                  JSON.stringify(existingChain.virtual_pool) !==
+                  JSON.stringify(newVirtualPool);
+                const graduationChanged =
+                  JSON.stringify((existingChain as any).graduation) !==
+                  JSON.stringify(newGraduation);
+
+                if (virtualPoolChanged || graduationChanged) {
+                  // Merge new virtual_pool and graduation data into existing chain
+                  const updatedChains = [...store.chains];
+                  updatedChains[existingChainIndex] = {
+                    ...updatedChains[existingChainIndex],
+                    virtual_pool: newVirtualPool,
+                    ...(newGraduation && {
+                      graduation: newGraduation,
+                    }),
+                  } as any;
+                  useChainsStore.setState({ chains: updatedChains });
+                }
+              }
+            }
+          } catch (error) {
+            console.error(
+              `Failed to refresh data for chain ${chain.id}:`,
+              error
+            );
+          }
+        });
+
+        await Promise.all(promises);
+      }
+    };
+
+    // Function to refresh price history for all currently loaded chains
+    const refreshPriceHistory = async () => {
+      // Use ref to get latest chains without causing re-renders
+      const currentChains = chainsRef.current;
+      if (currentChains.length === 0) return;
+
+      // Fetch price history for all chains in parallel (batched)
+      const batchSize = 5;
+      for (let i = 0; i < currentChains.length; i += batchSize) {
+        const batch = currentChains.slice(i, i + batchSize);
+        const promises = batch.map(async (chain) => {
+          try {
+            const response = await getChainPriceHistory(chain.id);
+            if (response.data && response.data.length > 0) {
+              const chartData = convertPriceHistoryToChart(response.data);
+              return { chainId: chain.id, chartData };
+            }
+          } catch (error) {
+            console.error(
+              `Failed to fetch price history for ${chain.id}:`,
+              error
+            );
+          }
+          return null;
+        });
+
+        const results = await Promise.all(promises);
+        setPriceHistoryData((prev) => {
+          const updated = { ...prev };
+          results.forEach((result) => {
+            if (result) {
+              updated[result.chainId] = result.chartData;
+            }
+          });
+          return updated;
+        });
+      }
+    };
+
+    // Initial refresh only if we have chains
+    if (chainsRef.current.length > 0) {
+      refreshChainData();
+      refreshPriceHistory();
+    }
+
+    // Set up polling interval (10 seconds)
+    const interval = setInterval(() => {
+      // Only poll if page is visible (not in background tab)
+      if (
+        document.visibilityState === "visible" &&
+        chainsRef.current.length > 0
+      ) {
+        refreshChainData();
+        refreshPriceHistory();
+      }
+    }, 10000); // 10 seconds
+
+    // Cleanup on unmount
+    return () => clearInterval(interval);
+  }, [isLoading]); // Only depend on isLoading, not chains or refreshData
 
   if (isLoading) {
     return <HomePageSkeleton />;
@@ -400,6 +548,7 @@ export function LaunchpadDashboard() {
             <RecentsProjectsCarousel
               projects={chains}
               onBuyClick={handleBuyClick}
+              priceHistoryData={priceHistoryData}
             />
           ) : (
             <div className="text-center py-12">
@@ -414,6 +563,7 @@ export function LaunchpadDashboard() {
           value={localActiveTab}
           onValueChange={handleTabChange}
           className="min-h-[400px]"
+          id="chain-list"
         >
           {/* Filter Bar */}
           <div className="rounded-xl border border-border bg-card text-card-foreground shadow p-1 flex items-center justify-between mb-8">

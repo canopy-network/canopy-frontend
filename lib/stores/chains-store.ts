@@ -133,311 +133,370 @@ const createNoopStorage = (): any => {
 const storage =
   typeof window !== "undefined" ? localStorage : createNoopStorage();
 
-export const useChainsStore = create<ChainsState>()(
-  devtools(
-    persist(
-      (set, get) => ({
-        // Initial state
-        chains: [],
-        currentChain: null,
-        virtualPools: {},
-        transactions: {},
-        isLoading: false,
-        isCreating: false,
-        isDeleting: false,
-        error: null,
-        filters: {
-          searchQuery: "",
-        },
-        pagination: {
-          page: 1,
-          limit: 20,
-          total: 0,
-          pages: 0,
-        },
+// Create chains store only on client side
+const createChainsStore = () => {
+  // During SSR, skip store creation
+  if (typeof window === "undefined") {
+    return null;
+  }
 
-        // ============================================================================
-        // API ACTIONS
-        // ============================================================================
+  return create<ChainsState>()(
+    devtools(
+      persist(
+        (set, get) => ({
+          // Initial state
+          chains: [],
+          currentChain: null,
+          virtualPools: {},
+          transactions: {},
+          isLoading: false,
+          isCreating: false,
+          isDeleting: false,
+          error: null,
+          filters: {
+            searchQuery: "",
+          },
+          pagination: {
+            page: 1,
+            limit: 20,
+            total: 0,
+            pages: 0,
+          },
 
-        //testing@again.com user id
-        // "2403b4fc-82a2-4dd3-a82a-e437ed68d3a2"
+          // ============================================================================
+          // API ACTIONS
+          // ============================================================================
 
-        //chris@santana.com
-        // 0cd21689-de6c-4b65-ad4d-178179a07161
-        fetchChains: async (params) => {
-          const state = get();
-          // Prevent concurrent fetches
-          if (state.isLoading) {
-            console.log(
-              "fetchChains: Already fetching, skipping duplicate call"
-            );
-            return;
-          }
+          //testing@again.com user id
+          // "2403b4fc-82a2-4dd3-a82a-e437ed68d3a2"
 
-          set({ isLoading: true, error: null });
-          try {
-            const response = await chainsApi.getChains(params);
+          //chris@santana.com
+          // 0cd21689-de6c-4b65-ad4d-178179a07161
+          fetchChains: async (params) => {
+            const state = get();
+            // Prevent concurrent fetches
+            if (state.isLoading) {
+              console.log(
+                "fetchChains: Already fetching, skipping duplicate call"
+              );
+              return;
+            }
 
-            // Process assets for each chain to extract branding and banner
-            const processedChains = response.data.map((chain) =>
-              processChainAssets(chain)
-            );
+            set({ isLoading: true, error: null });
+            try {
+              const response = await chainsApi.getChains(params);
 
+              // Process assets for each chain to extract branding and banner
+              const processedChains = response.data.map((chain) =>
+                processChainAssets(chain)
+              );
+
+              set({
+                chains: processedChains,
+                isLoading: false,
+                error: null,
+                pagination: {
+                  page: params?.page || 1,
+                  limit: params?.limit || 20,
+                  total: response.data.length, // This would come from pagination in real API
+                  pages: Math.ceil(
+                    response.data.length / (params?.limit || 20)
+                  ),
+                },
+              });
+            } catch (error) {
+              set({
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : "Failed to fetch chains",
+                isLoading: false,
+              });
+            }
+          },
+
+          fetchChain: async (id, include?: string) => {
+            set({ isLoading: true, error: null });
+            try {
+              const response = await chainsApi.getChain(
+                id,
+                include ? { include } : undefined
+              );
+
+              // Process assets to extract branding and banner
+              const processedChain = processChainAssets(response.data);
+
+              set({
+                currentChain: processedChain,
+                isLoading: false,
+                error: null,
+              });
+            } catch (error) {
+              set({
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : "Failed to fetch chain",
+                isLoading: false,
+              });
+            }
+          },
+
+          fetchVirtualPool: async (chainId) => {
+            try {
+              const response = await virtualPoolsApi.getVirtualPool(chainId);
+              set((state) => ({
+                virtualPools: {
+                  ...state.virtualPools,
+                  [chainId]: response.data,
+                },
+              }));
+            } catch (error) {
+              console.error("Failed to fetch virtual pool:", error);
+            }
+          },
+
+          fetchTransactions: async (chainId) => {
+            try {
+              const response = await virtualPoolsApi.getTransactions(chainId, {
+                page: 1,
+                limit: 50,
+              });
+              set((state) => ({
+                transactions: {
+                  ...state.transactions,
+                  [chainId]: response.data,
+                },
+              }));
+            } catch (error) {
+              console.error("Failed to fetch transactions:", error);
+            }
+          },
+
+          createChain: async (data) => {
+            set({ isCreating: true, error: null });
+            try {
+              const response = await chainsApi.createChain(data);
+              set((state) => ({
+                chains: [response.data, ...state.chains],
+                isCreating: false,
+                error: null,
+              }));
+              return response.data;
+            } catch (error) {
+              set({
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : "Failed to create chain",
+                isCreating: false,
+              });
+              throw error;
+            }
+          },
+
+          deleteChain: async (id) => {
+            set({ isDeleting: true, error: null });
+            try {
+              await chainsApi.deleteChain(id);
+              set((state) => ({
+                chains: state.chains.filter((chain) => chain.id !== id),
+                isDeleting: false,
+                error: null,
+              }));
+            } catch (error) {
+              set({
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : "Failed to delete chain",
+                isDeleting: false,
+              });
+            }
+          },
+
+          // ============================================================================
+          // FILTER ACTIONS
+          // ============================================================================
+
+          setFilters: (filters) => {
+            set((state) => ({
+              filters: { ...state.filters, ...filters },
+            }));
+          },
+
+          clearFilters: () => {
             set({
-              chains: processedChains,
-              isLoading: false,
-              error: null,
-              pagination: {
-                page: params?.page || 1,
-                limit: params?.limit || 20,
-                total: response.data.length, // This would come from pagination in real API
-                pages: Math.ceil(response.data.length / (params?.limit || 20)),
+              filters: {
+                searchQuery: "",
               },
             });
-          } catch (error) {
-            set({
-              error:
-                error instanceof Error
-                  ? error.message
-                  : "Failed to fetch chains",
-              isLoading: false,
-            });
-          }
-        },
+          },
 
-        fetchChain: async (id, include?: string) => {
-          set({ isLoading: true, error: null });
-          try {
-            const response = await chainsApi.getChain(
-              id,
-              include ? { include } : undefined
-            );
-
-            // Process assets to extract branding and banner
-            const processedChain = processChainAssets(response.data);
-
-            set({
-              currentChain: processedChain,
-              isLoading: false,
-              error: null,
-            });
-          } catch (error) {
-            set({
-              error:
-                error instanceof Error
-                  ? error.message
-                  : "Failed to fetch chain",
-              isLoading: false,
-            });
-          }
-        },
-
-        fetchVirtualPool: async (chainId) => {
-          try {
-            const response = await virtualPoolsApi.getVirtualPool(chainId);
+          setPagination: (pagination) => {
             set((state) => ({
-              virtualPools: {
-                ...state.virtualPools,
-                [chainId]: response.data,
-              },
+              pagination: { ...state.pagination, ...pagination },
             }));
-          } catch (error) {
-            console.error("Failed to fetch virtual pool:", error);
-          }
-        },
+          },
 
-        fetchTransactions: async (chainId) => {
-          try {
-            const response = await virtualPoolsApi.getTransactions(chainId, {
-              page: 1,
-              limit: 50,
-            });
-            set((state) => ({
-              transactions: {
-                ...state.transactions,
-                [chainId]: response.data,
-              },
-            }));
-          } catch (error) {
-            console.error("Failed to fetch transactions:", error);
-          }
-        },
+          // ============================================================================
+          // UTILITY ACTIONS
+          // ============================================================================
 
-        createChain: async (data) => {
-          set({ isCreating: true, error: null });
-          try {
-            const response = await chainsApi.createChain(data);
-            set((state) => ({
-              chains: [response.data, ...state.chains],
-              isCreating: false,
-              error: null,
-            }));
-            return response.data;
-          } catch (error) {
-            set({
-              error:
-                error instanceof Error
-                  ? error.message
-                  : "Failed to create chain",
-              isCreating: false,
-            });
-            throw error;
-          }
-        },
+          clearError: () => set({ error: null }),
 
-        deleteChain: async (id) => {
-          set({ isDeleting: true, error: null });
-          try {
-            await chainsApi.deleteChain(id);
-            set((state) => ({
-              chains: state.chains.filter((chain) => chain.id !== id),
-              isDeleting: false,
-              error: null,
-            }));
-          } catch (error) {
-            set({
-              error:
-                error instanceof Error
-                  ? error.message
-                  : "Failed to delete chain",
-              isDeleting: false,
-            });
-          }
-        },
+          setCurrentChain: (chain) => set({ currentChain: chain }),
 
-        // ============================================================================
-        // FILTER ACTIONS
-        // ============================================================================
+          refreshChain: async (id) => {
+            const { fetchChain, fetchVirtualPool, fetchTransactions } = get();
+            await Promise.all([
+              fetchChain(id),
+              fetchVirtualPool(id),
+              fetchTransactions(id),
+            ]);
+          },
 
-        setFilters: (filters) => {
-          set((state) => ({
-            filters: { ...state.filters, ...filters },
-          }));
-        },
+          // ============================================================================
+          // COMPUTED DATA
+          // ============================================================================
 
-        clearFilters: () => {
-          set({
-            filters: {
-              searchQuery: "",
-            },
-          });
-        },
+          getFilteredChains: () => {
+            const { chains, filters } = get();
+            let filtered = [...chains];
 
-        setPagination: (pagination) => {
-          set((state) => ({
-            pagination: { ...state.pagination, ...pagination },
-          }));
-        },
+            // Apply search filter
+            if (filters.searchQuery) {
+              const query = filters.searchQuery.toLowerCase();
+              filtered = filtered.filter(
+                (chain) =>
+                  chain.token_name.toLowerCase().includes(query) ||
+                  chain.chain_description.toLowerCase().includes(query) ||
+                  chain.creator?.display_name?.toLowerCase().includes(query) ||
+                  chain.creator?.wallet_address?.toLowerCase().includes(query)
+              );
+            }
 
-        // ============================================================================
-        // UTILITY ACTIONS
-        // ============================================================================
+            // Apply status filter
+            if (filters.status) {
+              filtered = filtered.filter(
+                (chain) => chain.status === filters.status
+              );
+            }
 
-        clearError: () => set({ error: null }),
+            // Apply category filter
+            if (filters.category) {
+              filtered = filtered.filter(
+                (chain) =>
+                  chain.template?.template_category === filters.category
+              );
+            }
 
-        setCurrentChain: (chain) => set({ currentChain: chain }),
+            // Apply creator filter
+            if (filters.createdBy) {
+              filtered = filtered.filter(
+                (chain) => chain.created_by === filters.createdBy
+              );
+            }
 
-        refreshChain: async (id) => {
-          const { fetchChain, fetchVirtualPool, fetchTransactions } = get();
-          await Promise.all([
-            fetchChain(id),
-            fetchVirtualPool(id),
-            fetchTransactions(id),
-          ]);
-        },
+            // Apply template filter
+            if (filters.templateId) {
+              filtered = filtered.filter(
+                (chain) => chain.template_id === filters.templateId
+              );
+            }
 
-        // ============================================================================
-        // COMPUTED DATA
-        // ============================================================================
+            return filtered;
+          },
 
-        getFilteredChains: () => {
-          const { chains, filters } = get();
-          let filtered = [...chains];
+          getActiveChains: () => {
+            return get()
+              .getFilteredChains()
+              .filter((chain) => chain.status === "virtual_active");
+          },
 
-          // Apply search filter
-          if (filters.searchQuery) {
-            const query = filters.searchQuery.toLowerCase();
-            filtered = filtered.filter(
-              (chain) =>
-                chain.token_name.toLowerCase().includes(query) ||
-                chain.chain_description.toLowerCase().includes(query) ||
-                chain.creator?.display_name?.toLowerCase().includes(query) ||
-                chain.creator?.wallet_address?.toLowerCase().includes(query)
-            );
-          }
+          getGraduatedChains: () => {
+            return get()
+              .getFilteredChains()
+              .filter((chain) => chain.status === "graduated");
+          },
 
-          // Apply status filter
-          if (filters.status) {
-            filtered = filtered.filter(
-              (chain) => chain.status === filters.status
-            );
-          }
+          getChainsByCategory: (category) => {
+            return get()
+              .getFilteredChains()
+              .filter(
+                (chain) => chain.template?.template_category === category
+              );
+          },
 
-          // Apply category filter
-          if (filters.category) {
-            filtered = filtered.filter(
-              (chain) => chain.template?.template_category === filters.category
-            );
-          }
+          getChainById: (id) => {
+            return get().chains.find((chain) => chain.id === id);
+          },
 
-          // Apply creator filter
-          if (filters.createdBy) {
-            filtered = filtered.filter(
-              (chain) => chain.created_by === filters.createdBy
-            );
-          }
+          getVirtualPoolByChainId: (chainId) => {
+            return get().virtualPools[chainId];
+          },
 
-          // Apply template filter
-          if (filters.templateId) {
-            filtered = filtered.filter(
-              (chain) => chain.template_id === filters.templateId
-            );
-          }
-
-          return filtered;
-        },
-
-        getActiveChains: () => {
-          return get()
-            .getFilteredChains()
-            .filter((chain) => chain.status === "virtual_active");
-        },
-
-        getGraduatedChains: () => {
-          return get()
-            .getFilteredChains()
-            .filter((chain) => chain.status === "graduated");
-        },
-
-        getChainsByCategory: (category) => {
-          return get()
-            .getFilteredChains()
-            .filter((chain) => chain.template?.template_category === category);
-        },
-
-        getChainById: (id) => {
-          return get().chains.find((chain) => chain.id === id);
-        },
-
-        getVirtualPoolByChainId: (chainId) => {
-          return get().virtualPools[chainId];
-        },
-
-        getTransactionsByChainId: (chainId) => {
-          return get().transactions[chainId] || [];
-        },
-      }),
-      {
-        name: "chains-store",
-        storage,
-        partialize: (state) => ({
-          // Only persist filters and pagination, not the actual data
-          filters: state.filters,
-          pagination: state.pagination,
+          getTransactionsByChainId: (chainId) => {
+            return get().transactions[chainId] || [];
+          },
         }),
-      }
-    ),
-    { name: "ChainsStore" }
-  )
-);
+        {
+          name: "chains-store",
+          storage,
+          partialize: (state) => ({
+            // Only persist filters and pagination, not the actual data
+            filters: state.filters,
+            pagination: state.pagination,
+          }),
+        }
+      ),
+      { name: "ChainsStore" }
+    )
+  );
+};
+
+// Export store hook with SSR handling
+export const useChainsStore =
+  typeof window !== "undefined"
+    ? createChainsStore()!
+    : (() => {
+        // SSR fallback
+        const defaultState: ChainsState = {
+          chains: [],
+          currentChain: null,
+          virtualPools: {},
+          transactions: {},
+          isLoading: false,
+          isCreating: false,
+          isDeleting: false,
+          error: null,
+          filters: { searchQuery: "" },
+          pagination: { page: 1, limit: 20, total: 0, pages: 0 },
+          fetchChains: async () => {},
+          fetchChain: async () => {},
+          fetchVirtualPool: async () => {},
+          fetchTransactions: async () => {},
+          createChain: async () => ({} as Chain),
+          deleteChain: async () => {},
+          setFilters: () => {},
+          clearFilters: () => {},
+          setPagination: () => {},
+          clearError: () => {},
+          setCurrentChain: () => {},
+          refreshChain: async () => {},
+          getFilteredChains: () => [],
+          getActiveChains: () => [],
+          getGraduatedChains: () => [],
+          getChainsByCategory: () => [],
+          getChainById: () => undefined,
+          getVirtualPoolByChainId: () => undefined,
+          getTransactionsByChainId: () => [],
+        };
+
+        return <T = ChainsState>(
+          selector?: (state: ChainsState) => T
+        ): T extends ChainsState ? ChainsState : T => {
+          if (selector) return selector(defaultState) as any;
+          return defaultState as any;
+        };
+      })();

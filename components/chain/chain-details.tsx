@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -28,7 +28,7 @@ import {
   convertPriceHistoryToChart,
   convertVolumeHistoryToChart,
 } from "@/lib/api";
-import { getChainHolders } from "@/lib/api/chains";
+import { getChainHolders, chainsApi } from "@/lib/api/chains";
 
 interface ChainDetailsProps {
   chain: ChainExtended;
@@ -41,6 +41,12 @@ export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
     "price" | "volume" | "marketCap"
   >("price");
   const setCurrentChain = useChainsStore((state) => state.setCurrentChain);
+
+  // Local state for updated chain data (virtual_pool and graduation)
+  const [updatedChain, setUpdatedChain] = useState<ChainExtended>(chain);
+  const chainRef = useRef<ChainExtended>(chain);
+  const selectedTimeframeRef = useRef(selectedTimeframe);
+  const selectedMetricRef = useRef(selectedMetric);
 
   const [chartData, setChartData] = useState<
     {
@@ -63,6 +69,25 @@ export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
     },
     holders: [],
   });
+
+  // Keep refs in sync
+  useEffect(() => {
+    chainRef.current = updatedChain;
+  }, [updatedChain]);
+
+  useEffect(() => {
+    selectedTimeframeRef.current = selectedTimeframe;
+  }, [selectedTimeframe]);
+
+  useEffect(() => {
+    selectedMetricRef.current = selectedMetric;
+  }, [selectedMetric]);
+
+  // Update local chain state when prop changes
+  useEffect(() => {
+    setUpdatedChain(chain);
+    chainRef.current = chain;
+  }, [chain]);
 
   // Fetch price history data
   const fetchPriceHistory = async (
@@ -124,13 +149,13 @@ export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
 
   // Save chain to store when component mounts or chain changes
   useEffect(() => {
-    setCurrentChain(chain);
+    setCurrentChain(updatedChain);
 
     // Cleanup: clear current chain when component unmounts
     return () => {
       setCurrentChain(null);
     };
-  }, [chain, setCurrentChain]);
+  }, [updatedChain, setCurrentChain]);
 
   useEffect(() => {
     fetchHolders();
@@ -140,6 +165,97 @@ export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
   useEffect(() => {
     fetchPriceHistory(selectedTimeframe, selectedMetric);
   }, [selectedTimeframe, selectedMetric, chain.id]);
+
+  // Polling: Refresh price history, virtual_pool, and graduation every 10 seconds
+  useEffect(() => {
+    // Function to silently refresh price history (without loading state)
+    const refreshPriceHistory = async () => {
+      try {
+        const timeframe = selectedTimeframeRef.current;
+        const metric = selectedMetricRef.current;
+        const timeRange = getTimeRangeForTimeframe(timeframe);
+        const response = await getChainPriceHistory(
+          chainRef.current.id,
+          timeRange
+        );
+
+        if (response.data && response.data.length > 0) {
+          let formattedData;
+
+          if (metric === "volume") {
+            formattedData = convertVolumeHistoryToChart(response.data);
+          } else if (metric === "price") {
+            formattedData = convertPriceHistoryToChart(response.data);
+          } else {
+            formattedData = convertPriceHistoryToChart(response.data);
+          }
+
+          setChartData(formattedData);
+        }
+      } catch (error) {
+        console.error("Failed to refresh price history:", error);
+      }
+    };
+
+    // Function to refresh virtual_pool and graduation data
+    const refreshChainData = async () => {
+      try {
+        const response = await chainsApi.getChain(chainRef.current.id, {
+          include: "virtual_pool,graduation",
+        });
+
+        if (response.data) {
+          const newVirtualPool = response.data.virtual_pool;
+          const newGraduation = (response.data as ChainExtended).graduation;
+
+          // Only update if data actually changed
+          const virtualPoolChanged =
+            JSON.stringify(chainRef.current.virtual_pool) !==
+            JSON.stringify(newVirtualPool);
+          const graduationChanged =
+            JSON.stringify(chainRef.current.graduation) !==
+            JSON.stringify(newGraduation);
+
+          if (virtualPoolChanged || graduationChanged) {
+            setUpdatedChain(
+              (prev) =>
+                ({
+                  ...prev,
+                  virtual_pool: newVirtualPool,
+                  ...(newGraduation && {
+                    graduation: newGraduation,
+                  }),
+                } as ChainExtended)
+            );
+          }
+        }
+      } catch (error) {
+        console.error("Failed to refresh chain data:", error);
+      }
+    };
+
+    // Initial refresh
+    refreshPriceHistory();
+    refreshChainData();
+
+    // Set up polling interval (10 seconds)
+    const interval = setInterval(() => {
+      // Only poll if page is visible
+      if (document.visibilityState === "visible") {
+        refreshPriceHistory();
+        // Only refresh graduation if chain is not graduated
+        if (!chainRef.current.is_graduated) {
+          refreshChainData();
+        } else {
+          // For graduated chains, only refresh virtual_pool (which becomes pool)
+          refreshChainData();
+        }
+      }
+    }, 10000); // 10 seconds
+
+    // Cleanup on unmount
+    return () => clearInterval(interval);
+  }, [chain.id]); // Only depend on chain.id
 
   // Calculate current value and percentage change from chart data
   const getCurrentValue = () => {
@@ -167,7 +283,7 @@ export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
           <div className="flex items-center justify-between px-4 py-3">
             <div className="space-y-2 flex-1">
               {/* Metric Toggle Tabs */}
-              {chain.status === "graduated" ? (
+              {updatedChain.status === "graduated" ? (
                 <div className="flex gap-1 p-1 bg-muted/50 rounded-lg w-fit">
                   <Button
                     variant={selectedMetric === "price" ? "secondary" : "ghost"}
@@ -204,7 +320,7 @@ export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
               )}
 
               {/* Price/Volume Display */}
-              {chain.is_graduated ? (
+              {updatedChain.is_graduated ? (
                 <div className="flex items-baseline gap-2">
                   {selectedMetric === "volume" ? (
                     <>
@@ -238,7 +354,7 @@ export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
               ) : (
                 <div className="flex items-baseline gap-2">
                   <h3 className="text-2xl font-semibold">
-                    {chain.virtual_pool?.market_cap_usd.toLocaleString(
+                    {updatedChain.virtual_pool?.market_cap_usd.toLocaleString(
                       undefined,
                       {
                         minimumFractionDigits: 2,
@@ -251,14 +367,18 @@ export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
             </div>
 
             {/* Right: Graduation Progress (only for virtual chains) */}
-            {!chain.is_graduated && chain.graduation && (
+            {!updatedChain.is_graduated && updatedChain.graduation && (
               <div className="space-y-2 w-[216px]">
                 <TooltipProvider>
                   <UITooltip>
                     <TooltipTrigger asChild>
                       <div className="flex items-center justify-end gap-1.5 cursor-help">
                         <p className="text-xs text-muted-foreground text-right">
-                          ${(chain.graduation.cnpy_remaining / 1000).toFixed(1)}
+                          $
+                          {(updatedChain.graduation?.cnpy_remaining
+                            ? updatedChain.graduation.cnpy_remaining / 1000
+                            : 0
+                          ).toFixed(1)}
                           k until graduation
                         </p>
                         <HelpCircle className="w-3 h-3 text-muted-foreground" />
@@ -268,15 +388,18 @@ export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
                       <p className="text-xs">
                         This chain starts as virtual (test mode). When market
                         cap reaches $
-                        {(chain.graduation.threshold_cnpy / 1000).toFixed(0)}k,
-                        it will graduate to a real blockchain with permanent
+                        {(updatedChain.graduation?.threshold_cnpy
+                          ? updatedChain.graduation.threshold_cnpy / 1000
+                          : 0
+                        ).toFixed(0)}
+                        k, it will graduate to a real blockchain with permanent
                         on-chain transactions.
                       </p>
                     </TooltipContent>
                   </UITooltip>
                 </TooltipProvider>
                 <Progress
-                  value={chain.graduation.completion_percentage}
+                  value={updatedChain.graduation?.completion_percentage || 0}
                   className="h-2.5"
                 />
               </div>
@@ -319,7 +442,7 @@ export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
                 <ChainDetailChart
                   data={chartData}
                   timeframe={selectedTimeframe}
-                  lineColor={chain.brand_color}
+                  lineColor={updatedChain.brand_color}
                 />
               )}
             </div>
@@ -336,16 +459,16 @@ export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
                     VOL (24h)
                   </span>
                   <span className="font-medium">
-                    {chain.pool?.volume_24h_cnpy
-                      ? `${chain.pool.volume_24h_cnpy.toLocaleString(
+                    {updatedChain.pool?.volume_24h_cnpy
+                      ? `${updatedChain.pool.volume_24h_cnpy.toLocaleString(
                           undefined,
                           {
                             minimumFractionDigits: 0,
                             maximumFractionDigits: 0,
                           }
                         )} CNPY`
-                      : chain.virtual_pool?.volume_24h_cnpy
-                      ? `${chain.virtual_pool.volume_24h_cnpy.toLocaleString(
+                      : updatedChain.virtual_pool?.volume_24h_cnpy
+                      ? `${updatedChain.virtual_pool.volume_24h_cnpy.toLocaleString(
                           undefined,
                           {
                             minimumFractionDigits: 0,
@@ -358,12 +481,14 @@ export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-xs text-muted-foreground">MCap</span>
                   <span className="font-medium">
-                    {chain.pool?.market_cap_usd
-                      ? `$${(chain.pool.market_cap_usd / 1000).toFixed(1)}k`
-                      : chain.virtual_pool?.market_cap_usd
-                      ? `$${(chain.virtual_pool.market_cap_usd / 1000).toFixed(
+                    {updatedChain.pool?.market_cap_usd
+                      ? `$${(updatedChain.pool.market_cap_usd / 1000).toFixed(
                           1
                         )}k`
+                      : updatedChain.virtual_pool?.market_cap_usd
+                      ? `$${(
+                          updatedChain.virtual_pool.market_cap_usd / 1000
+                        ).toFixed(1)}k`
                       : "N/A"}
                   </span>
                 </div>
@@ -372,12 +497,14 @@ export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
                     Liquidity
                   </span>
                   <span className="font-medium">
-                    {chain.pool?.cnpy_reserve
-                      ? `${(chain.pool.cnpy_reserve / 1000).toFixed(1)}k CNPY`
-                      : chain.virtual_pool?.cnpy_reserve
-                      ? `${(chain.virtual_pool.cnpy_reserve / 1000).toFixed(
+                    {updatedChain.pool?.cnpy_reserve
+                      ? `${(updatedChain.pool.cnpy_reserve / 1000).toFixed(
                           1
                         )}k CNPY`
+                      : updatedChain.virtual_pool?.cnpy_reserve
+                      ? `${(
+                          updatedChain.virtual_pool.cnpy_reserve / 1000
+                        ).toFixed(1)}k CNPY`
                       : "N/A"}
                   </span>
                 </div>
@@ -434,7 +561,7 @@ export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
 
         <TabsContent value="overview">
           <ChainOverview
-            chain={chain}
+            chain={updatedChain}
             holders={chainHolders.holders}
             holdersCount={chainHolders.holders.length}
             accolades={accolades}
@@ -457,14 +584,14 @@ export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
 
         <TabsContent value="code">
           <ChainCode
-            repositoryUrl={chain.repository?.github_url}
-            repositoryName={chain.repository?.repository_name}
+            repositoryUrl={updatedChain.repository?.github_url}
+            repositoryName={updatedChain.repository?.repository_name}
             deploymentStatus={
-              chain.repository?.build_status === "success"
+              updatedChain.repository?.build_status === "success"
                 ? "deployed"
-                : chain.repository?.build_status === "pending"
+                : updatedChain.repository?.build_status === "pending"
                 ? "building"
-                : chain.repository?.build_status === "failed"
+                : updatedChain.repository?.build_status === "failed"
                 ? "failed"
                 : null
             }
@@ -477,7 +604,7 @@ export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
           <ChainBlocks />
 
           <Card className="p-6">
-            <BlockExplorerTable chainId={chain.id} />
+            <BlockExplorerTable chainId={updatedChain.id} />
           </Card>
         </TabsContent>
       </Tabs>
