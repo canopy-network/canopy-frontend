@@ -13,9 +13,10 @@ import { TokenSelectorModal } from "./components/token-selector-modal";
 
 interface AddLiquidityFormProps {
   poolId: string;
+  onContinue: (tokenSymbol: string) => void;
 }
 
-export function AddLiquidityForm({ poolId }: AddLiquidityFormProps) {
+export function AddLiquidityForm({ poolId, onContinue }: AddLiquidityFormProps) {
   // Find the pool and get its non-CNPY token
   const pool = useMemo(() => {
     return mockPools.find((p) => p.id === poolId);
@@ -34,8 +35,6 @@ export function AddLiquidityForm({ poolId }: AddLiquidityFormProps) {
   }, [pool]);
 
   const [selectedToken, setSelectedToken] = useState<string>(defaultToken);
-  const [amount, setAmount] = useState<string>("");
-  const [fee, setFee] = useState<string>("");
   const [isTokenModalOpen, setIsTokenModalOpen] = useState(false);
 
   // Mock balances - TODO: Replace with actual balance data from wallet
@@ -136,41 +135,13 @@ export function AddLiquidityForm({ poolId }: AddLiquidityFormProps) {
           </div>
         </div>
 
-        {selectedToken && (
-          <>
-            <div className="space-y-2">
-              <Label htmlFor="amount">Amount</Label>
-              <Input
-                id="amount"
-                type="number"
-                placeholder="0.00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="fee">Fee (Optional)</Label>
-              <Input
-                id="fee"
-                type="number"
-                placeholder="0"
-                value={fee}
-                onChange={(e) => setFee(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Network transaction fee
-              </p>
-            </div>
-          </>
-        )}
-
         <div className="pt-4">
           <Button
             className="w-full"
-            disabled={!selectedToken || !amount}
+            disabled={!selectedToken}
+            onClick={() => onContinue(selectedToken)}
           >
-            Add Liquidity
+            Continue
           </Button>
         </div>
       </CardContent>
