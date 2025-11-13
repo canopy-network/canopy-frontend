@@ -129,7 +129,7 @@ export function SelectWalletDialog({
       setStep("unlocking");
       setLocalError(null);
 
-      await unlockWallet(selectedWalletId, seedphrase);
+      await unlockWallet(selectedWalletId, "test");
       selectWallet(selectedWalletId);
 
       showSuccessToast("Wallet unlocked and connected!");

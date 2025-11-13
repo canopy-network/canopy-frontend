@@ -14,7 +14,7 @@
  */
 
 import { bls12_381 } from '@noble/curves/bls12-381.js';
-import { argon2id } from '@noble/hashes/argon2.js';
+import { argon2i } from '@noble/hashes/argon2.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 
@@ -69,8 +69,8 @@ function deriveAddress(publicKey: Uint8Array): string {
 function deriveKey(password: string, salt: Uint8Array): Uint8Array {
     const passwordBytes = new TextEncoder().encode(password);
 
-    // Argon2id key derivation (32 bytes output for AES-256)
-    const key = argon2id(passwordBytes, salt, {
+    // Argon2i key derivation (32 bytes output for AES-256)
+    const key = argon2i(passwordBytes, salt, {
         t: ARGON2_PARAMS.t,
         m: ARGON2_PARAMS.m,
         p: ARGON2_PARAMS.p,
@@ -129,7 +129,7 @@ export async function encryptPrivateKey(
         const salt = new Uint8Array(SALT_LENGTH);
         crypto.getRandomValues(salt);
 
-        // Derive AES-256 key using Argon2id (synchronous)
+        // Derive AES-256 key using Argon2i (synchronous)
         const derivedKey = deriveKey(password, salt);
 
         // Import key for Web Crypto API
@@ -198,11 +198,14 @@ export async function decryptPrivateKey(
         const decryptedData = await crypto.subtle.decrypt(
             { name: 'AES-GCM', iv: nonce },
             cryptoKey,
-            encryptedData
+            encryptedData.buffer
         );
+
+        console.log(decryptedData)
 
         return new Uint8Array(decryptedData);
     } catch (error) {
+        console.log(error)
         // Web Crypto throws generic errors, provide more context
         if (error instanceof Error && error.name === 'OperationError') {
             throw new Error("There's a problem with your password. Please try again.");
