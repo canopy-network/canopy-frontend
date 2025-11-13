@@ -235,6 +235,7 @@ export function PoolDetail({ poolId }: PoolDetailProps) {
 
         <div className="lg:col-span-1">
           <TradePanel
+            poolId={poolId}
             baseTokenSymbol={pool.baseToken.symbol}
             quoteTokenSymbol={pool.quoteToken.symbol}
             currentPrice={pool.currentPrice}

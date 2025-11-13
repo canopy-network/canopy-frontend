@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,12 +17,14 @@ enum TradeTab {
 }
 
 interface TradePanelProps {
+  poolId: string;
   baseTokenSymbol: string;
   quoteTokenSymbol: string;
   currentPrice: string;
 }
 
 export function TradePanel({
+  poolId,
   baseTokenSymbol,
   quoteTokenSymbol,
   currentPrice,
@@ -53,8 +56,8 @@ export function TradePanel({
 
   return (
     <div className="space-y-4">
-      <Button size="lg" className="w-full">
-        Add Liquidity
+      <Button size="lg" className="w-full" asChild>
+        <Link href={`/amm/pool/${poolId}/add-liquidity`}>Add Liquidity</Link>
       </Button>
 
       <Card>
