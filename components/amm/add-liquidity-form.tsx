@@ -3,7 +3,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChevronDown } from "lucide-react";
@@ -16,7 +15,10 @@ interface AddLiquidityFormProps {
   onContinue: (tokenSymbol: string) => void;
 }
 
-export function AddLiquidityForm({ poolId, onContinue }: AddLiquidityFormProps) {
+export function AddLiquidityForm({
+  poolId,
+  onContinue,
+}: AddLiquidityFormProps) {
   // Find the pool and get its non-CNPY token
   const pool = useMemo(() => {
     return mockPools.find((p) => p.id === poolId);
@@ -105,12 +107,18 @@ export function AddLiquidityForm({ poolId, onContinue }: AddLiquidityFormProps) 
                 <div className="flex items-center gap-2">
                   <Avatar className="h-5 w-5">
                     <AvatarImage src={selectedTokenObj.icon} />
-                    <AvatarFallback>{selectedTokenObj.symbol[0]}</AvatarFallback>
+                    <AvatarFallback>
+                      {selectedTokenObj.symbol[0]}
+                    </AvatarFallback>
                   </Avatar>
-                  <span className="text-sm font-medium">{selectedTokenObj.symbol}</span>
+                  <span className="text-sm font-medium">
+                    {selectedTokenObj.symbol}
+                  </span>
                 </div>
               ) : (
-                <span className="text-sm text-muted-foreground">Select a token</span>
+                <span className="text-sm text-muted-foreground">
+                  Select a token
+                </span>
               )}
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             </button>

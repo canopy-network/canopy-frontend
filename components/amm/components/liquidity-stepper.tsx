@@ -41,7 +41,6 @@ export function LiquidityStepper({
                       : "cursor-default"
                   }`}
                 >
-                  {/* Step indicator */}
                   <div
                     className={`flex items-center justify-center w-8 h-8 rounded-full border-2 transition-colors ${
                       isCompleted
@@ -58,7 +57,6 @@ export function LiquidityStepper({
                     )}
                   </div>
 
-                  {/* Step content */}
                   <div className="flex-1 pt-1">
                     <p
                       className={`text-sm font-medium ${
@@ -77,7 +75,6 @@ export function LiquidityStepper({
                   </div>
                 </button>
 
-                {/* Connecting line */}
                 {!isLast && (
                   <div
                     className={`absolute left-4 w-0.5 h-6 -translate-x-1/2 ${
