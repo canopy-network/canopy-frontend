@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ArrowDownUp, Settings, ChevronDown } from "lucide-react";
 
 enum TradeTab {
@@ -25,7 +26,7 @@ export function TradePanel({
   quoteTokenSymbol,
   currentPrice,
 }: TradePanelProps) {
-  const [activeTab, setActiveTab] = useState<TradeTab>(TradeTab.Swap);
+  const [activeTab, setActiveTab] = useState<string>(TradeTab.Swap);
   const [fromAmount, setFromAmount] = useState("");
   const [toAmount, setToAmount] = useState("");
   const [price, setPrice] = useState(currentPrice);
@@ -57,29 +58,23 @@ export function TradePanel({
       </Button>
 
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between pb-4">
-            <div className="flex items-center gap-1">
-              {Object.values(TradeTab).map((tab) => (
-                <Button
-                  key={tab}
-                  variant={activeTab === tab ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setActiveTab(tab)}
-                  className="capitalize"
-                >
-                  {tab}
-                </Button>
-              ))}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <CardHeader>
+            <div className="flex items-center justify-between pb-4">
+              <TabsList>
+                {Object.values(TradeTab).map((tab) => (
+                  <TabsTrigger key={tab} value={tab} className="capitalize">
+                    {tab}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              <Button variant="ghost" size="icon">
+                <Settings className="h-4 w-4" />
+              </Button>
             </div>
-            <Button variant="ghost" size="icon">
-              <Settings className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {activeTab === TradeTab.Swap && (
-            <>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <TabsContent value={TradeTab.Swap} className="mt-0 space-y-2">
               <div className="rounded-lg border bg-muted/50 p-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-muted-foreground">From</Label>
@@ -151,11 +146,9 @@ export function TradePanel({
               <Button size="lg" className="w-full mt-4">
                 Swap
               </Button>
-            </>
-          )}
+            </TabsContent>
 
-          {activeTab === TradeTab.Limit && (
-            <>
+            <TabsContent value={TradeTab.Limit} className="mt-0 space-y-2">
               <div className="space-y-2">
                 <Label htmlFor="limit-price">Price</Label>
                 <div className="relative">
@@ -208,11 +201,9 @@ export function TradePanel({
                   Sell {baseTokenSymbol}
                 </Button>
               </div>
-            </>
-          )}
+            </TabsContent>
 
-          {activeTab === TradeTab.Buy && (
-            <>
+            <TabsContent value={TradeTab.Buy} className="mt-0 space-y-2">
               <div className="space-y-2">
                 <Label htmlFor="buy-amount">Amount</Label>
                 <div className="relative">
@@ -255,11 +246,9 @@ export function TradePanel({
               <Button className="w-full" size="lg">
                 Buy {baseTokenSymbol}
               </Button>
-            </>
-          )}
+            </TabsContent>
 
-          {activeTab === TradeTab.Sell && (
-            <>
+            <TabsContent value={TradeTab.Sell} className="mt-0 space-y-2">
               <div className="space-y-2">
                 <Label htmlFor="sell-amount">Amount</Label>
                 <div className="relative">
@@ -302,16 +291,16 @@ export function TradePanel({
               <Button className="w-full" size="lg" variant="destructive">
                 Sell {baseTokenSymbol}
               </Button>
-            </>
-          )}
+            </TabsContent>
 
-          <div className="pt-2 border-t">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Available Balance</span>
-              <span className="font-medium">0.00 {baseTokenSymbol}</span>
+            <div className="pt-2 border-t">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Available Balance</span>
+                <span className="font-medium">0.00 {baseTokenSymbol}</span>
+              </div>
             </div>
-          </div>
-        </CardContent>
+          </CardContent>
+        </Tabs>
       </Card>
     </div>
   );
