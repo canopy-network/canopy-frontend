@@ -21,7 +21,6 @@ import { getStatusLabel } from "@/lib/utils/chain-ui-helpers";
 
 interface UseLaunchpadDashboardProps {
   autoFetch?: boolean;
-  includeVirtualPools?: boolean;
 }
 
 interface UseLaunchpadDashboardReturn {
@@ -65,7 +64,6 @@ interface UseLaunchpadDashboardReturn {
 
 export function useLaunchpadDashboard({
   autoFetch = true,
-  includeVirtualPools = true,
 }: UseLaunchpadDashboardProps = {}): UseLaunchpadDashboardReturn {
   // Get store state and actions
   const {
@@ -79,7 +77,6 @@ export function useLaunchpadDashboard({
 
     // Actions
     fetchChains,
-    fetchVirtualPool,
     createChain: storeCreateChain,
     deleteChain: storeDeleteChain,
     clearError,
@@ -103,17 +100,8 @@ export function useLaunchpadDashboard({
     }
   }, [autoFetch, fetchChains]);
 
-  // Fetch virtual pools for active chains
-  useEffect(() => {
-    if (includeVirtualPools && chains.length > 0) {
-      const activeChains = chains.filter(
-        (chain) => chain.status === "virtual_active"
-      );
-      activeChains.forEach((chain) => {
-        fetchVirtualPool(chain.id);
-      });
-    }
-  }, [chains, includeVirtualPools, fetchVirtualPool]);
+  // Note: virtual_pool data is already included in the initial fetchChains call above
+  // No need for separate fetchVirtualPool calls - this would cause duplicate API requests
 
   // ============================================================================
   // COMPUTED VALUES
@@ -241,8 +229,9 @@ export function useLaunchpadDashboard({
     // Tab values now directly correspond to status values
     let status: string | undefined;
 
-    if (tab === "all") {
-      status = undefined; // Show all projects
+    if (tab === "all" || tab === "favorites") {
+      // "all" shows everything, "favorites" is handled separately in the component
+      status = undefined;
     } else {
       // Use the tab value directly as the status
       status = tab;
@@ -254,6 +243,14 @@ export function useLaunchpadDashboard({
   // ============================================================================
   // RETURN INTERFACE
   // ============================================================================
+
+  // Determine the current active tab
+  const currentTab = useMemo(() => {
+    if (!filters.status) {
+      return "all"; // Default tab when no status filter
+    }
+    return filters.status;
+  }, [filters.status]);
 
   return {
     // Data
@@ -281,7 +278,7 @@ export function useLaunchpadDashboard({
     setSearchQuery,
     selectedCategory: filters.category || "all",
     setSelectedCategory,
-    activeTab: filters.status || "all",
+    activeTab: currentTab,
     setActiveTab,
 
     // Computed values

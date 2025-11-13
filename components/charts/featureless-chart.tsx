@@ -69,7 +69,9 @@ export const FeaturelessChart = ({
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
-  const globalChartOptions = {
+  const RIGHT_PADDING = 8;
+
+  const getChartOptions = (width: number) => ({
     layout: {
       background: {
         type: ColorType.Solid,
@@ -77,7 +79,7 @@ export const FeaturelessChart = ({
       },
       attributionLogo: false,
     },
-    width: chartContainerRef.current?.clientWidth || 0,
+    width: width,
     height: 200,
     grid: {
       vertLines: { visible: false },
@@ -92,10 +94,11 @@ export const FeaturelessChart = ({
     },
     timeScale: {
       visible: false,
+      rightOffset: RIGHT_PADDING,
     },
     handleScroll: false,
     handleScale: false,
-  };
+  });
 
   // Convert hex color to rgba for gradient
   const hexToRgba = (hex: string, alpha: number) => {
@@ -119,11 +122,89 @@ export const FeaturelessChart = ({
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
+    // Add unique class to container for scoped CSS
+    const containerId = `featureless-chart-${Date.now()}-${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
+    chartContainerRef.current.setAttribute("data-chart-container", containerId);
+
+    // Inject scoped CSS to force overflow visible on all chart elements
+    const styleId = "featureless-chart-overflow-fix";
+    let styleElement = document.getElementById(styleId) as HTMLStyleElement;
+    if (!styleElement) {
+      styleElement = document.createElement("style");
+      styleElement.id = styleId;
+      document.head.appendChild(styleElement);
+    }
+
+    // Add scoped styles for this chart instance
+    const scopedStyle = `
+      [data-chart-container="${containerId}"] .tv-lightweight-charts,
+      [data-chart-container="${containerId}"] .tv-lightweight-charts *,
+      [data-chart-container="${containerId}"] .tv-lightweight-charts canvas,
+      [data-chart-container="${containerId}"] .tv-lightweight-charts table,
+      [data-chart-container="${containerId}"] .tv-lightweight-charts td,
+      [data-chart-container="${containerId}"] .tv-lightweight-charts tr,
+      [data-chart-container="${containerId}"] .tv-lightweight-charts div {
+        overflow: visible !important;
+        overflow-x: visible !important;
+        overflow-y: visible !important;
+      }
+    `;
+
+    if (!styleElement.textContent?.includes(containerId)) {
+      styleElement.textContent = (styleElement.textContent || "") + scopedStyle;
+    }
+
+    // Apply overflow visible to container and all child elements
+    chartContainerRef.current.style.overflow = "visible";
+
     const toolTip = document.createElement("span");
     toolTip.classList.add("chart-tooltip");
     chartContainerRef.current.appendChild(toolTip);
 
-    const chart = createChart(chartContainerRef.current, globalChartOptions);
+    const containerWidth = chartContainerRef.current.clientWidth || 0;
+    const chart = createChart(
+      chartContainerRef.current,
+      getChartOptions(containerWidth)
+    );
+
+    // Apply overflow visible to lightweight-charts internal elements, especially canvas
+    const applyOverflowVisible = () => {
+      if (!chartContainerRef.current) return;
+      // Target all elements including canvas specifically
+      const chartElements = chartContainerRef.current.querySelectorAll(
+        ".tv-lightweight-charts, .tv-lightweight-charts *, canvas, table, td, tr, div"
+      );
+      chartElements.forEach((el) => {
+        const htmlEl = el as HTMLElement;
+        if (htmlEl) {
+          htmlEl.style.overflow = "visible";
+          htmlEl.style.overflowX = "visible";
+          htmlEl.style.overflowY = "visible";
+        }
+      });
+    };
+
+    // Apply immediately and with multiple delays to catch all dynamically created elements
+    applyOverflowVisible();
+    setTimeout(applyOverflowVisible, 50);
+    setTimeout(applyOverflowVisible, 100);
+    setTimeout(applyOverflowVisible, 200);
+
+    // Use MutationObserver to catch any newly created elements
+    const observer = new MutationObserver(() => {
+      applyOverflowVisible();
+    });
+
+    if (chartContainerRef.current) {
+      observer.observe(chartContainerRef.current, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["style"],
+      });
+    }
 
     const series = chart.addSeries(AreaSeries, areaSeriesOptions);
 
@@ -202,9 +283,21 @@ export const FeaturelessChart = ({
     });
     chart.timeScale().fitContent();
 
+    // Apply overflow visible after chart is fully rendered
+    setTimeout(applyOverflowVisible, 300);
+
     const handleResize = () => {
       if (chartContainerRef.current) {
-        chart.applyOptions({ width: chartContainerRef.current.clientWidth });
+        const containerWidth = chartContainerRef.current.clientWidth || 0;
+        chart.applyOptions({
+          width: containerWidth,
+          timeScale: {
+            visible: false,
+            rightOffset: RIGHT_PADDING,
+          },
+        });
+        // Reapply overflow visible after resize
+        setTimeout(applyOverflowVisible, 50);
       }
     };
 
@@ -212,9 +305,21 @@ export const FeaturelessChart = ({
 
     return () => {
       window.removeEventListener("resize", handleResize);
+      observer.disconnect();
       chart.remove();
+      // Remove injected style on unmount
+      const style = document.getElementById("featureless-chart-overflow-fix");
+      if (style) {
+        style.remove();
+      }
     };
   }, [data, lineColor]);
 
-  return <div ref={chartContainerRef} className="w-full h-full relative" />;
+  return (
+    <div
+      ref={chartContainerRef}
+      className="w-full h-full relative overflow-visible"
+      style={{ paddingRight: "8px" }}
+    />
+  );
 };

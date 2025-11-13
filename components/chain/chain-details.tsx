@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/tooltip";
 import { HelpCircle } from "lucide-react";
 import { useChainsStore } from "@/lib/stores/chains-store";
-import { ChainExtended, ChainHolder } from "@/types/chains";
+import { ChainExtended, ChainHolder, Accolade } from "@/types/chains";
 import { ChainDetailChart } from "@/components/charts/chain-detail-chart";
 import { BlockExplorerTable } from "./block-explorer-table";
 import { BlockExplorerHeader } from "../block-explorer/block-explorer-header";
@@ -32,9 +32,10 @@ import { getChainHolders } from "@/lib/api/chains";
 
 interface ChainDetailsProps {
   chain: ChainExtended;
+  accolades?: Accolade[];
 }
 
-export function ChainDetails({ chain }: ChainDetailsProps) {
+export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
   const [selectedTimeframe, setSelectedTimeframe] = useState("1D");
   const [selectedMetric, setSelectedMetric] = useState<
     "price" | "volume" | "marketCap"
@@ -436,6 +437,7 @@ export function ChainDetails({ chain }: ChainDetailsProps) {
             chain={chain}
             holders={chainHolders.holders}
             holdersCount={chainHolders.holders.length}
+            accolades={accolades}
           />
         </TabsContent>
 

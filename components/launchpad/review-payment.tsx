@@ -416,14 +416,14 @@ export default function ReviewPayment({ formData }: ReviewPaymentProps) {
               <div className="flex items-center justify-between text-muted-foreground">
                 <span>Creation Fee:</span>
                 <span className="font-medium text-foreground">
-                  {creationFee} CNPY
+                  {creationFee.toLocaleString()} CNPY
                 </span>
               </div>
 
               <div className="flex items-center justify-between text-muted-foreground">
                 <span>Initial Purchase:</span>
                 <span className="font-medium text-foreground">
-                  {initialPurchase} CNPY
+                  {initialPurchase.toLocaleString()} CNPY
                 </span>
               </div>
 
@@ -431,7 +431,7 @@ export default function ReviewPayment({ formData }: ReviewPaymentProps) {
 
               <div className="flex items-center justify-between text-xl font-bold">
                 <span>Total:</span>
-                <span>{total} CNPY</span>
+                <span>{total.toLocaleString()} CNPY</span>
               </div>
             </div>
 

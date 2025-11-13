@@ -20,7 +20,7 @@ import {
 import { HelpCircle, Info, Check, Loader2 } from "lucide-react";
 
 // Toggle this to disable API validation when the API is unavailable
-const FORCE_ENABLE = true;
+const FORCE_ENABLE = false;
 
 const BLOCK_TIME_OPTIONS = [
   { value: "5", label: "5 seconds" },
@@ -79,32 +79,57 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
 
   const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
 
-  // API validation for chain name, token name, and ticker
-  const validateWithAPI = async (
-    chainName: string,
-    tokenName: string,
-    ticker: string
-  ) => {
+  // API validation for a single field (chain_name, token_name, or ticker)
+  const validateWithAPI = async (field: string, value: string) => {
     try {
+      // Map frontend field names to API field names
+      const fieldMap: Record<string, string> = {
+        chainName: "chain_name",
+        tokenName: "token_name",
+        ticker: "ticker",
+      };
+
+      const apiField = fieldMap[field];
+      if (!apiField) {
+        return {
+          success: false,
+          message: "Invalid field for validation",
+        };
+      }
+
       const params = new URLSearchParams({
-        name: chainName,
-        symbol: ticker,
-        token_name: tokenName,
+        field: apiField,
+        value: value,
       });
 
-      const response = await fetch(
-        `/api/v1/chains/validate?${params.toString()}`
-      );
+      const response = await fetch(`/api/chains/validate?${params.toString()}`);
+
+      if (!response.ok) {
+        return {
+          success: false,
+          message: "Validation failed. Please try again.",
+        };
+      }
+
       const data = await response.json();
 
+      if (!data.success) {
+        return {
+          success: false,
+          message: data.error || data.message || "Validation failed",
+        };
+      }
+
       return {
-        success: response.ok && data.available !== false,
-        message: data.message || (response.ok ? "Available" : "Not available"),
+        success: data.available === true,
+        message:
+          data.message || (data.available ? "Available" : "Not available"),
       };
-    } catch {
+    } catch (error) {
+      console.error("Validation error:", error);
       return {
         success: false,
-        message: "Unable to validate",
+        message: "Unable to validate. Please check your connection.",
       };
     }
   };
@@ -147,6 +172,23 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
       }
     }
 
+    if (field === "tokenSupply") {
+      const numValue = parseFloat(value);
+      if (!value || isNaN(numValue)) {
+        newErrors.tokenSupply = "Token supply is required";
+        setErrors(newErrors);
+        return false;
+      } else if (numValue < 1000000) {
+        newErrors.tokenSupply = "Token supply must be at least 1,000,000";
+        setErrors(newErrors);
+        return false;
+      } else if (numValue > 3500000000) {
+        newErrors.tokenSupply = "Token supply cannot exceed 3,500,000,000";
+        setErrors(newErrors);
+        return false;
+      }
+    }
+
     if (field === "halvingDays") {
       if (!value || parseFloat(value) <= 0) {
         newErrors.halvingDays = "Halving schedule must be greater than 0";
@@ -161,14 +203,10 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
         // Skip API validation, just mark as valid after basic validation passes
         setValidatedFields((prev) => ({ ...prev, [field]: true }));
       } else {
-        // Perform API validation
+        // Perform API validation for the specific field only
         setValidatingFields((prev) => ({ ...prev, [field]: true }));
 
-        const result = await validateWithAPI(
-          field === "chainName" ? value : formData.chainName,
-          field === "tokenName" ? value : formData.tokenName,
-          field === "ticker" ? value : formData.ticker
-        );
+        const result = await validateWithAPI(field, value);
 
         setValidatingFields((prev) => ({ ...prev, [field]: false }));
 
@@ -203,6 +241,15 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
       newErrors.ticker = "Ticker is required";
     } else if (formData.ticker.length < 3 || formData.ticker.length > 5) {
       newErrors.ticker = "Ticker must be 3-5 characters";
+    }
+
+    const tokenSupplyValue = parseFloat(formData.tokenSupply);
+    if (!formData.tokenSupply || isNaN(tokenSupplyValue)) {
+      newErrors.tokenSupply = "Token supply is required";
+    } else if (tokenSupplyValue < 1000000) {
+      newErrors.tokenSupply = "Token supply must be at least 1,000,000";
+    } else if (tokenSupplyValue > 3500000000) {
+      newErrors.tokenSupply = "Token supply cannot exceed 3,500,000,000";
     }
 
     if (!formData.halvingDays || parseFloat(formData.halvingDays) <= 0) {
@@ -248,6 +295,7 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
       field === "chainName" ||
       field === "tokenName" ||
       field === "ticker" ||
+      field === "tokenSupply" ||
       field === "halvingDays"
     ) {
       debounceTimers.current[field] = setTimeout(() => {
@@ -462,18 +510,43 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
                   className="flex items-center gap-2 text-sm font-medium"
                 >
                   Token Supply
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>The total number of tokens that will ever exist</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Min: 1,000,000 | Max: 3,500,000,000
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
                 </Label>
                 <Input
                   id="tokenSupply"
                   type="number"
+                  placeholder="1000000000"
                   value={formData.tokenSupply}
-                  readOnly
-                  disabled
-                  className="bg-muted opacity-75 cursor-not-allowed"
+                  onChange={(e) => updateField("tokenSupply", e.target.value)}
+                  min={100000}
+                  max={3500000000}
+                  className={
+                    touched.tokenSupply && errors.tokenSupply
+                      ? "border-destructive"
+                      : ""
+                  }
                 />
-                <p className="text-sm text-muted-foreground">
-                  The total number of tokens that will ever exist.
-                </p>
+                {touched.tokenSupply && errors.tokenSupply && (
+                  <p className="text-sm text-destructive">
+                    {errors.tokenSupply}
+                  </p>
+                )}
+                {!errors.tokenSupply && formData.tokenSupply && (
+                  <p className="text-sm text-muted-foreground">
+                    Total supply:{" "}
+                    {parseFloat(formData.tokenSupply).toLocaleString()} tokens
+                  </p>
+                )}
               </div>
 
               {/* Halving Schedule */}

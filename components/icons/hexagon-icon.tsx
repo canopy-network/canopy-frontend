@@ -5,8 +5,10 @@ import React, { useState } from "react";
 interface HexagonIconProps {
   /** Icon or text content to display inside the hexagon */
   children: React.ReactNode;
-  /** Optional tooltip text */
+  /** Optional tooltip text (display name) */
   tooltip?: string;
+  /** Optional description text to show in tooltip (shown below tooltip if provided) */
+  description?: string;
   /** Optional className for additional styling */
   className?: string;
 }
@@ -18,6 +20,7 @@ interface HexagonIconProps {
 export const HexagonIcon = ({
   children,
   tooltip,
+  description,
   className = "",
 }: HexagonIconProps) => {
   const [isHovered, setIsHovered] = useState(false);
@@ -29,13 +32,20 @@ export const HexagonIcon = ({
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Tooltip */}
-      {tooltip && (
+      {(tooltip || description) && (
         <div
-          className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-white text-popover text-xs font-medium rounded-md whitespace-nowrap pointer-events-none transition-all duration-200 shadow-lg ${
+          className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-white text-popover text-xs rounded-md pointer-events-none transition-all duration-200 shadow-lg max-w-xs ${
             isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1"
-          }`}
+          } ${description ? "whitespace-normal" : "whitespace-nowrap"}`}
         >
-          {tooltip}
+          {tooltip && (
+            <div className="font-medium">{tooltip}</div>
+          )}
+          {description && (
+            <div className={`text-[10px] text-popover/80 ${tooltip ? "mt-1" : ""}`}>
+              {description}
+            </div>
+          )}
           {/* Arrow pointing down with rounded tip */}
           <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-[2px]">
             <svg

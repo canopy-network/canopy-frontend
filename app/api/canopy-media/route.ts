@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import crypto from "crypto";
 
 /**
  * @fileoverview Canopy Media Upload API
@@ -10,7 +9,7 @@ import crypto from "crypto";
  *
  * Supported file types:
  * - Branding: SVG, PNG, WebP, JPEG, GIF (max 1200×1200px, 3MB)
- * - Media: SVG, PNG, WebP, JPEG, GIF (max 3MB)
+ * - Media: SVG, PNG, WebP, JPEG, GIF (max 3MB) or WebM, MP4, H264 videos (max 100MB)
  * - Papers: PDF (max 3MB)
  *
  * @author Canopy Development Team
@@ -42,9 +41,15 @@ const ALLOWED_IMAGE_TYPES = [
   "image/jpeg",
   "image/gif",
 ];
+const ALLOWED_VIDEO_TYPES = [
+  "video/webm",
+  "video/mp4",
+  "video/x-msvideo", // AVI (h264 can be in various containers)
+  "video/quicktime", // MOV (h264 can be in MOV)
+];
 const ALLOWED_PAPER_TYPES = ["application/pdf"];
-const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
-const MAX_IMAGE_DIMENSION = 1200; // pixels
+const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB for images
+const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100MB for videos
 
 // File type categories
 type FileCategory = "branding" | "media" | "papers";
@@ -63,14 +68,27 @@ function validateFileType(file: File, category: FileCategory): boolean {
   if (category === "papers") {
     return ALLOWED_PAPER_TYPES.includes(file.type);
   }
+  // For media category, allow both images and videos
+  if (category === "media") {
+    return (
+      ALLOWED_IMAGE_TYPES.includes(file.type) ||
+      ALLOWED_VIDEO_TYPES.includes(file.type) ||
+      // Also check file extension for h264 (which can have various MIME types)
+      /\.(webm|mp4|avi|mov)$/i.test(file.name)
+    );
+  }
   return ALLOWED_IMAGE_TYPES.includes(file.type);
 }
 
 /**
- * Validates file size
+ * Validates file size based on file type
  */
 function validateFileSize(file: File): boolean {
-  return file.size <= MAX_FILE_SIZE;
+  const isVideo =
+    ALLOWED_VIDEO_TYPES.includes(file.type) ||
+    /\.(webm|mp4|avi|mov)$/i.test(file.name);
+  const maxSize = isVideo ? MAX_VIDEO_SIZE : MAX_FILE_SIZE;
+  return file.size <= maxSize;
 }
 
 /**
@@ -198,18 +216,29 @@ export async function POST(request: NextRequest) {
     const validationErrors: string[] = [];
     files.forEach((file, index) => {
       if (!validateFileType(file, category)) {
+        const expectedTypes =
+          category === "papers"
+            ? "PDF"
+            : category === "media"
+            ? "SVG, PNG, WebP, JPEG, GIF, WebM, MP4, or H264"
+            : "SVG, PNG, WebP, JPEG, or GIF";
         validationErrors.push(
-          `File ${index + 1} (${file.name}): Invalid file type. ` +
-            `Expected ${
-              category === "papers" ? "PDF" : "SVG, PNG, WebP, JPEG, or GIF"
-            }`
+          `File ${index + 1} (${
+            file.name
+          }): Invalid file type. Expected ${expectedTypes}`
         );
       }
       if (!validateFileSize(file)) {
+        const isVideo =
+          ALLOWED_VIDEO_TYPES.includes(file.type) ||
+          /\.(webm|mp4|avi|mov)$/i.test(file.name);
+        const maxSizeMB = isVideo
+          ? MAX_VIDEO_SIZE / 1024 / 1024
+          : MAX_FILE_SIZE / 1024 / 1024;
         validationErrors.push(
-          `File ${index + 1} (${file.name}): File size exceeds ${
-            MAX_FILE_SIZE / 1024 / 1024
-          }MB limit`
+          `File ${index + 1} (${
+            file.name
+          }): File size exceeds ${maxSizeMB}MB limit`
         );
       }
     });
@@ -258,13 +287,15 @@ export async function POST(request: NextRequest) {
       },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error uploading to S3:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error occurred";
     return NextResponse.json(
       {
         success: false,
         error: "Failed to upload files",
-        details: error.message || "Unknown error occurred",
+        details: errorMessage,
       },
       { status: 500 }
     );
@@ -288,7 +319,8 @@ export async function GET() {
     },
     fileRequirements: {
       branding: "SVG, PNG, WebP, JPEG, GIF - Max 1200×1200px, 3MB",
-      media: "SVG, PNG, WebP, JPEG, GIF - Max 3MB, numbered sequentially",
+      media:
+        "SVG, PNG, WebP, JPEG, GIF (max 3MB) or WebM, MP4, H264 videos (max 100MB), numbered sequentially",
       papers: "PDF - Max 3MB",
     },
     example: {

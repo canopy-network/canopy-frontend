@@ -1,7 +1,7 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
-import { ChainExtended } from "@/types/chains";
+import { ChainExtended, Accolade } from "@/types/chains";
 import { MediaGallery } from "./media-gallery";
 import { AchievementsList } from "./achievements-list";
 import { InfoCard } from "./info-card";
@@ -84,11 +84,13 @@ interface ChainOverviewProps {
   chain: ChainExtended;
   holders: ChainHolder[];
   holdersCount: number;
+  accolades?: Accolade[];
 }
 export function ChainOverview({
   chain,
   holdersCount,
   holders,
+  accolades = [],
 }: ChainOverviewProps) {
   const [repository, setRepository] = useState<GitHubRepository | null>(null);
   // Fetch GitHub stars if repository exists
@@ -178,14 +180,20 @@ export function ChainOverview({
           </p>
         </div>
 
-        <div className="flex flex-col gap-4 border-b pb-8">
-          <AchievementsList />
-        </div>
+        <AchievementsList accolades={accolades} />
 
-        {chain.media && chain.media.length > 0 && (
+        {((chain.media && chain.media.length > 0) ||
+          (chain.assets &&
+            chain.assets.some(
+              (asset) =>
+                asset.asset_type === "media" ||
+                asset.asset_type === "screenshot" ||
+                asset.asset_type === "video" ||
+                asset.asset_type === "banner"
+            ))) && (
           <div className="flex flex-col gap-4">
             <h3 className="text-lg font-semibold">Gallery</h3>
-            <MediaGallery media={chain.media || []} />
+            <MediaGallery media={chain.media || []} assets={chain.assets} />
           </div>
         )}
       </Card>
@@ -225,7 +233,7 @@ export function ChainOverview({
         data={{
           totalSupply:
             chain.token_total_supply && chain.token_total_supply > 0
-              ? chain.token_total_supply.toLocaleString()
+              ? chain.initial_token_supply.toLocaleString()
               : "1,000,000,000",
           tokenSymbol: chain.token_symbol || "TOKEN",
           blockTime: chain.block_time || "10s", // Placeholder - not available in API

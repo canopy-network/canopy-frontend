@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const redirectTo = searchParams.get("redirectTo") || "/launchpad";
 
-  const clientId = process.env.GITHUB_CLIENT_ID;
+  const clientId = process.env.GH_CLIENT_ID;
 
   if (!clientId) {
     return NextResponse.json(
