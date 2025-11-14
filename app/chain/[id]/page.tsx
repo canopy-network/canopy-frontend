@@ -9,7 +9,7 @@ import { ChainSuccessBanner } from "@/components/chain/chain-success-banner";
 import { ChainLaunchCountdown } from "@/components/chain/chain-launch-countdown";
 import { filterAccoladesByCategory } from "@/lib/utils/chain-ui-helpers";
 import type { Metadata } from "next";
-import { Spacer } from "@/components/layout/spacer";
+import ReportProblemButton from "@/components/miscellaneous/report-problem-button";
 
 // Force dynamic rendering to ensure params are always fresh
 export const dynamic = "force-dynamic";
@@ -107,7 +107,7 @@ export default async function ChainPage(props: ChainPageProps) {
     // Fetch chain data with all required includes
     const response = await chainsApi.getChain(chainId, {
       include:
-        "creator,template,assets,holders,graduation,repository,social_links,graduated_pool,virtual_pool",
+        "creator,template,assets,holders,graduation,repository,social_links,graduated_pool,virtual_pool,accolades",
     });
 
     if (!response.data) {
@@ -150,6 +150,9 @@ export default async function ChainPage(props: ChainPageProps) {
       // Continue without accolades if fetch fails
     }
 
+    console.log("[allAccolades]", allAccolades);
+    console.log("[filteredAccolades]", filteredAccolades);
+
     return (
       <Container type="boxed" className="">
         <div className="w-full max-w-7xl mx-auto lg:flex gap-4">
@@ -158,6 +161,9 @@ export default async function ChainPage(props: ChainPageProps) {
             <ChainSuccessBanner />
             <ChainDetailsHeader chain={chain} accolades={filteredAccolades} />
             <ChainDetails chain={chain} accolades={allAccolades} />
+            <div className="py-8">
+              <ReportProblemButton chainData={chain} />
+            </div>
           </main>
 
           <aside className="w-[352px] flex-shrink-0 h-fit lg:block hidden">
@@ -173,7 +179,6 @@ export default async function ChainPage(props: ChainPageProps) {
             )}
           </aside>
         </div>
-        <Spacer height={160} />
       </Container>
     );
   } catch (error) {

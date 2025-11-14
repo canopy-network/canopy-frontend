@@ -158,7 +158,9 @@ export function ChainDetailsHeader({
             {/* Title and Badges */}
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-medium">{chain.token_name}</h2>
+                <h2 className="text-base font-medium">
+                  {chain.token_name || chain.chain_name}
+                </h2>
 
                 {/* Hexagon Badges - Display Accolades */}
                 {accolades.length > 0 && (

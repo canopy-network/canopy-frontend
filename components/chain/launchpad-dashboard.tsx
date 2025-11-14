@@ -72,6 +72,11 @@ export function LaunchpadDashboard() {
   >({});
   const chainsRef = useRef<Chain[]>([]);
   const refreshDataRef = useRef<(() => Promise<void>) | undefined>(undefined);
+  const loadMoreChainsRef = useRef<(() => Promise<void>) | undefined>(
+    undefined
+  );
+  const loadMoreObserverRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreTriggerRef = useRef<HTMLDivElement | null>(null);
 
   const {
     // Data
@@ -80,12 +85,15 @@ export function LaunchpadDashboard() {
 
     // Loading states
     isLoading,
+    isLoadingMore,
+    hasMore,
     // Error handling
     error,
     clearError,
 
     // Actions
     refreshData,
+    loadMoreChains,
 
     // Filtering
     searchQuery,
@@ -369,6 +377,48 @@ export function LaunchpadDashboard() {
   useEffect(() => {
     refreshDataRef.current = refreshData;
   }, [refreshData]);
+
+  useEffect(() => {
+    loadMoreChainsRef.current = loadMoreChains;
+  }, [loadMoreChains]);
+
+  // Infinite scroll: Set up Intersection Observer to load more chains
+  useEffect(() => {
+    if (!hasMore || isLoadingMore || isLoading) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const firstEntry = entries[0];
+        if (
+          firstEntry.isIntersecting &&
+          hasMore &&
+          !isLoadingMore &&
+          !isLoading
+        ) {
+          loadMoreChainsRef.current?.();
+        }
+      },
+      {
+        root: null,
+        rootMargin: "200px", // Start loading 200px before reaching the trigger
+        threshold: 0.1,
+      }
+    );
+
+    if (loadMoreTriggerRef.current) {
+      observer.observe(loadMoreTriggerRef.current);
+    }
+
+    loadMoreObserverRef.current = observer;
+
+    return () => {
+      if (loadMoreObserverRef.current) {
+        loadMoreObserverRef.current.disconnect();
+      }
+    };
+  }, [hasMore, isLoadingMore, isLoading]);
 
   // Polling: Refresh only virtual_pool, graduation, and price history every 10 seconds
   // This avoids refetching all chains which causes unnecessary rerenders
@@ -816,6 +866,18 @@ export function LaunchpadDashboard() {
           </TabsContent>
         </Tabs>
 
+        {/* Infinite scroll trigger and loading indicator */}
+        {hasMore && (
+          <div
+            ref={loadMoreTriggerRef}
+            id="loading-spinner"
+            className="flex items-center justify-center py-16"
+          >
+            {isLoadingMore && (
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+            )}
+          </div>
+        )}
         <Spacer height={320} />
       </Container>
 

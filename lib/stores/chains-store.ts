@@ -42,6 +42,7 @@ interface ChainsState {
 
   // UI State
   isLoading: boolean;
+  isLoadingMore: boolean;
   isCreating: boolean;
   isDeleting: boolean;
   error: string | null;
@@ -150,6 +151,7 @@ const createChainsStore = () => {
           virtualPools: {},
           transactions: {},
           isLoading: false,
+          isLoadingMore: false,
           isCreating: false,
           isDeleting: false,
           error: null,
@@ -174,15 +176,31 @@ const createChainsStore = () => {
           // 0cd21689-de6c-4b65-ad4d-178179a07161
           fetchChains: async (params) => {
             const state = get();
+            const page = params?.page || 1;
+            const isFirstPage = page === 1;
+
             // Prevent concurrent fetches
-            if (state.isLoading) {
+            if (isFirstPage && state.isLoading) {
               console.log(
                 "fetchChains: Already fetching, skipping duplicate call"
               );
               return;
             }
 
-            set({ isLoading: true, error: null });
+            if (!isFirstPage && state.isLoadingMore) {
+              console.log(
+                "fetchChains: Already loading more, skipping duplicate call"
+              );
+              return;
+            }
+
+            // Set appropriate loading state
+            if (isFirstPage) {
+              set({ isLoading: true, error: null });
+            } else {
+              set({ isLoadingMore: true, error: null });
+            }
+
             try {
               const response = await chainsApi.getChains(params);
 
@@ -191,18 +209,25 @@ const createChainsStore = () => {
                 processChainAssets(chain)
               );
 
+              // Use pagination from API response if available, otherwise calculate
+              const paginationInfo = response.pagination || {
+                page: page,
+                limit: params?.limit || 20,
+                total: response.data.length,
+                pages: Math.ceil(response.data.length / (params?.limit || 20)),
+              };
+
+              // Append chains if loading more, replace if first page
+              const updatedChains = isFirstPage
+                ? processedChains
+                : [...state.chains, ...processedChains];
+
               set({
-                chains: processedChains,
+                chains: updatedChains,
                 isLoading: false,
+                isLoadingMore: false,
                 error: null,
-                pagination: {
-                  page: params?.page || 1,
-                  limit: params?.limit || 20,
-                  total: response.data.length, // This would come from pagination in real API
-                  pages: Math.ceil(
-                    response.data.length / (params?.limit || 20)
-                  ),
-                },
+                pagination: paginationInfo,
               });
             } catch (error) {
               set({
@@ -211,6 +236,7 @@ const createChainsStore = () => {
                     ? error.message
                     : "Failed to fetch chains",
                 isLoading: false,
+                isLoadingMore: false,
               });
             }
           },
@@ -467,6 +493,7 @@ export const useChainsStore =
           virtualPools: {},
           transactions: {},
           isLoading: false,
+          isLoadingMore: false,
           isCreating: false,
           isDeleting: false,
           error: null,

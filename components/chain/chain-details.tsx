@@ -29,6 +29,8 @@ import {
   convertVolumeHistoryToChart,
 } from "@/lib/api";
 import { getChainHolders, chainsApi } from "@/lib/api/chains";
+import { DetailSheet } from "./chain-details/detail-sheet";
+import type { ApiTransaction } from "@/lib/api";
 
 interface ChainDetailsProps {
   chain: ChainExtended;
@@ -69,6 +71,19 @@ export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
     },
     holders: [],
   });
+
+  // Sheet state management
+  const [selectedTransaction, setSelectedTransaction] =
+    useState<ApiTransaction | null>(null);
+  const [transactionSheetOpen, setTransactionSheetOpen] = useState(false);
+  const [selectedBlock, setSelectedBlock] = useState<{
+    number: number;
+    hash: string;
+    timestamp: number;
+    transactions: number;
+    reward: string;
+  } | null>(null);
+  const [blockSheetOpen, setBlockSheetOpen] = useState(false);
 
   // Keep refs in sync
   useEffect(() => {
@@ -600,16 +615,55 @@ export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
           />
         </TabsContent>
 
-        <TabsContent value="explorer">
+        <TabsContent value="explorer" className="space-y-6">
           <BlockExplorerHeader />
-
-          <ChainBlocks />
-
-          <Card className="p-6">
-            <BlockExplorerTable chainId={updatedChain.id} />
-          </Card>
+          <ChainBlocks
+            onBlockClick={(block) => {
+              setSelectedBlock(block);
+              setBlockSheetOpen(true);
+            }}
+          />
+          <BlockExplorerTable
+            chainId={updatedChain.id}
+            onTransactionClick={(transaction) => {
+              setSelectedTransaction(transaction);
+              setTransactionSheetOpen(true);
+            }}
+          />
         </TabsContent>
       </Tabs>
+
+      {/* Transaction Detail Sheet */}
+      <DetailSheet
+        type="transaction"
+        transaction={selectedTransaction}
+        ticker={updatedChain.token_symbol || "TOKEN"}
+        open={transactionSheetOpen}
+        onOpenChange={setTransactionSheetOpen}
+        onBlockClick={(blockNumber) => {
+          // Close transaction sheet and open block sheet
+          setTransactionSheetOpen(false);
+          // Find the block or create a placeholder
+          // For now, we'll just show a placeholder block
+          setSelectedBlock({
+            number: blockNumber,
+            hash: `0x${Math.random().toString(16).substring(2, 66)}`,
+            timestamp: Date.now(),
+            transactions: 0,
+            reward: "0",
+          });
+          setBlockSheetOpen(true);
+        }}
+      />
+
+      {/* Block Detail Sheet */}
+      <DetailSheet
+        type="block"
+        block={selectedBlock}
+        ticker={updatedChain.token_symbol || "TOKEN"}
+        open={blockSheetOpen}
+        onOpenChange={setBlockSheetOpen}
+      />
     </>
   );
 }

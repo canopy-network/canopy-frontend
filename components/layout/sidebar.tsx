@@ -152,8 +152,10 @@ export function Sidebar() {
               }
             }}
             className={cn(
-              "flex items-center rounded-full bg-transparent text-sm font-medium text-white hover:bg-white/5 transition-colors",
-              isCondensed ? "w-10 h-10 justify-center" : "w-full h-9 gap-3 pl-4"
+              "flex  rounded-full bg-transparent text-sm font-medium text-white hover:bg-white/5 transition-colors",
+              isCondensed
+                ? "w-10 h-10 justify-center"
+                : "w-full h-9 gap-3 pl-4 text-left justify-start"
             )}
           >
             <Plus className="w-5 h-5" />
