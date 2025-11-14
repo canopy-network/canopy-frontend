@@ -466,11 +466,11 @@ export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
           {/* Live Updates */}
           <div className="rounded-xl border text-card-foreground shadow bg-muted/40">
             <div className="flex items-center gap-6 p-3 lg:px-5 lg:py-3.5">
-              <p className="text-sm font-medium lg:inline-block hidden">
+              <p className="text-sm font-medium lg:inline-block hidden whitespace-nowrap">
                 Live updates
               </p>
 
-              <div className="grid grid-cols-2 w-full gap-2 lg:gap-0 lg:flex items-center justify-between text-sm">
+              <div className="grid grid-cols-2 w-full gap-2 lg:gap-0 lg:flex flex-1 items-center justify-between text-sm">
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-xs text-muted-foreground">
                     VOL (24h)
