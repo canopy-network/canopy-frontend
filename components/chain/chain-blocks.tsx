@@ -15,7 +15,11 @@ interface Block {
   reward: string;
 }
 
-export function ChainBlocks() {
+interface ChainBlocksProps {
+  onBlockClick?: (block: Block) => void;
+}
+
+export function ChainBlocks({ onBlockClick }: ChainBlocksProps) {
   // Get current chain from store
   const currentChain = useChainsStore((state) => state.currentChain);
 
@@ -133,9 +137,7 @@ export function ChainBlocks() {
 
   // Handle block click
   const handleBlockClick = (block: Block) => {
-    console.log("Block clicked:", block);
-    // TODO: Navigate to block detail page or open modal
-    // Example: router.push(`/explorer/block/${block.number}`);
+    onBlockClick?.(block);
   };
 
   // Show message if no chain is selected

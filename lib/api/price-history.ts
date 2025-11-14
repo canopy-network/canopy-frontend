@@ -29,13 +29,12 @@ export interface PriceHistoryDataPoint {
  */
 export interface GetPriceHistoryParams {
   start_time?: string; // RFC3339/ISO 8601 format
-  end_time?: string; // RFC3339/ISO 8601 format
 }
 
 /**
  * Fetches OHLC price history for a specific chain
  * @param chainId - The chain ID
- * @param params - Query parameters (start_time, end_time)
+ * @param params - Query parameters (start_time)
  * @returns Promise with price history data
  */
 export async function getChainPriceHistory(
@@ -49,12 +48,17 @@ export async function getChainPriceHistory(
 
 /**
  * Helper function to calculate start time for different timeframes
- * @param timeframe - Timeframe string (1H, 1D, 1W, 1M, 1Y)
- * @returns Object with start_time and end_time in ISO format
+ * @param timeframe - Timeframe string (1H, 1D, 1W, 1M, 1Y, ALL)
+ * @returns Object with start_time in RFC3339 format (e.g., 2024-01-15T10:00:00Z)
  */
 export function getTimeRangeForTimeframe(
   timeframe: string
 ): GetPriceHistoryParams {
+  // For "ALL", don't send start_time (will use API default of 24 hours)
+  if (timeframe === "ALL") {
+    return {};
+  }
+
   const now = new Date();
   const startTime = new Date();
 
@@ -78,9 +82,12 @@ export function getTimeRangeForTimeframe(
       startTime.setDate(now.getDate() - 1); // Default to 1D
   }
 
+  // Format as RFC3339 without milliseconds (e.g., 2024-01-15T10:00:00Z)
+  const isoString = startTime.toISOString();
+  const formattedTime = isoString.replace(/\.\d{3}Z$/, "Z");
+
   return {
-    start_time: startTime.toISOString(),
-    end_time: now.toISOString(),
+    start_time: formattedTime,
   };
 }
 

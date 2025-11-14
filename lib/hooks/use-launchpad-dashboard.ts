@@ -32,8 +32,10 @@ interface UseLaunchpadDashboardReturn {
 
   // Loading states
   isLoading: boolean;
+  isLoadingMore: boolean;
   isCreating: boolean;
   isDeleting: boolean;
+  hasMore: boolean;
 
   // Error handling`
   error: string | null;
@@ -41,6 +43,7 @@ interface UseLaunchpadDashboardReturn {
 
   // Actions
   refreshData: () => Promise<void>;
+  loadMoreChains: () => Promise<void>;
   createChain: (data: any) => Promise<void>;
   deleteChain: (id: string) => Promise<void>;
 
@@ -70,10 +73,12 @@ export function useLaunchpadDashboard({
     // Data
     chains,
     isLoading,
+    isLoadingMore,
     isCreating,
     isDeleting,
     error,
     filters,
+    pagination,
 
     // Actions
     fetchChains,
@@ -95,7 +100,8 @@ export function useLaunchpadDashboard({
     if (autoFetch) {
       fetchChains({
         include: "template,creator,assets,virtual_pool,graduation",
-        limit: 50,
+        page: 1,
+        limit: 20,
       });
     }
   }, [autoFetch, fetchChains]);
@@ -187,8 +193,20 @@ export function useLaunchpadDashboard({
   const refreshData = async () => {
     await fetchChains({
       include: "template,creator,assets,virtual_pool,graduation",
-      limit: 50,
+      page: 1,
+      limit: 20,
     });
+  };
+
+  const loadMoreChains = async () => {
+    const nextPage = pagination.page + 1;
+    if (nextPage <= pagination.pages) {
+      await fetchChains({
+        include: "template,creator,assets,virtual_pool,graduation",
+        page: nextPage,
+        limit: 20,
+      });
+    }
   };
 
   const createChain = async (data: any) => {
@@ -261,8 +279,10 @@ export function useLaunchpadDashboard({
 
     // Loading states
     isLoading,
+    isLoadingMore,
     isCreating,
     isDeleting,
+    hasMore: pagination.page < pagination.pages,
 
     // Error handling
     error,
@@ -270,6 +290,7 @@ export function useLaunchpadDashboard({
 
     // Actions
     refreshData,
+    loadMoreChains,
     createChain,
     deleteChain,
 

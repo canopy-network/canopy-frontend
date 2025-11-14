@@ -40,9 +40,9 @@ export function InfoCard({
   repository = null,
 }: InfoCardProps) {
   return (
-    <Card className="flex flex-col" size="none">
+    <Card className="flex flex-col px-0" size="none">
       {/* Header */}
-      <div className="flex items-start gap-3 pt-5">
+      <div className="flex items-start gap-3 pt-5 px-6">
         <div className="p-2 bg-primary/10 rounded-lg">
           <Icon className="w-5 h-5 text-primary" aria-hidden="true" />
         </div>
@@ -64,11 +64,11 @@ export function InfoCard({
 
       {/* Content - Avatar Group or Stats */}
       {isHolders && holders.length > 0 ? (
-        <div className="flex items-center flex-wrap gap-2  py-0">
+        <div className="flex items-center flex-wrap gap-2  py-0 px-5">
           <AvatarGroup holders={holders} maxVisible={maxVisibleHolders} />
         </div>
       ) : stats && stats.length > 0 ? (
-        <div className="space-y-2 py-0">
+        <div className="space-y-2 py-0 px-5">
           {stats.map((stat, idx) => (
             <div
               key={idx}
@@ -84,16 +84,16 @@ export function InfoCard({
           ))}
         </div>
       ) : (
-        <span className="text-muted-foreground text-xs">
+        <span className="text-muted-foreground text-xs px-5">
           No holders data available
         </span>
       )}
 
       {/* Footer Button */}
-      <div className="pb-5 mt-auto">
+      <div className="pb-5 mt-auto px-3">
         <Button
           variant="ghost"
-          className="w-full justify-between group py-0 !px-0"
+          className="w-full justify-between group py-0"
           onClick={onButtonClick}
         >
           {buttonText}

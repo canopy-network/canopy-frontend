@@ -270,8 +270,18 @@ export const ChainDetailChart = ({
     setTimeout(styleTimeLabels, 1000);
 
     // Use MutationObserver to catch when elements are added
+    // Debounce to avoid excessive DOM manipulation on mobile devices
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     const observer = new MutationObserver(() => {
-      styleTimeLabels();
+      // Clear existing timer
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+      // Debounce the callback to reduce DOM manipulation frequency
+      debounceTimer = setTimeout(() => {
+        styleTimeLabels();
+        debounceTimer = null;
+      }, 100); // Wait 100ms after last mutation before applying
     });
 
     if (chartContainerRef.current) {
@@ -303,6 +313,10 @@ export const ChainDetailChart = ({
     return () => {
       window.removeEventListener("resize", handleResize);
       observer.disconnect();
+      // Clear any pending debounce timer
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
       chart.remove();
       chartRef.current = null;
     };

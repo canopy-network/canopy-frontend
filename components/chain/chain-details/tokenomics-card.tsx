@@ -38,7 +38,7 @@ export function TokenomicsCard({ data }: TokenomicsCardProps) {
       {/* Content */}
       <div className="space-y-4">
         {/* Row 1: Total Supply & Block Time */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid lg:grid-cols-2 gap-4">
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Layers className="w-4 h-4" aria-hidden="true" />
@@ -48,6 +48,8 @@ export function TokenomicsCard({ data }: TokenomicsCardProps) {
               {tokenomics.totalSupply} {tokenomics.tokenSymbol}
             </p>
           </div>
+
+          <div className="h-px bg-border"></div>
 
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -74,7 +76,7 @@ export function TokenomicsCard({ data }: TokenomicsCardProps) {
         <div className="h-px bg-border"></div>
 
         {/* Row 3: Blocks per Day & Est. Year 1 Emission */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid lg:grid-cols-2 gap-4">
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Layers className="w-4 h-4" aria-hidden="true" />
@@ -82,6 +84,8 @@ export function TokenomicsCard({ data }: TokenomicsCardProps) {
             </div>
             <p className="text-lg font-semibold">{tokenomics.blocksPerDay}</p>
           </div>
+
+          <div className="h-px bg-border lg:hidden"></div>
 
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">

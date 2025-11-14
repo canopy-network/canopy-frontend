@@ -193,8 +193,18 @@ export const FeaturelessChart = ({
     setTimeout(applyOverflowVisible, 200);
 
     // Use MutationObserver to catch any newly created elements
+    // Debounce to avoid excessive DOM manipulation on mobile devices
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     const observer = new MutationObserver(() => {
-      applyOverflowVisible();
+      // Clear existing timer
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+      // Debounce the callback to reduce DOM manipulation frequency
+      debounceTimer = setTimeout(() => {
+        applyOverflowVisible();
+        debounceTimer = null;
+      }, 100); // Wait 100ms after last mutation before applying
     });
 
     if (chartContainerRef.current) {
@@ -306,6 +316,10 @@ export const FeaturelessChart = ({
     return () => {
       window.removeEventListener("resize", handleResize);
       observer.disconnect();
+      // Clear any pending debounce timer
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
       chart.remove();
       // Remove injected style on unmount
       const style = document.getElementById("featureless-chart-overflow-fix");

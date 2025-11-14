@@ -11,11 +11,12 @@ import LaunchSettings from "@/components/launchpad/launch-settings";
 import ReviewPayment from "@/components/launchpad/review-payment";
 import { useInitializeTemplates } from "@/lib/stores/templates-store";
 import { useCreateChainStore } from "@/lib/stores/create-chain-store";
+import { useAuthStore } from "@/lib/stores/auth-store";
 import { chainsApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, ArrowLeft } from "lucide-react";
 import { Template } from "@/types";
-import { cn } from "@/lib/utils";
+import { cn, WINDOW_BREAKPOINTS } from "@/lib/utils";
 
 export default function LaunchpadPage() {
   // Initialize templates on mount
@@ -24,11 +25,26 @@ export default function LaunchpadPage() {
   // Hydration state to prevent SSR/client mismatch with persisted store
   const [isHydrated, setIsHydrated] = useState(false);
 
+  const router = useRouter();
+  const { isAuthenticated } = useAuthStore();
+
   useEffect(() => {
     setIsHydrated(true);
   }, []);
 
-  const router = useRouter();
+  // Redirect logged-in users on mobile to home
+  useEffect(() => {
+    if (isHydrated && isAuthenticated) {
+      const checkMobile = () => {
+        if (window.innerWidth < WINDOW_BREAKPOINTS.LG) {
+          router.push("/");
+        }
+      };
+      checkMobile();
+      window.addEventListener("resize", checkMobile);
+      return () => window.removeEventListener("resize", checkMobile);
+    }
+  }, [isHydrated, isAuthenticated, router]);
   const {
     formData,
     setFormData,
@@ -222,7 +238,8 @@ export default function LaunchpadPage() {
           formData.initialPurchaseAmount || "0"
         ),
         brand_color: formData.brandColor,
-        block_time_seconds: blockTimeSeconds,
+        //TODO: Sending block time seconds trows an error.
+        // block_time_seconds: blockTimeSeconds,
         halving_schedule: halvingSchedule,
         block_reward_amount: 50.0,
       };
