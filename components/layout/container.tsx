@@ -26,7 +26,10 @@ export function Container({
   }, [type]);
 
   return (
-    <main id={id} className={cn("flex-1 px-6 py-4", size, className)}>
+    <main
+      id={id}
+      className={cn("flex-1 lg:px-6 lg:py-4 px-4", size, className)}
+    >
       {children}
     </main>
   );

@@ -29,8 +29,7 @@ const nextConfig = {
         destination: process.env.NEXT_PUBLIC_API_URL + '/:path*',
       },
     ]
-  },
-
+  }
 }
 //Dummy
 export default nextConfig
