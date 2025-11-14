@@ -324,7 +324,7 @@ export function LaunchpadDashboard() {
               try {
                 const response = await chainsApi.getChain(chainId, {
                   include:
-                    "creator,template,assets,virtual_pool,graduated_pool",
+                    "creator,template,assets,virtual_pool,graduated_pool,graduation_progress",
                 });
                 return response.data;
               } catch (error) {
