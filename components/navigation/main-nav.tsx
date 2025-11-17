@@ -24,6 +24,17 @@ export function MainNav({
 }: MainNavProps) {
   const pathname = usePathname();
 
+  // Helper function to check if a route is active
+  const isActive = (href: string) => {
+    if (href === "/") {
+      // For home route, only match exactly "/" or "/" with trailing slash
+      return pathname === "/" || pathname === "";
+    }
+    // For other routes, match if pathname starts with the href
+    // and ensure we don't match partial paths (e.g., /explorer-something)
+    return pathname === href || pathname.startsWith(href + "/");
+  };
+
   return (
     <nav
       className={cn(
@@ -33,6 +44,7 @@ export function MainNav({
     >
       {navigation.map((item) => {
         const Icon = item.icon;
+        const active = isActive(item.href);
         return (
           <Link
             key={item.name}
@@ -42,7 +54,7 @@ export function MainNav({
               isCondensed
                 ? "w-[57px] flex-col items-center justify-center gap-1 py-2 text-sm"
                 : "items-center gap-3 px-3 py-2 text-sm rounded-lg",
-              pathname === item.href
+              active
                 ? "bg-primary text-primary-foreground"
                 : isCondensed
                 ? "text-white hover:bg-white/5"

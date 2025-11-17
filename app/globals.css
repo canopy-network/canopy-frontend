@@ -249,5 +249,5 @@ body,
 }
 
 .card-like {
-  @apply rounded-xl border border-border bg-card text-card-foreground shadow flex items-center justify-between;
+  @apply rounded-xl border border-border bg-card text-card-foreground shadow;
 }

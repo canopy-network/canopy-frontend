@@ -670,7 +670,7 @@ export function LaunchpadDashboard() {
             className="flex items-center justify-between gap-4"
             id="filter-bar"
           >
-            <div className="card-like p-1 mb-4 lg:mb-8 overflow-auto no-scrollbar w-full">
+            <div className="card-like p-1 mb-4 lg:mb-8 overflow-auto no-scrollbar w-full flex items-center justify-between">
               {/* Left: Tab Buttons */}
               <div className="flex items-center gap-1">
                 {visibleTabs.map((tab) => (
