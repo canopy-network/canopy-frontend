@@ -20,6 +20,7 @@ import { useWalletStore } from "@/lib/stores/wallet-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { SendTransactionDialog } from "@/components/wallet/send-transaction-dialog";
 import { ReceiveDialog } from "@/components/wallet/receive-dialog";
+import { AssetItem } from "@/components/wallet/asset-item";
 import {
   Wallet,
   Copy,
@@ -37,7 +38,7 @@ import {
 } from "lucide-react";
 import { showSuccessToast } from "@/lib/utils/error-handler";
 import { useRouter } from "next/navigation";
-import { formatCnpy } from "@/lib/utils/denomination";
+import { formatTokenAmount } from "@/lib/utils/denomination";
 
 function WalletContent() {
   const router = useRouter();
@@ -78,15 +79,11 @@ function WalletContent() {
 
   // Use real balance data from the store, fallback to defaults
   const displayBalance = balance?.total || "0.00";
-  const displayTokens = balance?.tokens || [
-    {
-      symbol: "CNPY",
-      name: "Canopy",
-      balance: "0.00",
-      usdValue: "$0.00",
-      logo: null,
-    },
-  ];
+  const displayTokens = balance?.tokens || [];
+
+  // Debug logging
+  console.log("Wallet page - balance:", balance);
+  console.log("Wallet page - displayTokens:", displayTokens);
 
   // Calculate total USD value from tokens
   const totalUSDValue = displayTokens.reduce((acc, token) => {
@@ -228,7 +225,7 @@ function WalletContent() {
             <div className="pt-4 border-t">
               <p className="text-sm text-muted-foreground mb-1">Total Balance</p>
               <div className="flex items-baseline gap-2">
-                <p className="text-3xl font-bold">{formatCnpy(displayBalance)} CNPY</p>
+                <p className="text-3xl font-bold">{formatTokenAmount(displayBalance)} CNPY</p>
                 <p className="text-lg text-muted-foreground">{displayUSDValue}</p>
               </div>
             </div>
@@ -284,28 +281,7 @@ function WalletContent() {
                 ) : (
                   <div className="space-y-2">
                     {displayTokens.map((token) => (
-                      <div
-                        key={token.symbol}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            <Coins className="h-5 w-5 text-primary" />
-                          </div>
-                          <div>
-                            <p className="font-medium">{token.symbol}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {token.name}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium">{formatCnpy(token.balance)}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {token.usdValue || "$0.00"}
-                          </p>
-                        </div>
-                      </div>
+                      <AssetItem key={token.symbol} token={token} />
                     ))}
                   </div>
                 )}
@@ -393,7 +369,7 @@ function WalletContent() {
                         </div>
                         <div className="text-right flex-shrink-0 ml-4">
                           <p className="font-medium">
-                            {formatCnpy(tx.amount)} {tx.token}
+                            {formatTokenAmount(tx.amount)} {tx.token}
                           </p>
                           <Badge
                             variant={

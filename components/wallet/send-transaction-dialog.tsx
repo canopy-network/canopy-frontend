@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { retrieveMasterSeedphrase } from "@/lib/crypto/seed-storage";
-import { formatCnpy, isValidAmount } from "@/lib/utils/denomination";
+import { formatTokenAmount, isValidAmount } from "@/lib/utils/denomination";
 import {
   Dialog,
   DialogContent,
@@ -211,7 +211,7 @@ export function SendTransactionDialog({
                         <span className="text-sm">Calculating...</span>
                       </div>
                     ) : estimatedFee ? (
-                      <span className="text-sm font-medium">{formatCnpy(estimatedFee)} CNPY</span>
+                      <span className="text-sm font-medium">{formatTokenAmount(estimatedFee)} CNPY</span>
                     ) : (
                       <span className="text-sm text-muted-foreground">--</span>
                     )}
@@ -221,7 +221,7 @@ export function SendTransactionDialog({
 
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">You will send</span>
-                    <span className="text-sm font-medium">{formatCnpy(amount)} CNPY</span>
+                    <span className="text-sm font-medium">{formatTokenAmount(amount)} CNPY</span>
                   </div>
 
                   {estimatedFee && (
@@ -229,7 +229,7 @@ export function SendTransactionDialog({
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-semibold">Total Cost</span>
                         <span className="text-sm font-semibold">
-                          {formatCnpy((parseFloat(amount) + parseFloat(estimatedFee)).toString())} CNPY
+                          {formatTokenAmount((parseFloat(amount) + parseFloat(estimatedFee)).toString())} CNPY
                         </span>
                       </div>
                     </>

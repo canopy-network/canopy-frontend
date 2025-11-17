@@ -171,14 +171,25 @@ export interface WalletBalance {
 }
 
 /**
+ * Token balance distribution
+ */
+export interface TokenDistribution {
+  liquid: string;                  // Liquid/available balance
+  staked: string;                  // Staked balance
+  delegated: string;               // Delegated balance
+}
+
+/**
  * Token balance
  */
 export interface TokenBalance {
-  symbol: string;                  // Token symbol (e.g., "CNPY", "ETH")
-  name: string;                    // Token name
-  balance: string;                 // Balance amount
+  symbol: string;                  // Token symbol (e.g., "C001", "C002" for chains)
+  name: string;                    // Token name (chain name)
+  balance: string;                 // Total balance amount
   usdValue?: string;               // USD value (optional)
   logo?: string;                   // Token logo URL (optional)
+  chainId?: number;                // Chain ID (for chain-based tokens)
+  distribution?: TokenDistribution; // Balance distribution (liquid, staked, delegated)
 }
 
 /**
@@ -229,55 +240,60 @@ export interface MultiChainBalanceRequest {
 }
 
 /**
- * Portfolio account details
+ * Portfolio account details (from overview endpoint)
  */
 export interface PortfolioAccount {
   address: string;
-  chain_id: string;
-  balance_cnpy: string;
-  balance_usd?: string;
-  assets: PortfolioAsset[];
+  chain_id: number;                  // Chain ID as number
+  chain_name: string;                // Chain name
+  balance: string;                   // Total balance (in micro units)
+  staked_balance: string;            // Staked balance (in micro units)
+  delegated_balance: string;         // Delegated balance (in micro units)
+  available_balance: string;         // Available/liquid balance (in micro units)
 }
 
 /**
- * Portfolio asset
+ * Chain allocation item (by_chain)
  */
-export interface PortfolioAsset {
-  symbol: string;
-  name: string;
-  balance: string;
-  value_cnpy: string;
-  value_usd?: string;
-  chain_id: string;
+export interface ChainAllocationItem {
+  chain_id: number;
+  chain_name: string;
+  total_value_cnpy: string;          // Total value in micro units
+  percentage: number;                // Percentage of total portfolio
+}
+
+/**
+ * Type allocation (by_type)
+ */
+export interface TypeAllocation {
+  liquid: {
+    value_cnpy: string;              // Value in micro units
+    percentage: number;
+  };
+  staked: {
+    value_cnpy: string;              // Value in micro units
+    percentage: number;
+  };
+  delegated: {
+    value_cnpy: string;              // Value in micro units
+    percentage: number;
+  };
 }
 
 /**
  * Portfolio allocation
  */
 export interface PortfolioAllocation {
-  by_chain: AllocationItem[];
-  by_asset_type: AllocationItem[];
-}
-
-/**
- * Allocation item
- */
-export interface AllocationItem {
-  name: string;
-  percentage: number;
-  value_cnpy: string;
-  value_usd?: string;
+  by_chain: ChainAllocationItem[];
+  by_type: TypeAllocation;
 }
 
 /**
  * Portfolio performance
  */
 export interface PortfolioPerformance {
-  total_pnl_cnpy: string;
-  total_pnl_usd?: string;
-  realized_pnl_cnpy: string;
-  unrealized_pnl_cnpy: string;
-  percentage_change: number;
+  total_pnl_percentage: number;
+  period: string;
 }
 
 /**
@@ -314,13 +330,17 @@ export interface PortfolioOverviewResponse {
 
 /**
  * Detailed account balance
+ * Based on actual API response structure
  */
 export interface DetailedAccountBalance {
-  address: string;
-  chain_id: string;
-  balance_cnpy: string;
-  balance_usd?: string;
-  tokens: DetailedTokenBalance[];
+  address: string;                   // Wallet address
+  chain_id: number;                  // Chain ID (numeric)
+  height: number;                    // Blockchain height
+  liquid_balance: string;            // Available balance (in uCNPY)
+  staked_balance: string;            // Staked balance (in uCNPY)
+  delegated_balance: string;         // Delegated balance (in uCNPY)
+  lp_positions: any[] | null;        // Liquidity provider positions
+  total_balance: string;             // Total balance (in uCNPY)
 }
 
 /**
@@ -338,9 +358,10 @@ export interface DetailedTokenBalance {
 
 /**
  * Account balances response
+ * Wraps balances array in a data object
  */
 export interface AccountBalancesResponse {
-  balances: DetailedAccountBalance[];
+    balances: DetailedAccountBalance[];
 }
 
 /**

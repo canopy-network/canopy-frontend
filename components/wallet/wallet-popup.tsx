@@ -26,7 +26,8 @@ import {
 } from "lucide-react";
 import { showSuccessToast } from "@/lib/utils/error-handler";
 import { useRouter } from "next/navigation";
-import { formatCnpy } from "@/lib/utils/denomination";
+import { formatTokenAmount } from "@/lib/utils/denomination";
+import { AssetItem } from "./asset-item";
 
 export function WalletPopup() {
   const router = useRouter();
@@ -71,14 +72,11 @@ export function WalletPopup() {
 
   // Use real balance data
   const displayBalance = balance?.total || "0.00";
-  const displayTokens = balance?.tokens || [
-    {
-      symbol: "CNPY",
-      name: "Canopy",
-      balance: "0.00",
-      usdValue: "$0.00",
-    },
-  ];
+  const displayTokens = balance?.tokens || [];
+
+  // Debug logging
+  console.log("Wallet popup - balance:", balance);
+  console.log("Wallet popup - displayTokens:", displayTokens);
 
   // Calculate total USD value
   const totalUSDValue = displayTokens.reduce((acc, token) => {
@@ -132,7 +130,7 @@ export function WalletPopup() {
                   <ChevronRight className="inline h-6 w-6 ml-1" />
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {formatCnpy(displayBalance)} CNPY
+                  {formatTokenAmount(displayBalance)} CNPY
                 </p>
               </div>
 
@@ -212,27 +210,7 @@ export function WalletPopup() {
                   </div>
                 ) : (
                   displayTokens.map((token) => (
-                    <div
-                      key={token.symbol}
-                      className="flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 transition-colors cursor-pointer"
-                      onClick={handleViewFullWallet}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold bg-primary"
-                        >
-                          {token.symbol[0]}
-                        </div>
-                        <div>
-                          <p className="font-medium">{token.symbol}</p>
-                          <p className="text-xs text-muted-foreground">{token.name}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium">{formatCnpy(token.balance)}</p>
-                        <p className="text-xs text-muted-foreground">{token.usdValue || "$0.00"}</p>
-                      </div>
-                    </div>
+                    <AssetItem key={token.symbol} token={token} />
                   ))
                 )}
               </TabsContent>
@@ -278,7 +256,7 @@ export function WalletPopup() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-medium">
-                          {formatCnpy(tx.amount)} {tx.token}
+                          {formatTokenAmount(tx.amount)} {tx.token}
                         </p>
                       </div>
                     </div>

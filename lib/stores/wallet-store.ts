@@ -37,15 +37,20 @@ import {
   storeMasterSeedphrase,
   retrieveMasterSeedphrase,
   hasMasterSeedphrase,
-  clearMasterSeedphrase,
-  getMasterPassword,
+  clearMasterSeedphrase
 } from "@/lib/crypto/seed-storage";
 import {
-  microToCnpy,
-  cnpyToMicro,
-  convertApiAmountsToCnpy,
-  convertUiAmountsToMicro,
+  fromMicroUnits,
+  toMicroUnits
 } from "@/lib/utils/denomination";
+
+/**
+ * Generate a 4-character symbol for a chain based on chain_id
+ * Format: C + 3-digit padded chain_id (e.g., C001, C002, C123)
+ */
+function generateChainSymbol(chainId: number): string {
+  return `C${chainId.toString().padStart(3, '0')}`;
+}
 import {
   createSendTransaction,
   toSendRawTransactionRequest,
@@ -432,7 +437,7 @@ export const useWalletStore = create<WalletState>()(
         }));
       },
 
-      // Fetch balance for a wallet using portfolio API
+      // Fetch balance for a wallet using portfolio overview API
       fetchBalance: async (walletId: string) => {
         try {
           const { wallets } = get();
@@ -443,15 +448,12 @@ export const useWalletStore = create<WalletState>()(
             return;
           }
 
-          // Fetch account balances from portfolio API
-          const balancesResponse = await portfolioApi.getAccountBalances({
+          // Fetch portfolio overview from API
+          const overview = await portfolioApi.getPortfolioOverview({
             addresses: [wallet.address],
           });
 
-          // Convert API response to WalletBalance format
-          const balanceData = balancesResponse?.balances && balancesResponse.balances[0];
-
-          if (!balanceData) {
+          if (!overview || !overview.accounts || overview.accounts.length === 0) {
             // No balance data available, set empty balance
             set({
               balance: {
@@ -462,18 +464,28 @@ export const useWalletStore = create<WalletState>()(
             return;
           }
 
-          // Convert amounts from micro (uCNPY) to CNPY
+          // Build tokens array - one token per chain
+          const tokens: WalletBalance['tokens'] = overview.accounts.map((account) => ({
+            symbol: generateChainSymbol(account.chain_id),
+            name: account.chain_name,
+            balance: fromMicroUnits(account.balance),
+            usdValue: undefined, // USD value not provided in current response
+            logo: undefined,
+            chainId: account.chain_id,
+            distribution: {
+              liquid: fromMicroUnits(account.available_balance),
+              staked: fromMicroUnits(account.staked_balance),
+              delegated: fromMicroUnits(account.delegated_balance),
+            },
+          }));
+
+          // Convert total from micro units to standard units
           const walletBalance: WalletBalance = {
-            total: microToCnpy(balanceData.balance_cnpy || "0"),
-            tokens: balanceData.tokens.map((token) => ({
-              symbol: token.symbol,
-              name: token.name,
-              balance: microToCnpy(token.balance),
-              usdValue: token.value_usd, // USD value doesn't need conversion
-              logo: undefined, // Logo not provided by API
-            })),
+            total: fromMicroUnits(overview.total_value_cnpy || "0"),
+            tokens,
           };
 
+          console.log("Setting wallet balance:", walletBalance);
           set({ balance: walletBalance });
         } catch (error) {
           console.error("Failed to fetch balance:", error);
@@ -512,7 +524,7 @@ export const useWalletStore = create<WalletState>()(
             (tx) => ({
               id: tx.transaction_hash,
               type: tx.type.toLowerCase() as any,
-              amount: microToCnpy(tx.amount), // Convert from uCNPY to CNPY
+              amount: fromMicroUnits(tx.amount), // Convert from micro units to standard units
               token: "CNPY", // Default to CNPY, could be extracted from transaction
               from: tx.from_address,
               to: tx.to_address,
@@ -597,9 +609,9 @@ export const useWalletStore = create<WalletState>()(
           }
 
           // Convert amount from CNPY to uCNPY (micro CNPY)
-          const amountInMicro = BigInt(cnpyToMicro(request.amount));
+          const amountInMicro = BigInt(toMicroUnits(request.amount));
           const feeInMicro = request.fee
-            ? BigInt(cnpyToMicro(request.fee.toString()))
+            ? BigInt(toMicroUnits(request.fee.toString()))
             : BigInt(1000); // Default fee of 1000 uCNPY
 
           // Network parameters for transaction
@@ -664,13 +676,13 @@ export const useWalletStore = create<WalletState>()(
           // Convert amount from CNPY to uCNPY before sending to backend
           const requestWithMicro = {
             ...request,
-            amount: cnpyToMicro(request.amount),
+            amount: toMicroUnits(request.amount),
           };
 
           const response = await walletTransactionApi.estimateFee(requestWithMicro);
 
           // Convert estimated fee from uCNPY to CNPY
-          return microToCnpy(response.estimated_fee);
+          return fromMicroUnits(response.estimated_fee);
         } catch (error) {
           console.error("Failed to estimate fee:", error);
           throw error;
