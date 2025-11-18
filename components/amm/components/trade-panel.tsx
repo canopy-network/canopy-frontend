@@ -2,18 +2,11 @@
 
 import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  ArrowDownUp,
-  ChevronDown,
-  RefreshCw,
-  FlaskRound,
-  ArrowUpDown,
-} from "lucide-react";
+import { RefreshCw, FlaskRound, ArrowUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SwapTab } from "./trade-panel/swap-tab";
+import { LiquidityTab } from "./trade-panel/liquidity-tab";
+import { ConvertTab } from "./trade-panel/convert-tab";
 
 enum TradeTab {
   Swap = "swap",
@@ -29,7 +22,6 @@ interface TradePanelProps {
 }
 
 export function TradePanel({
-  poolId,
   baseTokenSymbol,
   quoteTokenSymbol,
   currentPrice,
@@ -81,120 +73,19 @@ export function TradePanel({
           )}
 
           {activeTab === TradeTab.Liquidity && (
-            <div className="space-y-4">
-              <div className="rounded-lg border bg-muted/50 p-4 space-y-2">
-                <Label className="text-xs text-muted-foreground">
-                  Add {baseTokenSymbol}
-                </Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    className="border-0 bg-transparent text-2xl font-semibold p-0 h-auto focus-visible:ring-0"
-                  />
-                  <Button variant="secondary" className="gap-2">
-                    {baseTokenSymbol}
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              <div className="rounded-lg border bg-muted/50 p-4 space-y-2">
-                <Label className="text-xs text-muted-foreground">
-                  Add {quoteTokenSymbol}
-                </Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    className="border-0 bg-transparent text-2xl font-semibold p-0 h-auto focus-visible:ring-0"
-                  />
-                  <Button variant="secondary" className="gap-2">
-                    {quoteTokenSymbol}
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Share of Pool</span>
-                  <span className="font-medium">0%</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Current Rate</span>
-                  <span className="font-medium">
-                    1 {baseTokenSymbol} = {currentPrice} {quoteTokenSymbol}
-                  </span>
-                </div>
-              </div>
-
-              <Button size="lg" className="w-full">
-                Add Liquidity
-              </Button>
-            </div>
+            <LiquidityTab
+              baseTokenSymbol={baseTokenSymbol}
+              quoteTokenSymbol={quoteTokenSymbol}
+              currentPrice={currentPrice}
+            />
           )}
 
           {activeTab === TradeTab.Convert && (
-            <div className="space-y-4">
-              <div className="rounded-lg border bg-muted/50 p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground">From</Label>
-                  <span className="text-xs text-muted-foreground">
-                    Balance: 0.00
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    className="border-0 bg-transparent text-2xl font-semibold p-0 h-auto focus-visible:ring-0"
-                  />
-                  <Button variant="secondary" className="gap-2">
-                    CNPY
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              <div className="flex justify-center -my-2 relative z-10">
-                <Button variant="outline" size="icon" className="rounded-full">
-                  <ArrowDownUp className="h-4 w-4" />
-                </Button>
-              </div>
-
-              <div className="rounded-lg border bg-muted/50 p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground">To</Label>
-                  <span className="text-xs text-muted-foreground">
-                    Balance: 0.00
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    readOnly
-                    className="border-0 bg-transparent text-2xl font-semibold p-0 h-auto focus-visible:ring-0"
-                  />
-                  <Button variant="secondary" className="gap-2">
-                    USD
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Conversion Rate</span>
-                  <span className="font-medium">1 CNPY = 0.70 USD</span>
-                </div>
-              </div>
-
-              <Button size="lg" className="w-full">
-                Convert
-              </Button>
-            </div>
+            <ConvertTab
+              baseTokenSymbol={baseTokenSymbol}
+              quoteTokenSymbol={quoteTokenSymbol}
+              currentPrice={currentPrice}
+            />
           )}
         </CardContent>
       </Card>
