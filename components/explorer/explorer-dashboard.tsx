@@ -9,6 +9,7 @@ import { NetworkOverview } from "./network-overview";
 import { NewLaunches } from "./new-launches";
 import { TopValidators } from "./top-validators";
 import { RecentTransactions } from "./recent-transactions";
+import { RecentBlocks } from "./recent-blocks";
 import { TrendingChains } from "./trending-chains";
 import { Chain } from "@/types/chains";
 
@@ -30,6 +31,13 @@ interface Validator {
   stake: string;
   apr: string;
   uptime: number;
+  uptimeTrend?: number[]; // Array of uptime values for sparkline (7 or 30 data points)
+  commissionRate?: number; // Commission rate percentage
+  commissionChange?: number; // Change in commission rate (positive = increased, negative = decreased)
+  healthScore?: number; // Performance score 0-100
+  status?: "healthy" | "warning" | "at_risk"; // Health status
+  statusMessage?: string; // Tooltip message
+  chains?: string[]; // Array of chain names the validator is staking for
 }
 
 interface ChainSummary {
@@ -264,6 +272,43 @@ const sampleTopValidators: Validator[] = Array.from({ length: 5 }, (_, i) => {
   const stake = randomBetween(200000, 800000);
   const apr = randomFloat(5, 12, 1);
   const uptime = randomFloat(95, 99.99, 2);
+  const commissionRate = randomFloat(0, 10, 1);
+  const commissionChange = randomFloat(-2, 2, 2);
+
+  // Generate health score and status
+  // Status based on healthScore: 100 = healthy, 60-99 = warning, <60 = at_risk
+  const healthScore = randomFloat(50, 100, 0);
+  let status: "healthy" | "warning" | "at_risk";
+  if (healthScore >= 95) {
+    status = "healthy";
+  } else if (healthScore >= 60) {
+    status = "warning";
+  } else {
+    status = "at_risk";
+  }
+
+  // Generate uptime trend data (7 days)
+  const baseUptime = uptime;
+  const uptimeTrend = Array.from({ length: 7 }, () => {
+    const variation = randomFloat(-0.5, 0.5, 2);
+    return Math.max(90, Math.min(100, baseUptime + variation));
+  });
+
+  // Generate placeholder chain names
+  const chainNames = [
+    "Ethereum",
+    "Polygon",
+    "Avalanche",
+    "Solana",
+    "BNB Chain",
+    "Arbitrum",
+    "Optimism",
+    "Base",
+    "Cosmos",
+    "Polkadot",
+  ];
+  const numChains = randomBetween(1, 4); // 1-4 chains per validator
+  const chains = chainNames.sort(() => Math.random() - 0.5).slice(0, numChains);
 
   return {
     name: `val-${String(i + 1).padStart(2, "0")}`,
@@ -274,6 +319,18 @@ const sampleTopValidators: Validator[] = Array.from({ length: 5 }, (_, i) => {
     stake: formatMarketCap(stake),
     apr: `${apr}%`,
     uptime: uptime,
+    uptimeTrend: uptimeTrend,
+    commissionRate: commissionRate,
+    commissionChange: commissionChange,
+    healthScore: healthScore,
+    status: status,
+    statusMessage:
+      status === "healthy"
+        ? "Healthy — no missed blocks in the last 24h"
+        : status === "warning"
+        ? "Warning — some missed blocks detected"
+        : "At risk — multiple missed blocks or slashing detected",
+    chains: chains,
   };
 });
 
@@ -336,10 +393,13 @@ export function ExplorerDashboard() {
         <TrendingChains chains={sampleTrendingChains} />
 
         {/* Bottom Grid: New Launches, Top Validators, Recent Transactions */}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 ">
           <NewLaunches chains={sampleNewLaunches} />
           <TopValidators validators={sampleTopValidators} />
         </div>
+
+        <RecentBlocks />
 
         <RecentTransactions transactions={sampleRecentTransactions} />
 
