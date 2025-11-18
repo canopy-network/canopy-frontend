@@ -3,6 +3,13 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { AMMMetricsChart } from "./amm-metrics-chart";
 import { ChartMetric } from "../types/amm/chart";
 import {
@@ -90,7 +97,7 @@ export function EcosystemMetrics() {
   };
 
   return (
-    <Card>
+    <Card className="h-full flex flex-col">
       <CardHeader>
         <div className="flex items-start justify-between">
           <div>
@@ -127,26 +134,25 @@ export function EcosystemMetrics() {
                 </Button>
               ))}
             </div>
-            <div className="flex gap-1">
-              {TIMEFRAMES.map((timeframe) => (
-                <Button
-                  key={timeframe.value}
-                  variant={
-                    selectedTimeframe === timeframe.value
-                      ? "default"
-                      : "outline"
-                  }
-                  size="sm"
-                  onClick={() => setSelectedTimeframe(timeframe.value)}
-                >
-                  {timeframe.label}
-                </Button>
-              ))}
-            </div>
+            <Select
+              value={selectedTimeframe}
+              onValueChange={(value) => setSelectedTimeframe(value as TimeframeValue)}
+            >
+              <SelectTrigger className="w-[100px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TIMEFRAMES.map((timeframe) => (
+                  <SelectItem key={timeframe.value} value={timeframe.value}>
+                    {timeframe.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1">
         <AMMMetricsChart
           data={currentData.data_points}
           metric={selectedMetric}

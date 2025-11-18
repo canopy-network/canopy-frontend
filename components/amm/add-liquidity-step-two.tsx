@@ -132,7 +132,6 @@ export function AddLiquidityStepTwo({
         <h3 className="text-sm font-medium">Deposit tokens</h3>
         <Card>
           <CardContent className="p-6 space-y-6">
-            {/* Token amount input */}
             <div className="space-y-2">
               <div
                 className={`flex items-center justify-between border-2 rounded-lg ${
@@ -163,7 +162,6 @@ export function AddLiquidityStepTwo({
               </p>
             </div>
 
-            {/* CNPY amount input */}
             <div className="space-y-2">
               <div
                 className={`flex items-center justify-between border-2 rounded-lg ${
@@ -194,7 +192,6 @@ export function AddLiquidityStepTwo({
               </p>
             </div>
 
-            {/* Expandable details section */}
             <ExpandableDetail title="Estimated Slippage" value="0.50%">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Your pool share</span>
@@ -202,7 +199,6 @@ export function AddLiquidityStepTwo({
               </div>
             </ExpandableDetail>
 
-            {/* Submit button */}
             <Button
               className="w-full"
               size="lg"
