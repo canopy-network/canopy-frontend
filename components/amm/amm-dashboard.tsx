@@ -2,7 +2,9 @@
 import { LiquidityPools } from "./liquidity-pools";
 import { MetricCard } from "./components/metrics-overview";
 import { EcosystemMetrics } from "./components/ecosystem-metrics";
+import { PortfolioOverview } from "./components/portfolio-overview";
 import { mockOverviewMetrics } from "./mock/metrics-data";
+import { mockPortfolioOverview } from "./mock/portfolio-data";
 import { DollarSign, TrendingUp, Droplets, Users } from "lucide-react";
 import { formatCurrency } from "./utils/currency";
 
@@ -60,6 +62,10 @@ export function AMMDashboard() {
         <div className="flex-1 min-w-0 lg:w-[60%] h-full">
           <EcosystemMetrics />
         </div>
+      </div>
+
+      <div className="mb-8">
+        <PortfolioOverview data={mockPortfolioOverview} />
       </div>
 
       <LiquidityPools />
