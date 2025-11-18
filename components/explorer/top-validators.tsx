@@ -244,24 +244,23 @@ export function TopValidators({ validators }: TopValidatorsProps) {
         {validators.map((validator, index) => (
           <div
             key={validator.address}
-            className="rounded-xl p-4 bg-background hover:bg-background/75 transition-colors cursor-pointer"
+            className="rounded-xl px-4 py-3 bg-background hover:bg-background/75 transition-colors cursor-pointer"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted font-medium">
                   {index + 1}
                 </div>
-                <div className="flex gap-1 flex-col">
+                <div className="flex  flex-col">
                   <h4 className="text-base font-medium capitalize">
                     {validator.name}
                   </h4>
 
                   {validator.chains && validator.chains.length > 0 && (
-                    <div className="inline-flex gap-2 text-sm text-muted-foreground">
-                      <span>Staking for:</span>
+                    <div className="inline-flex items-center gap-2 text-xs text-muted-foreground">
                       <span className="font-medium">{validator.chains[0]}</span>
                       {validator.chains.length > 1 && (
-                        <span className="px-1 py-0.5 bg-muted rounded-md text-xs font-medium">
+                        <span className="px-1.5 py-0.5 bg-muted rounded-lg text-xs font-medium">
                           +{validator.chains.length - 1}
                         </span>
                       )}
@@ -273,11 +272,13 @@ export function TopValidators({ validators }: TopValidatorsProps) {
               <div className="flex items-center gap-6">
                 <div className="text-right">
                   <div className="font-medium">{validator.stake}</div>
-                  <div className="text-sm text-muted-foreground">Stake</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Stake
+                  </div>
                 </div>
                 <div className="text-right">
                   <div className="font-medium">{validator.apr}</div>
-                  <div className="text-sm text-muted-foreground">APR</div>
+                  <div className="text-xs text-muted-foreground mt-1">APR</div>
                 </div>
                 {validator.commissionRate !== undefined && (
                   <div className="text-right">
@@ -287,7 +288,7 @@ export function TopValidators({ validators }: TopValidatorsProps) {
                         change={validator.commissionChange}
                       />
                     </div>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-xs text-muted-foreground mt-1">
                       Commission
                     </div>
                   </div>
@@ -309,7 +310,7 @@ export function TopValidators({ validators }: TopValidatorsProps) {
                   <div
                     className={`rounded-md text-xs font-medium w-fit mt-1 ml-auto  text-muted-foreground`}
                   >
-                    Uptime (Last 7d / 30d)
+                    Uptime (Last 7d)
                   </div>
                 </div>
 

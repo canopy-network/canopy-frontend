@@ -268,7 +268,7 @@ const sampleNewLaunches: Chain[] = Array.from({ length: 5 }, (_, i) => {
 });
 
 // Sample top validators data
-const sampleTopValidators: Validator[] = Array.from({ length: 5 }, (_, i) => {
+const sampleTopValidators: Validator[] = Array.from({ length: 6 }, (_, i) => {
   const stake = randomBetween(200000, 800000);
   const apr = randomFloat(5, 12, 1);
   const uptime = randomFloat(95, 99.99, 2);
@@ -394,7 +394,7 @@ export function ExplorerDashboard() {
 
         {/* Bottom Grid: New Launches, Top Validators, Recent Transactions */}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 ">
+        <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6 mb-8 ">
           <NewLaunches chains={sampleNewLaunches} />
           <TopValidators validators={sampleTopValidators} />
         </div>
