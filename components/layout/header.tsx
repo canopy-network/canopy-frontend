@@ -309,7 +309,7 @@ export function Header() {
       <header
         id="superapp-header"
         data-page-type={pageType}
-        className="flex items-center justify-between px-4 lg:px-6   relative h-16 bg-black"
+        className="flex items-center justify-between px-4 lg:px-6   relative h-16 bg-background"
       >
         {/* Mobile Header - visible only on mobile */}
         <div className="flex lg:hidden items-center justify-between w-full relative">

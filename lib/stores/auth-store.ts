@@ -76,141 +76,176 @@ const zustandStorage: StateStorage = {
   },
 };
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      // Initial state
-      user: null,
-      token: null,
-      isAuthenticated: false,
-      isLoading: false,
-      error: null,
+// Only create store on client side - guard the entire creation
+const createAuthStore = () => {
+  // During SSR, skip store creation
+  if (typeof window === "undefined") {
+    return null;
+  }
 
-      // Actions
-      setUser: (user, token) => {
-        // Store user ID in localStorage for API authentication
-        if (user?.id) {
-          setUserId(user.id);
-        }
+  return create<AuthState>()(
+    persist(
+      (set) => ({
+        // Initial state
+        user: null,
+        token: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: null,
 
-        // Store token in localStorage if provided
-        if (token && typeof window !== "undefined") {
-          localStorage.setItem("auth_token", token);
-          console.log("🔑 Authorization token stored");
-        }
-
-        // Store authentication state in cookie for middleware access
-        if (typeof window !== "undefined") {
-          document.cookie = `canopy_auth=true; path=/; max-age=2592000; SameSite=Lax`;
+        // Actions
+        setUser: (user, token) => {
+          // Store user ID in localStorage for API authentication
           if (user?.id) {
-            document.cookie = `canopy_user_id=${user.id}; path=/; max-age=2592000; SameSite=Lax`;
+            setUserId(user.id);
           }
-        }
 
-        set({
-          user,
-          token,
-          isAuthenticated: true,
-          error: null,
-        });
+          // Store token in localStorage if provided
+          if (token && typeof window !== "undefined") {
+            localStorage.setItem("auth_token", token);
+            console.log("🔑 Authorization token stored");
+          }
 
-        // Verify persistence
-        if (typeof window !== "undefined") {
-          setTimeout(() => {
-            const stored = localStorage.getItem("canopy-auth-storage");
-            if (stored) {
-              const parsed = JSON.parse(stored);
-              console.log("✅ Verified data persisted to localStorage:", {
-                userFieldCount: Object.keys(parsed.state?.user || {}).length,
-                hasUser: !!parsed.state?.user,
-                hasToken: !!parsed.state?.token,
-                userId: parsed.state?.user?.id,
-                userEmail: parsed.state?.user?.email,
+          // Store authentication state in cookie for middleware access
+          if (typeof window !== "undefined") {
+            document.cookie = `canopy_auth=true; path=/; max-age=2592000; SameSite=Lax`;
+            if (user?.id) {
+              document.cookie = `canopy_user_id=${user.id}; path=/; max-age=2592000; SameSite=Lax`;
+            }
+          }
+
+          set({
+            user,
+            token,
+            isAuthenticated: true,
+            error: null,
+          });
+
+          // Verify persistence
+          if (typeof window !== "undefined") {
+            setTimeout(() => {
+              const stored = localStorage.getItem("canopy-auth-storage");
+              if (stored) {
+                const parsed = JSON.parse(stored);
+                console.log("✅ Verified data persisted to localStorage:", {
+                  userFieldCount: Object.keys(parsed.state?.user || {}).length,
+                  hasUser: !!parsed.state?.user,
+                  hasToken: !!parsed.state?.token,
+                  userId: parsed.state?.user?.id,
+                  userEmail: parsed.state?.user?.email,
+                });
+              }
+            }, 100);
+          }
+        },
+
+        clearUser: () => {
+          clearUserId();
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("auth_token");
+            // Clear authentication cookies
+            document.cookie = "canopy_auth=; path=/; max-age=0";
+            document.cookie = "canopy_user_id=; path=/; max-age=0";
+          }
+          set({
+            user: null,
+            token: null,
+            isAuthenticated: false,
+          });
+        },
+
+        setLoading: (isLoading) =>
+          set({
+            isLoading,
+          }),
+
+        setError: (error) =>
+          set({
+            error,
+          }),
+
+        logout: () => {
+          clearUserId();
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("auth_token");
+            // Clear authentication cookies
+            document.cookie = "canopy_auth=; path=/; max-age=0";
+            document.cookie = "canopy_user_id=; path=/; max-age=0";
+          }
+          set({
+            user: null,
+            token: null,
+            isAuthenticated: false,
+            error: null,
+          });
+        },
+      }),
+      {
+        name: "canopy-auth-storage",
+        storage: createJSONStorage(() => zustandStorage),
+        onRehydrateStorage: () => {
+          return (state, error) => {
+            if (error) {
+              console.error("Failed to rehydrate auth store:", error);
+            } else if (state) {
+              console.log("✅ Auth store rehydrated successfully:", {
+                hasUser: !!state.user,
+                hasToken: !!state.token,
+                isAuthenticated: state.isAuthenticated,
+                userId: state.user?.id,
               });
-            }
-          }, 100);
-        }
-      },
 
-      clearUser: () => {
-        clearUserId();
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("auth_token");
-          // Clear authentication cookies
-          document.cookie = "canopy_auth=; path=/; max-age=0";
-          document.cookie = "canopy_user_id=; path=/; max-age=0";
-        }
-        set({
-          user: null,
-          token: null,
-          isAuthenticated: false,
-        });
-      },
-
-      setLoading: (isLoading) =>
-        set({
-          isLoading,
-        }),
-
-      setError: (error) =>
-        set({
-          error,
-        }),
-
-      logout: () => {
-        clearUserId();
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("auth_token");
-          // Clear authentication cookies
-          document.cookie = "canopy_auth=; path=/; max-age=0";
-          document.cookie = "canopy_user_id=; path=/; max-age=0";
-        }
-        set({
-          user: null,
-          token: null,
-          isAuthenticated: false,
-          error: null,
-        });
-      },
-    }),
-    {
-      name: "canopy-auth-storage",
-      storage: createJSONStorage(() => zustandStorage),
-      onRehydrateStorage: () => {
-        return (state, error) => {
-          if (error) {
-            console.error("Failed to rehydrate auth store:", error);
-          } else if (state) {
-            console.log("✅ Auth store rehydrated successfully:", {
-              hasUser: !!state.user,
-              hasToken: !!state.token,
-              isAuthenticated: state.isAuthenticated,
-              userId: state.user?.id,
-            });
-
-            // Restore user ID for API calls if user exists
-            if (state.user?.id) {
-              setUserId(state.user.id);
-            }
-
-            // Restore token to localStorage if it exists
-            if (state.token && typeof window !== "undefined") {
-              const storedToken = localStorage.getItem("auth_token");
-              if (!storedToken) {
-                localStorage.setItem("auth_token", state.token);
-              }
-            }
-
-            // Restore authentication cookies for middleware access
-            if (state.isAuthenticated && typeof window !== "undefined") {
-              document.cookie = `canopy_auth=true; path=/; max-age=2592000; SameSite=Lax`;
+              // Restore user ID for API calls if user exists
               if (state.user?.id) {
-                document.cookie = `canopy_user_id=${state.user.id}; path=/; max-age=2592000; SameSite=Lax`;
+                setUserId(state.user.id);
+              }
+
+              // Restore token to localStorage if it exists
+              if (state.token && typeof window !== "undefined") {
+                const storedToken = localStorage.getItem("auth_token");
+                if (!storedToken) {
+                  localStorage.setItem("auth_token", state.token);
+                }
+              }
+
+              // Restore authentication cookies for middleware access
+              if (state.isAuthenticated && typeof window !== "undefined") {
+                document.cookie = `canopy_auth=true; path=/; max-age=2592000; SameSite=Lax`;
+                if (state.user?.id) {
+                  document.cookie = `canopy_user_id=${state.user.id}; path=/; max-age=2592000; SameSite=Lax`;
+                }
               }
             }
-          }
+          };
+        },
+      }
+    )
+  );
+};
+
+// Create store only on client side
+export const useAuthStore =
+  typeof window !== "undefined"
+    ? createAuthStore()!
+    : (() => {
+        // SSR fallback - return a hook that returns default values
+        const defaultState: AuthState = {
+          user: null,
+          token: null,
+          isAuthenticated: false,
+          isLoading: false,
+          error: null,
+          setUser: () => {},
+          clearUser: () => {},
+          setLoading: () => {},
+          setError: () => {},
+          logout: () => {},
         };
-      },
-    }
-  )
-);
+
+        return <T = AuthState>(
+          selector?: (state: AuthState) => T
+        ): T extends AuthState ? AuthState : T => {
+          if (selector) return selector(defaultState) as any;
+          return defaultState as any;
+        };
+      })();
