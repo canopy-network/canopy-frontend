@@ -6,39 +6,30 @@ export const dynamic = "force-dynamic";
 import { useState, useEffect } from "react";
 import {
   Card,
-  CardContent,
-  CardDescription,
+  CardContent, CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { SendTransactionDialog } from "@/components/wallet/send-transaction-dialog";
 import { ReceiveDialog } from "@/components/wallet/receive-dialog";
-import { AssetItem } from "@/components/wallet/asset-item";
+import { AssetsTab } from "@/components/wallet/assets-tab";
+import { ActivityTab } from "@/components/wallet/activity-tab";
 import {
-  Wallet,
   Copy,
   Send,
   Download,
-  RefreshCw,
-  ArrowUpRight,
-  ArrowDownLeft,
   Coins,
-  AlertCircle,
   Settings,
-  Filter,
-  Search,
-  ExternalLink,
+  Repeat,
+  LogOut, Wallet,
 } from "lucide-react";
-import { showSuccessToast } from "@/lib/utils/error-handler";
-import { useRouter } from "next/navigation";
-import { formatTokenAmount } from "@/lib/utils/denomination";
+import { toast } from "sonner";
+import { useRouter, useSearchParams } from "next/navigation";
 
 function WalletContent() {
   const router = useRouter();
@@ -55,7 +46,6 @@ function WalletContent() {
   const [showSendDialog, setShowSendDialog] = useState(false);
   const [showReceiveDialog, setShowReceiveDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("assets");
-  const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch data when wallet changes
   useEffect(() => {
@@ -69,12 +59,21 @@ function WalletContent() {
   const copyAddress = () => {
     if (currentWallet) {
       navigator.clipboard.writeText(currentWallet.address);
-      showSuccessToast("Address copied to clipboard");
+      toast.success("Address copied to clipboard");
     }
   };
 
   const formatAddress = (address: string) => {
-    return `${address?.slice(0, 10)}...${address.slice(-8)}`;
+    if (!address) return "";
+    const fullAddress = address.startsWith("0x") ? address : `0x${address}`;
+    return `${fullAddress.slice(0, 6)}...${fullAddress.slice(-4)}`;
+  };
+
+  const handleDisconnect = () => {
+    router.push("/");
+    setTimeout(() => {
+      // Disconnect logic handled by wallet provider
+    }, 100);
   };
 
   // Use real balance data from the store, fallback to defaults
@@ -149,284 +148,190 @@ function WalletContent() {
     );
   }
 
-  // Filter transactions based on search
-  const filteredTransactions = transactions.filter(tx =>
-    tx.txHash?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    tx.to?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    tx.from?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
-  return (
-    <div className="p-8">
-      <div className="mb-8 flex items-center justify-between">
+    return (
         <div>
-          <h1 className="text-3xl font-bold text-balance">Wallet</h1>
-          <p className="text-muted-foreground mt-2 text-pretty">
-            Manage your assets, view balances, and track transactions.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowSelectDialog(true)}
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Switch Wallet
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled
-          >
-            <Settings className="h-4 w-4 mr-2" />
-            Settings
-          </Button>
-        </div>
-      </div>
+            <div className="flex-1 p-6 pt-4">
+                <div className="max-w-[1024px] mx-auto flex gap-12">
+                    {/* Main Content */}
+                    <div className="flex-1 min-w-0">
+                        {/* Header with wallet info */}
+                        <div className="mb-8">
+                            <div className="flex items-start justify-between">
+                                <div className="flex items-center gap-3">
+                                    {/* Avatar */}
+                                    <div className="w-12 h-12 rounded-full bg-[#1dd13a] flex items-center justify-center flex-shrink-0">
+                                        <span className="text-lg font-bold text-white">C</span>
+                                    </div>
 
-      <div className="space-y-6">
-        {/* Wallet Info Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Wallet className="h-5 w-5" />
-                {currentWallet.wallet_name || "My Wallet"}
-              </div>
-              {currentWallet.isUnlocked ? (
-                <Badge variant="default" className="gap-1">
-                  Unlocked
-                </Badge>
-              ) : (
-                <Badge variant="secondary" className="gap-1">
-                  Locked
-                </Badge>
-              )}
-            </CardTitle>
-            {currentWallet.wallet_description && (
-              <CardDescription>{currentWallet.wallet_description}</CardDescription>
-            )}
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground mb-1">Address</p>
-                <p className="font-mono text-sm">
-                  {formatAddress(currentWallet.address)}
-                </p>
-              </div>
-              <Button variant="outline" size="sm" onClick={copyAddress}>
-                <Copy className="h-4 w-4" />
-              </Button>
-            </div>
+                                    {/* Wallet Info */}
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="text-base font-semibold text-foreground">
+                                                {formatAddress(currentWallet.address)}
+                                            </div>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-6 w-6 hover:bg-muted"
+                                                onClick={copyAddress}
+                                            >
+                                                <Copy className="w-3 h-3" />
+                                            </Button>
+                                        </div>
+                                        <div className="text-sm text-[#1dd13a]">Connected</div>
+                                    </div>
+                                </div>
 
-            {/* Balance */}
-            <div className="pt-4 border-t">
-              <p className="text-sm text-muted-foreground mb-1">Total Balance</p>
-              <div className="flex items-baseline gap-2">
-                <p className="text-3xl font-bold">{formatTokenAmount(displayBalance)} CNPY</p>
-                <p className="text-lg text-muted-foreground">{displayUSDValue}</p>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="grid grid-cols-3 gap-2 pt-4">
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={() => setShowSendDialog(true)}
-              >
-                <Send className="h-4 w-4" />
-                Send
-              </Button>
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={() => setShowReceiveDialog(true)}
-              >
-                <Download className="h-4 w-4" />
-                Receive
-              </Button>
-              <Button variant="outline" className="gap-2" disabled>
-                <RefreshCw className="h-4 w-4" />
-                Swap
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Tabs for Assets, Activity, Staking */}
-        <Card>
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <CardHeader>
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="assets">Assets</TabsTrigger>
-                <TabsTrigger value="activity">Activity</TabsTrigger>
-                <TabsTrigger value="staking" disabled>Staking</TabsTrigger>
-              </TabsList>
-            </CardHeader>
-
-            <CardContent>
-              {/* Assets Tab */}
-              <TabsContent value="assets" className="mt-0">
-                {displayTokens.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <Coins className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p className="text-sm mb-2">No assets yet</p>
-                    <p className="text-xs">
-                      Get started by receiving tokens to your wallet
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {displayTokens.map((token) => (
-                      <AssetItem key={token.symbol} token={token} />
-                    ))}
-                  </div>
-                )}
-              </TabsContent>
-
-              {/* Activity Tab */}
-              <TabsContent value="activity" className="mt-0 space-y-4">
-                {/* Search and Filter */}
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search by address or hash..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                  <Button variant="outline" size="icon" disabled>
-                    <Filter className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                {/* Transactions List */}
-                {filteredTransactions.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <ArrowUpRight className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p className="text-sm mb-2">
-                      {searchQuery ? "No transactions found" : "No activity yet"}
-                    </p>
-                    <p className="text-xs">
-                      {searchQuery
-                        ? "Try a different search term"
-                        : "Your transaction history will appear here"}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {filteredTransactions.map((tx) => (
-                      <div
-                        key={tx.id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors group"
-                      >
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div
-                            className={`p-2 rounded-full flex-shrink-0 ${
-                              tx.type === "send"
-                                ? "bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400"
-                                : "bg-green-100 text-green-600 dark:bg-green-900/20 dark:text-green-400"
-                            }`}
-                          >
-                            {tx.type === "send" ? (
-                              <ArrowUpRight className="h-4 w-4" />
-                            ) : (
-                              <ArrowDownLeft className="h-4 w-4" />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium capitalize">{tx.type}</p>
-                              {tx.txHash && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
-                                  onClick={() => {
-                                    // TODO: Link to block explorer
-                                  }}
-                                  disabled
-                                >
-                                  <ExternalLink className="h-3 w-3" />
-                                </Button>
-                              )}
+                                {/* Actions */}
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-9 w-9 rounded-full hover:bg-muted"
+                                        onClick={() => router.push("/settings")}
+                                    >
+                                        <Settings className="w-5 h-5" />
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-9 w-9 rounded-full text-red-500 hover:text-red-500 hover:bg-red-500/10"
+                                        onClick={handleDisconnect}
+                                    >
+                                        <LogOut className="w-5 h-5" />
+                                    </Button>
+                                </div>
                             </div>
-                            <p className="text-sm text-muted-foreground truncate">
-                              {tx.type === "send"
-                                ? tx.to
-                                  ? `To ${tx.to.slice(0, 10)}...${tx.to.slice(-8)}`
-                                  : "Sent"
-                                : tx.from
-                                ? `From ${tx.from.slice(0, 10)}...${tx.from.slice(-8)}`
-                                : "Received"}
-                            </p>
-                          </div>
                         </div>
-                        <div className="text-right flex-shrink-0 ml-4">
-                          <p className="font-medium">
-                            {formatTokenAmount(tx.amount)} {tx.token}
-                          </p>
-                          <Badge
-                            variant={
-                              tx.status === "completed" ? "default" : "secondary"
-                            }
-                            className="text-xs"
-                          >
-                            {tx.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </TabsContent>
 
-              {/* Staking Tab - Placeholder */}
-              <TabsContent value="staking" className="mt-0">
-                <div className="text-center py-12 text-muted-foreground">
-                  <Coins className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p className="text-sm">Staking coming soon</p>
+                        {/* Tabs */}
+                        <div className="space-y-6">
+
+                            {/* Tabs for Assets, Activity, Staking, Governance */}
+                            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                                <TabsList className="h-auto w-full justify-start bg-transparent p-0 border-b rounded-none">
+                                    <TabsTrigger
+                                        value="assets"
+                                        className="py-4 px-0 mr-8 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent"
+                                    >
+                                        Assets
+                                    </TabsTrigger>
+                                    <TabsTrigger
+                                        value="staking"
+                                        className="py-4 px-0 mr-8 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent"
+                                        disabled
+                                    >
+                                        Staking
+                                    </TabsTrigger>
+                                    <TabsTrigger
+                                        value="activity"
+                                        className="py-4 px-0 mr-8 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent"
+                                    >
+                                        Activity
+                                    </TabsTrigger>
+                                    <TabsTrigger
+                                        value="governance"
+                                        className="py-4 px-0 mr-8 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent"
+                                        disabled
+                                    >
+                                        Governance
+                                    </TabsTrigger>
+                                </TabsList>
+
+                                {/* Assets Tab */}
+                                <TabsContent value="assets" className="mt-6">
+                                    <AssetsTab
+                                        tokens={displayTokens}
+                                        totalBalance={displayBalance}
+                                        totalUSDValue={displayUSDValue}
+                                    />
+                                </TabsContent>
+
+                                {/* Staking Tab - Placeholder */}
+                                <TabsContent value="staking" className="mt-6">
+                                    <Card>
+                                        <CardContent className="text-center py-12 text-muted-foreground">
+                                            <Coins className="h-12 w-12 mx-auto mb-4 opacity-50"/>
+                                            <p className="text-sm">Staking coming soon</p>
+                                        </CardContent>
+                                    </Card>
+                                </TabsContent>
+
+                                {/* Activity Tab */}
+                                <TabsContent value="activity" className="mt-6">
+                                    <ActivityTab transactions={displayTransactions} compact/>
+                                </TabsContent>
+
+                                {/* Governance Tab - Placeholder */}
+                                <TabsContent value="governance" className="mt-6">
+                                    <Card>
+                                        <CardContent className="text-center py-12 text-muted-foreground">
+                                            <Coins className="h-12 w-12 mx-auto mb-4 opacity-50"/>
+                                            <p className="text-sm">Governance coming soon</p>
+                                        </CardContent>
+                                    </Card>
+                                </TabsContent>
+                            </Tabs>
+                        </div>
+                    </div>
+
+                    {/* Quick Actions Sidebar */}
+                    <Card className="w-64 shrink-0 h-fit sticky top-4">
+                        <CardHeader>
+                            <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-2 gap-2">
+                                <Button
+                                    variant="outline"
+                                    className="h-auto py-4 flex-col gap-2"
+                                    onClick={() => setShowSendDialog(true)}
+                                >
+                                    <Send className="h-5 w-5"/>
+                                    <span className="text-xs">Send</span>
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="h-auto py-4 flex-col gap-2"
+                                    disabled
+                                >
+                                    <Download className="h-5 w-5"/>
+                                    <span className="text-xs">Buy</span>
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="h-auto py-4 flex-col gap-2"
+                                    disabled
+                                >
+                                    <Repeat className="h-5 w-5"/>
+                                    <span className="text-xs">Swap</span>
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="h-auto py-4 flex-col gap-2"
+                                    disabled
+                                >
+                                    <Coins className="h-5 w-5"/>
+                                    <span className="text-xs">Stake</span>
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
-              </TabsContent>
-            </CardContent>
-          </Tabs>
-        </Card>
-
-        {/* Info Banner */}
-        <Card className="border-blue-500/20 bg-blue-500/5">
-          <CardContent className="pt-6">
-            <div className="flex gap-3">
-              <AlertCircle className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-blue-500">
-                  Full Blockchain Integration
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  You can now send and receive CNPY tokens. Swap and staking
-                  functionality will be available soon!
-                </p>
-              </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
 
-      {/* Dialogs */}
-      <SendTransactionDialog
-        open={showSendDialog}
-        onOpenChange={setShowSendDialog}
-      />
-      <ReceiveDialog
-        open={showReceiveDialog}
-        onOpenChange={setShowReceiveDialog}
-      />
-    </div>
-  );
+            {/* Dialogs */}
+            <SendTransactionDialog
+                open={showSendDialog}
+                onOpenChange={setShowSendDialog}
+            />
+            <ReceiveDialog
+                open={showReceiveDialog}
+                onOpenChange={setShowReceiveDialog}
+            />
+        </div>
+    );
 }
 
 export default function WalletPage() {

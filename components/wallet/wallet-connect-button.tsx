@@ -30,8 +30,8 @@ export function WalletConnectButton({ isCondensed = false }: WalletConnectButton
   const formatAddress = (address: string) => {
     if (!address) return "";
     // Add 0x prefix if not present
-    const fullAddress = address.startsWith("0x") ? address : `0x${address}`;
-    return `${fullAddress.slice(0, 6)}...${fullAddress.slice(-4)}`;
+
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
   // If user is not authenticated, don't show wallet button
@@ -92,12 +92,13 @@ export function WalletConnectButton({ isCondensed = false }: WalletConnectButton
       {isConnecting ? (
         <>
           <Loader2 className="h-4 w-4 animate-spin" />
-          Connecting...
+          {!isCondensed && 'Connecting...'}
         </>
       ) : (
         <>
           <Wallet className="h-4 w-4" />
-          Connect wallet
+          {!isCondensed && 'Connect wallet'}
+
         </>
       )}
     </Button>

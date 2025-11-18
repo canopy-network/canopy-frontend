@@ -11,20 +11,21 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  Loader2,
-  Wallet,
-  Check,
-  Plus,
-  Lock,
-  Unlock,
-  AlertCircle,
+    Loader2,
+    Wallet,
+    Check,
+    Plus,
+    Lock,
+    Unlock,
+    AlertCircle, Shield,
 } from "lucide-react";
-import { useWalletStore, hasStoredSeedphrase, getStoredSeedphrase } from "@/lib/stores/wallet-store";
+import { useWalletStore, getStoredSeedphrase } from "@/lib/stores/wallet-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { LocalWallet } from "@/types/wallet";
 import { showSuccessToast, showErrorToast } from "@/lib/utils/error-handler";
 import { WalletConnectionDialog } from "./wallet-connection-dialog";
 import { SeedphraseInput } from "./seedphrase-input";
+import {cn} from "@/lib/utils";
 
 type SelectWalletStep = "select" | "unlock" | "unlocking";
 
@@ -223,11 +224,6 @@ export function SelectWalletDialog({
                           <p className="text-xs text-muted-foreground font-mono truncate">
                             {formatAddress(wallet.address)}
                           </p>
-                          {wallet.wallet_description && (
-                            <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                              {wallet.wallet_description}
-                            </p>
-                          )}
                         </div>
                         <div className="flex items-center gap-2 ml-3">
                           {wallet.isUnlocked ? (
@@ -285,13 +281,21 @@ export function SelectWalletDialog({
 
         return (
           <>
-            <DialogHeader>
-              <DialogTitle>Unlock Wallet</DialogTitle>
-              <DialogDescription>
-                Enter your 12-word recovery phrase to unlock this wallet.
-              </DialogDescription>
-            </DialogHeader>
 
+
+
+
+
+            <div className={'flex flex-col items-center justify-center '}>
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                    <Shield className="w-8 h-8 text-primary" />
+                </div>
+
+                <h2 className="text-2xl font-bold text-center mb-2">Enter Password</h2>
+                <p className="text-sm text-muted-foreground text-center max-w-sm">
+                    Please enter your password to access your wallet
+                </p>
+            </div>
             <div className="space-y-4 py-4">
               {/* Wallet Info */}
               <div className="rounded-lg border bg-muted/50 p-3">
@@ -381,7 +385,7 @@ export function SelectWalletDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className={step === "unlock" ? "sm:max-w-lg" : "sm:max-w-md"}>
+        <DialogContent className={cn(step === "unlock" ? "sm:max-w-lg" : "sm:max-w-md") }>
           {renderStepContent()}
         </DialogContent>
       </Dialog>

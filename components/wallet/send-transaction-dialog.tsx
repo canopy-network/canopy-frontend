@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { retrieveMasterSeedphrase } from "@/lib/crypto/seed-storage";
-import { formatTokenAmount, isValidAmount } from "@/lib/utils/denomination";
+import {convertApiAmountsToStandard, formatTokenAmount, fromMicroUnits, isValidAmount} from "@/lib/utils/denomination";
 import {
   Dialog,
   DialogContent,
@@ -17,27 +17,53 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { Send, Loader2, AlertCircle, Info } from "lucide-react";
+import {Send, Loader2, AlertCircle, Info, Shield, Copy, ArrowLeft, X, CheckCircle, Check} from "lucide-react";
 import { showSuccessToast, showErrorToast } from "@/lib/utils/error-handler";
 import type { SendTransactionRequest } from "@/types/wallet";
+import {toast} from "sonner";
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
 
 interface SendTransactionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+type SendTransactionStep =
+    | "chain-selection"
+    | "to-address"
+    | "confirm"
+    | "loading"
+    | "success";
+
 export function SendTransactionDialog({
   open,
   onOpenChange,
 }: SendTransactionDialogProps) {
-  const { currentWallet, sendTransaction, estimateFee, isLoading } =
+  const { currentWallet, sendTransaction, estimateFee, isLoading, balance } =
     useWalletStore();
 
+  // Get available assets from balance.tokens
+  const availableAssets = balance?.tokens || [];
+
+  const [selectedAsset, setSelectedAsset] = useState<{ chainId: number, name:string,  symbol: string, balance: string } | null>(null);
+  const [step, setStep] = useState<SendTransactionStep>("chain-selection");
   const [toAddress, setToAddress] = useState("");
   const [amount, setAmount] = useState("");
   const [memo, setMemo] = useState("");
   const [estimatedFee, setEstimatedFee] = useState<string | null>(null);
   const [isEstimating, setIsEstimating] = useState(false);
+
+  const handleAssetSelect = (assetId: string) => {
+    const asset = availableAssets.find(a => String(a.chainId) === assetId);
+    if (asset) {
+      setSelectedAsset({
+        chainId: asset.chainId,
+        name: asset.name,
+        symbol: asset.symbol,
+        balance: asset.balance
+      });
+    }
+  }
 
   // Auto-estimate fee when form values change
   useEffect(() => {
@@ -79,6 +105,14 @@ export function SendTransactionDialog({
 
     return () => clearTimeout(timeoutId);
   }, [toAddress, amount, currentWallet, estimateFee]);
+
+
+  useEffect(() => {
+    if(!open) {
+      setStep("chain-selection");
+      setSelectedAsset(null);
+    }
+  }, [open]);
 
   const handleSend = async () => {
     if (!currentWallet || !toAddress || !amount) {
@@ -123,181 +157,111 @@ export function SendTransactionDialog({
     }
   };
 
+  const renderStepContent = () => {
+
+    switch (step) {
+      case "chain-selection":
+        return (
+            <>
+              <div className="space-y-2 w-full ">
+                <Label className="block text-sm font-medium">Select asset to send</Label>
+                <Select value={selectedAsset?.chainId?.toString()} onValueChange={handleAssetSelect}>
+                  <SelectTrigger className="h-auto w-full " size={"md"}>
+                    <SelectValue placeholder="Choose an asset to send">
+                      {selectedAsset ? (
+                          <div className="flex items-center justify-between w-full">
+                            <div className="flex items-center gap-3">
+                              <div
+                                  className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-primary"
+                              >
+                                  <span className="text-sm font-bold text-white">
+                                    {selectedAsset?.symbol.slice(0, 1)}
+                                  </span>
+                              </div>
+                              <div className="flex flex-col items-start">
+                                <span className="font-medium text-sm">{selectedAsset?.name}</span>
+                                <span className="text-xs text-muted-foreground">
+                                     {fromMicroUnits(selectedAsset?.balance).toLocaleString()} {selectedAsset.symbol}
+                                  </span>
+                              </div>
+                            </div>
+                          </div>
+                      ) : null}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {currentWallet && (
+                        <>
+                          {availableAssets.map((asset) => (
+                              <SelectItem key={asset.chainId} value={String(asset.chainId)} className="h-auto py-3">
+                                <div className="flex items-center justify-between w-full">
+                                  <div className="flex items-center gap-3">
+                                    <div
+                                        className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                                    >
+                                  <span className="text-sm font-bold text-white">
+                                    {asset.symbol.slice(0, 1)}
+                                  </span>
+                                    </div>
+                                    <div className="flex flex-col items-start gap-1">
+                                      <span className="font-medium">{asset.name}</span>
+                                      <span className="text-xs text-muted-foreground">
+                                     {asset.balance.toLocaleString()} {asset.symbol}
+                                  </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </SelectItem>
+                          ))}
+                        </>
+                    )}
+
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button variant="default"  disabled={!selectedAsset} onClick={() => setStep("to-address")} className="w-full">Continue</Button>
+
+            </>
+      );
+
+      case "to-address":
+        return (
+            <></>
+        );
+
+      case "confirm":
+        return (
+           <></>
+        );
+
+      case "loading":
+        return (
+           <></>
+        );
+
+      case "success":
+        return (
+            <></>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
+        <DialogHeader className={'border-b pb-2'}>
           <DialogTitle className="flex items-center gap-2">
             <Send className="h-5 w-5" />
-            Send Transaction
+            Send
           </DialogTitle>
-          <DialogDescription>
-            Send CNPY tokens from your wallet to another address
-          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          {/* From Address (Read-only) */}
-          <div className="space-y-2">
-            <Label htmlFor="from-address">From Address</Label>
-            <Input
-              id="from-address"
-              value={currentWallet?.address || ""}
-              disabled
-              className="font-mono text-sm"
-            />
-          </div>
-
-          {/* To Address */}
-          <div className="space-y-2">
-            <Label htmlFor="to-address">
-              To Address <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="to-address"
-              placeholder="Enter recipient address"
-              value={toAddress}
-              onChange={(e) => setToAddress(e.target.value)}
-              className="font-mono text-sm"
-            />
-          </div>
-
-          {/* Amount */}
-          <div className="space-y-2">
-            <Label htmlFor="amount">
-              Amount (CNPY) <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="amount"
-              type="number"
-              placeholder="0.00"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              step="0.01"
-              min="0"
-            />
-          </div>
-
-          {/* Memo (Optional) */}
-          <div className="space-y-2">
-            <Label htmlFor="memo">Memo (Optional)</Label>
-            <Textarea
-              id="memo"
-              placeholder="Add a note to this transaction"
-              value={memo}
-              onChange={(e) => setMemo(e.target.value)}
-              rows={2}
-            />
-          </div>
-
-          {/* Transaction Details Section */}
-          {(toAddress && amount && parseFloat(amount) > 0) && (
-            <>
-              <Separator />
-
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <Info className="h-4 w-4 text-primary" />
-                  Transaction Details
-                </div>
-
-                {/* Fee Estimation */}
-                <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Estimated Fee</span>
-                    {isEstimating ? (
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        <span className="text-sm">Calculating...</span>
-                      </div>
-                    ) : estimatedFee ? (
-                      <span className="text-sm font-medium">{formatTokenAmount(estimatedFee)} CNPY</span>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">--</span>
-                    )}
-                  </div>
-
-                  <Separator />
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">You will send</span>
-                    <span className="text-sm font-medium">{formatTokenAmount(amount)} CNPY</span>
-                  </div>
-
-                  {estimatedFee && (
-                    <>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold">Total Cost</span>
-                        <span className="text-sm font-semibold">
-                          {formatTokenAmount((parseFloat(amount) + parseFloat(estimatedFee)).toString())} CNPY
-                        </span>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Wallet Locked Warning */}
-          {currentWallet && !currentWallet.isUnlocked && (
-            <div className="flex gap-2 p-3 border border-red-500/20 bg-red-500/5 rounded-lg">
-              <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
-              <div className="space-y-1 text-sm">
-                <p className="font-medium text-red-500">Wallet Locked</p>
-                <p className="text-muted-foreground">
-                  Your wallet must be unlocked to send transactions. Please unlock your
-                  wallet before proceeding.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Warning */}
-          <div className="flex gap-2 p-3 border border-yellow-500/20 bg-yellow-500/5 rounded-lg">
-            <AlertCircle className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
-            <div className="space-y-1 text-sm">
-              <p className="font-medium text-yellow-500">Confirm Transaction</p>
-              <p className="text-muted-foreground">
-                Please review all details carefully. Transactions cannot be reversed
-                once confirmed on the blockchain.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isLoading}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSend}
-            disabled={
-              !toAddress ||
-              !amount ||
-              !currentWallet ||
-              !currentWallet.isUnlocked ||
-              isLoading ||
-              parseFloat(amount) <= 0
-            }
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Sending...
-              </>
-            ) : (
-              <>
-                <Send className="mr-2 h-4 w-4" />
-                Confirm & Send
-              </>
-            )}
-          </Button>
-        </DialogFooter>
+        {renderStepContent()}
       </DialogContent>
     </Dialog>
   );

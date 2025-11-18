@@ -56,6 +56,7 @@ import {
   toSendRawTransactionRequest,
   type NetworkParams,
 } from "@/lib/crypto/transaction";
+import {symbol} from "zod";
 
 export interface WalletState {
   // State
@@ -487,6 +488,17 @@ export const useWalletStore = create<WalletState>()(
 
           console.log("Setting wallet balance:", walletBalance);
           set({ balance: walletBalance });
+
+
+          const availableAssets = tokens.map(token => ({
+            chainId: String(token.chainId),
+            symbol: token.symbol,
+            name: token.name,
+            balance: token.balance,
+          }))
+
+          console.log("Available assets:", availableAssets);
+          set({ availableAssets: availableAssets })
         } catch (error) {
           console.error("Failed to fetch balance:", error);
 
@@ -617,8 +629,8 @@ export const useWalletStore = create<WalletState>()(
           // Network parameters for transaction
           // Height will be determined by the backend/blockchain
           const networkParams: NetworkParams = {
-            height: BigInt(1), // Placeholder - backend will validate
-            networkId: BigInt(request.chain_id || 0),
+            height: BigInt(0), // Placeholder - backend will validate
+            networkId: BigInt(request.netowork_id || 1),
             chainId: BigInt(request.chain_id || 0),
           };
 

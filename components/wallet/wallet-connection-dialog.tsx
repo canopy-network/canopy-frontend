@@ -189,15 +189,6 @@ export function WalletConnectionDialog({
           <div className="flex flex-col">
             {/* Header */}
             <div className="relative px-6 py-12 flex flex-col items-center">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-2 top-2 rounded-full"
-                onClick={handleClose}
-              >
-                <X className="w-5 h-5" />
-              </Button>
-
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
                 <Shield className="w-8 h-8 text-primary" />
               </div>
@@ -265,7 +256,7 @@ export function WalletConnectionDialog({
                 className="w-full h-11 rounded-xl bg-primary"
                 onClick={handleSeedPhraseConfirm}
               >
-                I've Written It Down
+                  {"I've Written It Down"}
               </Button>
             </div>
           </div>
@@ -483,7 +474,6 @@ export function WalletConnectionDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="sm:max-w-[500px] p-0 gap-0 !rounded-3xl"
-        hideclose
         onInteractOutside={(e) => {
           // Prevent closing when clicking outside during critical steps
           if (step === "creating") {
