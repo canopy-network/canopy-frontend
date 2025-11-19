@@ -54,9 +54,11 @@ export function SwapTab({
   const handleFromAmountChange = (value: string) => {
     setFromAmount(value);
     if (value && !isNaN(parseFloat(value))) {
-      const calculated = (parseFloat(value) * parseFloat(currentPrice)).toFixed(
-        6,
-      );
+      const price = parseFloat(currentPrice);
+      const amount = parseFloat(value);
+      const calculated = isReversed
+        ? (amount / price).toFixed(6)
+        : (amount * price).toFixed(6);
       setToAmount(calculated);
     } else {
       setToAmount("");
@@ -91,7 +93,7 @@ export function SwapTab({
               value={fromAmount}
               onChange={(e) => handleFromAmountChange(e.target.value)}
               variant="wallet"
-              className="text-6xl font-semibold text-center w-full h-full! p-0 bg-transparent! placeholder:text-muted-foreground/50"
+              className="text-6xl! placeholder:text-6xl font-semibold text-center w-full h-full! p-0 bg-transparent! placeholder:text-muted-foreground/50"
             />
           </div>
         </div>
@@ -126,7 +128,7 @@ export function SwapTab({
                 value={toAmount}
                 readOnly
                 variant="wallet"
-                className="text-4xl font-semibold text-right w-40 h-auto p-0 bg-transparent!"
+                className="text-5xl font-semibold text-right w-40 h-auto p-0 bg-transparent!"
               />
               <div className="text-xs text-muted-foreground">$0.00</div>
             </div>
@@ -164,7 +166,9 @@ export function SwapTab({
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
         <DialogContent className="sm:max-w-2xl min-h-[400px] bg-[#171717]">
           <DialogHeader>
-            <DialogTitle className="border-b border-dashed pb-3">Swap Settings</DialogTitle>
+            <DialogTitle className="border-b border-dashed pb-3">
+              Swap Settings
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-3">
@@ -178,41 +182,53 @@ export function SwapTab({
                 automatically.
               </p>
               <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={slippage === "auto" ? "bg-[#1B2D1C] text-[#8CEC8D]" : "bg-[#2E2F30]"}
-                    onClick={() => setSlippage("auto")}
-                  >
-                    Auto
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={slippage === "0.3" ? "bg-[#1B2D1C] text-[#8CEC8D]" : "bg-[#2E2F30]"}
-                    onClick={() => setSlippage("0.3")}
-                  >
-                    0.3%
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={slippage === "0.5" ? "bg-[#1B2D1C] text-[#8CEC8D]" : "bg-[#2E2F30]"}
-                    onClick={() => setSlippage("0.5")}
-                  >
-                    0.5%
-                  </Button>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      placeholder="Custom"
-                      value={customSlippage}
-                      onChange={(e) => {
-                        setCustomSlippage(e.target.value);
-                        setSlippage(e.target.value);
-                      }}
-                      className="w-24 h-9"
-                    />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={
+                    slippage === "auto"
+                      ? "bg-[#1B2D1C] text-[#8CEC8D]"
+                      : "bg-[#2E2F30]"
+                  }
+                  onClick={() => setSlippage("auto")}
+                >
+                  Auto
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={
+                    slippage === "0.3"
+                      ? "bg-[#1B2D1C] text-[#8CEC8D]"
+                      : "bg-[#2E2F30]"
+                  }
+                  onClick={() => setSlippage("0.3")}
+                >
+                  0.3%
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={
+                    slippage === "0.5"
+                      ? "bg-[#1B2D1C] text-[#8CEC8D]"
+                      : "bg-[#2E2F30]"
+                  }
+                  onClick={() => setSlippage("0.5")}
+                >
+                  0.5%
+                </Button>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Custom"
+                    value={customSlippage}
+                    onChange={(e) => {
+                      setCustomSlippage(e.target.value);
+                      setSlippage(e.target.value);
+                    }}
+                    className="w-24 h-9"
+                  />
                 </div>
               </div>
             </div>
@@ -225,7 +241,8 @@ export function SwapTab({
                 <h4 className="font-medium">Priority Fee</h4>
               </div>
               <p className="text-sm text-muted-foreground">
-                Pay extra to jump ahead in the transaction queue. Higher priority fees mean faster confirmation times.
+                Pay extra to jump ahead in the transaction queue. Higher
+                priority fees mean faster confirmation times.
               </p>
               <div className="flex gap-2">
                 {PRIORITY_FEES.map((fee) => (
@@ -233,7 +250,11 @@ export function SwapTab({
                     key={fee.value}
                     variant="ghost"
                     size="sm"
-                    className={priorityFee === fee.value ? "bg-[#1B2D1C] text-[#8CEC8D]" : "bg-[#2E2F30]"}
+                    className={
+                      priorityFee === fee.value
+                        ? "bg-[#1B2D1C] text-[#8CEC8D]"
+                        : "bg-[#2E2F30]"
+                    }
                     onClick={() => handlePriorityFeeChange(fee.value)}
                   >
                     {fee.label}

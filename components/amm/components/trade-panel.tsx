@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { SwapTab } from "./trade-panel/swap-tab";
 import { LiquidityTab } from "./trade-panel/liquidity-tab";
 import { ConvertTab } from "./trade-panel/convert-tab";
+import { OrderBook } from "./order-book/order-book";
 
 enum TradeTab {
   Swap = "swap",
@@ -89,6 +90,13 @@ export function TradePanel({
           )}
         </CardContent>
       </Card>
+
+      {activeTab === TradeTab.Convert && (
+        <OrderBook
+          baseTokenSymbol={baseTokenSymbol}
+          quoteTokenSymbol={quoteTokenSymbol}
+        />
+      )}
     </div>
   );
 }

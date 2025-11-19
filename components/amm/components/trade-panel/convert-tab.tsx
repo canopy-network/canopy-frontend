@@ -20,8 +20,8 @@ export function ConvertTab({
   const [toAmount, setToAmount] = useState("");
   const [isReversed, setIsReversed] = useState(false);
 
-  const fromToken = isReversed ? "USD" : "CNPY";
-  const toToken = isReversed ? "CNPY" : "USD";
+  const fromToken = isReversed ? quoteTokenSymbol : baseTokenSymbol;
+  const toToken = isReversed ? baseTokenSymbol : quoteTokenSymbol;
 
   const handleSwapDirection = () => {
     setIsReversed(!isReversed);
@@ -32,8 +32,11 @@ export function ConvertTab({
   const handleFromAmountChange = (value: string) => {
     setFromAmount(value);
     if (value && !isNaN(parseFloat(value))) {
-      // Placeholder calculation - should be replaced with actual conversion logic
-      const calculated = (parseFloat(value) * 0.7).toFixed(6);
+      const price = parseFloat(currentPrice);
+      const amount = parseFloat(value);
+      const calculated = isReversed
+        ? (amount / price).toFixed(6)
+        : (amount * price).toFixed(6);
       setToAmount(calculated);
     } else {
       setToAmount("");
@@ -107,7 +110,7 @@ export function ConvertTab({
       <div className="space-y-2 text-sm mt-3">
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Conversion Rate</span>
-          <span className="font-medium">1 CNPY = 0.70 USD</span>
+          <span className="font-medium">1 {baseTokenSymbol} = {currentPrice} {quoteTokenSymbol}</span>
         </div>
       </div>
 
