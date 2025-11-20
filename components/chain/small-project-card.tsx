@@ -31,7 +31,7 @@ interface SmallProjectCardProps {
 
 export const SmallProjectCard = ({
   project,
-  href = `/chain/${project.id}`,
+  href = `/chains/${project.id}`,
   viewMode = "grid",
   accolades = [],
 }: SmallProjectCardProps) => {

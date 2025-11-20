@@ -6,10 +6,12 @@ export function Container({
   id,
   className,
   type,
+  tag = "div",
 }: {
   children: React.ReactNode | React.ReactNode[];
   id?: string;
   className?: string;
+  tag?: "main" | "section" | "div";
   type?: "full-width" | "boxed" | "2xl";
 }) {
   const size = useMemo(() => {
@@ -25,12 +27,11 @@ export function Container({
     }
   }, [type]);
 
+  const Tag = tag || "div";
+
   return (
-    <main
-      id={id}
-      className={cn("flex-1 lg:px-6 lg:py-4 px-4", size, className)}
-    >
+    <Tag id={id} className={cn("flex-1 lg:px-6 lg:py-4 px-4", size, className)}>
       {children}
-    </main>
+    </Tag>
   );
 }

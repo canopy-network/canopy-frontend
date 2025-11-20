@@ -14,11 +14,13 @@ import { format } from "date-fns";
 export const ChainDetailChart = ({
   data,
   isDark = true,
+  height = 272,
   timeframe = "1D",
   lineColor = "#1dd13a",
 }: {
   data: Array<{ time: string | number; value: number }>;
   isDark?: boolean;
+  height?: number;
   timeframe?: string;
   lineColor?: string;
 }) => {
@@ -87,7 +89,7 @@ export const ChainDetailChart = ({
       attributionLogo: false,
     },
     width: chartContainerRef.current?.clientWidth || 0,
-    height: 200,
+    height,
     grid: {
       vertLines: {
         visible: true,

@@ -24,6 +24,27 @@ export function MainNav({
 }: MainNavProps) {
   const pathname = usePathname();
 
+  // Helper function to check if a route is active
+  const isActive = (href: string) => {
+    if (href === "/") {
+      // For home route, only match exactly "/" or "/" with trailing slash
+      return pathname === "/" || pathname === "";
+    }
+    // Special case for Explorer: also highlight on /transactions, /blocks, /validators
+    if (href === "/explorer") {
+      return (
+        pathname === href ||
+        pathname.startsWith(href + "/") ||
+        pathname.startsWith("/transactions") ||
+        pathname.startsWith("/blocks") ||
+        pathname.startsWith("/validators")
+      );
+    }
+    // For other routes, match if pathname starts with the href
+    // and ensure we don't match partial paths (e.g., /explorer-something)
+    return pathname === href || pathname.startsWith(href + "/");
+  };
+
   return (
     <nav
       className={cn(
@@ -33,19 +54,20 @@ export function MainNav({
     >
       {navigation.map((item) => {
         const Icon = item.icon;
+        const active = isActive(item.href);
         return (
           <Link
             key={item.name}
             href={item.href}
             className={cn(
-              "flex font-medium rounded-xl transition-colors",
+              "flex font-medium rounded-xl transition-colors text-white",
               isCondensed
                 ? "w-[57px] flex-col items-center justify-center gap-1 py-2 text-sm"
-                : "items-center gap-3 px-3 py-2 text-sm rounded-lg",
-              pathname === item.href
-                ? "bg-primary text-primary-foreground"
+                : "items-center gap-3 px-3 py-2 text-sm ",
+              active
+                ? "bg-white/5"
                 : isCondensed
-                ? "text-white hover:bg-white/5"
+                ? " hover:bg-white/5"
                 : "text-muted-foreground hover:text-foreground hover:bg-accent"
             )}
           >
