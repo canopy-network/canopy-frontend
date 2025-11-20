@@ -51,19 +51,28 @@ const TableFooter = React.forwardRef<
 ));
 TableFooter.displayName = "TableFooter";
 
-const TableRow = React.forwardRef<
-  HTMLTableRowElement,
-  React.HTMLAttributes<HTMLTableRowElement>
->(({ className, ...props }, ref) => (
-  <tr
-    ref={ref}
-    className={cn(
-      "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
-      className
-    )}
-    {...props}
-  />
-));
+type TableRowProps = React.HTMLAttributes<HTMLTableRowElement> & {
+  appearance?: "rich" | "plain";
+};
+
+const tableRowAppearances: Record<
+  NonNullable<TableRowProps["appearance"]>,
+  string
+> = {
+  rich: "rounded-xl px-4 py-3 bg-background hover:bg-background/75 transition-colors cursor-pointer",
+  plain:
+    "border-b border-border transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
+};
+
+const TableRow = React.forwardRef<HTMLTableRowElement, TableRowProps>(
+  ({ className, appearance = "plain", ...props }, ref) => (
+    <tr
+      ref={ref}
+      className={cn(tableRowAppearances[appearance], className)}
+      {...props}
+    />
+  )
+);
 TableRow.displayName = "TableRow";
 
 const TableHead = React.forwardRef<
