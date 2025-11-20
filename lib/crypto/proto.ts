@@ -19,7 +19,7 @@ export function getProtoSignBytes(tx: Transaction): Uint8Array {
         case 'send':
             const sendMsg = types.MessageSend.create({
                 fromAddress: tx.msg.fromAddress,
-                to_address: tx.msg.toAddress,
+                toAddress: tx.msg.toAddress,
                 amount: Number(tx.msg.amount)
             });
             msgPayload = types.MessageSend.encode(sendMsg).finish();
