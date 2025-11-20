@@ -567,17 +567,17 @@ export interface TransactionHistoryResponse {
 export interface SendRawTransactionRequest {
   raw_transaction: {
     type: string;
-    message: Record<string, any>;
+    msg: Record<string, any>;
     signature: {
       publicKey: string;
       signature: string;
     };
-    time: string;
-    createdHeight: string;
-    fee: string;
+    time: number;          // ✅ Números, no strings
+    createdHeight: number; // ✅ Números, no strings
+    fee: number;           // ✅ Números, no strings
     memo: string;
-    networkID: string;
-    chainID: string;
+    networkID: number;     // ✅ Números, no strings
+    chainID: number;       // ✅ Números, no strings
   };
 }
 

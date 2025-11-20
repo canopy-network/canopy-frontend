@@ -43,6 +43,7 @@ import {
   fromMicroUnits,
   toMicroUnits
 } from "@/lib/utils/denomination";
+import { explorerApi } from "@/lib/api/explorer";
 
 /**
  * Generate a 4-character symbol for a chain based on chain_id
@@ -630,19 +631,19 @@ export const useWalletStore = create<WalletState>()(
             ? BigInt(toMicroUnits(request.fee.toString()))
             : BigInt(1000); // Default fee of 1000 uCNPY
 
+          // Get current blockchain height from explorer API
+          console.log("📡 Fetching current blockchain height...");
+          const chainId = request.chain_id || 1;
+          const currentHeight = await explorerApi.getCurrentHeight(chainId);
+          console.log("  Current height:", currentHeight);
+
           // Network parameters for transaction
-          // Height will be determined by the backend/blockchain
           const networkParams: NetworkParams = {
-            height: BigInt(0), // Placeholder - backend will validate
+            height: BigInt(currentHeight), // ✅ Usa el height actual del blockchain
             networkId: BigInt(request.network_id || 1),
-            chainId: BigInt(request.chain_id || 0),
+            chainId: BigInt(request.chain_id || 1), // Default to 1 (root chain)
           };
 
-          console.log("🔨 Building transaction...");
-          console.log("  From:", request.from_address);
-          console.log("  To:", request.to_address);
-          console.log("  Amount:", amountInMicro.toString(), "uCNPY");
-          console.log("  Fee:", feeInMicro.toString(), "uCNPY");
 
           // Create and sign the transaction locally
           const signedTx = createSendTransaction(

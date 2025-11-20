@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:canopy-wireframes.vercel.app)",
+      "Bash(curl:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx tsc:*)",
+      "WebSearch",
+      "Bash(node:*)",
+      "Bash(cat:*)",
+      "Bash(npm install:*)",
+      "Bash(npx pbjs:*)",
+      "Bash(npx protobufjs-cli pbjs:*)",
+      "Bash(npx pbts:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
