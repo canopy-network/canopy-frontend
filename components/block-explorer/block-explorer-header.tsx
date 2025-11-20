@@ -16,7 +16,7 @@ export function BlockExplorerHeader({
   networkStatus = "Active",
 }: BlockExplorerHeaderProps) {
   return (
-    <Card className="p-6 mb-4">
+    <Card className="p-6">
       <div className="grid lg:grid-cols-2 xl:grid-cols-4 grid-cols-2 gap-8">
         {/* Block Height */}
         <div className="flex items-start gap-3">

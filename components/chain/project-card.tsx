@@ -103,7 +103,7 @@ export const ProjectCard = ({
   const [imageError, setImageError] = useState(false);
 
   return (
-    <Card className="rounded-xl border text-card-foreground   p-6 pb-0 bg-gradient-to-br from-card to-muted/20  hover:ring-2 hover:ring-primary/20 transition-all relative">
+    <Card className="rounded-xl border text-card-foreground  px-4 py-4 lg:p-6 lg:pb-0 bg-gradient-to-br from-card to-muted/20  hover:ring-2 hover:ring-primary/20 transition-all relative h-114 lg:h-auto">
       {/* Favorite Button - Absolute positioned */}
       {isAuthenticated && (
         <button
@@ -126,9 +126,9 @@ export const ProjectCard = ({
         </button>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] lg:gap-8">
         {/* Left Column */}
-        <div className="space-y-6">
+        <div className="space-y-4 lg:space-y-6">
           {/* Header */}
           <div className="flex items-start gap-3">
             <Link href={`/chain/${project.id}`}>
@@ -150,7 +150,7 @@ export const ProjectCard = ({
                 )}
               </div>
             </Link>
-            <div className="flex-1 min-w-0 pr-12">
+            <div className="flex-1 min-w-0 lg:pr-12">
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-medium">${project.token_symbol}</h3>
                 {/* Display Accolades */}
@@ -168,22 +168,34 @@ export const ProjectCard = ({
                   </div>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">
-                {project.chain_name} • created{" "}
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <span className="inline-block w-auto max-w-[112px] lg:max-w-auto overflow-hidden text-ellipsis whitespace-nowrap">
+                  {project.token_name}
+                </span>{" "}
+                • <span className="hidden lg:inline">Created </span>
                 {formatRelativeTime(project.created_at)}
               </p>
             </div>
           </div>
 
-          <Link href={`/chain/${project.id}`}>
+          <Link href={`/chain/${project.id}`} className="block mb-3 lg:mb-0">
             {/* Title */}
-            <h2 className="text-2xl font-bold leading-tight">
+            <h2
+              className="text-2xl font-bold leading-tight line-clamp-2"
+              style={{
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
               {project.chain_name}
             </h2>
           </Link>
 
           {/* Description */}
-          <p className="text-sm text-muted-foreground leading-relaxed">
+          <p className="hidden lg:block text-sm text-muted-foreground leading-relaxed">
             {project.chain_description}
           </p>
 
@@ -260,7 +272,7 @@ export const ProjectCard = ({
         </div>
 
         {/* Right Column - Chart */}
-        <div className="flex items-center w-full h-[280px] flex-col justify-center">
+        <div className="flex items-center w-full lg:h-[280px] flex-col justify-center">
           {chartData && chartData.length > 0 ? (
             <FeaturelessChart
               data={chartData}

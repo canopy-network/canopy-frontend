@@ -14,12 +14,14 @@ interface RecentsProjectsCarouselProps {
   projects: Chain[];
   virtualPools?: Record<string, VirtualPool>;
   onBuyClick: (project: Chain) => void;
+  priceHistoryData?: Record<string, Array<{ value: number; time: number }>>;
 }
 
 export const RecentsProjectsCarousel = ({
   projects,
   virtualPools = {},
   onBuyClick,
+  priceHistoryData: externalPriceHistoryData,
 }: RecentsProjectsCarouselProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
@@ -144,7 +146,7 @@ export const RecentsProjectsCarousel = ({
   }
 
   return (
-    <div className="relative">
+    <div className="relative" id="highlighted-projects">
       {/* Carousel Container */}
       <div className="relative  rounded-lg mb-2">
         <div
@@ -155,7 +157,10 @@ export const RecentsProjectsCarousel = ({
             // Use embedded virtual_pool from project, or fallback to virtualPools prop
             const virtualPool =
               project.virtual_pool || virtualPools[project.id];
-            const chartData = priceHistoryData[project.id];
+            // Use external price history data if provided, otherwise use local state
+            const chartData =
+              externalPriceHistoryData?.[project.id] ||
+              priceHistoryData[project.id];
             const accolades = accoladesData[project.id] || [];
 
             return (
@@ -182,7 +187,10 @@ export const RecentsProjectsCarousel = ({
 
       {/* Dots Indicator - Top */}
       {displayProjects.length > 1 && (
-        <div className="flex justify-center  mb-6">
+        <div
+          className="flex justify-center  mb-6"
+          id="highlighted-projects-slider-controls"
+        >
           {displayProjects.map((_, index) => (
             <button
               key={index}

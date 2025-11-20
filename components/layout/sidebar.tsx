@@ -23,6 +23,7 @@ export function Sidebar() {
   const [isCompact, setIsCompact] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [showLaunchDialog, setShowLaunchDialog] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const pathname = usePathname();
 
   // User is considered logged in if either email auth or GitHub auth is active
@@ -38,11 +39,21 @@ export function Sidebar() {
     setIsCompact(isSmallScreen);
   };
 
+  // Check if device is mobile
+  const checkMobile = () => {
+    setIsMobile(window.innerWidth < WINDOW_BREAKPOINTS.LG);
+  };
+
   // Check if sidebar should be compact
   useEffect(() => {
     checkCompact();
+    checkMobile();
     window.addEventListener("resize", checkCompact);
-    return () => window.removeEventListener("resize", checkCompact);
+    window.addEventListener("resize", checkMobile);
+    return () => {
+      window.removeEventListener("resize", checkCompact);
+      window.removeEventListener("resize", checkMobile);
+    };
   }, [pathname]);
 
   // Handle Cmd+K / Ctrl+K keyboard shortcut
@@ -137,7 +148,7 @@ export function Sidebar() {
           </kbd>
         </button>
 
-        {isLoggedIn && (
+        {isLoggedIn && !isMobile && (
           <Button
             onClick={() => {
               // Check if dialog has been shown this session
@@ -152,8 +163,10 @@ export function Sidebar() {
               }
             }}
             className={cn(
-              "flex items-center rounded-full bg-transparent text-sm font-medium text-white hover:bg-white/5 transition-colors",
-              isCondensed ? "w-10 h-10 justify-center" : "w-full h-9 gap-3 pl-4"
+              "flex  rounded-full bg-transparent text-sm font-medium text-white hover:bg-white/5 transition-colors",
+              isCondensed
+                ? "w-10 h-10 justify-center"
+                : "w-full h-9 gap-3 pl-4 text-left justify-start"
             )}
           >
             <Plus className="w-5 h-5" />
