@@ -12,7 +12,7 @@
  * 4. Convert to send-raw format for backend submission
  */
 
-import { bls12_381 } from '@noble/curves/bls12-381.js';
+import { ed25519 } from '@noble/curves/ed25519.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 
@@ -35,8 +35,8 @@ export interface Transaction {
  * Signature structure with public key and signature bytes
  */
 export interface Signature {
-    publicKey: Uint8Array;    // BLS12-381 public key bytes
-    signature: Uint8Array;    // BLS12-381 signature bytes
+    publicKey: Uint8Array;    // ED25519 public key bytes (32 bytes)
+    signature: Uint8Array;    // ED25519 signature bytes (64 bytes)
 }
 
 /**
@@ -167,25 +167,67 @@ export function computeTxHash(tx: Transaction): string {
 }
 
 /**
- * Signs a transaction with a BLS12-381 private key
+ * Verifies an ED25519 signature locally (for debugging)
+ *
+ * @param tx - Signed transaction
+ * @returns true if signature is valid
+ */
+export function verifyTransactionSignature(tx: Transaction): boolean {
+    if (!tx.signature) {
+        console.error('❌ Transaction has no signature');
+        return false;
+    }
+
+    try {
+        console.log('🔍 Verifying ED25519 signature locally...');
+
+        // Get the sign bytes
+        const { getProtoSignBytes } = require('./proto');
+        const signBytes = getProtoSignBytes(tx);
+
+        // Verify signature
+        const isValid = ed25519.verify(
+            tx.signature.signature,
+            signBytes,
+            tx.signature.publicKey
+        );
+
+        if (isValid) {
+            console.log('✅ Local signature verification PASSED');
+        } else {
+            console.error('❌ Local signature verification FAILED');
+        }
+
+        return isValid;
+    } catch (error) {
+        console.error('❌ Verification error:', error);
+        return false;
+    }
+}
+
+/**
+ * Signs a transaction with an ED25519 private key
  *
  * @param tx - Transaction to sign (signature field will be populated)
- * @param privateKeyHex - Hex-encoded BLS12-381 private key
+ * @param privateKeyHex - Hex-encoded ED25519 private key (32 bytes / 64 hex chars)
  * @throws Error if signing fails
  */
 export function signTransaction(tx: Transaction, privateKeyHex: string): void {
     try {
-        console.log('🔐 Starting transaction signing...');
+        console.log('🔐 Starting transaction signing (ED25519)...');
 
         // Convert hex private key to bytes
         const privateKeyBytes = hexToBytes(privateKeyHex);
-        console.log('  Private key length:', privateKeyBytes.length);
+        console.log('  Private key length:', privateKeyBytes.length, 'bytes (expected: 32)');
 
-        // Derive public key on G1 (48 bytes) - Canopy uses public keys on G1
-        // Use longSignatures scheme: public keys on G1, signatures on G2
-        const publicKey = bls12_381.longSignatures.getPublicKey(privateKeyBytes);
-        const publicKeyBytes = publicKey.toBytes();
-        console.log('  Public key length:', publicKeyBytes.length);
+        if (privateKeyBytes.length !== 32) {
+            throw new Error(`Invalid ED25519 private key length: ${privateKeyBytes.length} (expected 32 bytes)`);
+        }
+
+        // Derive ED25519 public key (32 bytes)
+        const publicKeyBytes = ed25519.getPublicKey(privateKeyBytes);
+        console.log('  Public key length:', publicKeyBytes.length, 'bytes (expected: 32)');
+        console.log('  Public key (hex):', bytesToHex(publicKeyBytes));
 
         // Get canonical sign bytes using protobuf - same as Canopy's GetSignBytes()
         const { getProtoSignBytes } = require('./proto');
@@ -193,22 +235,27 @@ export function signTransaction(tx: Transaction, privateKeyHex: string): void {
         console.log('  Sign bytes length:', signBytes.length);
         console.log('  Sign bytes (hex):', bytesToHex(signBytes));
 
-        // Hash and sign the message with BLS12-381 longSignatures
-        // Canopy uses BDN scheme on G2, which means:
-        // - Public keys on G1 (48 bytes)
-        // - Signatures on G2 (96 bytes)
-        console.log('  Attempting to hash and sign...');
-        const DST = 'BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_';
-        const hashedMessage = bls12_381.longSignatures.hash(signBytes, DST);
-        const sig = bls12_381.longSignatures.sign(hashedMessage, privateKeyBytes);
-        const signatureBytes = sig.toBytes();
-        console.log('✅ Signature created, length:', signatureBytes.length);
+        // Sign with ED25519 (produces 64-byte signature)
+        // ED25519 signs the message directly, no domain separation needed
+        console.log('  Signing with ED25519...');
+        const signatureBytes = ed25519.sign(signBytes, privateKeyBytes);
+        console.log('✅ Signature created, length:', signatureBytes.length, 'bytes (expected: 64)');
+        console.log('  Signature (hex):', bytesToHex(signatureBytes));
 
         // Populate signature field
         tx.signature = {
             publicKey: publicKeyBytes,
             signature: signatureBytes,
         };
+
+        // Verify signature locally before sending
+        console.log('🔍 Verifying signature locally...');
+        const isValid = ed25519.verify(signatureBytes, signBytes, publicKeyBytes);
+        if (!isValid) {
+            throw new Error('Local signature verification failed! This should never happen.');
+        }
+        console.log('✅ Local signature verification PASSED');
+
     } catch (error) {
         console.error('❌ Signing error:', error);
         throw new Error(`Failed to sign transaction: ${error instanceof Error ? error.message : String(error)}`);
@@ -235,8 +282,7 @@ export function createSendTransaction(
     memo: string = ''
 ): Transaction {
     const privateKeyBytes = hexToBytes(from);
-    const publicKey = bls12_381.longSignatures.getPublicKey(privateKeyBytes);
-    const publicKeyBytes = publicKey.toBytes();
+    const publicKeyBytes = ed25519.getPublicKey(privateKeyBytes);
     const fromAddress = deriveAddress(publicKeyBytes);
     const toAddress = hexToBytes(to);
 
@@ -287,8 +333,7 @@ export function createLimitOrderTransaction(
     memo: string = ''
 ): Transaction {
     const privateKeyBytes = hexToBytes(from);
-    const publicKey = bls12_381.longSignatures.getPublicKey(privateKeyBytes);
-    const publicKeyBytes = publicKey.toBytes();
+    const publicKeyBytes = ed25519.getPublicKey(privateKeyBytes);
     const senderAddress = deriveAddress(publicKeyBytes);
 
     const message: MessageCreateOrder = {
@@ -343,8 +388,7 @@ export function createStakeTransaction(
     memo: string = ''
 ): Transaction {
     const privateKeyBytes = hexToBytes(from);
-    const publicKey = bls12_381.longSignatures.getPublicKey(privateKeyBytes);
-    const publicKeyBytes = publicKey.toBytes();
+    const publicKeyBytes = ed25519.getPublicKey(privateKeyBytes);
 
     const message: MessageStake = {
         publicKey: publicKeyBytes,

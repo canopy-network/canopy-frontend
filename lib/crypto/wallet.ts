@@ -3,17 +3,17 @@
 /**
  * Wallet generation and encryption module
  *
- * Provides BLS12-381 key pair generation and AES-GCM encryption
- * for Canopy blockchain.
+ * Provides ED25519 key pair generation and AES-GCM encryption
+ * for Canopy Launchpad wallets.
  *
  * Security features:
- * - BLS12-381 cryptography (Canopy blockchain standard)
+ * - ED25519 cryptography (fast, secure, industry standard)
  * - Argon2id key derivation (memory-hard, GPU-resistant)
  * - AES-256-GCM authenticated encryption
  * - Random salt per wallet (prevents rainbow table attacks)
  */
 
-import { bls12_381 } from '@noble/curves/bls12-381.js';
+import { ed25519 } from '@noble/curves/ed25519.js';
 import { argon2i } from '@noble/hashes/argon2.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
@@ -22,8 +22,8 @@ import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
  * Represents a blockchain key pair with private key, public key, and address
  */
 export interface KeyPair {
-    privateKey: string; // hex encoded BLS12-381 private key
-    publicKey: string;  // hex encoded BLS12-381 public key
+    privateKey: string; // hex encoded ED25519 private key (32 bytes / 64 hex chars)
+    publicKey: string;  // hex encoded ED25519 public key (32 bytes / 64 hex chars)
     address: string;    // blockchain address derived from public key
 }
 
@@ -53,13 +53,13 @@ const SALT_LENGTH = 16;  // 16 bytes (128 bits)
 const NONCE_LENGTH = 12; // 12 bytes (96 bits) for AES-GCM
 
 /**
- * Derives a blockchain address from a BLS12-381 public key
+ * Derives a blockchain address from an ED25519 public key
  * Uses SHA256 hash and takes first 20 bytes, similar to Ethereum
  */
 function deriveAddress(publicKey: Uint8Array): string {
     const hash = sha256(publicKey);
-    // Take first 20 bytes and encode as hex with 0x prefix
-    return '0x' + bytesToHex(hash.slice(0, 20));
+    // Take first 20 bytes and encode as hex WITHOUT 0x prefix
+    return bytesToHex(hash.slice(0, 20));
 }
 
 /**
@@ -82,25 +82,26 @@ function deriveKey(password: string, salt: Uint8Array): Uint8Array {
 }
 
 /**
- * Generates a new BLS12-381 key pair for blockchain use
+ * Generates a new ED25519 key pair for blockchain use
  *
  * @returns KeyPair with private key, public key, and address
  * @throws Error if key generation fails
  */
 export function generateKeyPair(): KeyPair {
     try {
-        // Use BLS12-381 short signatures (G1 signatures, G2 public keys)
-        const { secretKey, publicKey } = bls12_381.shortSignatures.keygen();
+        // Generate random 32-byte private key using Web Crypto API
+        const privateKeyBytes = new Uint8Array(32);
+        crypto.getRandomValues(privateKeyBytes);
 
-        // Convert public key point to bytes for address derivation
-        const publicKeyBytes = publicKey.toBytes();
+        // Derive ED25519 public key (32 bytes)
+        const publicKeyBytes = ed25519.getPublicKey(privateKeyBytes);
 
         // Derive blockchain address from public key
         const address = deriveAddress(publicKeyBytes);
 
         return {
-            privateKey: bytesToHex(secretKey),
-            publicKey: publicKey.toHex(),
+            privateKey: bytesToHex(privateKeyBytes),
+            publicKey: bytesToHex(publicKeyBytes),
             address,
         };
     } catch (error) {
@@ -111,8 +112,8 @@ export function generateKeyPair(): KeyPair {
 /**
  * Encrypts a private key using AES-256-GCM with Argon2id key derivation
  *
- * @param publicKeyBytes - BLS12-381 public key bytes
- * @param privateKeyBytes - BLS12-381 private key bytes to encrypt
+ * @param publicKeyBytes - ED25519 public key bytes (32 bytes)
+ * @param privateKeyBytes - ED25519 private key bytes to encrypt (32 bytes)
  * @param password - Password for encryption
  * @param address - Blockchain address
  * @returns EncryptedKeyPair with encrypted data and salt
@@ -259,8 +260,8 @@ export async function restoreKeyPair(
     const privateKeyBytes = await decryptPrivateKey(encrypted, password);
 
     // Derive public key from private key to verify integrity
-    const publicKey = bls12_381.shortSignatures.getPublicKey(privateKeyBytes);
-    const derivedPublicKey = publicKey.toHex();
+    const publicKeyBytes = ed25519.getPublicKey(privateKeyBytes);
+    const derivedPublicKey = bytesToHex(publicKeyBytes);
 
     // Verify public key matches
     if (derivedPublicKey !== encrypted.publicKey) {
@@ -268,7 +269,6 @@ export async function restoreKeyPair(
     }
 
     // Verify address matches
-    const publicKeyBytes = publicKey.toBytes();
     const derivedAddress = deriveAddress(publicKeyBytes);
     if (derivedAddress !== encrypted.address) {
         throw new Error('Key pair verification failed: address mismatch');
