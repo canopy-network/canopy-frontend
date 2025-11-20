@@ -33,6 +33,7 @@ import {
   getSampleTransactions,
   SampleTransaction,
 } from "@/lib/demo-data/sample-transactions";
+import { useChainsStore } from "@/lib/stores";
 
 const formatAddress = (value: string, prefix = 4, suffix = 4) =>
   `${value.slice(0, prefix)}...${value.slice(-suffix)}`;
@@ -192,8 +193,20 @@ export function TransactionsExplorer({
   const isLastPage = currentPage === totalPages;
 
   const handleChainSelect = (chain: { id: string; chain_name: string }) => {
-    router.push(`/chain/${chain.id}/transactions`);
+    router.push(`/chains/${chain.id}/transactions`);
   };
+
+  const setCurrentExplorerSelectedChain = useChainsStore(
+    (state) => state.setCurrentExplorerSelectedChain
+  );
+  useEffect(() => {
+    if (chainContextId) {
+      setCurrentExplorerSelectedChain({
+        id: chainContextId,
+        chain_name: chainContextName ?? "",
+      });
+    }
+  }, [chainContextId, chainContextName]);
 
   return (
     <Container type="boxed" className="space-y-6 xl:px-0">

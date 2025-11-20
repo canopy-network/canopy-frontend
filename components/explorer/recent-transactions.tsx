@@ -78,7 +78,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
               <TableRow key={tx.tx_hash} appearance="plain">
                 <TableCell>
                   <Link
-                    href={`/chains/${tx.chain_id}`}
+                    href={`/chains/${tx.chain_id}/transactions`}
                     className="flex items-center gap-3 hover:opacity-80 transition-opacity"
                   >
                     <Image

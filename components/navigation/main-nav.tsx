@@ -30,6 +30,16 @@ export function MainNav({
       // For home route, only match exactly "/" or "/" with trailing slash
       return pathname === "/" || pathname === "";
     }
+    // Special case for Explorer: also highlight on /transactions, /blocks, /validators
+    if (href === "/explorer") {
+      return (
+        pathname === href ||
+        pathname.startsWith(href + "/") ||
+        pathname.startsWith("/transactions") ||
+        pathname.startsWith("/blocks") ||
+        pathname.startsWith("/validators")
+      );
+    }
     // For other routes, match if pathname starts with the href
     // and ensure we don't match partial paths (e.g., /explorer-something)
     return pathname === href || pathname.startsWith(href + "/");
@@ -50,14 +60,14 @@ export function MainNav({
             key={item.name}
             href={item.href}
             className={cn(
-              "flex font-medium rounded-xl transition-colors",
+              "flex font-medium rounded-xl transition-colors text-white",
               isCondensed
                 ? "w-[57px] flex-col items-center justify-center gap-1 py-2 text-sm"
-                : "items-center gap-3 px-3 py-2 text-sm rounded-lg",
+                : "items-center gap-3 px-3 py-2 text-sm ",
               active
-                ? "bg-primary text-primary-foreground"
+                ? "bg-white/5"
                 : isCondensed
-                ? "text-white hover:bg-white/5"
+                ? " hover:bg-white/5"
                 : "text-muted-foreground hover:text-foreground hover:bg-accent"
             )}
           >

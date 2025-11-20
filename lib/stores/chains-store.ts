@@ -62,6 +62,11 @@ interface ChainsState {
     pages: number;
   };
 
+  currentExplorerSelectedChain: {
+    id: string;
+    chain_name: string;
+  } | null;
+
   // Actions
   fetchChains: (params?: GetChainsParams) => Promise<void>;
   fetchChain: (id: string, include?: string) => Promise<void>;
@@ -88,6 +93,10 @@ interface ChainsState {
   getChainById: (id: string) => Chain | undefined;
   getVirtualPoolByChainId: (chainId: string) => VirtualPool | undefined;
   getTransactionsByChainId: (chainId: string) => Transaction[];
+  setCurrentExplorerSelectedChain: (chain: {
+    id: string;
+    chain_name: string;
+  }) => void;
 }
 
 // ============================================================================
@@ -164,6 +173,7 @@ const createChainsStore = () => {
             total: 0,
             pages: 0,
           },
+          currentExplorerSelectedChain: null,
 
           // ============================================================================
           // API ACTIONS
@@ -465,6 +475,14 @@ const createChainsStore = () => {
           getTransactionsByChainId: (chainId) => {
             return get().transactions[chainId] || [];
           },
+
+          setCurrentExplorerSelectedChain: ({
+            id,
+            chain_name,
+          }: {
+            id: string;
+            chain_name: string;
+          }) => set({ currentExplorerSelectedChain: { id, chain_name } }),
         }),
         {
           name: "chains-store",
@@ -518,6 +536,8 @@ export const useChainsStore =
           getChainById: () => undefined,
           getVirtualPoolByChainId: () => undefined,
           getTransactionsByChainId: () => [],
+          setCurrentExplorerSelectedChain: () => {},
+          currentExplorerSelectedChain: null,
         };
 
         return <T = ChainsState>(

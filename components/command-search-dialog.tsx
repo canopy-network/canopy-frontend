@@ -159,7 +159,7 @@ export default function CommandSearchDialog({
           return;
         }
       }
-      router.push(`/chain/${recent.id}`);
+      router.push(`/chains/${recent.id}`);
       onOpenChange(false);
       setSearchQuery("");
     } else if (recent.type === "transaction") {

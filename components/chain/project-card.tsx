@@ -131,7 +131,7 @@ export const ProjectCard = ({
         <div className="space-y-4 lg:space-y-6">
           {/* Header */}
           <div className="flex items-start gap-3">
-            <Link href={`/chain/${project.id}`}>
+            <Link href={`/chains/${project.id}`}>
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center"
                 style={{ backgroundColor: brandColor }}
@@ -178,7 +178,7 @@ export const ProjectCard = ({
             </div>
           </div>
 
-          <Link href={`/chain/${project.id}`} className="block mb-3 lg:mb-0">
+          <Link href={`/chains/${project.id}`} className="block mb-3 lg:mb-0">
             {/* Title */}
             <h2
               className="text-2xl font-bold leading-tight line-clamp-2"

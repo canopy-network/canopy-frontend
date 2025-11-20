@@ -78,7 +78,7 @@ export function SearchBar({
         placeholder="Search by address, tx hash, block..."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
-        className="w-full pl-12 pr-[140px] py-6 bg-[#1a1a1a] border-[#2a2a2a] text-white placeholder:text-gray-400 rounded-lg"
+        className="w-full pl-12 pr-[140px] py-6 bg-[#1a1a1a] border-[#2a2a2a] text-white placeholder:text-gray-400 rounded-xl"
       />
 
       <CommandSearchTrigger

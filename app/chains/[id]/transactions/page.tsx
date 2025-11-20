@@ -19,7 +19,7 @@ export default async function ChainTransactionsPage(
   const params = await props.params;
   const chainId = decodeURIComponent(params.id);
 
-  const response = await chainsApi.getChain(chainId, {
+  const response = await chainsApi.getChain("10011", {
     include:
       "creator,template,assets,holders,graduation,repository,social_links,graduated_pool,virtual_pool",
   });

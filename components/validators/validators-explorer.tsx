@@ -169,7 +169,7 @@ export function ValidatorsExplorer({
   const isLastPage = currentPage === totalPages;
 
   const handleChainSelect = (chain: { id: string; chain_name: string }) => {
-    router.push(`/chain/${chain.id}/validators`);
+    router.push(`/chains/${chain.id}/validators`);
   };
 
   const formatStake = (stake: number) => {

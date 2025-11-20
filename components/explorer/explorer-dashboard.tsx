@@ -356,9 +356,12 @@ export function ExplorerDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <Container type="2xl" className="space-y-6">
-        {/* Search Bar */}
+    <>
+      <Container
+        tag="section"
+        type="2xl"
+        className="bg-background sticky top-0 lg:py-2 z-99"
+      >
         <SearchBar
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
@@ -370,6 +373,9 @@ export function ExplorerDashboard() {
             })),
           ]}
         />
+      </Container>
+      <Container tag="section" type="2xl" className="space-y-6">
+        {/* Search Bar */}
 
         <NetworkOverview metrics={overviewMetrics} />
 
@@ -388,6 +394,6 @@ export function ExplorerDashboard() {
 
         <Spacer height={320} />
       </Container>
-    </div>
+    </>
   );
 }

@@ -609,7 +609,7 @@ export function LaunchpadDashboard() {
     return <HomePageSkeleton />;
   }
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen text-white">
       {/* Error Display */}
       {error && (
         <div className="container mx-auto px-4 py-4">
@@ -713,7 +713,7 @@ export function LaunchpadDashboard() {
                 <SmallProjectCard
                   key={project.id}
                   project={project}
-                  href={`/chain/${project.id}`}
+                  href={`/chains/${project.id}`}
                   viewMode={viewMode}
                   accolades={accoladesData[project.id] || []}
                 />
@@ -754,7 +754,7 @@ export function LaunchpadDashboard() {
               <SmallProjectCard
                 key={project.id}
                 project={project}
-                href={`/chain/${project.id}`}
+                href={`/chains/${project.id}`}
                 viewMode={viewMode}
               />
             ))}
@@ -777,7 +777,7 @@ export function LaunchpadDashboard() {
               <SmallProjectCard
                 key={project.id}
                 project={project}
-                href={`/chain/${project.id}`}
+                href={`/chains/${project.id}`}
                 viewMode={viewMode}
               />
             ))}
@@ -800,7 +800,7 @@ export function LaunchpadDashboard() {
               <SmallProjectCard
                 key={project.id}
                 project={project}
-                href={`/chain/${project.id}`}
+                href={`/chains/${project.id}`}
                 viewMode={viewMode}
               />
             ))}
@@ -858,7 +858,7 @@ export function LaunchpadDashboard() {
                 <SmallProjectCard
                   key={project.id}
                   project={project}
-                  href={`/chain/${project.id}`}
+                  href={`/chains/${project.id}`}
                   viewMode={viewMode}
                 />
               ))
