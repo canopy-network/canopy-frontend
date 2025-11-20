@@ -119,10 +119,11 @@ export function SelectWalletDialog({
   const handleUnlock = async () => {
     if (!selectedWalletId || !seedphrase) return;
 
-    // Validate word count
-    const wordCount = seedphrase.trim().split(/\s+/).length;
-    if (wordCount !== 12) {
-      setLocalError("Please enter all 12 words of your recovery phrase");
+    // Remove all spaces from seedphrase (password has no spaces)
+    const processedSeedphrase = seedphrase.replace(/\s+/g, "");
+
+    if (!processedSeedphrase) {
+      setLocalError("Please enter your password");
       return;
     }
 
@@ -130,7 +131,7 @@ export function SelectWalletDialog({
       setStep("unlocking");
       setLocalError(null);
 
-      await unlockWallet(selectedWalletId, "test");
+      await unlockWallet(selectedWalletId, processedSeedphrase);
       selectWallet(selectedWalletId);
 
       showSuccessToast("Wallet unlocked and connected!");
@@ -310,12 +311,9 @@ export function SelectWalletDialog({
               {/* Seed Phrase Input */}
               <div
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    const wordCount = seedphrase.trim().split(/\s+/).filter(w => w).length;
-                    if (wordCount === 12) {
-                      e.preventDefault();
-                      handleUnlock();
-                    }
+                  if (e.key === "Enter" && !e.shiftKey && seedphrase.trim()) {
+                    e.preventDefault();
+                    handleUnlock();
                   }
                 }}
               >
@@ -353,7 +351,7 @@ export function SelectWalletDialog({
               <Button
                 onClick={handleUnlock}
                 className="flex-1"
-                disabled={!seedphrase || seedphrase.trim().split(/\s+/).filter(w => w).length !== 12}
+                disabled={!seedphrase || !seedphrase.trim()}
               >
                 Unlock
               </Button>

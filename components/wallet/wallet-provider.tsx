@@ -48,18 +48,41 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [showSelectDialog, setShowSelectDialog] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [hasHydrated, setHasHydrated] = useState(false);
 
-  // Fetch wallets when user is authenticated
+  // Rehydrate wallet store on mount (restore persisted state)
   useEffect(() => {
+    console.log('🔄 Rehydrating wallet store from localStorage...');
+    useWalletStore.persist.rehydrate();
+    setHasHydrated(true);
+
+    // Log rehydrated state
+    const state = useWalletStore.getState();
+    console.log('✅ Wallet store rehydrated:', {
+      walletsCount: state.wallets.length,
+      currentWallet: state.currentWallet?.address,
+      hasCurrentWallet: !!state.currentWallet,
+    });
+  }, []);
+
+  // Fetch wallets when user is authenticated and store is hydrated
+  useEffect(() => {
+    if (!hasHydrated) {
+      console.log('⏳ Waiting for wallet store hydration...');
+      return; // Wait for hydration
+    }
+
     if (isAuthenticated) {
+      console.log('🔐 User authenticated, fetching wallets from API...');
       fetchWallets().catch((error) => {
         console.error("Failed to fetch wallets:", error);
       });
     } else {
+      console.log('🔓 User not authenticated, resetting wallet state...');
       // Reset wallet state when user logs out
       resetWalletState();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, hasHydrated]);
 
   /**
    * Connect wallet flow:

@@ -326,3 +326,62 @@ export async function verifyPassword(
         return false;
     }
 }
+
+/**
+ * Validates a blockchain wallet address
+ *
+ * @param address - Address to validate
+ * @returns true if address is valid, false otherwise
+ *
+ * Valid address format:
+ * - Followed by exactly 40 hexadecimal characters (20 bytes)
+ * - Total length: 40 characters
+ */
+export function isValidAddress(address: string): boolean {
+    if (!address) {
+        return false;
+    }
+
+    // Check if address has correct length (0x + 40 hex chars = 42 chars)
+    if (address.length !== 40) {
+        return false;
+    }
+
+    // Check if remaining characters are valid hex (0-9, a-f, A-F)
+
+    const hexRegex = /^[0-9a-fA-F]{40}$/;
+
+    return hexRegex.test(address);
+}
+
+/**
+ * Normalizes a wallet address to lowercase with 0x prefix
+ *
+ * @param address - Address to normalize
+ * @returns Normalized address or throws error if invalid
+ * @throws Error if address is invalid
+ */
+export function normalizeAddress(address: string): string {
+    if (!isValidAddress(address)) {
+        throw new Error('Invalid wallet address format');
+    }
+
+    return address.toLowerCase();
+}
+
+/**
+ * Compares two wallet addresses for equality (case-insensitive)
+ *
+ * @param address1 - First address
+ * @param address2 - Second address
+ * @returns true if addresses are equal, false otherwise
+ */
+export function addressesEqual(address1: string, address2: string): boolean {
+    try {
+        const normalized1 = normalizeAddress(address1);
+        const normalized2 = normalizeAddress(address2);
+        return normalized1 === normalized2;
+    } catch {
+        return false;
+    }
+}

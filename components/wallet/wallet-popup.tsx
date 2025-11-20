@@ -27,6 +27,7 @@ import {
 import { showSuccessToast } from "@/lib/utils/error-handler";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import {formatTokenAmount, toDisplayAmount} from "@/lib/utils/denomination";
 
 export function WalletPopup() {
   const router = useRouter();
@@ -123,10 +124,7 @@ export function WalletPopup() {
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                   <h2 className="text-4xl font-bold text-foreground mb-1">
-                    ${parseFloat(displayBalance).toLocaleString('en-US', {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2
-                    })}
+                   ${toDisplayAmount(displayBalance)}
                   </h2>
                 </div>
 
@@ -240,7 +238,7 @@ export function WalletPopup() {
                                       {token.name} <span className="text-muted-foreground">{token.symbol}</span>
                                     </div>
                                     <div className="text-sm text-muted-foreground">
-                                      {token.balance}
+                                      {toDisplayAmount(token.balance)}
                                     </div>
                                   </div>
                                 </div>

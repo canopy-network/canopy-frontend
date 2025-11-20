@@ -24,7 +24,9 @@ const MICRO_MULTIPLIER = 1_000_000;
  * toMicroUnits("1.5") // Returns "1500000"
  * toMicroUnits(10) // Returns "10000000"
  */
-export function toMicroUnits(amount: string | number): string {
+export function toMicroUnits(amount?: string | number): string {
+  if (!amount) return "0";
+
   const amountNum = typeof amount === 'string' ? parseFloat(amount) : amount;
 
   if (isNaN(amountNum)) {
@@ -196,6 +198,14 @@ export function convertStandardAmountsToMicro<T extends Record<string, any>>(dat
   return converted;
 }
 
+
+export function toDisplayAmount(amount?: string | number): string {
+  if(!amount) return "0.00"
+
+  if(isNaN(Number(amount))) return "0.00"
+
+  return Number(amount).toLocaleString()
+}
 // Legacy exports for backward compatibility
 /**
  * @deprecated Use convertApiAmountsToStandard instead

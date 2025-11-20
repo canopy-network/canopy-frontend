@@ -448,6 +448,7 @@ export interface SendTransactionRequest {
   from_address: string;            // Sender address (required)
   to_address: string;              // Recipient address (required)
   amount: string;                  // Amount to send (required)
+  network_id: number;              // Network ID (required)
   chain_id: number;                // Chain ID
   password: string;                // Wallet password for signing (required)
   fee?: number;                    // Transaction fee (optional)
@@ -566,7 +567,7 @@ export interface TransactionHistoryResponse {
 export interface SendRawTransactionRequest {
   raw_transaction: {
     type: string;
-    msg: Record<string, any>;
+    message: Record<string, any>;
     signature: {
       publicKey: string;
       signature: string;

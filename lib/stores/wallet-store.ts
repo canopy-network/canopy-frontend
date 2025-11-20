@@ -72,6 +72,7 @@ export interface WalletState {
   // Portfolio data (cached)
   portfolioOverview: any | null; // Full portfolio overview
   multiChainBalance: any | null; // Balance across all chains
+  availableAssets: { chainId: string; symbol: string; name: string; balance: string }[]
 
   // Actions - Wallet Management
   fetchWallets: () => Promise<void>;
@@ -131,6 +132,7 @@ export const useWalletStore = create<WalletState>()(
       transactions: [],
       portfolioOverview: null,
       multiChainBalance: null,
+      availableAssets: [],
 
       // Fetch all wallets for the current user
       // Uses only exportWallets endpoint which contains all necessary data
@@ -437,7 +439,6 @@ export const useWalletStore = create<WalletState>()(
             : null,
         }));
       },
-
       // Fetch balance for a wallet using portfolio overview API
       fetchBalance: async (walletId: string) => {
         try {
@@ -466,23 +467,26 @@ export const useWalletStore = create<WalletState>()(
           }
 
           // Build tokens array - one token per chain
+          // Note: API already returns balances in standard units (not micro)
+          // Store raw values - formatting happens in the view layer
           const tokens: WalletBalance['tokens'] = overview.accounts.map((account) => ({
             symbol: generateChainSymbol(account.chain_id),
             name: account.chain_name,
-            balance: fromMicroUnits(account.balance),
+            balance: account.balance, // Raw value from API
             usdValue: undefined, // USD value not provided in current response
             logo: undefined,
             chainId: account.chain_id,
             distribution: {
-              liquid: fromMicroUnits(account.available_balance),
-              staked: fromMicroUnits(account.staked_balance),
-              delegated: fromMicroUnits(account.delegated_balance),
+              liquid: account.available_balance, // Raw value
+              staked: account.staked_balance, // Raw value
+              delegated: account.delegated_balance, // Raw value
             },
           }));
 
-          // Convert total from micro units to standard units
+          // API already returns total in standard units (not micro)
+          // Store raw value - formatting happens in the view layer
           const walletBalance: WalletBalance = {
-            total: fromMicroUnits(overview.total_value_cnpy || "0"),
+            total: overview.total_value_cnpy || "0", // Raw value from API
             tokens,
           };
 
@@ -630,7 +634,7 @@ export const useWalletStore = create<WalletState>()(
           // Height will be determined by the backend/blockchain
           const networkParams: NetworkParams = {
             height: BigInt(0), // Placeholder - backend will validate
-            networkId: BigInt(request.netowork_id || 1),
+            networkId: BigInt(request.network_id || 1),
             chainId: BigInt(request.chain_id || 0),
           };
 

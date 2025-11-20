@@ -85,20 +85,70 @@ export interface NetworkParams {
 }
 
 /**
+ * Helper function to convert BigInts to strings for JSON serialization
+ */
+function bigIntReplacer(key: string, value: any): any {
+    if (typeof value === 'bigint') {
+        return value.toString();
+    }
+    return value;
+}
+
+/**
+ * Serializes message payload based on type
+ * Converts Uint8Arrays to hex strings and BigInts to strings
+ */
+function serializeMessage(msg: any, messageType: string): any {
+    switch (messageType) {
+        case 'send':
+            return {
+                fromAddress: bytesToHex(msg.fromAddress),
+                toAddress: bytesToHex(msg.toAddress),
+                amount: msg.amount.toString(),
+            };
+
+        case 'createOrder':
+            return {
+                chainId: msg.chainId.toString(),
+                data: bytesToHex(msg.data),
+                amountForSale: msg.amountForSale.toString(),
+                requestedAmount: msg.requestedAmount.toString(),
+                sellerReceiveAddress: bytesToHex(msg.sellerReceiveAddress),
+                sellersSendAddress: bytesToHex(msg.sellersSendAddress),
+            };
+
+        case 'stake':
+            return {
+                publickey: bytesToHex(msg.publicKey),
+                amount: msg.amount.toString(),
+                committees: msg.committees.map((c: bigint) => c.toString()),
+                netAddress: msg.netAddress,
+                outputAddress: bytesToHex(msg.outputAddress),
+                delegate: msg.delegate,
+                compound: msg.compound,
+            };
+
+        default:
+            return msg;
+    }
+}
+
+/**
  * Creates the canonical sign bytes for a transaction (excluding signature)
  */
 function getSignBytes(tx: Transaction): Uint8Array {
     // Create transaction without signature for signing
+    // Serialize message payload (converts Uint8Arrays to hex, BigInts to strings)
     const unsignedTx = {
         messageType: tx.messageType,
-        msg: tx.msg,
+        msg: serializeMessage(tx.msg, tx.messageType),
         signature: null,
-        time: tx.time,
-        createdHeight: tx.createdHeight,
-        fee: tx.fee,
+        time: tx.time.toString(),
+        createdHeight: tx.createdHeight.toString(),
+        fee: tx.fee.toString(),
         memo: tx.memo,
-        networkId: tx.networkId,
-        chainId: tx.chainId,
+        networkId: tx.networkId.toString(),
+        chainId: tx.chainId.toString(),
     };
 
     // Serialize to canonical JSON form
@@ -110,8 +160,8 @@ function getSignBytes(tx: Transaction): Uint8Array {
  * Computes the transaction hash (SHA256 of serialized transaction)
  */
 export function computeTxHash(tx: Transaction): string {
-    // Serialize to JSON and compute hash
-    const txBytes = new TextEncoder().encode(JSON.stringify(tx));
+    // Serialize to JSON and compute hash, converting BigInts to strings
+    const txBytes = new TextEncoder().encode(JSON.stringify(tx, bigIntReplacer));
     const hash = sha256(txBytes);
     return bytesToHex(hash);
 }
@@ -125,19 +175,33 @@ export function computeTxHash(tx: Transaction): string {
  */
 export function signTransaction(tx: Transaction, privateKeyHex: string): void {
     try {
+        console.log('🔐 Starting transaction signing...');
+
         // Convert hex private key to bytes
         const privateKeyBytes = hexToBytes(privateKeyHex);
+        console.log('  Private key length:', privateKeyBytes.length);
 
         // Derive public key using shortSignatures API
         const publicKey = bls12_381.shortSignatures.getPublicKey(privateKeyBytes);
         const publicKeyBytes = publicKey.toBytes();
+        console.log('  Public key length:', publicKeyBytes.length);
 
         // Get canonical sign bytes
         const signBytes = getSignBytes(tx);
+        console.log('  Sign bytes length:', signBytes.length);
+        console.log('  Sign bytes (first 50):', bytesToHex(signBytes.slice(0, 50)));
+
+        // Hash the message using BLS12-381 hash function
+        // According to @noble/curves docs, use the hash method
+        const DST = 'BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_';
+        const messagePoint = bls12_381.G1.hashToCurve(signBytes, { DST });
+        console.log('  Message hashed to curve');
 
         // Sign with BLS12-381 using shortSignatures API
-        const signature = bls12_381.shortSignatures.sign(signBytes, privateKeyBytes);
+        console.log('  Attempting to sign...');
+        const signature = bls12_381.shortSignatures.sign(messagePoint, privateKeyBytes);
         const signatureBytes = signature.toBytes();
+        console.log('✅ Signature created, length:', signatureBytes.length);
 
         // Populate signature field
         tx.signature = {
@@ -145,6 +209,7 @@ export function signTransaction(tx: Transaction, privateKeyHex: string): void {
             signature: signatureBytes,
         };
     } catch (error) {
+        console.error('❌ Signing error:', error);
         throw new Error(`Failed to sign transaction: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
@@ -397,11 +462,9 @@ export function serializeTransactionJSON(tx: Transaction): string {
 export function toSendRawTransactionRequest(tx: Transaction): {
     raw_transaction: {
         type: string;
-        msg: Record<string, any>;
-        signature: {
-            publicKey: string;
-            signature: string;
-        };
+        message: Record<string, any>;
+        signature: string
+        public_key: string;
         time: string;
         createdHeight: string;
         fee: string;
@@ -417,11 +480,9 @@ export function toSendRawTransactionRequest(tx: Transaction): {
     return {
         raw_transaction: {
             type: tx.messageType,
-            msg: serializeMessage(tx.msg, tx.messageType),
-            signature: {
-                publicKey: bytesToHex(tx.signature.publicKey),
-                signature: bytesToHex(tx.signature.signature),
-            },
+            message: serializeMessage(tx.msg, tx.messageType),
+            signature: bytesToHex(tx.signature.signature),
+            public_key: bytesToHex(tx.signature.publicKey),
             time: tx.time.toString(),
             createdHeight: tx.createdHeight.toString(),
             fee: tx.fee.toString(),
@@ -430,42 +491,4 @@ export function toSendRawTransactionRequest(tx: Transaction): {
             chainID: tx.chainId.toString(),
         },
     };
-}
-
-/**
- * Serializes message payload based on type
- */
-function serializeMessage(msg: any, messageType: string): any {
-    switch (messageType) {
-        case 'send':
-            return {
-                fromAddress: bytesToHex(msg.fromAddress),
-                toAddress: bytesToHex(msg.toAddress),
-                amount: msg.amount.toString(),
-            };
-
-        case 'createOrder':
-            return {
-                chainId: msg.chainId.toString(),
-                data: bytesToHex(msg.data),
-                amountForSale: msg.amountForSale.toString(),
-                requestedAmount: msg.requestedAmount.toString(),
-                sellerReceiveAddress: bytesToHex(msg.sellerReceiveAddress),
-                sellersSendAddress: bytesToHex(msg.sellersSendAddress),
-            };
-
-        case 'stake':
-            return {
-                publickey: bytesToHex(msg.publicKey),
-                amount: msg.amount.toString(),
-                committees: msg.committees.map((c: bigint) => c.toString()),
-                netAddress: msg.netAddress,
-                outputAddress: bytesToHex(msg.outputAddress),
-                delegate: msg.delegate,
-                compound: msg.compound,
-            };
-
-        default:
-            return msg;
-    }
 }
