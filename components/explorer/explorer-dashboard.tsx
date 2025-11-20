@@ -12,6 +12,7 @@ import { RecentTransactions } from "./recent-transactions";
 import { RecentBlocks } from "./recent-blocks";
 import { TrendingChains } from "./trending-chains";
 import { Chain } from "@/types/chains";
+import { SearchBar } from "./explorer-search-bar";
 
 interface Transaction {
   chain_id: number;
@@ -377,16 +378,17 @@ export function ExplorerDashboard() {
     <div className="min-h-screen bg-black text-white">
       <Container type="2xl" className="space-y-6">
         {/* Search Bar */}
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <Input
-            type="text"
-            placeholder="Search by address, tx hash, block..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-6 bg-[#1a1a1a] border-[#2a2a2a] text-white placeholder:text-gray-400 rounded-lg"
-          />
-        </div>
+        <SearchBar
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          chains={[
+            ...sampleTrendingChains.map((c) => ({ id: c.id, name: c.name })),
+            ...sampleNewLaunches.map((c) => ({
+              id: c.id,
+              name: c.chain_name,
+            })),
+          ]}
+        />
 
         <NetworkOverview metrics={overviewMetrics} />
 

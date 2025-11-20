@@ -182,22 +182,40 @@ export function RecentBlocks() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border">
-              <th className="text-left p-4 text-sm font-medium text-muted-foreground">
+              <th
+                id="block-height-header"
+                className="text-left p-4 text-sm font-medium text-muted-foreground"
+              >
                 {/* Column 1 - Block Height - No header */}
               </th>
-              <th className="text-left p-4 text-sm font-medium text-muted-foreground">
+              <th
+                id="timestamp-header"
+                className="text-left p-4 text-sm font-medium text-muted-foreground"
+              >
                 Timestamp
               </th>
-              <th className="text-left p-4 text-sm font-medium text-muted-foreground">
+              <th
+                id="age-header"
+                className="text-left p-4 text-sm font-medium text-muted-foreground"
+              >
                 Age
               </th>
-              <th className="text-left p-4 text-sm font-medium text-muted-foreground">
+              <th
+                id="block-hash-header"
+                className="text-left p-4 text-sm font-medium text-muted-foreground"
+              >
                 Block Hash
               </th>
-              <th className="text-left p-4 text-sm font-medium text-muted-foreground">
+              <th
+                id="block-producer-header"
+                className="text-left p-4 text-sm font-medium text-muted-foreground"
+              >
                 Block Producer
               </th>
-              <th className="text-left p-4 text-sm font-medium text-muted-foreground">
+              <th
+                id="transactions-header"
+                className="text-left p-4 text-sm font-medium text-muted-foreground"
+              >
                 Transactions
               </th>
             </tr>
@@ -211,22 +229,24 @@ export function RecentBlocks() {
                 >
                   {/* Column 1: Block Height */}
                   <td className="py-3">
-                    <div
-                      data-column="1"
-                      className="flex items-center gap-4 flex-1 min-w-0"
-                    >
-                      <div className="flex items-center justify-center w-10 h-10 bg-primary/10 rounded-lg flex-shrink-0 px-0">
-                        <Box className="w-5 h-5 text-primary" />
+                    <Link href={`/block/${block.number}`}>
+                      <div
+                        data-column="1"
+                        className="flex items-center gap-4 flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
+                      >
+                        <div className="flex items-center justify-center w-10 h-10 bg-primary/10 rounded-lg flex-shrink-0 px-0">
+                          <Box className="w-5 h-5 text-primary" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-sm">
+                            Block #{block.number}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {block.number.toLocaleString()}
+                          </p>
+                        </div>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-sm">
-                          Block #{block.number}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {block.number.toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
+                    </Link>
                   </td>
                   {/* Column 2: Timestamp */}
                   <td className="p-4">
@@ -242,9 +262,11 @@ export function RecentBlocks() {
                   </td>
                   {/* Column 4: Block Hash */}
                   <td className="p-4">
-                    <span className="font-mono text-sm">
-                      {truncateHash(block.hash, 12, 4)}
-                    </span>
+                    <Link href={`/block/${block.number}`}>
+                      <span className="font-mono text-sm cursor-pointer hover:opacity-80 transition-opacity">
+                        {truncateHash(block.hash, 12, 4)}
+                      </span>
+                    </Link>
                   </td>
                   {/* Column 5: Block Producer */}
                   <td className="p-4">

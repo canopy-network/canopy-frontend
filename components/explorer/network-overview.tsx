@@ -23,14 +23,6 @@ export function NetworkOverview({ metrics }: NetworkOverviewProps) {
         <div>
           <div className="flex items-center justify-between mb-7 px-4">
             <h2 className="text-2xl font-bold text-white">Network Overview</h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="border border-emerald-500/70 bg-black/20 text-emerald-300 hover:bg-emerald-500/10 gap-2 px-5 lg:hidden"
-            >
-              <TrendingUp className="w-4 h-4 text-green-500" />
-              All Chains
-            </Button>
           </div>
           <div className="grid grid-cols-1 gap-4 lg:gap-5 md:grid-cols-2 xl:grid-cols-3 min-h-[324px]">
             {metrics.map((metric) => {

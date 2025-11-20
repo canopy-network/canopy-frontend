@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/command";
 import { Search, Clock, Link as LinkChain, Activity, Box } from "lucide-react";
 import { useChainsStore } from "@/lib/stores/chains-store";
+import { Chain } from "@/types/chains";
 
 const RECENT_SEARCHES_KEY = "canopy_recent_searches";
 const MAX_RECENT_SEARCHES = 5;
@@ -30,11 +31,15 @@ interface RecentSearch {
 interface CommandSearchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  explorerMode?: boolean;
+  onChainSelect?: (chain: { id: string; chain_name: string }) => void;
 }
 
 export default function CommandSearchDialog({
   open,
   onOpenChange,
+  explorerMode = false,
+  onChainSelect,
 }: CommandSearchDialogProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
@@ -117,13 +122,43 @@ export default function CommandSearchDialog({
       ticker: chain.token_symbol,
       brandColor: "#10b981", // Default color, can be customized
     });
-    router.push(`/creator/${chain.id}`);
-    onOpenChange(false);
-    setSearchQuery("");
+
+    if (explorerMode && onChainSelect) {
+      // In explorer mode, call the callback instead of navigating
+      onChainSelect({ id: chain.id, chain_name: chain.chain_name });
+      onOpenChange(false);
+      setSearchQuery("");
+    } else {
+      // Default behavior: navigate to chain page
+      router.push(`/creator/${chain.id}`);
+      onOpenChange(false);
+      setSearchQuery("");
+    }
   };
 
   const handleRecentSelect = (recent: RecentSearch) => {
+    if (explorerMode) {
+      if (recent.type === "chain") {
+        if (onChainSelect) {
+          onChainSelect({ id: recent.id, chain_name: recent.name });
+          onOpenChange(false);
+          setSearchQuery("");
+        }
+      }
+
+      return;
+    }
     if (recent.type === "chain") {
+      if (explorerMode && onChainSelect) {
+        // In explorer mode, find the chain and call the callback
+        const chain = chains.find((c) => c.id === recent.id);
+        if (chain) {
+          onChainSelect({ id: chain.id, chain_name: chain.chain_name });
+          onOpenChange(false);
+          setSearchQuery("");
+          return;
+        }
+      }
       router.push(`/chain/${recent.id}`);
       onOpenChange(false);
       setSearchQuery("");

@@ -6,8 +6,6 @@ import {
   TimeframeButton,
   TimeframeButtonLayout,
 } from "@/components/charts/timeframe-button";
-import { Button } from "@/components/ui/button";
-import { TrendingUp } from "lucide-react";
 
 const timeframes = ["1H", "1D", "1W", "1M", "1Y", "ALL"];
 
@@ -68,15 +66,6 @@ export function ExplorerChart() {
             );
           })}
         </div>
-
-        <Button
-          variant="ghost"
-          size="sm"
-          className="border border-emerald-500/70 bg-black/20 text-emerald-300 hover:bg-emerald-500/10 gap-2 px-5 hidden lg:flex"
-        >
-          <TrendingUp className="w-4 h-4 text-green-500" />
-          All Chains
-        </Button>
       </div>
 
       <div className="rounded-xl border text-card-foreground shadow relative h-[324px] bg-muted/40">
