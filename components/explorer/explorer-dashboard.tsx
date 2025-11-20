@@ -13,6 +13,7 @@ import { RecentBlocks } from "./recent-blocks";
 import { TrendingChains } from "./trending-chains";
 import { Chain } from "@/types/chains";
 import { SearchBar } from "./explorer-search-bar";
+import { getSampleTransactions } from "@/lib/demo-data/sample-transactions";
 
 interface Transaction {
   chain_id: number;
@@ -335,41 +336,21 @@ const sampleTopValidators: Validator[] = Array.from({ length: 6 }, (_, i) => {
   };
 });
 
-// Sample recent transactions data
-const sampleRecentTransactions: Transaction[] = Array.from(
-  { length: 5 },
-  (_, i) => {
-    const messageTypes = ["send", "swap", "stake", "unstake", "delegate"];
-    const amount = randomFloat(100, 50000, 2);
-    const fee = randomFloat(0.0001, 0.01, 4);
-    const height = randomBetween(12000, 13000) - i;
-    const minutesAgo = randomBetween(1, 60);
-
-    return {
-      chain_id: randomBetween(0, 10),
-      height: height,
-      tx_hash: `0x${Array(64)
-        .fill(0)
-        .map(() => Math.floor(Math.random() * 16).toString(16))
-        .join("")}`,
-      timestamp: new Date(Date.now() - minutesAgo * 60000).toISOString(),
-      message_type: messageTypes[randomBetween(0, messageTypes.length - 1)],
-      signer: `0x${Array(40)
-        .fill(0)
-        .map(() => Math.floor(Math.random() * 16).toString(16))
-        .join("")}`,
-      counterparty:
-        Math.random() > 0.2
-          ? `0x${Array(40)
-              .fill(0)
-              .map(() => Math.floor(Math.random() * 16).toString(16))
-              .join("")}`
-          : null,
-      amount: amount,
-      fee: fee,
-    };
-  }
-);
+// Sample recent transactions data - use actual sample transactions so hashes match
+const sampleTransactions = getSampleTransactions();
+const sampleRecentTransactions: Transaction[] = sampleTransactions
+  .slice(0, 5)
+  .map((tx) => ({
+    chain_id: 0, // Using 0 as default since we don't have chain_id in sample data
+    height: tx.blockHeight,
+    tx_hash: tx.hash, // Use the actual hash from sample transactions
+    timestamp: tx.timestamp,
+    message_type: tx.method.toLowerCase(),
+    signer: tx.from,
+    counterparty: tx.to,
+    amount: tx.amountCnpy,
+    fee: tx.transactionFeeCnpy,
+  }));
 
 export function ExplorerDashboard() {
   const [searchQuery, setSearchQuery] = useState("");

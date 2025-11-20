@@ -3,7 +3,20 @@
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight, Box } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { LiveStatusComponent } from "./live-status-component";
+import { TableArrow } from "@/components/icons";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+const formatAddress = (value: string, prefix = 6, suffix = 6) =>
+  `${value.slice(0, prefix)}...${value.slice(-suffix)}`;
 
 interface Transaction {
   chain_id: number;
@@ -36,85 +49,96 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
       </div>
 
       <div className="overflow-hidden mt-6">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                  Chain Name
-                </th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                  Hash
-                </th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                  From
-                </th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                  To
-                </th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                  Time
-                </th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                  Amount
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.map((tx) => (
-                <tr
-                  key={tx.tx_hash}
-                  className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors cursor-pointer"
-                >
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-md bg-gradient-to-br from-purple-500 to-pink-500" />
-                      <span className="font-medium px-2 py-1 bg-muted rounded-md text-sm">
-                        blockchain
-                      </span>
+        <Table>
+          <TableHeader className="">
+            <TableRow className="bg-transparent hover:bg-transparent">
+              <TableHead className="text-xs tracking-wide text-muted-foreground">
+                Chain Name
+              </TableHead>
+              <TableHead className="text-xs tracking-wide text-muted-foreground">
+                Hash
+              </TableHead>
+              <TableHead className="text-xs tracking-wide text-muted-foreground">
+                From
+              </TableHead>
+              <TableHead />
+              <TableHead className="text-xs tracking-wide text-muted-foreground">
+                To
+              </TableHead>
+              <TableHead className="text-xs tracking-wide text-muted-foreground">
+                Time
+              </TableHead>
+              <TableHead className="text-right text-xs tracking-wide text-muted-foreground">
+                Amount
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {transactions.map((tx) => (
+              <TableRow key={tx.tx_hash} appearance="plain">
+                <TableCell>
+                  <Link
+                    href={`/chains/${tx.chain_id}`}
+                    className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                  >
+                    <Image
+                      src="https://placehold.co/32/EEE/31343C"
+                      alt="Blockchain"
+                      width={32}
+                      height={32}
+                      className="object-contain rounded-full size-8 border border-white/10"
+                    />
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-sm">blockchain</span>
                     </div>
-                  </td>
-                  <td className="p-4">
-                    <span className="font-mono text-sm">
-                      {tx.tx_hash.substring(0, 8)}...
-                      {tx.tx_hash.substring(tx.tx_hash.length - 4)}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <span className="font-mono text-sm">
-                      {tx.signer.substring(0, 6)}...
-                      {tx.signer.substring(tx.signer.length - 4)}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <span className="font-mono text-sm">
-                      {tx.counterparty
-                        ? `${tx.counterparty.substring(
-                            0,
-                            6
-                          )}...${tx.counterparty.substring(
-                            tx.counterparty.length - 4
-                          )}`
-                        : "-"}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <span className="text-muted-foreground text-sm">
-                      1 minute ago
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <span className="text-green-500 font-medium">
-                      {tx.amount?.toFixed(2)} CNPY
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </Link>
+                </TableCell>
+
+                <TableCell className="text-xs text-white/80">
+                  <Link
+                    href={`/transactions/${encodeURIComponent(tx.tx_hash)}`}
+                    className="hover:opacity-80 transition-opacity hover:underline"
+                  >
+                    {formatAddress(tx.tx_hash, 6, 6)}
+                  </Link>
+                </TableCell>
+
+                <TableCell className="text-xs text-white">
+                  <Link
+                    href={`/accounts/${tx.signer}`}
+                    className="hover:opacity-80 transition-opacity hover:underline"
+                  >
+                    {formatAddress(tx.signer, 6, 6)}
+                  </Link>
+                </TableCell>
+
+                <TableCell className="w-40 px-0">
+                  <TableArrow className="text-white" />
+                </TableCell>
+
+                <TableCell className="text-xs text-white">
+                  {tx.counterparty ? formatAddress(tx.counterparty, 6, 6) : "-"}
+                </TableCell>
+
+                <TableCell className="text-sm text-muted-foreground">
+                  1 minute ago
+                </TableCell>
+
+                <TableCell className="text-right">
+                  <span className="text-emerald-400 font-semibold text-sm">
+                    {tx.amount?.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{" "}
+                    CNPY
+                  </span>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
         <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-          <Link href="/explorer/transactions">
+          <Link href="/transactions">
             <Button
               variant="ghost"
               size="sm"

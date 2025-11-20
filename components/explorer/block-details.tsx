@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Copy, ArrowRight, ArrowUpRight, Search } from "lucide-react";
+import Image from "next/image";
+import { Copy, ArrowUpRight, Search } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +15,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Container } from "../layout/container";
+import { TableArrow } from "@/components/icons";
+import {
+  getSampleTransactions,
+  SampleTransaction,
+} from "@/lib/demo-data/sample-transactions";
 
 // Block interface
 interface Block {
@@ -38,18 +43,8 @@ interface Transaction {
   to: string;
   timestamp: number;
   amount: string;
+  chain_id?: string;
 }
-
-// Function to truncate hash: first chars + ... + last chars
-const truncateHash = (
-  hash: string,
-  start: number = 8,
-  end: number = 4
-): string => {
-  if (!hash) return "";
-  if (hash.length <= start + end) return hash;
-  return `${hash.slice(0, start)}...${hash.slice(-end)}`;
-};
 
 // Format time ago from timestamp (e.g., "1 hr 22 mins ago")
 const formatTimeAgo = (timestamp: number): string => {
@@ -74,6 +69,22 @@ const formatTimeAgo = (timestamp: number): string => {
 
   const days = Math.floor(seconds / 86400);
   return `${days} day${days === 1 ? "" : "s"} ago`;
+};
+
+// Format address for display (similar to transactions-explorer)
+const formatAddress = (value: string, prefix = 6, suffix = 6) =>
+  `${value.slice(0, prefix)}...${value.slice(-suffix)}`;
+
+// Get relative time from timestamp string (for consistency with transactions-explorer)
+const getRelativeTime = (timestamp: number) => {
+  const now = Date.now();
+  const time = timestamp;
+  const diff = Math.max(1, Math.round((now - time) / 60000));
+  if (diff < 60) return `${diff} min${diff > 1 ? "s" : ""} ago`;
+  const hours = Math.round(diff / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  return `${days}d ago`;
 };
 
 // Format timestamp to readable format (Nov-18 2025 12:47:27PM)
@@ -140,25 +151,18 @@ const generateSampleBlock = (blockNumber: number): Block => {
   };
 };
 
-// Generate sample transactions
+// Generate sample transactions from actual sample data
 const generateSampleTransactions = (count: number): Transaction[] => {
-  const now = Date.now();
-  return Array.from({ length: count }, () => ({
-    chain_name: "blockchain",
-    hash: `0x${Array(64)
-      .fill(0)
-      .map(() => Math.floor(Math.random() * 16).toString(16))
-      .join("")}`,
-    from: `0x${Array(40)
-      .fill(0)
-      .map(() => Math.floor(Math.random() * 16).toString(16))
-      .join("")}`,
-    to: `0x${Array(40)
-      .fill(0)
-      .map(() => Math.floor(Math.random() * 16).toString(16))
-      .join("")}`,
-    timestamp: now - Math.floor(Math.random() * 3600000),
-    amount: (Math.random() * 20000 + 1000).toFixed(2),
+  const sampleTransactions = getSampleTransactions();
+  // Use actual sample transactions so hashes match
+  return sampleTransactions.slice(0, count).map((tx: SampleTransaction) => ({
+    chain_name: tx.chain.name,
+    hash: tx.hash, // Use actual hash from sample transactions
+    from: tx.from,
+    to: tx.to,
+    timestamp: new Date(tx.timestamp).getTime(),
+    amount: tx.amountCnpy.toFixed(2),
+    chain_id: tx.chain.id, // Add chain_id for consistency
   }));
 };
 
@@ -243,7 +247,7 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
   }
 
   return (
-    <Container type="boxed" className="space-y-6">
+    <>
       {/* Header with Title and Search */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <h1 className="text-2xl font-bold">Block #{block.number}</h1>
@@ -300,9 +304,7 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
           <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
             <p className="text-sm text-muted-foreground">Fee recipient:</p>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-mono text-sm break-all">
-                {block.fee_recipient}
-              </span>
+              <span className=" text-sm break-all">{block.fee_recipient}</span>
               <Button
                 variant="ghost"
                 size="sm"
@@ -375,42 +377,81 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
         </h4>
 
         <Table>
-          <TableHeader>
-            <TableRow className="border-border">
-              <TableHead>Chain Name</TableHead>
-              <TableHead>Hash</TableHead>
-              <TableHead>From</TableHead>
-              <TableHead>To</TableHead>
-              <TableHead>Time</TableHead>
-              <TableHead>Amount</TableHead>
+          <TableHeader className="">
+            <TableRow className="bg-transparent hover:bg-transparent">
+              <TableHead className="text-xs  tracking-wide text-muted-foreground">
+                Chain Name
+              </TableHead>
+              <TableHead className="text-xs  tracking-wide text-muted-foreground">
+                Hash
+              </TableHead>
+              <TableHead className="text-xs  tracking-wide text-muted-foreground">
+                From
+              </TableHead>
+              <TableHead />
+              <TableHead className="text-xs  tracking-wide text-muted-foreground">
+                To
+              </TableHead>
+              <TableHead className="text-xs  tracking-wide text-muted-foreground">
+                Time
+              </TableHead>
+              <TableHead className="text-right text-xs  tracking-wide text-muted-foreground">
+                Amount
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {displayedTransactions.length > 0 ? (
               displayedTransactions.map((tx, index) => (
-                <TableRow key={`${tx.hash}-${index}`} className="border-border">
-                  <TableCell>
-                    <Button variant="outline" size="sm" className="h-7">
+                <TableRow key={`${tx.hash}-${index}`} appearance="plain">
+                  <TableCell className="font-mono text-xs text-white/80 flex items-center">
+                    <Link
+                      href={`/chains/${tx.chain_id}`}
+                      className="flex items-center gap-2 hover:underline"
+                    >
+                      <Image
+                        src="https://placehold.co/32/EEE/31343C"
+                        alt={tx.chain_name}
+                        width={32}
+                        height={32}
+                        className="w-8 h-8 rounded-full"
+                      />
                       {tx.chain_name}
-                    </Button>
+                    </Link>
                   </TableCell>
-                  <TableCell className="font-mono text-sm">
-                    {truncateHash(tx.hash, 6, 4)}
+                  <TableCell className=" text-xs text-white/80">
+                    <Link
+                      href={`/transactions/${encodeURIComponent(tx.hash)}`}
+                      className="hover:underline"
+                    >
+                      {formatAddress(tx.hash, 6, 6)}
+                    </Link>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2 font-mono text-sm">
-                      {truncateHash(tx.from, 6, 4)}
-                      <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                    </div>
+
+                  <TableCell className=" text-xs text-white">
+                    {formatAddress(tx.from, 6, 6)}
                   </TableCell>
-                  <TableCell className="font-mono text-sm">
-                    {truncateHash(tx.to, 6, 4)}
+
+                  <TableCell className="w-40">
+                    <TableArrow className="text-white" />
                   </TableCell>
+
+                  <TableCell className=" text-xs text-white">
+                    {formatAddress(tx.to, 6, 6)}
+                  </TableCell>
+
                   <TableCell className="text-sm text-muted-foreground">
-                    {formatTimeAgo(tx.timestamp)}
+                    {getRelativeTime(tx.timestamp)}
                   </TableCell>
-                  <TableCell className="text-green-500 font-medium">
-                    {parseFloat(tx.amount).toLocaleString()} CNPY
+
+                  <TableCell className="text-right">
+                    <span className="text-emerald-400 font-semibold text-sm">
+                      {parseFloat(tx.amount).toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}{" "}
+                      CNPY
+                    </span>
                   </TableCell>
                 </TableRow>
               ))
@@ -443,6 +484,6 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
           </p>
         </div>
       </Card>
-    </Container>
+    </>
   );
 }

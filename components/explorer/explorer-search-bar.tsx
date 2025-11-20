@@ -71,7 +71,7 @@ export function SearchBar({
   const displayChainName = selectedChain ? selectedChain.chain_name : "canopy";
 
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn("relative pr-0", className)}>
       <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
       <Input
         type="text"
@@ -82,7 +82,7 @@ export function SearchBar({
       />
 
       <CommandSearchTrigger
-        className="absolute right-1 top-1/2 transform -translate-y-1/2"
+        className="absolute right-1 mr-[-4px] top-1/2 transform -translate-y-1/2"
         explorerMode
         displayChainName={displayChainName}
         onChainSelect={handleChainSelect}

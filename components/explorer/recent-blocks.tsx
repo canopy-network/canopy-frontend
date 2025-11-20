@@ -229,7 +229,10 @@ export function RecentBlocks() {
                 >
                   {/* Column 1: Block Height */}
                   <td className="py-3">
-                    <Link href={`/block/${block.number}`}>
+                    <Link
+                      href={`/blocks/${block.number}`}
+                      className="hover:underline"
+                    >
                       <div
                         data-column="1"
                         className="flex items-center gap-4 flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
@@ -262,7 +265,10 @@ export function RecentBlocks() {
                   </td>
                   {/* Column 4: Block Hash */}
                   <td className="p-4">
-                    <Link href={`/block/${block.number}`}>
+                    <Link
+                      href={`/blocks/${block.number}`}
+                      className="hover:underline"
+                    >
                       <span className="font-mono text-sm cursor-pointer hover:opacity-80 transition-opacity">
                         {truncateHash(block.hash, 12, 4)}
                       </span>
@@ -307,7 +313,7 @@ export function RecentBlocks() {
 
       {/* View All Blocks Button */}
       <div className="flex items-center justify-start pt-4 border-t border-border">
-        <Link href="/explorer/blocks">
+        <Link href="/blocks">
           <Button
             variant="ghost"
             size="sm"

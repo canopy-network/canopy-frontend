@@ -22,7 +22,7 @@ export default async function BlockPage(props: BlockPageProps) {
   }
 
   return (
-    <Container>
+    <Container type="boxed" className="space-y-6 xl:px-0">
       <BlockDetails blockId={blockId} />
     </Container>
   );

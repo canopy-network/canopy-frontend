@@ -328,7 +328,7 @@ export function TopValidators({ validators }: TopValidatorsProps) {
         ))}
       </div>
       <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-        <Link href="/explorer/validators">
+        <Link href="/validators">
           <Button
             variant="ghost"
             size="sm"

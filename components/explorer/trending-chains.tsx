@@ -254,7 +254,7 @@ export function TrendingChains({ chains }: TrendingChainsProps) {
           </table>
         </div>
         <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-          <Link href="/explorer/chains">
+          <Link href="/">
             <Button
               variant="ghost"
               size="sm"
