@@ -15,20 +15,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+import { Transaction } from "@/lib/api/explorer";
+
 const formatAddress = (value: string, prefix = 6, suffix = 6) =>
   `${value.slice(0, prefix)}...${value.slice(-suffix)}`;
-
-interface Transaction {
-  chain_id: number;
-  height: number;
-  tx_hash: string;
-  timestamp: string;
-  message_type: string;
-  signer: string;
-  counterparty: string | null;
-  amount: number | null;
-  fee: number;
-}
 
 interface RecentTransactionsProps {
   transactions: Transaction[];
@@ -43,7 +33,9 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
           <LiveStatusComponent />
           <div className="flex items-center gap-2 text-muted-foreground text-sm bg-white/[0.05] rounded-lg px-4 py-2">
             <Box className="w-4 h-4" />
-            <span>Latest update 44 secs ago</span>
+            <span data-sample="latest-update-time">
+              Latest update 44 secs ago
+            </span>
           </div>
         </div>
       </div>
@@ -87,9 +79,15 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
                       width={32}
                       height={32}
                       className="object-contain rounded-full size-8 border border-white/10"
+                      data-sample="chain-logo"
                     />
                     <div className="flex flex-col">
-                      <span className="font-semibold text-sm">blockchain</span>
+                      <span
+                        className="font-semibold text-sm"
+                        data-sample="chain-name"
+                      >
+                        blockchain
+                      </span>
                     </div>
                   </Link>
                 </TableCell>
@@ -104,12 +102,16 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
                 </TableCell>
 
                 <TableCell className="text-xs text-white">
-                  <Link
-                    href={`/accounts/${tx.signer}`}
-                    className="hover:opacity-80 transition-opacity hover:underline"
-                  >
-                    {formatAddress(tx.signer, 6, 6)}
-                  </Link>
+                  {tx.signer ? (
+                    <Link
+                      href={`/accounts/${tx.signer}`}
+                      className="hover:opacity-80 transition-opacity hover:underline"
+                    >
+                      {formatAddress(tx.signer, 6, 6)}
+                    </Link>
+                  ) : (
+                    <span className="text-muted-foreground">-</span>
+                  )}
                 </TableCell>
 
                 <TableCell className="w-40 px-0">
@@ -121,17 +123,21 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
                 </TableCell>
 
                 <TableCell className="text-sm text-muted-foreground">
-                  1 minute ago
+                  <span data-sample="relative-time">1 minute ago</span>
                 </TableCell>
 
                 <TableCell className="text-right">
-                  <span className="text-emerald-400 font-semibold text-sm">
-                    {tx.amount?.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}{" "}
-                    CNPY
-                  </span>
+                  {tx.amount != null ? (
+                    <span className="text-emerald-400 font-semibold text-sm">
+                      {tx.amount.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}{" "}
+                      CNPY
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">-</span>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

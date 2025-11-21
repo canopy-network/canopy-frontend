@@ -1,10 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Container } from "@/components/layout/container";
 import { Spacer } from "@/components/layout/spacer";
-import { Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { NetworkOverview } from "./network-overview";
 import { NewLaunches } from "./new-launches";
 import { TopValidators } from "./top-validators";
@@ -14,18 +12,10 @@ import { TrendingChains } from "./trending-chains";
 import { Chain } from "@/types/chains";
 import { SearchBar } from "./explorer-search-bar";
 import { getSampleTransactions } from "@/lib/demo-data/sample-transactions";
-
-interface Transaction {
-  chain_id: number;
-  height: number;
-  tx_hash: string;
-  timestamp: string;
-  message_type: string;
-  signer: string;
-  counterparty: string | null;
-  amount: number | null;
-  fee: number;
-}
+import {
+  getExplorerTransactions,
+  type ExplorerTransaction,
+} from "@/lib/api/explorer";
 
 interface Validator {
   name: string;
@@ -338,7 +328,7 @@ const sampleTopValidators: Validator[] = Array.from({ length: 6 }, (_, i) => {
 
 // Sample recent transactions data - use actual sample transactions so hashes match
 const sampleTransactions = getSampleTransactions();
-const sampleRecentTransactions: Transaction[] = sampleTransactions
+const sampleRecentTransactions: ExplorerTransaction[] = sampleTransactions
   .slice(0, 5)
   .map((tx) => ({
     chain_id: 0, // Using 0 as default since we don't have chain_id in sample data
@@ -354,6 +344,30 @@ const sampleRecentTransactions: Transaction[] = sampleTransactions
 
 export function ExplorerDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [recentTransactions, setRecentTransactions] = useState<
+    ExplorerTransaction[]
+  >([]);
+
+  // Fetch transactions from API
+  useEffect(() => {
+    async function fetchTransactions() {
+      try {
+        const apiTransactions = await getExplorerTransactions({
+          limit: 5,
+          sort: "desc",
+        });
+
+        console.log("API Transactions:", apiTransactions);
+        setRecentTransactions(apiTransactions);
+      } catch (error) {
+        console.error("Failed to fetch transactions:", error);
+        // Fallback to sample data on error
+        setRecentTransactions(sampleRecentTransactions);
+      }
+    }
+
+    fetchTransactions();
+  }, []);
 
   return (
     <>
@@ -390,7 +404,13 @@ export function ExplorerDashboard() {
 
         <RecentBlocks />
 
-        <RecentTransactions transactions={sampleRecentTransactions} />
+        <RecentTransactions
+          transactions={
+            recentTransactions.length > 0
+              ? recentTransactions
+              : sampleRecentTransactions
+          }
+        />
 
         <Spacer height={320} />
       </Container>

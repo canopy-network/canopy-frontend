@@ -6,16 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { LiveStatusComponent } from "./live-status-component";
-
-// Block interface
-interface Block {
-  number: number;
-  hash: string;
-  timestamp: number;
-  transactions: number;
-  reward: string;
-  block_producer: string;
-}
+import { getExplorerBlocks, type Block } from "@/lib/api/explorer";
 
 // Function to truncate hash: first chars + ... + last chars
 const truncateHash = (
@@ -28,10 +19,11 @@ const truncateHash = (
   return `${hash.slice(0, start)}...${hash.slice(-end)}`;
 };
 
-// Format time ago from timestamp
-const formatTimeAgo = (timestamp: number): string => {
+// Format time ago from ISO timestamp string
+const formatTimeAgo = (timestamp: string): string => {
   const now = Date.now();
-  const seconds = Math.floor((now - timestamp) / 1000);
+  const blockTime = new Date(timestamp).getTime();
+  const seconds = Math.floor((now - blockTime) / 1000);
 
   if (seconds < 60) return `${seconds}s ago`;
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
@@ -39,8 +31,8 @@ const formatTimeAgo = (timestamp: number): string => {
   return `${Math.floor(seconds / 86400)}d ago`;
 };
 
-// Format timestamp to readable format
-const formatTimestamp = (timestamp: number): string => {
+// Format ISO timestamp to readable format
+const formatTimestamp = (timestamp: string): string => {
   const date = new Date(timestamp);
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -53,23 +45,26 @@ const formatTimestamp = (timestamp: number): string => {
 
 // Generate sample block data for visualization
 const generateSampleBlocks = (): Block[] => {
-  const now = Date.now();
+  const now = new Date();
   const startBlock = 891755;
   const sampleBlocks: Block[] = Array.from({ length: 10 }, (_, i) => {
-    const blockNumber = startBlock - i;
+    const blockHeight = startBlock - i;
+    const blockTime = new Date(now.getTime() - i * 20000); // 20 seconds per block
     return {
-      number: blockNumber,
+      chain_id: 1,
+      height: blockHeight,
       hash: `${Array(64)
         .fill(0)
         .map(() => Math.floor(Math.random() * 16).toString(16))
         .join("")}`,
-      timestamp: now - i * 20000, // 20 seconds per block
-      transactions: Math.floor(Math.random() * 200) + 1,
-      reward: (Math.random() * 100 + 50).toFixed(2),
-      block_producer: `${Array(40)
+      timestamp: blockTime.toISOString(),
+      proposer_address: `0x${Array(40)
         .fill(0)
         .map(() => Math.floor(Math.random() * 16).toString(16))
         .join("")}`,
+      num_txs: Math.floor(Math.random() * 200) + 1,
+      num_events: Math.floor(Math.random() * 300) + 1,
+      total_fees: Math.floor(Math.random() * 1000000),
     };
   });
 
@@ -97,15 +92,13 @@ export function RecentBlocks() {
       setLoading(true);
       setError(null);
 
-      // TODO: Replace with actual API call when backend is ready
-      // Example: const response = await getChainBlocks();
+      const apiBlocks = await getExplorerBlocks({
+        limit: 6,
+        sort: "desc",
+      });
 
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Use sample data for visualization
-      const sampleData = generateSampleBlocks();
-      setBlocks(sampleData);
+      console.log("API Blocks:", apiBlocks);
+      setBlocks(apiBlocks);
     } catch (err) {
       console.error("Failed to fetch blocks:", err);
       // Use sample data on error for visualization
@@ -122,18 +115,12 @@ export function RecentBlocks() {
     fetchBlocks();
   }, [fetchBlocks]);
 
-  // Limit to 6 blocks for display
-  const filteredBlocks = React.useMemo(() => {
-    return blocks.slice(0, 6);
-  }, [blocks]);
-
   // Calculate latest update time ago from most recent block
   const latestUpdateAgo = React.useMemo(() => {
     if (blocks.length === 0) return "0 secs ago";
     const mostRecentBlock = blocks[0]; // Blocks are sorted newest first
-    const seconds = Math.floor(
-      (currentTime - mostRecentBlock.timestamp) / 1000
-    );
+    const blockTime = new Date(mostRecentBlock.timestamp).getTime();
+    const seconds = Math.floor((currentTime - blockTime) / 1000);
     if (seconds < 60) return `${seconds} secs ago`;
     if (seconds < 3600) return `${Math.floor(seconds / 60)} mins ago`;
     return `${Math.floor(seconds / 3600)} hrs ago`;
@@ -218,19 +205,25 @@ export function RecentBlocks() {
               >
                 Transactions
               </th>
+              <th
+                id="reward-header"
+                className="text-left p-4 text-sm font-medium text-muted-foreground"
+              >
+                Reward
+              </th>
             </tr>
           </thead>
           <tbody>
-            {filteredBlocks.length > 0 ? (
-              filteredBlocks.map((block) => (
+            {blocks.length > 0 ? (
+              blocks.map((block) => (
                 <tr
-                  key={block.number}
+                  key={block.height}
                   className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors px-0"
                 >
                   {/* Column 1: Block Height */}
                   <td className="py-3">
                     <Link
-                      href={`/blocks/${block.number}`}
+                      href={`/blocks/${block.height}`}
                       className="hover:underline"
                     >
                       <div
@@ -242,10 +235,10 @@ export function RecentBlocks() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="font-semibold text-sm">
-                            Block #{block.number}
+                            Block #{block.height}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {block.number.toLocaleString()}
+                            {block.height.toLocaleString()}
                           </p>
                         </div>
                       </div>
@@ -266,7 +259,7 @@ export function RecentBlocks() {
                   {/* Column 4: Block Hash */}
                   <td className="p-4">
                     <Link
-                      href={`/blocks/${block.number}`}
+                      href={`/blocks/${block.height}`}
                       className="hover:underline"
                     >
                       <span className="font-mono text-sm cursor-pointer hover:opacity-80 transition-opacity">
@@ -277,22 +270,31 @@ export function RecentBlocks() {
                   {/* Column 5: Block Producer */}
                   <td className="p-4">
                     <span className="font-mono text-sm">
-                      {truncateHash(block.block_producer, 12, 4)}
+                      {truncateHash(block.proposer_address, 12, 4)}
                     </span>
                   </td>
                   {/* Column 6: Transactions */}
                   <td className="p-4">
                     <div className="flex items-center justify-start">
                       <span className="inline-flex items-center justify-center  px-2 py-1 rounded-md bg-muted text-muted-foreground text-xs  font-medium">
-                        {block.transactions}
+                        {block.num_txs}
                       </span>
                     </div>
+                  </td>
+                  {/* Column 7: Reward (sample data) */}
+                  <td className="p-4">
+                    <span
+                      className="text-sm text-muted-foreground"
+                      data-sample="block-reward"
+                    >
+                      {(Math.random() * 100 + 50).toFixed(2)} CNPY
+                    </span>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={6} className="text-center py-12">
+                <td colSpan={7} className="text-center py-12">
                   <div className="flex justify-center mb-4">
                     <div className="p-3 bg-muted rounded-full">
                       <Search className="w-6 h-6 text-muted-foreground" />

@@ -142,7 +142,6 @@ export function Header() {
   useEffect(() => {
     const segments = pathname.split("/").filter(Boolean);
 
-    console.log("segments", segments);
     if (segments.length === 0) {
       setBreadcrumbs(null);
       return;
@@ -245,7 +244,6 @@ export function Header() {
       let isLast = segments.length === 2;
 
       if (mainSection === "chain" && currentChain) {
-        console.log("2 [currentChain]", currentChain);
         // Use the chain name from the store if available
         label = currentChain.chain_name || segments[1];
 
@@ -287,12 +285,6 @@ export function Header() {
 
   // Calculate breadcrumbs when dependencies change
   useEffect(() => {
-    // Get chain name from current_explorer_selected_chain first, then from store, or use chainId as fallback
-
-    // Check if current_explorer_selected_chain matches this chain
-
-    console.log("breadcrumbs", breadcrumbs);
-
     if (
       current_explorer_selected_chain &&
       breadcrumbs &&
