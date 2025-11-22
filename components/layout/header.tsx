@@ -45,7 +45,7 @@ export type PageType =
 
 // Route configuration for breadcrumbs
 const routeConfig: Record<string, { label: string; href?: string }> = {
-  chain: { label: "Launchpad", href: "/" },
+  chains: { label: "Launchpad", href: "/" },
   dashboard: { label: "Dashboard", href: "/dashboard" },
   explorer: { label: "Explorer", href: "/explorer" },
   graduation: { label: "Graduation", href: "/graduation" },
@@ -243,7 +243,7 @@ export function Header() {
       let href: string | undefined = undefined;
       let isLast = segments.length === 2;
 
-      if (mainSection === "chain" && currentChain) {
+      if (mainSection === "chains" && currentChain) {
         // Use the chain name from the store if available
         label = currentChain.chain_name || segments[1];
 

@@ -30,10 +30,20 @@ export function SearchBar({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [selectedChain, setSelectedChain] = useState<{
-    id: string;
+    id: number;
     chain_name: string;
-  } | null>(null);
+  } | null>({
+    id: 0,
+    chain_name: "Canopy",
+  });
   const getChainById = useChainsStore((state) => state.getChainById);
+
+  const handleChainSelect = (chain: { id: number; chain_name: string }) => {
+    setSelectedChain(chain);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("chain", chain.id.toString());
+    router.push(`${pathname}?${params.toString()}`);
+  };
 
   // Initialize selected chain from URL
   useEffect(() => {
@@ -41,34 +51,9 @@ export function SearchBar({
     if (chainId) {
       // Try to find the chain in the store
       const chain = getChainById(chainId);
-      if (chain) {
-        setSelectedChain({ id: chain.id, chain_name: chain.chain_name });
-      } else {
-        // If not found in store, try to find in the chains prop
-        const chainFromProp = chains.find((c) => c.id === chainId);
-        if (chainFromProp) {
-          setSelectedChain({
-            id: chainFromProp.id,
-            chain_name: chainFromProp.name,
-          });
-        } else {
-          setSelectedChain(null);
-        }
-      }
     } else {
-      setSelectedChain(null);
     }
-  }, [searchParams, chains, getChainById]);
-
-  const handleChainSelect = (chain: { id: string; chain_name: string }) => {
-    setSelectedChain(chain);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("chain", chain.id);
-    router.push(`${pathname}?${params.toString()}`);
-  };
-
-  // Default chain name is "canopy" if no chain is selected
-  const displayChainName = selectedChain ? selectedChain.chain_name : "canopy";
+  }, [searchParams]);
 
   return (
     <div className={cn("relative pr-0", className)}>
@@ -84,8 +69,10 @@ export function SearchBar({
       <CommandSearchTrigger
         className="absolute right-1 mr-[-4px] top-1/2 transform -translate-y-1/2"
         explorerMode
-        displayChainName={displayChainName}
+        displayChainName={selectedChain?.chain_name}
         onChainSelect={handleChainSelect}
+        noRouterPush={true}
+        chainSearchOnly={true}
       />
     </div>
   );
