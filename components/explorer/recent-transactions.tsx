@@ -1,10 +1,11 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, Box } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { LiveStatusComponent } from "./live-status-component";
+import { LatestUpdated } from "./latest-updated";
 import { TableArrow } from "@/components/icons";
 import {
   Table,
@@ -28,26 +29,20 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
   return (
     <div className="mb-8 card-like p-4">
       <div className="flex items-center justify-between leading-none">
-        <h2 className="text-2xl font-bold text-white">Recent Transactions</h2>
-        <div className="flex items-center gap-4">
-          <LiveStatusComponent />
-          <div className="flex items-center gap-2 text-muted-foreground text-sm bg-white/[0.05] rounded-lg px-4 py-2">
-            <Box className="w-4 h-4" />
-            <span data-sample="latest-update-time">
-              Latest update 44 secs ago
-            </span>
-          </div>
-        </div>
+        <h2 className="lg:text-xl text-lg font-bold text-white">
+          Recent Transactions
+        </h2>
+        <LatestUpdated timeAgo="3 mins ago" />
       </div>
 
-      <div className="overflow-hidden mt-6">
+      <div className="overflow-hidden lg:mt-6 mt-3">
         <Table>
           <TableHeader className="">
             <TableRow className="bg-transparent hover:bg-transparent">
-              <TableHead className="text-xs tracking-wide text-muted-foreground">
+              <TableHead className="text-xs pl-0 lg:pl-4 tracking-wide text-muted-foreground">
                 Chain Name
               </TableHead>
-              <TableHead className="text-xs tracking-wide text-muted-foreground">
+              <TableHead className="text-xs px-4 tracking-wide text-muted-foreground">
                 Hash
               </TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground">
@@ -68,7 +63,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
           <TableBody>
             {transactions.map((tx) => (
               <TableRow key={tx.tx_hash} appearance="plain">
-                <TableCell>
+                <TableCell className=" pl-0 lg:pl-4 min-w-36 lg:min-w-0">
                   <Link
                     href={`/chains/${tx.chain_id}/transactions`}
                     className="flex items-center gap-3 hover:opacity-80 transition-opacity"
@@ -81,18 +76,16 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
                       className="object-contain rounded-full size-8 border border-white/10"
                       data-sample="chain-logo"
                     />
-                    <div className="flex flex-col">
-                      <span
-                        className="font-semibold text-sm"
-                        data-sample="chain-name"
-                      >
-                        blockchain
-                      </span>
-                    </div>
+                    <span
+                      className="font-semibold text-sm text-ellipsis overflow-hidden whitespace-nowrap"
+                      data-sample="chain-name"
+                    >
+                      blockchain
+                    </span>
                   </Link>
                 </TableCell>
 
-                <TableCell className="text-xs text-white/80">
+                <TableCell className="text-xs text-white/80 px-4">
                   <Link
                     href={`/transactions/${encodeURIComponent(tx.tx_hash)}`}
                     className="hover:opacity-80 transition-opacity hover:underline"
@@ -143,7 +136,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
             ))}
           </TableBody>
         </Table>
-        <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+        <div className="flex items-center justify-between lg:mt-4 mt-0 lg:pt-4 pt-3 border-t border-border">
           <Link href="/transactions">
             <Button
               variant="ghost"

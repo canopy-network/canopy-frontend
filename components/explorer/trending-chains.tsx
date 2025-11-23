@@ -3,9 +3,16 @@
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight, Box } from "lucide-react";
 import Link from "next/link";
-import { LiveStatusComponent } from "./live-status-component";
 import { Card } from "../ui/card";
-
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import { LatestUpdated } from "./latest-updated";
 interface ChainSummary {
   id: string;
   name: string;
@@ -91,169 +98,145 @@ function MiniChart({ data, color }: { data: number[]; color?: string }) {
 
 export function TrendingChains({ chains }: TrendingChainsProps) {
   return (
-    <Card id="trending-chains">
+    <Card padding="explorer" id="trending-chains" className="gap-2 lg:gap-6">
       <div className="flex items-center justify-between leading-none">
-        <h2 className="text-2xl font-bold text-white">Trending Chains</h2>
-        <div className="flex items-center gap-4">
-          <LiveStatusComponent />
-          <div className="flex items-center gap-2 text-muted-foreground text-sm bg-white/[0.05] rounded-lg px-4 py-2">
-            <Box className="w-4 h-4" />
-            <span>Latest update 44 secs ago</span>
-          </div>
-        </div>
+        <h2 className="text-lg lg:text-2xl font-bold text-white pl-2 lg:pl-0">
+          Trending Chains
+        </h2>
+        <LatestUpdated timeAgo="44 secs ago" />
       </div>
 
       <div className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                  Rank
-                </th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                  Chain Name
-                </th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                  Market Cap
-                </th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                  TVL
-                </th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                  Liquidity
-                </th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                  Volume 24H
-                </th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                  Validators
-                </th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                  Holders
-                </th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {chains.map((chain, index) => (
-                <tr
-                  key={chain.id}
-                  className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors cursor-pointer"
-                >
-                  <td className="p-4">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted font-medium">
-                      {index + 1}
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-md bg-gradient-to-br from-purple-500 to-pink-500" />
-                      <div className="flex flex-col">
-                        <span className="font-medium">{chain.name}</span>
-                        {chain.ticker && (
-                          <span className="text-xs text-muted-foreground">
-                            {chain.ticker}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-4">
+        <Table>
+          <TableHeader>
+            <TableRow appearance="plain">
+              <TableHead className="pl-0 lg:pl-4">Rank</TableHead>
+              <TableHead className="pl-0 lg:pl-4">Chain Name</TableHead>
+              <TableHead className="pl-0 lg:pl-4">Market Cap</TableHead>
+              <TableHead className="pl-0 lg:pl-4">TVL</TableHead>
+              <TableHead className="pl-0 lg:pl-4">Liquidity</TableHead>
+              <TableHead className="pl-0 lg:pl-4">Volume 24H</TableHead>
+              <TableHead className="pl-0 lg:pl-4 text-center lg:text-left">
+                Validators
+              </TableHead>
+              <TableHead className="">Holders</TableHead>
+              <TableHead className=""></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {chains.map((chain, index) => (
+              <TableRow key={chain.id} appearance="plain">
+                <TableCell className="pl-0 lg:pl-4">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted font-medium">
+                    {index + 1}
+                  </div>
+                </TableCell>
+                <TableCell className="pl-0 lg:pl-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-md bg-gradient-to-br from-purple-500 to-pink-500" />
                     <div className="flex flex-col">
-                      <span>{chain.market_cap}</span>
-                      {chain.marketCapRaw && (
+                      <span className="font-medium">{chain.name}</span>
+                      {chain.ticker && (
                         <span className="text-xs text-muted-foreground">
-                          {(chain.marketCapRaw / 0.05).toLocaleString("en-US", {
-                            maximumFractionDigits: 0,
-                          })}{" "}
-                          CNPY
+                          {chain.ticker}
                         </span>
                       )}
                     </div>
-                  </td>
-                  <td className="p-4">
+                  </div>
+                </TableCell>
+                <TableCell className="pl-0 lg:pl-4">
+                  <div className="flex flex-col">
+                    <span>{chain.market_cap}</span>
+                    {chain.marketCapRaw && (
+                      <span className="text-xs text-muted-foreground">
+                        {(chain.marketCapRaw / 0.05).toLocaleString("en-US", {
+                          maximumFractionDigits: 0,
+                        })}{" "}
+                        CNPY
+                      </span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell className="pl-0 lg:pl-4">
+                  <div className="flex flex-col">
+                    <span>{chain.tvl}</span>
+                    {chain.tvlRaw && (
+                      <span className="text-xs text-muted-foreground">
+                        {(chain.tvlRaw / 0.05).toLocaleString("en-US", {
+                          maximumFractionDigits: 0,
+                        })}{" "}
+                        CNPY
+                      </span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell className="pl-0 lg:pl-4">
+                  <div className="flex flex-col">
+                    <span>{chain.liquidity}</span>
+                    {chain.liquidityRaw && (
+                      <span className="text-xs text-muted-foreground">
+                        {(chain.liquidityRaw / 0.05).toLocaleString("en-US", {
+                          maximumFractionDigits: 0,
+                        })}{" "}
+                        CNPY
+                      </span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell className="pl-0 lg:pl-4">
+                  <div className="flex flex-col gap-2">
                     <div className="flex flex-col">
-                      <span>{chain.tvl}</span>
-                      {chain.tvlRaw && (
-                        <span className="text-xs text-muted-foreground">
-                          {(chain.tvlRaw / 0.05).toLocaleString("en-US", {
-                            maximumFractionDigits: 0,
-                          })}{" "}
-                          CNPY
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex flex-col">
-                      <span>{chain.liquidity}</span>
-                      {chain.liquidityRaw && (
-                        <span className="text-xs text-muted-foreground">
-                          {(chain.liquidityRaw / 0.05).toLocaleString("en-US", {
-                            maximumFractionDigits: 0,
-                          })}{" "}
-                          CNPY
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex flex-col gap-2">
-                      <div className="flex flex-col">
-                        <span className="relative">
-                          {chain.volume_24h}
+                      <span className="relative">
+                        {chain.volume_24h}
 
-                          <span
-                            className={`px-1 mx-2 -top-0.5 relative py-0.5 rounded-md text-sm font-medium w-fit ${
-                              chain.change_24h >= 0
-                                ? "bg-green-500/10 text-green-500"
-                                : "bg-red-500/10 text-red-500"
-                            }`}
-                          >
-                            {chain.change_24h >= 0 ? "+" : ""}
-                            {chain.change_24h.toFixed(1)}%
-                          </span>
+                        <span
+                          className={`px-1 mx-2 -top-0.5 relative py-0.5 rounded-md text-sm font-medium w-fit ${
+                            chain.change_24h >= 0
+                              ? "bg-green-500/10 text-green-500"
+                              : "bg-red-500/10 text-red-500"
+                          }`}
+                        >
+                          {chain.change_24h >= 0 ? "+" : ""}
+                          {chain.change_24h.toFixed(1)}%
                         </span>
-                        {chain.volume24hRaw && (
-                          <span className="text-xs text-muted-foreground">
-                            {(chain.volume24hRaw / 0.05).toLocaleString(
-                              "en-US",
-                              {
-                                maximumFractionDigits: 0,
-                              }
-                            )}{" "}
-                            CNPY
-                          </span>
-                        )}
-                      </div>
+                      </span>
+                      {chain.volume24hRaw && (
+                        <span className="text-xs text-muted-foreground">
+                          {(chain.volume24hRaw / 0.05).toLocaleString("en-US", {
+                            maximumFractionDigits: 0,
+                          })}{" "}
+                          CNPY
+                        </span>
+                      )}
                     </div>
-                  </td>
-                  <td className="p-4">{chain.validators}</td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      <div className="flex -space-x-2">
-                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 border-2 border-background" />
-                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 border-2 border-background" />
-                      </div>
-                      <span>+{chain.holders}</span>
+                  </div>
+                </TableCell>
+                <TableCell className="pl-0 lg:pl-4 text-center lg:text-left">
+                  {chain.validators}
+                </TableCell>
+                <TableCell className="">
+                  <div className="flex items-center gap-2">
+                    <div className="flex -space-x-2">
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 border-2 border-background" />
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 border-2 border-background" />
                     </div>
-                  </td>
-                  <td className="p-4 text-right">
-                    <MiniChart
-                      data={
-                        chain.chartData ||
-                        Array.from({ length: 24 }, () => Math.random() * 100)
-                      }
-                      color={index % 2 === 0 ? "#14b8a6" : "#f87171"}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+                    <span>+{chain.holders}</span>
+                  </div>
+                </TableCell>
+                <TableCell className="text-right">
+                  <MiniChart
+                    data={
+                      chain.chartData ||
+                      Array.from({ length: 24 }, () => Math.random() * 100)
+                    }
+                    color={index % 2 === 0 ? "#14b8a6" : "#f87171"}
+                  />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <div className="flex items-center justify-between lg:mt-4 mt- lg:pt-4 pt-3 border-t border-border">
           <Link href="/">
             <Button
               variant="ghost"

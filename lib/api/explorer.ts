@@ -183,6 +183,19 @@ export const explorerApi = {
    */
   getBlock: (height: number, params?: { chain_id?: number }) =>
     apiClient.get<Block>(`/api/v1/explorer/blocks/${height}`, params),
+
+  /**
+   * Get network-wide statistics overview
+   *
+   * @returns Promise resolving to overview data with pagination wrapper
+   *
+   * @example
+   * ```typescript
+   * const overview = await explorerApi.getOverview();
+   * ```
+   */
+  getOverview: () =>
+    apiClient.get<ExplorerOverviewResponse>("/api/v1/explorer/overview"),
 };
 
 // ============================================================================
@@ -199,7 +212,8 @@ export async function getExplorerTransactions(
   params?: GetExplorerTransactionsParams
 ): Promise<Transaction[]> {
   const response = await explorerApi.getTransactions(params);
-  return response.data?.data || [];
+  const data: Transaction[] = response.data as unknown as Transaction[];
+  return data || [];
 }
 
 /**
@@ -229,7 +243,11 @@ export async function getExplorerBlocks(
   params?: GetExplorerBlocksParams
 ): Promise<Block[]> {
   const response = await explorerApi.getBlocks(params);
-  return response.data || [];
+  console.log("[getExplorerBlocks] response", response);
+  console.log("[getExplorerBlocks] response.data", response.data);
+
+  const data: Block[] = response.data as unknown as Block[];
+  return data || [];
 }
 
 /**
@@ -247,4 +265,103 @@ export async function getExplorerBlock(
     chain_id: chainId,
   });
   return response.data as Block;
+}
+
+// ============================================================================
+// EXPLORER OVERVIEW
+// ============================================================================
+
+/**
+ * Explorer overview response from API
+ *
+ * Contains network-wide statistics including TVL, volume, active chains,
+ * validators, holders, and transaction metrics with 24-hour change indicators.
+ *
+ * @property {number} tvl - Total Value Locked in raw number format
+ * @property {string} tvl_formatted - Total Value Locked in human-readable format (e.g., "3.5M")
+ * @property {number} tvl_change_24h - Percentage change in TVL over the last 24 hours
+ * @property {number} volume_24h - 24-hour volume in raw number format
+ * @property {string} volume_24h_formatted - 24-hour volume in human-readable format
+ * @property {number} volume_change_24h - Percentage change in volume over the last 24 hours
+ * @property {number} active_chains - Total number of active chains on the network
+ * @property {number} active_chains_change - Change in number of active chains
+ * @property {number} total_validators - Total number of validators across all chains
+ * @property {number} total_validators_change - Change in total validators (percentage or count)
+ * @property {number} total_holders - Total number of token holders across the network
+ * @property {number} total_holders_change - Change in total holders (percentage or count)
+ * @property {number} total_transactions - Total number of transactions processed
+ * @property {number} total_transactions_change - Change in total transactions (percentage or count)
+ */
+export interface ExplorerOverview {
+  tvl: number;
+  tvl_formatted: string;
+  tvl_change_24h: number;
+  volume_24h: number;
+  volume_24h_formatted: string;
+  volume_change_24h: number;
+  active_chains: number;
+  active_chains_change: number;
+  total_validators: number;
+  total_validators_change: number;
+  total_holders: number;
+  total_holders_change: number;
+  total_transactions: number;
+  total_transactions_change: number;
+}
+
+/**
+ * Explorer overview API response
+ */
+export interface ExplorerOverviewResponse {
+  data: ExplorerOverview;
+}
+
+/**
+ * Get network-wide statistics overview
+ *
+ * @returns Promise resolving to overview data
+ *
+ * @example
+ * ```typescript
+ * const overview = await getExplorerOverview();
+ * ```
+ */
+export async function getExplorerOverview(): Promise<ExplorerOverview | null> {
+  try {
+    const response = await explorerApi.getOverview();
+    console.log("[getExplorerOverview] response", response);
+    console.log("[getExplorerOverview] response.data", response.data);
+    console.log(
+      "[getExplorerOverview] response.data?.data",
+      response.data?.data
+    );
+
+    // The API response structure is: ApiResponse<ExplorerOverviewResponse>
+    // Which means: { data: ExplorerOverviewResponse, pagination: ... }
+    // And ExplorerOverviewResponse is: { data: ExplorerOverview }
+    // So we need: response.data.data
+    if (response.data?.data) {
+      return response.data.data as ExplorerOverview;
+    }
+
+    // Fallback: maybe the API returns the data directly in response.data
+    // Check if response.data has the structure of ExplorerOverview (has tvl property)
+    if (
+      response.data &&
+      typeof response.data === "object" &&
+      "tvl" in response.data &&
+      !("data" in response.data)
+    ) {
+      return response.data as unknown as ExplorerOverview;
+    }
+
+    console.warn(
+      "[getExplorerOverview] Unexpected response structure:",
+      response
+    );
+    return null;
+  } catch (error) {
+    console.error("[getExplorerOverview] Error fetching overview:", error);
+    return null;
+  }
 }

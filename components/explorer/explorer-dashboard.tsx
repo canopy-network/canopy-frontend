@@ -14,7 +14,10 @@ import { SearchBar } from "./explorer-search-bar";
 import { getSampleTransactions } from "@/lib/demo-data/sample-transactions";
 import {
   getExplorerTransactions,
-  type ExplorerTransaction,
+  type Transaction,
+  type ExplorerOverview,
+  getExplorerBlocks,
+  Block,
 } from "@/lib/api/explorer";
 
 interface Validator {
@@ -105,66 +108,67 @@ const formatMarketCap = (value: number) => {
   return `$${value.toFixed(0)}`;
 };
 
-// Sample network overview data
-const networkStats = {
-  tvl: randomBetween(40000000, 80000000),
-  tvl_change: randomFloat(5, 20, 1),
-  volume: randomBetween(5000000, 10000000),
-  volume_change: randomFloat(2, 15, 1),
-  active_chains: randomBetween(100, 150),
-  chains_change: randomBetween(1, 10),
-  validators: randomBetween(1000, 1500),
-  validators_change: randomFloat(2, 10, 1),
-  holders: randomBetween(200000, 300000),
-  holders_change: randomFloat(5, 20, 1),
-  total_transactions: randomBetween(15000000, 25000000),
-  transactions_change: randomFloat(5, 15, 1),
+// Helper function to format metrics from API data
+const formatOverviewMetrics = (data: ExplorerOverview | null) => {
+  console.log("[formatOverviewMetrics] data", data);
+
+  // Format real API data
+  const formatNumber = (value: number) => {
+    if (value >= 1_000_000) {
+      return `${(value / 1_000_000).toFixed(1)}M`;
+    }
+    if (value >= 1_000) {
+      return `${(value / 1_000).toFixed(1)}K`;
+    }
+    return value.toLocaleString();
+  };
+
+  const formatDelta = (change: number, suffix: string = " last 24h") => {
+    const sign = change >= 0 ? "+" : "";
+    return `${sign}${change}%${suffix}`;
+  };
+
+  return [
+    {
+      id: "tvl",
+      label: "TVL",
+      value: data.tvl_formatted || formatNumber(data.tvl),
+      delta: formatDelta(data.tvl_change_24h),
+    },
+    {
+      id: "volume",
+      label: "Volume",
+      value: data.volume_24h_formatted || formatNumber(data.volume_24h),
+      delta: formatDelta(data.volume_change_24h),
+    },
+    {
+      id: "active_chains",
+      label: "Active Chains",
+      value: data.active_chains.toLocaleString(),
+      delta: `${data.active_chains_change >= 0 ? "+" : ""}${
+        data.active_chains_change
+      } this week`,
+    },
+    {
+      id: "validators",
+      label: "Validators",
+      value: data.total_validators.toLocaleString(),
+      delta: formatDelta(data.total_validators_change),
+    },
+    {
+      id: "holders",
+      label: "Holders",
+      value: formatNumber(data.total_holders),
+      delta: formatDelta(data.total_holders_change),
+    },
+    {
+      id: "transactions",
+      label: "Total Transactions",
+      value: formatNumber(data.total_transactions),
+      delta: formatDelta(data.total_transactions_change),
+    },
+  ];
 };
-
-const formatMillions = (value: number) =>
-  `$${(value / 1_000_000).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}M`;
-
-const overviewMetrics = [
-  {
-    id: "tvl",
-    label: "TVL",
-    value: formatMillions(networkStats.tvl),
-    delta: `+${networkStats.tvl_change}% last 24h`,
-  },
-  {
-    id: "volume",
-    label: "Volume",
-    value: `${(networkStats.volume / 1_000_000).toFixed(2)}M`,
-    delta: `+${networkStats.volume_change}% last 24h`,
-  },
-  {
-    id: "active_chains",
-    label: "Active Chains",
-    value: networkStats.active_chains.toLocaleString(),
-    delta: `+${networkStats.chains_change} this week`,
-  },
-  {
-    id: "validators",
-    label: "Validators",
-    value: networkStats.validators.toLocaleString(),
-    delta: `+${networkStats.validators_change}% last 24h`,
-  },
-  {
-    id: "holders",
-    label: "Holders",
-    value: `${(networkStats.holders / 1000).toFixed(1)}K`,
-    delta: `+${networkStats.holders_change}% last 24h`,
-  },
-  {
-    id: "transactions",
-    label: "Total Transactions",
-    value: `${(networkStats.total_transactions / 1_000_000).toFixed(1)}M`,
-    delta: `+${networkStats.transactions_change}% last 24h`,
-  },
-];
 
 // Sample trending chains data
 const sampleTrendingChains: ChainSummary[] = Array.from(
@@ -328,7 +332,7 @@ const sampleTopValidators: Validator[] = Array.from({ length: 6 }, (_, i) => {
 
 // Sample recent transactions data - use actual sample transactions so hashes match
 const sampleTransactions = getSampleTransactions();
-const sampleRecentTransactions: ExplorerTransaction[] = sampleTransactions
+const sampleRecentTransactions: Transaction[] = sampleTransactions
   .slice(0, 5)
   .map((tx) => ({
     chain_id: 0, // Using 0 as default since we don't have chain_id in sample data
@@ -342,31 +346,54 @@ const sampleRecentTransactions: ExplorerTransaction[] = sampleTransactions
     fee: tx.transactionFeeCnpy,
   }));
 
-export function ExplorerDashboard() {
+interface ExplorerDashboardProps {
+  overviewData?: ExplorerOverview | null;
+}
+
+export function ExplorerDashboard({ overviewData }: ExplorerDashboardProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [recentTransactions, setRecentTransactions] = useState<
-    ExplorerTransaction[]
-  >([]);
+  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>(
+    []
+  );
+
+  const [recentBlocks, setRecentBlocks] = useState<Block[]>([]);
+
+  const [isLoadingBlocks, toggleIsLoadingBlocks] = useState(false);
+  // Format metrics from API data or use fallback
+  const overviewMetrics = formatOverviewMetrics(overviewData || null);
 
   // Fetch transactions from API
-  useEffect(() => {
-    async function fetchTransactions() {
-      try {
-        const apiTransactions = await getExplorerTransactions({
-          limit: 5,
-          sort: "desc",
-        });
+  async function fetchBlocks() {
+    try {
+      toggleIsLoadingBlocks(true);
+      const apiBlocks = await getExplorerBlocks({
+        limit: 10,
+      });
 
-        console.log("API Transactions:", apiTransactions);
-        setRecentTransactions(apiTransactions);
-      } catch (error) {
-        console.error("Failed to fetch transactions:", error);
-        // Fallback to sample data on error
-        setRecentTransactions(sampleRecentTransactions);
-      }
+      console.log("[fetchBlocks] apiBlocks", apiBlocks);
+      setRecentBlocks(apiBlocks);
+      toggleIsLoadingBlocks(false);
+    } catch (error) {
+      console.error("Failed to fetch transactions:", error);
     }
+  }
 
+  async function fetchTransactions() {
+    try {
+      const apiTransactions = await getExplorerTransactions({
+        limit: 5,
+        sort: "desc",
+      });
+      setRecentTransactions(apiTransactions);
+    } catch (error) {
+      console.error("Failed to fetch transactions:", error);
+      // Fallback to sample data on error
+    }
+  }
+
+  useEffect(() => {
     fetchTransactions();
+    fetchBlocks();
   }, []);
 
   return (
@@ -374,7 +401,7 @@ export function ExplorerDashboard() {
       <Container
         tag="section"
         type="2xl"
-        className="bg-background sticky top-0 lg:py-2 z-99"
+        className="bg-background sticky top-0 lg:py-2 z-99 mb-4 lg:mb-0"
       >
         <SearchBar
           searchQuery={searchQuery}
@@ -388,28 +415,44 @@ export function ExplorerDashboard() {
           ]}
         />
       </Container>
-      <Container tag="section" type="2xl" className="space-y-6">
+      <Container tag="section" type="2xl" className="space-y-4 lg:space-y-6">
         {/* Search Bar */}
 
-        <NetworkOverview metrics={overviewMetrics} />
+        <NetworkOverview
+          metrics={overviewMetrics}
+          historicData={{
+            tvl: Array.from({ length: 48 }, (_, i) => ({
+              time: Math.floor(Date.now() / 1000) - (48 - i) * 30 * 60,
+              value: overviewData?.tvl
+                ? overviewData.tvl * (0.95 + Math.random() * 0.1)
+                : 45_000_000 + Math.random() * 1_500_000,
+            })),
+            volume: Array.from({ length: 48 }, (_, i) => ({
+              time: Math.floor(Date.now() / 1000) - (48 - i) * 30 * 60,
+              value: overviewData?.volume_24h
+                ? overviewData.volume_24h * (0.95 + Math.random() * 0.1)
+                : 8_500_000 + Math.random() * 600_000,
+            })),
+          }}
+        />
 
         <TrendingChains chains={sampleTrendingChains} />
 
         {/* Bottom Grid: New Launches, Top Validators, Recent Transactions */}
 
-        <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6 mb-8 ">
+        <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6 lg:mb-8 ">
           <NewLaunches chains={sampleNewLaunches} />
           <TopValidators validators={sampleTopValidators} />
         </div>
 
-        <RecentBlocks />
+        <RecentBlocks
+          blocks={recentBlocks}
+          isLoading={isLoadingBlocks}
+          error={null}
+        />
 
         <RecentTransactions
-          transactions={
-            recentTransactions.length > 0
-              ? recentTransactions
-              : sampleRecentTransactions
-          }
+          transactions={recentTransactions.length > 0 ? recentTransactions : []}
         />
 
         <Spacer height={320} />
