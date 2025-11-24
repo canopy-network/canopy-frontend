@@ -10,7 +10,7 @@ import { RecentTransactions } from "./recent-transactions";
 import { RecentBlocks } from "./recent-blocks";
 import { TrendingChains } from "./trending-chains";
 import { Chain } from "@/types/chains";
-import { SearchBar } from "./explorer-search-bar";
+import { ExplorerSearchBar } from "./explorer-search-bar";
 import { getSampleTransactions } from "@/lib/demo-data/sample-transactions";
 import {
   getExplorerTransactions,
@@ -403,17 +403,7 @@ export function ExplorerDashboard({ overviewData }: ExplorerDashboardProps) {
         type="2xl"
         className="bg-background sticky top-0 lg:py-2 z-99 mb-4 lg:mb-0"
       >
-        <SearchBar
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          chains={[
-            ...sampleTrendingChains.map((c) => ({ id: c.id, name: c.name })),
-            ...sampleNewLaunches.map((c) => ({
-              id: c.id,
-              name: c.chain_name,
-            })),
-          ]}
-        />
+        <ExplorerSearchBar />
       </Container>
       <Container tag="section" type="2xl" className="space-y-4 lg:space-y-6">
         {/* Search Bar */}

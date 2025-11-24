@@ -91,6 +91,99 @@ export interface ExplorerBlocksResponse {
 }
 
 /**
+ * Explorer search result base interface
+ */
+export interface ExplorerSearchResultBase<
+  TType extends string = string,
+  TResult = any
+> {
+  type: TType;
+  chain_id: number;
+  result: TResult;
+}
+
+/**
+ * Explorer address search result
+ */
+export interface ExplorerAddressSearchResult
+  extends ExplorerSearchResultBase<
+    "address",
+    {
+      address: string;
+      total_transactions?: number;
+      recent_txs?: Transaction[];
+    }
+  > {}
+
+/**
+ * Explorer transaction search result
+ */
+export interface ExplorerTransactionSearchResult
+  extends ExplorerSearchResultBase<"transaction", Transaction> {}
+
+/**
+ * Explorer block search result data
+ */
+export interface ExplorerBlockSearchResult
+  extends ExplorerSearchResultBase<
+    "block",
+    {
+      chain_id: number;
+      height: number;
+      hash: string;
+      timestamp: string;
+      proposer_address: string;
+      num_txs_send?: number;
+      num_txs_stake?: number;
+      num_txs_edit_stake?: number;
+      num_txs_unstake?: number;
+      num_txs_pause?: number;
+      num_txs_unpause?: number;
+      num_txs_change_parameter?: number;
+      num_txs_dao_transfer?: number;
+      num_txs_certificate_result?: number;
+      num_txs_subsidy?: number;
+      num_txs_create_order?: number;
+      num_txs_edit_order?: number;
+      num_txs_delete_order?: number;
+      num_txs_dex_deposit?: number;
+      num_txs_dex_withdraw?: number;
+      num_txs_dex_limit_order?: number;
+      num_events_reward?: number;
+      num_events_slash?: number;
+      num_events_double_sign?: number;
+      num_events_unstake_ready?: number;
+      num_events_order_book_swap?: number;
+      num_events_order_created?: number;
+      num_events_order_edited?: number;
+      num_events_order_deleted?: number;
+      num_events_order_filled?: number;
+      num_events_dex_deposit?: number;
+      num_events_dex_withdraw?: number;
+      num_events_dex_swap?: number;
+      num_events_pool_created?: number;
+      num_events_pool_points_created?: number;
+      num_events_pool_points_redeemed?: number;
+      num_events_pool_points_transfered?: number;
+      num_orders_created?: number;
+      num_orders_edited?: number;
+      num_orders_deleted?: number;
+      total_txs?: number;
+      total_events?: number;
+      total_fees?: number;
+    }
+  > {}
+
+/**
+ * Explorer search result union
+ */
+export type ExplorerSearchResult =
+  | ExplorerAddressSearchResult
+  | ExplorerTransactionSearchResult
+  | ExplorerBlockSearchResult
+  | ExplorerSearchResultBase;
+
+/**
  * Query parameters for getting blocks
  */
 export interface GetExplorerBlocksParams {
@@ -265,6 +358,64 @@ export async function getExplorerBlock(
     chain_id: chainId,
   });
   return response.data as Block;
+}
+
+// ============================================================================
+// EXPLORER SEARCH
+// ============================================================================
+
+export interface ExplorerSearchResponse {
+  data: ExplorerSearchResult[];
+}
+
+/**
+ * Search explorer entities by hash/address/height.
+ */
+export async function searchExplorerEntities(
+  query: string
+): Promise<ExplorerSearchResult[]> {
+  const trimmedQuery = query.trim();
+
+  if (!trimmedQuery) {
+    return [];
+  }
+
+  try {
+    const response = await apiClient.get<ExplorerSearchResponse>(
+      "/api/v1/explorer/search",
+      { q: trimmedQuery }
+    );
+
+    const payload = response?.data;
+
+    if (Array.isArray(payload)) {
+      return payload as ExplorerSearchResult[];
+    }
+
+    if (
+      payload &&
+      typeof payload === "object" &&
+      Array.isArray((payload as ExplorerSearchResponse).data)
+    ) {
+      return (payload as ExplorerSearchResponse).data;
+    }
+
+    if (
+      payload &&
+      typeof payload === "object" &&
+      Array.isArray((payload as any).data)
+    ) {
+      return (payload as any).data as ExplorerSearchResult[];
+    }
+
+    return [];
+  } catch (error) {
+    console.error(
+      "[searchExplorerEntities] Error fetching search results",
+      error
+    );
+    return [];
+  }
 }
 
 // ============================================================================
