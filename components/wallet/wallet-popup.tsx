@@ -24,10 +24,11 @@ import {
   Wallet,
   Activity,
 } from "lucide-react";
-import { showSuccessToast } from "@/lib/utils/error-handler";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import {formatTokenAmount, toDisplayAmount} from "@/lib/utils/denomination";
+import {
+  formatBalanceWithCommas
+} from "@/lib/utils/denomination";
 
 export function WalletPopup() {
   const router = useRouter();
@@ -75,7 +76,7 @@ export function WalletPopup() {
   const displayBalance = balance?.total || "0.00";
   const displayTokens = balance?.tokens || [];
 
-  // Calculate total USD value
+  //TODO: Calculate total USD value
   const totalUSDValue = displayTokens.reduce((acc, token) => {
     const usdValue = parseFloat(token.usdValue?.replace(/[^0-9.-]+/g, "") || "0");
     return acc + usdValue;
@@ -124,7 +125,7 @@ export function WalletPopup() {
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                   <h2 className="text-4xl font-bold text-foreground mb-1">
-                   ${toDisplayAmount(displayBalance)}
+                   ${formatBalanceWithCommas(displayBalance)}
                   </h2>
                 </div>
 
@@ -238,7 +239,7 @@ export function WalletPopup() {
                                       {token.name} <span className="text-muted-foreground">{token.symbol}</span>
                                     </div>
                                     <div className="text-sm text-muted-foreground">
-                                      {toDisplayAmount(token.balance)}
+                                      {formatBalanceWithCommas(token.balance)}
                                     </div>
                                   </div>
                                 </div>

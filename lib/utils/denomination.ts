@@ -199,12 +199,29 @@ export function convertStandardAmountsToMicro<T extends Record<string, any>>(dat
 }
 
 
-export function toDisplayAmount(amount?: string | number): string {
+/**
+ * Formats a balance from micro units to human-readable format with thousand separators
+ *
+ * Converts micro denomination to standard units and applies locale-specific formatting
+ * with commas (or locale-appropriate separators) for better readability.
+ *
+ * @param amount - Balance in micro units (from backend/blockchain)
+ * @returns Formatted balance with thousand separators (e.g., "1,000,000.50")
+ *
+ * @example
+ * formatBalanceWithCommas(1500000) // Returns "1.5"
+ * formatBalanceWithCommas("10000000") // Returns "10"
+ * formatBalanceWithCommas(1234567890) // Returns "1,234.56789"
+ */
+export function formatBalanceWithCommas(amount?: string | number): string {
   if(!amount) return "0.00"
 
   if(isNaN(Number(amount))) return "0.00"
 
-  return Number(amount).toLocaleString()
+  return Number(fromMicroUnits(amount)).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
 }
 // Legacy exports for backward compatibility
 /**

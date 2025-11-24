@@ -20,6 +20,7 @@
     "@aws-sdk/client-s3": "^3.705.0",
     "@aws-sdk/util-dynamodb": "^3.922.0",
     "@hookform/resolvers": "^3.10.0",
+    "@noble/bls12-381": "^1.4.0",
     "@noble/ciphers": "^2.0.1",
     "@noble/curves": "^2.0.1",
     "@noble/hashes": "^2.0.1",

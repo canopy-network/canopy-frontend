@@ -13,7 +13,10 @@
       "Bash(npm install:*)",
       "Bash(npx pbjs:*)",
       "Bash(npx protobufjs-cli pbjs:*)",
-      "Bash(npx pbts:*)"
+      "Bash(npx pbts:*)",
+      "Bash(find:*)",
+      "Bash(nul)",
+      "Bash(del:*)"
     ],
     "deny": [],
     "ask": []

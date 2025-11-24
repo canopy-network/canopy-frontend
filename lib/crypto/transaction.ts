@@ -1,543 +1,318 @@
 /**
- * Transaction signing module for Canopy blockchain
+ * Transaction building and signing
  *
- * Provides functionality to create and sign transactions locally.
- * This module DOES NOT make any network calls - it only builds and signs transactions.
- * Submission to the backend/blockchain is handled by the API layer.
+ * Mirrors Go implementation in canopy/fsm/transaction.go
+ * Handles multi-curve signing for Canopy blockchain transactions
+ */
+
+import { signMessage } from './signing';
+import { CurveType } from './types';
+import { getSignBytesProtobuf } from './protobuf';
+import type {
+  TransactionParams,
+  RawTransaction,
+  TransactionMessage,
+  TransactionSignature,
+} from './types';
+import type { SendRawTransactionRequest } from '@/types/wallet';
+
+/**
+ * Creates and signs a transaction
  *
- * Transaction flow:
- * 1. Create message payload (Send, Stake, LimitOrder, etc.)
- * 2. Build transaction with metadata (height, fee, chainId, networkId)
- * 3. Sign transaction locally with BLS12-381 private key
- * 4. Convert to send-raw format for backend submission
- */
-
-import { ed25519 } from '@noble/curves/ed25519.js';
-import { sha256 } from '@noble/hashes/sha2.js';
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-
-/**
- * Transaction structure for Canopy blockchain
- */
-export interface Transaction {
-    messageType: string;      // Type of message (send, stake, createOrder, etc.)
-    msg: any;                 // Message payload
-    signature?: Signature;    // Digital signature (added during signing)
-    time: bigint;             // Microsecond timestamp for hash collision entropy
-    createdHeight: bigint;    // Current blockchain height (for replay protection)
-    fee: bigint;              // Transaction fee in uCNPY
-    memo: string;             // Optional memo (max 200 chars)
-    networkId: bigint;        // Network identifier
-    chainId: bigint;          // Chain where transaction is submitted
-}
-
-/**
- * Signature structure with public key and signature bytes
- */
-export interface Signature {
-    publicKey: Uint8Array;    // ED25519 public key bytes (32 bytes)
-    signature: Uint8Array;    // ED25519 signature bytes (64 bytes)
-}
-
-/**
- * Send message for transferring tokens
- */
-export interface MessageSend {
-    fromAddress: Uint8Array;  // Sender address (20 bytes)
-    toAddress: Uint8Array;    // Recipient address (20 bytes)
-    amount: bigint;           // Amount in uCNPY
-}
-
-/**
- * CreateOrder message for DEX limit orders
- */
-export interface MessageCreateOrder {
-    chainId: bigint;                  // Committee/chain ID for counter-asset
-    data: Uint8Array;                 // Optional opcode data (max 100 bytes)
-    amountForSale: bigint;            // Amount of asset being sold
-    requestedAmount: bigint;          // Minimum amount of counter-asset requested
-    sellerReceiveAddress: Uint8Array; // External address to receive counter-asset
-    sellersSendAddress: Uint8Array;   // Canopy address sending the asset
-    orderId?: Uint8Array;             // Auto-populated by protocol
-}
-
-/**
- * Stake message for validator staking
- */
-export interface MessageStake {
-    publicKey: Uint8Array;    // BLS12-381 public key for consensus
-    amount: bigint;           // Stake amount in uCNPY
-    committees: bigint[];     // List of chain IDs to validate
-    netAddress: string;       // P2P network address (empty for delegates)
-    outputAddress: Uint8Array;// Address to receive rewards
-    delegate: boolean;        // True if delegating (not running validator)
-    compound: boolean;        // True to auto-compound rewards
-    signer?: Uint8Array;      // Auto-populated by protocol
-}
-
-/**
- * Network parameters for transaction creation
- */
-export interface NetworkParams {
-    height: bigint;           // Current blockchain height
-    networkId: bigint;        // Network identifier (root chain ID)
-    chainId: bigint;          // Chain to submit transaction to
-}
-
-/**
- * Helper function to convert BigInts to strings for JSON serialization
- */
-function bigIntReplacer(key: string, value: any): any {
-    if (typeof value === 'bigint') {
-        return value.toString();
-    }
-    return value;
-}
-
-/**
- * Serializes message payload based on type
- * Converts Uint8Arrays to hex strings and BigInts to numbers for JSON
- */
-function serializeMessage(msg: any, messageType: string): any {
-    switch (messageType) {
-        case 'send':
-            return {
-                fromAddress: bytesToHex(msg.fromAddress),
-                toAddress: bytesToHex(msg.toAddress),
-                amount: Number(msg.amount),  // ✅ Como número
-            };
-
-        case 'createOrder':
-            return {
-                chainId: Number(msg.chainId),
-                data: bytesToHex(msg.data),
-                amountForSale: Number(msg.amountForSale),
-                requestedAmount: Number(msg.requestedAmount),
-                sellerReceiveAddress: bytesToHex(msg.sellerReceiveAddress),
-                sellersSendAddress: bytesToHex(msg.sellersSendAddress),
-            };
-
-        case 'stake':
-            return {
-                publickey: bytesToHex(msg.publicKey),
-                amount: Number(msg.amount),
-                committees: msg.committees.map((c: bigint) => Number(c)),
-                netAddress: msg.netAddress,
-                outputAddress: bytesToHex(msg.outputAddress),
-                delegate: msg.delegate,
-                compound: msg.compound,
-            };
-
-        default:
-            return msg;
-    }
-}
-
-/**
- * Creates the canonical sign bytes for a transaction (excluding signature)
- */
-function getSignBytes(tx: Transaction): Uint8Array {
-    // Create transaction without signature for signing
-    // Serialize message payload (converts Uint8Arrays to hex, BigInts to strings)
-    const unsignedTx = {
-        messageType: tx.messageType,
-        msg: serializeMessage(tx.msg, tx.messageType),
-        signature: null,
-        time: tx.time.toString(),
-        createdHeight: tx.createdHeight.toString(),
-        fee: tx.fee.toString(),
-        memo: tx.memo,
-        networkId: tx.networkId.toString(),
-        chainId: tx.chainId.toString(),
-    };
-
-    // Serialize to canonical JSON form
-    const jsonBytes = new TextEncoder().encode(JSON.stringify(unsignedTx));
-    return jsonBytes;
-}
-
-/**
- * Computes the transaction hash (SHA256 of serialized transaction)
- */
-export function computeTxHash(tx: Transaction): string {
-    // Serialize to JSON and compute hash, converting BigInts to strings
-    const txBytes = new TextEncoder().encode(JSON.stringify(tx, bigIntReplacer));
-    const hash = sha256(txBytes);
-    return bytesToHex(hash);
-}
-
-/**
- * Verifies an ED25519 signature locally (for debugging)
+ * Mirrors fsm.NewTransaction() from canopy/fsm/transaction.go:424-441
  *
- * @param tx - Signed transaction
- * @returns true if signature is valid
- */
-export function verifyTransactionSignature(tx: Transaction): boolean {
-    if (!tx.signature) {
-        console.error('❌ Transaction has no signature');
-        return false;
-    }
-
-    try {
-        console.log('🔍 Verifying ED25519 signature locally...');
-
-        // Get the sign bytes
-        const { getProtoSignBytes } = require('./proto');
-        const signBytes = getProtoSignBytes(tx);
-
-        // Verify signature
-        const isValid = ed25519.verify(
-            tx.signature.signature,
-            signBytes,
-            tx.signature.publicKey
-        );
-
-        if (isValid) {
-            console.log('✅ Local signature verification PASSED');
-        } else {
-            console.error('❌ Local signature verification FAILED');
-        }
-
-        return isValid;
-    } catch (error) {
-        console.error('❌ Verification error:', error);
-        return false;
-    }
-}
-
-/**
- * Signs a transaction with an ED25519 private key
+ * IMPORTANT: The frontend signs PROTOBUF-encoded transaction bytes.
+ * The backend (Launchpad) will:
+ * 1. Receive JSON from frontend
+ * 2. Convert JSON → Proto (lib.Transaction)
+ * 3. Call tx.GetSignBytes() to get protobuf-encoded bytes (WITHOUT signature)
+ * 4. Verify signature against those PROTOBUF bytes
  *
- * @param tx - Transaction to sign (signature field will be populated)
- * @param privateKeyHex - Hex-encoded ED25519 private key (32 bytes / 64 hex chars)
- * @throws Error if signing fails
- */
-export function signTransaction(tx: Transaction, privateKeyHex: string): void {
-    try {
-        console.log('🔐 Starting transaction signing (ED25519)...');
-
-        // Convert hex private key to bytes
-        const privateKeyBytes = hexToBytes(privateKeyHex);
-        console.log('  Private key length:', privateKeyBytes.length, 'bytes (expected: 32)');
-
-        if (privateKeyBytes.length !== 32) {
-            throw new Error(`Invalid ED25519 private key length: ${privateKeyBytes.length} (expected 32 bytes)`);
-        }
-
-        // Derive ED25519 public key (32 bytes)
-        const publicKeyBytes = ed25519.getPublicKey(privateKeyBytes);
-        console.log('  Public key length:', publicKeyBytes.length, 'bytes (expected: 32)');
-        console.log('  Public key (hex):', bytesToHex(publicKeyBytes));
-
-        // Get canonical sign bytes using protobuf - same as Canopy's GetSignBytes()
-        const { getProtoSignBytes } = require('./proto');
-        const signBytes = getProtoSignBytes(tx);
-        console.log('  Sign bytes length:', signBytes.length);
-        console.log('  Sign bytes (hex):', bytesToHex(signBytes));
-
-        // Sign with ED25519 (produces 64-byte signature)
-        // ED25519 signs the message directly, no domain separation needed
-        console.log('  Signing with ED25519...');
-        const signatureBytes = ed25519.sign(signBytes, privateKeyBytes);
-        console.log('✅ Signature created, length:', signatureBytes.length, 'bytes (expected: 64)');
-        console.log('  Signature (hex):', bytesToHex(signatureBytes));
-
-        // Populate signature field
-        tx.signature = {
-            publicKey: publicKeyBytes,
-            signature: signatureBytes,
-        };
-
-        // Verify signature locally before sending
-        console.log('🔍 Verifying signature locally...');
-        const isValid = ed25519.verify(signatureBytes, signBytes, publicKeyBytes);
-        if (!isValid) {
-            throw new Error('Local signature verification failed! This should never happen.');
-        }
-        console.log('✅ Local signature verification PASSED');
-
-    } catch (error) {
-        console.error('❌ Signing error:', error);
-        throw new Error(`Failed to sign transaction: ${error instanceof Error ? error.message : String(error)}`);
-    }
-}
-
-/**
- * Creates a Send transaction
+ * This means we MUST sign PROTOBUF bytes, not JSON bytes!
  *
- * @param from - Sender private key (hex)
- * @param to - Recipient address (hex)
- * @param amount - Amount in uCNPY
- * @param params - Network parameters (height, networkId, chainId)
- * @param fee - Transaction fee (default: 0, will need to be set)
- * @param memo - Optional memo
- * @returns Signed transaction ready for submission
+ * @param params - Transaction parameters
+ * @param privateKeyHex - Hex-encoded private key
+ * @param publicKeyHex - Hex-encoded public key
+ * @param curveType - Curve type for signing
+ * @returns SendRawTransactionRequest ready to submit to Launchpad
  */
-export function createSendTransaction(
-    from: string,
-    to: string,
-    amount: bigint,
-    params: NetworkParams,
-    fee: bigint = BigInt(0),
-    memo: string = ''
-): Transaction {
-    const privateKeyBytes = hexToBytes(from);
-    const publicKeyBytes = ed25519.getPublicKey(privateKeyBytes);
-    const fromAddress = deriveAddress(publicKeyBytes);
-    const toAddress = hexToBytes(to);
+export function createAndSignTransaction(
+  params: TransactionParams,
+  privateKeyHex: string,
+  publicKeyHex: string,
+  curveType: CurveType
+): SendRawTransactionRequest {
+  // Build unsigned transaction
+  // Mirrors lib.Transaction structure from canopy/lib/tx.go
+  const unsignedTx: Omit<RawTransaction, 'signature'> = {
+    type: params.type,
+    msg: params.msg,
+    time: Date.now() * 1000, // Unix microseconds (Go uses time.Now().UnixMicro())
+    createdHeight: params.height,
+    fee: params.fee,
+    memo: params.memo ?? " ",
+    networkID: params.networkID,
+    chainID: params.chainID,
+  };
 
-    const message: MessageSend = {
-        fromAddress,
-        toAddress,
-        amount,
-    };
+  // Get PROTOBUF sign bytes (transaction without signature)
+  // Mirrors lib.Transaction.GetSignBytes() from canopy/lib/tx.go:149-162
+  // This MUST produce the EXACT same bytes as the Go implementation!
+  const signBytes = getSignBytesProtobuf(unsignedTx);
 
-    const tx: Transaction = {
-        messageType: 'send',
-        msg: message,
-        time: BigInt(Date.now() * 1000), // Convert milliseconds to microseconds
-        createdHeight: params.height,
-        fee,
-        memo,
-        networkId: params.networkId,
-        chainId: params.chainId,
-    };
+  // Sign the canonical bytes with the correct curve algorithm
+  const signatureHex = signMessage(signBytes, privateKeyHex, curveType);
 
-    signTransaction(tx, from);
-    return tx;
+  // Create signature structure
+  const signature: TransactionSignature = {
+    publicKey: publicKeyHex,
+    signature: signatureHex,
+  };
+
+  // Build complete signed transaction
+  const signedTx: RawTransaction = {
+    ...unsignedTx,
+    signature,
+  };
+
+  return {
+    raw_transaction: signedTx,
+  };
 }
 
 /**
- * Creates a CreateOrder transaction (DEX limit order)
+ * DEPRECATED: Old JSON-based signing (DOES NOT WORK)
  *
- * @param from - Trader private key (hex)
- * @param amountForSale - Amount of asset being sold
- * @param requestedAmount - Minimum amount of counter-asset requested
- * @param committeeId - Chain ID for counter-asset
- * @param receiveAddress - External address to receive counter-asset (hex)
- * @param params - Network parameters
- * @param fee - Transaction fee
- * @param data - Optional opcode data (hex)
- * @param memo - Optional memo
- * @returns Signed transaction
- */
-export function createLimitOrderTransaction(
-    from: string,
-    amountForSale: bigint,
-    requestedAmount: bigint,
-    committeeId: bigint,
-    receiveAddress: string,
-    params: NetworkParams,
-    fee: bigint = BigInt(0),
-    data: string = '',
-    memo: string = ''
-): Transaction {
-    const privateKeyBytes = hexToBytes(from);
-    const publicKeyBytes = ed25519.getPublicKey(privateKeyBytes);
-    const senderAddress = deriveAddress(publicKeyBytes);
-
-    const message: MessageCreateOrder = {
-        chainId: committeeId,
-        data: data ? hexToBytes(data) : new Uint8Array(0),
-        amountForSale,
-        requestedAmount,
-        sellerReceiveAddress: hexToBytes(receiveAddress),
-        sellersSendAddress: senderAddress,
-    };
-
-    const tx: Transaction = {
-        messageType: 'createOrder',
-        msg: message,
-        time: BigInt(Date.now() * 1000),
-        createdHeight: params.height,
-        fee,
-        memo,
-        networkId: params.networkId,
-        chainId: params.chainId,
-    };
-
-    signTransaction(tx, from);
-    return tx;
-}
-
-/**
- * Creates a Stake transaction
+ * This function is kept for reference only. It does NOT produce compatible signatures.
+ * The backend verifies against PROTOBUF bytes, not JSON bytes.
  *
- * @param from - Staker private key (hex)
- * @param amount - Stake amount in uCNPY
- * @param committees - Array of chain IDs to validate
- * @param outputAddress - Address to receive rewards (hex)
- * @param params - Network parameters
- * @param fee - Transaction fee
- * @param delegate - True if delegating (not running validator node)
- * @param compound - True to auto-compound rewards
- * @param netAddress - P2P network address (required if not delegate)
- * @param memo - Optional memo
- * @returns Signed transaction
+ * Use getSignBytesProtobuf() from protobuf.ts instead.
  */
-export function createStakeTransaction(
-    from: string,
-    amount: bigint,
-    committees: bigint[],
-    outputAddress: string,
-    params: NetworkParams,
-    fee: bigint = BigInt(0),
-    delegate: boolean = true,
-    compound: boolean = true,
-    netAddress: string = '',
-    memo: string = ''
-): Transaction {
-    const privateKeyBytes = hexToBytes(from);
-    const publicKeyBytes = ed25519.getPublicKey(privateKeyBytes);
-
-    const message: MessageStake = {
-        publicKey: publicKeyBytes,
-        amount,
-        committees,
-        netAddress,
-        outputAddress: hexToBytes(outputAddress),
-        delegate,
-        compound,
-    };
-
-    const tx: Transaction = {
-        messageType: 'stake',
-        msg: message,
-        time: BigInt(Date.now() * 1000),
-        createdHeight: params.height,
-        fee,
-        memo,
-        networkId: params.networkId,
-        chainId: params.chainId,
-    };
-
-    signTransaction(tx, from);
-    return tx;
-}
+// function getSignBytesJSON(tx: Omit<RawTransaction, 'signature'>): Uint8Array {
+//   const signTx = {
+//     type: tx.type,
+//     msg: tx.msg,
+//     signature: null,
+//     time: tx.time,
+//     createdHeight: tx.createdHeight,
+//     fee: tx.fee,
+//     memo: tx.memo,
+//     networkID: tx.networkID,
+//     chainID: tx.chainID,
+//   };
+//   const jsonString = JSON.stringify(signTx);
+//   return new TextEncoder().encode(jsonString);
+// }
 
 /**
- * Derives a Canopy blockchain address from a public key
- * Uses SHA256 hash and takes first 20 bytes
- */
-function deriveAddress(publicKey: Uint8Array): Uint8Array {
-    const hash = sha256(publicKey);
-    return hash.slice(0, 20);
-}
-
-/**
- * Validates transaction structure before signing/submission
+ * Creates a Send transaction message
  *
- * @param tx - Transaction to validate
- * @returns true if valid
+ * Mirrors fsm.NewSendTransaction() from canopy/fsm/transaction.go:260-266
+ *
+ * @param fromAddress - Sender address (hex, no 0x prefix)
+ * @param toAddress - Recipient address (hex, no 0x prefix)
+ * @param amount - Amount in micro units (uCNPY)
+ * @returns MessageSend payload
+ */
+export function createSendMessage(
+  fromAddress: string,
+  toAddress: string,
+  amount: number
+): TransactionMessage {
+  // Mirrors MessageSend structure from canopy/fsm/message.pb.go
+  return {
+    fromAddress,
+    toAddress,
+    amount,
+  };
+}
+
+/**
+ * Creates a Stake transaction message
+ *
+ * Mirrors fsm.NewStakeTx() from canopy/fsm/transaction.go:269-279
+ *
+ * @param publicKey - Validator public key (hex)
+ * @param amount - Amount to stake (micro units)
+ * @param committees - Committee IDs to join
+ * @param netAddress - Network address for validator
+ * @param outputAddress - Address to receive rewards
+ * @param delegate - Whether this is a delegation
+ * @param compound - Whether to compound rewards (earlyWithdrawal = !compound)
+ * @returns MessageStake payload
+ */
+export function createStakeMessage(
+  publicKey: string,
+  amount: number,
+  committees: number[],
+  netAddress: string,
+  outputAddress: string,
+  delegate: boolean,
+  compound: boolean
+): TransactionMessage {
+  return {
+    publicKey,
+    amount,
+    committees,
+    netAddress,
+    outputAddress,
+    signer: '', // Will be populated by backend during signature verification
+    delegate,
+    compound,
+  };
+}
+
+/**
+ * Creates an Unstake transaction message
+ *
+ * Mirrors fsm.NewUnstakeTx() from canopy/fsm/transaction.go:294-296
+ *
+ * @param address - Address to unstake
+ * @returns MessageUnstake payload
+ */
+export function createUnstakeMessage(address: string): TransactionMessage {
+  return {
+    address,
+  };
+}
+
+/**
+ * Creates an EditStake transaction message
+ *
+ * Mirrors fsm.NewEditStakeTx() from canopy/fsm/transaction.go:282-291
+ *
+ * @param address - Validator address
+ * @param amount - New stake amount
+ * @param committees - New committee IDs
+ * @param netAddress - New network address
+ * @param outputAddress - New output address
+ * @param compound - Whether to compound rewards
+ * @returns MessageEditStake payload
+ */
+export function createEditStakeMessage(
+  address: string,
+  amount: number,
+  committees: number[],
+  netAddress: string,
+  outputAddress: string,
+  compound: boolean
+): TransactionMessage {
+  return {
+    address,
+    amount,
+    committees,
+    netAddress,
+    outputAddress,
+    signer: '', // Will be populated by backend
+    compound,
+  };
+}
+
+/**
+ * Creates a CreateOrder transaction message (DEX)
+ *
+ * Mirrors fsm.NewCreateOrderTx() from canopy/fsm/transaction.go:366-375
+ *
+ * @param chainId - Chain ID for the order
+ * @param data - Additional order data
+ * @param amountForSale - Amount selling
+ * @param requestedAmount - Amount requesting
+ * @param sellerReceiveAddress - Address to receive payment
+ * @param sellersSendAddress - Address sending tokens
+ * @returns MessageCreateOrder payload
+ */
+export function createOrderMessage(
+  chainId: number,
+  data: string,
+  amountForSale: number,
+  requestedAmount: number,
+  sellerReceiveAddress: string,
+  sellersSendAddress: string
+): TransactionMessage {
+  return {
+    chainId,
+    data,
+    amountForSale,
+    requestedAmount,
+    sellerReceiveAddress,
+    sellersSendAddress,
+    orderId: '', // Will be populated by backend (first 20 bytes of tx hash)
+  };
+}
+
+/**
+ * Validates transaction parameters before signing
+ *
+ * @param params - Transaction parameters
  * @throws Error if validation fails
  */
-export function validateTransaction(tx: Transaction): boolean {
-    if (!tx.messageType || tx.messageType === '') {
-        throw new Error('Message type is required');
-    }
+export function validateTransactionParams(params: TransactionParams): void {
+  // Validate message type
+  if (!params.type || typeof params.type !== 'string') {
+    throw new Error('Invalid message type: must be a non-empty string');
+  }
 
-    if (!tx.msg) {
-        throw new Error('Message payload is required');
-    }
+  // Validate message payload
+  if (!params.msg || typeof params.msg !== 'object') {
+    throw new Error('Invalid message: must be an object');
+  }
 
-    if (tx.createdHeight === BigInt(0)) {
-        throw new Error('Created height must be greater than 0');
-    }
+  // Validate fee
+  if (typeof params.fee !== 'number' || params.fee < 0) {
+    throw new Error('Invalid fee: must be a non-negative number');
+  }
 
-    if (tx.time === BigInt(0)) {
-        throw new Error('Transaction time must be greater than 0');
-    }
+  // Validate network ID
+  if (typeof params.networkID !== 'number' || params.networkID <= 0) {
+    throw new Error('Invalid network ID: must be a positive number');
+  }
 
-    if (tx.memo.length > 200) {
-        throw new Error('Memo must be 200 characters or less');
-    }
+  // Validate chain ID
+  if (typeof params.chainID !== 'number' || params.chainID <= 0) {
+    throw new Error('Invalid chain ID: must be a positive number');
+  }
 
-    if (tx.networkId === BigInt(0)) {
-        throw new Error('Network ID is required');
-    }
+  // Validate height
+  if (typeof params.height !== 'number' || params.height < 0) {
+    throw new Error('Invalid height: must be a non-negative number');
+  }
 
-    if (tx.chainId === BigInt(0)) {
-        throw new Error('Chain ID is required');
-    }
-
-    if (tx.signature) {
-        if (!tx.signature.publicKey || tx.signature.publicKey.length === 0) {
-            throw new Error('Signature public key is required');
-        }
-        if (!tx.signature.signature || tx.signature.signature.length === 0) {
-            throw new Error('Signature bytes are required');
-        }
-    }
-
-    return true;
+  // Validate memo length
+  if (params.memo && params.memo.length > 200) {
+    throw new Error('Invalid memo: must be 200 characters or less');
+  }
 }
 
 /**
- * Serializes transaction to JSON for HTTP submission
+ * Estimates the size of a transaction in bytes
  *
- * @param tx - Transaction to serialize
- * @returns JSON string
+ * Useful for fee estimation and validation
+ *
+ * @param tx - Transaction to estimate
+ * @returns Estimated size in bytes
  */
-export function serializeTransactionJSON(tx: Transaction): string {
-    // Convert Uint8Arrays and BigInts to hex strings for JSON
-    const serializable = {
-        type: tx.messageType,
-        msg: serializeMessage(tx.msg, tx.messageType),
-        signature: tx.signature ? {
-            publicKey: bytesToHex(tx.signature.publicKey),
-            signature: bytesToHex(tx.signature.signature),
-        } : undefined,
-        time: tx.time.toString(),
-        createdHeight: tx.createdHeight.toString(),
-        fee: tx.fee.toString(),
-        memo: tx.memo,
-        networkID: tx.networkId.toString(),
-        chainID: tx.chainId.toString(),
-    };
-
-    return JSON.stringify(serializable);
+export function estimateTransactionSize(tx: RawTransaction): number {
+  const jsonString = JSON.stringify(tx);
+  return new TextEncoder().encode(jsonString).length;
 }
 
 /**
- * Converts a Transaction to the format expected by /api/v1/wallet/transactions/send-raw
+ * Gets the transaction hash (for tracking before submission)
+ *
+ * NOTE: This is a client-side hash. The authoritative hash
+ * is computed by the backend and returned in the response.
  *
  * @param tx - Signed transaction
- * @returns Object ready to be sent to the send-raw endpoint
+ * @returns Hex-encoded hash
  */
-export function toSendRawTransactionRequest(tx: Transaction): {
-    raw_transaction: {
-        type: string;
-        msg: Record<string, any>;
-        signature: {
-            publicKey: string;
-            signature: string;
-        };
-        time: number;
-        createdHeight: number;
-        fee: number;
-        memo: string;
-        networkID: number;
-        chainID: number;
-    };
-} {
-    if (!tx.signature) {
-        throw new Error('Transaction must be signed before converting to raw transaction request');
-    }
+export async function getTransactionHash(tx: RawTransaction): Promise<string> {
+  const jsonString = JSON.stringify(tx);
+  const bytes = new TextEncoder().encode(jsonString);
 
-    return {
-        raw_transaction: {
-            type: tx.messageType,
-            msg: serializeMessage(tx.msg, tx.messageType),
-            signature: {
-                publicKey: bytesToHex(tx.signature.publicKey),
-                signature: bytesToHex(tx.signature.signature),
-            },
-            time: Number(tx.time),              // ✅ Como número, no string
-            createdHeight: Number(tx.createdHeight),  // ✅ Como número, no string
-            fee: Number(tx.fee),                // ✅ Como número, no string
-            memo: tx.memo,
-            networkID: Number(tx.networkId),    // ✅ Como número, no string
-            chainID: Number(tx.chainId),        // ✅ Como número, no string
-        },
-    };
+  // Use browser's SubtleCrypto for SHA-256
+  const hashBuffer = await crypto.subtle.digest('SHA-256', bytes);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+  return hashHex;
 }

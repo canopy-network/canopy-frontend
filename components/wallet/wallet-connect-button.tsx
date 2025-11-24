@@ -5,9 +5,8 @@ import { useWallet } from "./wallet-provider";
 import { Wallet, Loader2, ChevronDown } from "lucide-react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useWalletStore } from "@/lib/stores/wallet-store";
-import { formatTokenAmount } from "@/lib/utils/denomination";
+import {formatBalanceWithCommas} from "@/lib/utils/denomination";
 import { useEffect } from "react";
-import { cn } from "@/lib/utils";
 
 interface WalletConnectButtonProps {
   isCondensed?: boolean;
@@ -73,7 +72,7 @@ export function WalletConnectButton({ isCondensed = false }: WalletConnectButton
               <ChevronDown className="h-3 w-3 text-muted-foreground flex-shrink-0" />
             </div>
             <div className="text-sm font-medium truncate">
-              {formatTokenAmount(displayBalance)} CNPY
+              {formatBalanceWithCommas(displayBalance)} CNPY
             </div>
           </div>
         </div>

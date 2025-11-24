@@ -32,7 +32,8 @@ import {
 import type { SendTransactionRequest } from "@/types/wallet";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import {isValidAddress} from "@/lib/crypto/wallet";
-import {formatTokenAmount, toDisplayAmount} from "@/lib/utils/denomination";
+import { formatBalanceWithCommas, fromMicroUnits } from "@/lib/utils/denomination";
+import { walletTransactionApi } from "@/lib/api/wallet-transactions";
 
 interface SendTransactionDialogProps {
   open: boolean;
@@ -45,7 +46,7 @@ export function SendTransactionDialog({
   open,
   onOpenChange,
 }: SendTransactionDialogProps) {
-  const { currentWallet, sendTransaction, isLoading, balance } = useWalletStore();
+  const { currentWallet, sendTransaction, balance } = useWalletStore();
 
   // Get available assets from balance.tokens
   const availableAssets = balance?.tokens || [];
@@ -68,6 +69,11 @@ export function SendTransactionDialog({
   const [addressError, setAddressError] = useState("");
   const [amountError, setAmountError] = useState("");
 
+  // Fee estimation
+  const [estimatedFee, setEstimatedFee] = useState<string | null>(null);
+  const [isEstimatingFee, setIsEstimatingFee] = useState(false);
+  const [feeError, setFeeError] = useState<string | null>(null);
+
   // Reset state when dialog opens/closes
   useEffect(() => {
     if (!open) {
@@ -82,6 +88,9 @@ export function SendTransactionDialog({
         setAddressError("");
         setAmountError("");
         setIsSending(false);
+        setEstimatedFee(null);
+        setIsEstimatingFee(false);
+        setFeeError(null);
       }, 300);
     }
   }, [open]);
@@ -141,12 +150,34 @@ export function SendTransactionDialog({
     if (selectedAsset) setStep(2);
   };
 
-  const handleContinueFromStep2 = () => {
+  const handleContinueFromStep2 = async () => {
     const isAddressValid = validateAddress(toAddress);
     const isAmountValid = validateAmount();
 
-    if (isAddressValid && isAmountValid) {
+    if (!isAddressValid || !isAmountValid || !selectedAsset || !currentWallet) {
+      return;
+    }
+
+    // Estimate fee before showing confirmation
+    setIsEstimatingFee(true);
+    setFeeError(null);
+
+    try {
+      const feeResponse = await walletTransactionApi.estimateFee({
+        transaction_type: "send",
+        from_address: currentWallet.address,
+        to_address: toAddress,
+        amount: amount,
+        chain_id: selectedAsset.chainId,
+      });
+
+      setEstimatedFee(feeResponse.estimated_fee);
+      setIsEstimatingFee(false);
       setStep(3);
+    } catch (err) {
+      setIsEstimatingFee(false);
+      setFeeError(err instanceof Error ? err.message : "Failed to estimate fee");
+      toast.error("Failed to estimate transaction fee. Please try again.");
     }
   };
 
@@ -160,6 +191,8 @@ export function SendTransactionDialog({
       setAmountError("");
     } else if (step === 3) {
       setStep(2);
+      setEstimatedFee(null);
+      setFeeError(null);
     }
   };
 
@@ -180,6 +213,7 @@ export function SendTransactionDialog({
       const request: SendTransactionRequest = {
         from_address: currentWallet.address,
         to_address: toAddress,
+        fee: Number(estimatedFee),
         amount: amount,
         network_id: 1, // Default network ID (mainnet)
         chain_id: selectedAsset.chainId,
@@ -210,6 +244,8 @@ export function SendTransactionDialog({
     setError(null);
     setAddressError("");
     setAmountError("");
+    setEstimatedFee(null);
+    setFeeError(null);
   };
 
   const handleTryAgain = () => {
@@ -229,9 +265,6 @@ export function SendTransactionDialog({
   };
 
   const amountNum = parseFloat(amount) || 0;
-  const availableBalance = selectedAsset
-    ? parseFloat(selectedAsset.balance)
-    : 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -273,7 +306,7 @@ export function SendTransactionDialog({
                             <div className="flex flex-col items-start">
                               <span className="font-medium text-sm">{selectedAsset?.name}</span>
                               <span className="text-xs text-muted-foreground">
-                                {formatTokenAmount(selectedAsset?.balance)} {selectedAsset.symbol}
+                                {formatBalanceWithCommas(selectedAsset?.balance)} {selectedAsset.symbol}
                               </span>
                             </div>
                           </div>
@@ -298,7 +331,7 @@ export function SendTransactionDialog({
                             <div className="flex flex-col items-start gap-1">
                               <span className="font-medium">{asset.name}</span>
                               <span className="text-xs text-muted-foreground">
-                                {formatTokenAmount(asset.balance)} {asset.symbol}
+                                {formatBalanceWithCommas(asset.balance)} {asset.symbol}
                               </span>
                             </div>
                           </div>
@@ -383,7 +416,7 @@ export function SendTransactionDialog({
                 {amountError && <p className="text-sm text-red-500">{amountError}</p>}
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">
-                    Available: {toDisplayAmount(selectedAsset.balance)} {selectedAsset.symbol}
+                    Available: {formatBalanceWithCommas(selectedAsset.balance)} {selectedAsset.symbol}
                   </span>
                 </div>
               </div>
@@ -400,12 +433,30 @@ export function SendTransactionDialog({
                 />
               </div>
 
+              {/* Fee Estimation Error */}
+              {feeError && (
+                <div className="flex gap-2 p-3 border border-red-500/20 bg-red-500/5 rounded-lg">
+                  <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                  <div className="space-y-1 text-sm">
+                    <p className="font-medium text-red-500">Fee Estimation Failed</p>
+                    <p className="text-muted-foreground">{feeError}</p>
+                  </div>
+                </div>
+              )}
+
               <Button
                 className="w-full h-12"
                 onClick={handleContinueFromStep2}
-                disabled={!toAddress || !amountNum || amountNum <= 0}
+                disabled={!toAddress || !amountNum || amountNum <= 0 || isEstimatingFee}
               >
-                Continue
+                {isEstimatingFee ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Estimating Fee...
+                  </>
+                ) : (
+                  "Continue"
+                )}
               </Button>
             </div>
           </>
@@ -442,7 +493,7 @@ export function SendTransactionDialog({
                         <p className="text-sm font-medium">{selectedAsset.name}</p>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Balance: {toDisplayAmount(selectedAsset.balance)} {selectedAsset.symbol}
+                        Balance: {formatBalanceWithCommas(selectedAsset.balance)} {selectedAsset.symbol}
                       </p>
                     </div>
                   </div>
@@ -493,7 +544,16 @@ export function SendTransactionDialog({
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Network Fee</span>
                     <div className="text-right">
-                      <p className="text-sm font-medium">{"< 0.001"} CNPY</p>
+                      {isEstimatingFee ? (
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <p className="text-sm font-medium text-muted-foreground">Estimating...</p>
+                        </div>
+                      ) : estimatedFee ? (
+                        <p className="text-sm font-medium">{fromMicroUnits(estimatedFee, 6)} CNPY</p>
+                      ) : (
+                        <p className="text-sm font-medium text-red-500">Fee estimation failed</p>
+                      )}
                     </div>
                   </div>
 
@@ -542,7 +602,7 @@ export function SendTransactionDialog({
                 <Button
                   className="w-full h-12"
                   onClick={handleConfirmSend}
-                  disabled={!currentWallet?.isUnlocked}
+                  disabled={!currentWallet?.isUnlocked || !estimatedFee}
                 >
                   Confirm & Send
                 </Button>

@@ -148,6 +148,7 @@ export interface LocalWallet {
   encrypted_private_key: string;   // AES-encrypted private key
   salt: string;                    // Salt for key derivation
   wallet_name: string;             // Wallet nickname (keyNickname)
+  curveType?: string;              // Curve type (ed25519, bls12381, secp256k1, ethsecp256k1)
 
   // Local state only (in-memory, NEVER persisted)
   privateKey?: string;             // Decrypted private key (recalculated on unlock)
@@ -421,6 +422,8 @@ export interface MultiChainBalanceResponse {
   total_value_usd?: string;
 }
 
+
+export type WalletTransactionStatus = 'pending' | 'completed' | 'failed';
 /**
  * Wallet transaction (for display)
  */
@@ -431,7 +434,7 @@ export interface WalletTransaction {
   token: string;
   from?: string;                   // Sender address
   to?: string;                     // Recipient address
-  status: 'pending' | 'completed' | 'failed';
+  status: WalletTransactionStatus;
   timestamp: string;               // ISO timestamp
   txHash?: string;                 // Transaction hash
 }

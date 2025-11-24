@@ -14,13 +14,12 @@
 import { create } from "zustand";
 import { persist, createJSONStorage, StateStorage } from "zustand/middleware";
 import {
-    Wallet,
-    LocalWallet,
-    UpdateWalletRequest,
-    WalletBalance,
-    WalletTransaction, ImportWalletRequest,
+  LocalWallet,
+  UpdateWalletRequest,
+  WalletBalance,
+  WalletTransaction, ImportWalletRequest, WalletTransactionStatus,
 } from "@/types/wallet";
-import { walletApi, portfolioApi, walletTransactionApi } from "@/lib/api";
+import {walletApi, portfolioApi, walletTransactionApi, chainsApi} from "@/lib/api";
 import type {
   SendTransactionRequest,
   TransactionHistoryRequest,
@@ -31,7 +30,7 @@ import {
   decryptPrivateKey,
   EncryptedKeyPair,
 } from "@/lib/crypto/wallet";
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
 import { validateSeedphrase } from "@/lib/crypto/seedphrase";
 import {
   storeMasterSeedphrase,
@@ -43,7 +42,6 @@ import {
   fromMicroUnits,
   toMicroUnits
 } from "@/lib/utils/denomination";
-import { explorerApi } from "@/lib/api/explorer";
 
 /**
  * Generate a 4-character symbol for a chain based on chain_id
@@ -53,11 +51,13 @@ function generateChainSymbol(chainId: number): string {
   return `C${chainId.toString().padStart(3, '0')}`;
 }
 import {
-  createSendTransaction,
-  toSendRawTransactionRequest,
-  type NetworkParams,
+  createSendMessage,
+  createAndSignTransaction,
+  validateTransactionParams,
 } from "@/lib/crypto/transaction";
-import {symbol} from "zod";
+import { detectPublicKeyCurve } from "@/lib/crypto/curve-detection";
+import { CurveType } from "@/lib/crypto/types";
+import { symbol } from "zod";
 
 export interface WalletState {
   // State
@@ -103,6 +103,7 @@ export interface WalletState {
   // Actions - Utilities
   clearError: () => void;
   resetWalletState: () => void;
+  migrateWalletCurveTypes: () => void; // Migrate existing wallets to include curve type
 }
 
 // Custom storage for Zustand
@@ -121,6 +122,7 @@ const zustandStorage: StateStorage = {
   },
 };
 
+const MIN_DEFAULT_FEE = 1000;
 export const useWalletStore = create<WalletState>()(
   persist(
     (set, get) => ({
@@ -149,6 +151,16 @@ export const useWalletStore = create<WalletState>()(
 
           // Convert addressMap to LocalWallet array
           const wallets: LocalWallet[] = Object.entries(addressMap).map(([address, data]) => {
+            // Detect curve type from public key
+            let curveType: string;
+            try {
+              curveType = detectPublicKeyCurve(data.publicKey);
+              console.log(`✅ Detected curve type for ${address}: ${curveType}`);
+            } catch (error) {
+              console.warn(`⚠️ Failed to detect curve type for ${address}, defaulting to ed25519:`, error);
+              curveType = CurveType.ED25519; // Default to Ed25519
+            }
+
             return {
               // From export endpoint
               id: address,
@@ -157,6 +169,7 @@ export const useWalletStore = create<WalletState>()(
               encrypted_private_key: data.encrypted,
               salt: data.salt,
               wallet_name: data.keyNickname || 'Unnamed Wallet',
+              curveType, // ✅ Store detected curve type
 
               // Local state only
               isUnlocked: false,
@@ -251,6 +264,16 @@ export const useWalletStore = create<WalletState>()(
             throw new Error("No successful wallet imports");
           }
 
+          // Detect curve type from public key
+          let curveType: string;
+          try {
+            curveType = detectPublicKeyCurve(encrypted.publicKey);
+            console.log(`✅ Created wallet with curve type: ${curveType}`);
+          } catch (error) {
+            console.warn(`⚠️ Failed to detect curve type, defaulting to ed25519:`, error);
+            curveType = CurveType.ED25519; // Default to Ed25519
+          }
+
           // Create LocalWallet from the data we already have
           const localWallet: LocalWallet = {
             id: firstSuccess.address,
@@ -259,6 +282,7 @@ export const useWalletStore = create<WalletState>()(
             encrypted_private_key: encrypted.encryptedPrivateKey,
             salt: encrypted.salt,
             wallet_name: walletName || 'Unnamed Wallet',
+            curveType, // ✅ Store detected curve type
             isUnlocked: false,
           };
 
@@ -371,6 +395,18 @@ export const useWalletStore = create<WalletState>()(
           // Convert bytes to hex string
           const privateKeyHex = bytesToHex(privateKeyBytes);
 
+          // Ensure curveType is set (detect if missing)
+          let curveType = wallet.curveType;
+          if (!curveType) {
+            try {
+              curveType = detectPublicKeyCurve(wallet.public_key);
+              console.log(`✅ Detected curve type on unlock: ${curveType}`);
+            } catch (error) {
+              console.warn(`⚠️ Failed to detect curve type on unlock, defaulting to ed25519:`, error);
+              curveType = CurveType.ED25519;
+            }
+          }
+
           // Store private key in memory only (partialize will remove it before persisting)
           set((state) => ({
             wallets: state.wallets.map((w) =>
@@ -378,6 +414,7 @@ export const useWalletStore = create<WalletState>()(
                 ? {
                     ...w,
                     privateKey: privateKeyHex,
+                    curveType, // ✅ Ensure curve type is set
                     isUnlocked: true,
                   }
                 : w
@@ -387,6 +424,7 @@ export const useWalletStore = create<WalletState>()(
                 ? {
                     ...state.currentWallet,
                     privateKey: privateKeyHex,
+                    curveType, // ✅ Ensure curve type is set
                     isUnlocked: true,
                   }
                 : state.currentWallet,
@@ -491,7 +529,6 @@ export const useWalletStore = create<WalletState>()(
             tokens,
           };
 
-          console.log("Setting wallet balance:", walletBalance);
           set({ balance: walletBalance });
 
 
@@ -545,7 +582,7 @@ export const useWalletStore = create<WalletState>()(
               token: "CNPY", // Default to CNPY, could be extracted from transaction
               from: tx.from_address,
               to: tx.to_address,
-              status: tx.status.toLowerCase() as any,
+              status: tx.status.toLowerCase() as WalletTransactionStatus,
               timestamp: tx.timestamp,
               txHash: tx.transaction_hash,
             })
@@ -625,45 +662,58 @@ export const useWalletStore = create<WalletState>()(
             throw new Error("Wallet is locked. Please unlock the wallet first.");
           }
 
-          // Convert amount from CNPY to uCNPY (micro CNPY)
-          const amountInMicro = BigInt(toMicroUnits(request.amount));
-          const feeInMicro = request.fee
-            ? BigInt(toMicroUnits(request.fee.toString()))
-            : BigInt(1000); // Default fee of 1000 uCNPY
+          // Ensure curveType is set
+          if (!wallet.curveType) {
+            throw new Error("Wallet curve type not detected. Please refresh your wallets.");
+          }
+
+
+          // Convert amount from denom to udenom
+          const amountInMicro = parseInt(toMicroUnits(request.amount));
 
           // Get current blockchain height from explorer API
-          console.log("📡 Fetching current blockchain height...");
           const chainId = request.chain_id || 1;
-          const currentHeight = await explorerApi.getCurrentHeight(chainId);
-          console.log("  Current height:", currentHeight);
+          const currentHeight = await chainsApi.getChainHeight(String(chainId));
 
-          // Network parameters for transaction
-          const networkParams: NetworkParams = {
-            height: BigInt(currentHeight), // ✅ Usa el height actual del blockchain
-            networkId: BigInt(request.network_id || 1),
-            chainId: BigInt(request.chain_id || 1), // Default to 1 (root chain)
-          };
-
-
-          // Create and sign the transaction locally
-          const signedTx = createSendTransaction(
-            wallet.privateKey,              // Private key (hex)
-            request.to_address,             // Recipient address (hex)
-            amountInMicro,                  // Amount in uCNPY
-            networkParams,                  // Network parameters
-            feeInMicro,                     // Fee in uCNPY
-            request.memo || ""              // Optional memo
+          // Create send message
+          const msg = createSendMessage(
+            wallet.address,       // From address
+            request.to_address,   // To address
+            amountInMicro         // Amount in micro units
           );
 
-          console.log("✅ Transaction signed locally");
+          // Validate transaction parameters
+          const txParams = {
+            type: 'send',
+            msg,
+            fee: request.fee ?? MIN_DEFAULT_FEE,
+            memo: request.memo,
+            networkID: request.network_id || 1,
+            chainID: chainId,
+            height: currentHeight.data.height,
+          };
 
-          // Convert to send-raw request format
-          const rawTxRequest = toSendRawTransactionRequest(signedTx);
+          try {
+            validateTransactionParams(txParams);
+          } catch (validationError) {
+            console.error("❌ Transaction validation failed:", validationError);
+            throw validationError;
+          }
 
+          // Create and sign the transaction with multi-curve support
+          console.log("🔐 Signing transaction with protobuf...");
+          const signedTx = createAndSignTransaction(
+            txParams,
+            wallet.privateKey,    // ✅ Private key
+            wallet.public_key,    // ✅ Public key
+            wallet.curveType as CurveType // ✅ Curve type determines signing algorithm!
+          );
+
+          console.log("✅ Transaction signed locally with", wallet.curveType);
           console.log("📤 Submitting raw transaction to backend...");
 
           // Submit the raw transaction to the backend
-          const response = await walletTransactionApi.sendRawTransaction(rawTxRequest);
+          const response = await walletTransactionApi.sendRawTransaction(signedTx);
 
           console.log("✅ Transaction sent:", response.transaction_hash);
 
@@ -709,6 +759,58 @@ export const useWalletStore = create<WalletState>()(
       // Clear error
       clearError: () => set({ error: null }),
 
+      // Migrate existing wallets to include curve type
+      migrateWalletCurveTypes: () => {
+        console.log('🔄 Migrating wallets to include curve types...');
+
+        set((state) => ({
+          wallets: state.wallets.map((wallet) => {
+            // Skip if already has curve type
+            if (wallet.curveType) {
+              return wallet;
+            }
+
+            // Detect curve type from public key
+            try {
+              const curveType = detectPublicKeyCurve(wallet.public_key);
+              console.log(`✅ Migrated wallet ${wallet.id}: detected ${curveType}`);
+
+              return {
+                ...wallet,
+                curveType,
+              };
+            } catch (error) {
+              console.error(`❌ Failed to migrate wallet ${wallet.id}:`, error);
+              // Default to Ed25519 if detection fails
+              return {
+                ...wallet,
+                curveType: CurveType.ED25519,
+              };
+            }
+          }),
+          currentWallet: state.currentWallet && !state.currentWallet.curveType
+            ? (() => {
+                try {
+                  const curveType = detectPublicKeyCurve(state.currentWallet.public_key);
+                  console.log(`✅ Migrated current wallet: detected ${curveType}`);
+                  return {
+                    ...state.currentWallet,
+                    curveType,
+                  };
+                } catch (error) {
+                  console.error(`❌ Failed to migrate current wallet:`, error);
+                  return {
+                    ...state.currentWallet,
+                    curveType: CurveType.ED25519,
+                  };
+                }
+              })()
+            : state.currentWallet,
+        }));
+
+        console.log('✅ Wallet migration complete');
+      },
+
       // Reset wallet state (clears seed phrase on logout)
       resetWalletState: () => {
         // Clear stored master seed phrase
@@ -735,18 +837,31 @@ export const useWalletStore = create<WalletState>()(
        * - privateKey is always set to undefined before saving
        * - privateKey is recalculated on each unlock by decrypting encrypted_private_key
        * - On page refresh, all wallets reset to locked state (isUnlocked: false)
+       * - curveType IS persisted (needed for signing)
        */
       partialize: (state) => ({
         wallets: state.wallets.map((w) => ({
-          ...w,
-          privateKey: undefined, // NEVER persist decrypted private keys
-          isUnlocked: false,     // Always reset to locked on persist
+          id: w.id,
+          address: w.address,
+          public_key: w.public_key,
+          encrypted_private_key: w.encrypted_private_key,
+          salt: w.salt,
+          wallet_name: w.wallet_name,
+          curveType: w.curveType, // ✅ Persist curve type
+          privateKey: undefined,  // NEVER persist decrypted private keys
+          isUnlocked: false,      // Always reset to locked on persist
         })),
         currentWallet: state.currentWallet
           ? {
-              ...state.currentWallet,
-              privateKey: undefined, // NEVER persist decrypted private keys
-              isUnlocked: false,     // Always reset to locked on persist
+              id: state.currentWallet.id,
+              address: state.currentWallet.address,
+              public_key: state.currentWallet.public_key,
+              encrypted_private_key: state.currentWallet.encrypted_private_key,
+              salt: state.currentWallet.salt,
+              wallet_name: state.currentWallet.wallet_name,
+              curveType: state.currentWallet.curveType, // ✅ Persist curve type
+              privateKey: undefined,  // NEVER persist decrypted private keys
+              isUnlocked: false,      // Always reset to locked on persist
             }
           : null,
       }),

@@ -20,9 +20,8 @@ import {
   CreateAssetRequest,
   ChainHolder,
   GetHoldersParams,
-  Accolade,
+  Accolade, ChainHeight,
 } from "@/types/chains";
-import { PaginatedResponse } from "@/types/api";
 
 // ============================================================================
 // CHAINS API
@@ -261,6 +260,21 @@ export const chainsApi = {
    */
   getAccolades: (chainId: string) =>
     apiClient.get<Accolade[]>(`/api/v1/chains/${chainId}/accolades`),
+
+  /**
+   * Get current block height for a chain
+   *
+   * @param id - Chain ID
+   * @returns Promise resolving to chain height data
+   *
+   * @example
+   * ```typescript
+   * const heightData = await chainsApi.getChainHeight('chain-id');
+   * console.log(`Current height: ${heightData.data.height}`);
+   * ```
+   */
+  getChainHeight: (id: string) =>
+    apiClient.get<ChainHeight>(`/api/v1/chains/${id}/height`),
 };
 
 // ============================================================================
