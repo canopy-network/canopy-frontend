@@ -12,6 +12,7 @@ import { useWallet } from "./wallet-provider";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { SendTransactionDialog } from "./send-transaction-dialog";
 import { ReceiveDialog } from "./receive-dialog";
+import { StakeDialog } from "./stake-dialog";
 import {
   Copy,
   LogOut,
@@ -37,6 +38,7 @@ export function WalletPopup() {
   const [activeTab, setActiveTab] = useState("balances");
   const [showSendDialog, setShowSendDialog] = useState(false);
   const [showReceiveDialog, setShowReceiveDialog] = useState(false);
+  const [showStakeDialog, setShowStakeDialog] = useState(false);
 
   // Fetch balance and transactions when wallet is connected
   useEffect(() => {
@@ -125,7 +127,7 @@ export function WalletPopup() {
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                   <h2 className="text-4xl font-bold text-foreground mb-1">
-                   ${formatBalanceWithCommas(displayBalance)}
+                    ${formatBalanceWithCommas(displayBalance)}
                   </h2>
                 </div>
 
@@ -156,6 +158,7 @@ export function WalletPopup() {
                   <Button
                     variant="outline"
                     className="flex flex-col gap-1 h-auto py-3 px-2"
+                    onClick={() => setShowStakeDialog(true)}
                   >
                     <Coins className="w-5 h-5" />
                     <span className="text-xs">Stake</span>
@@ -291,9 +294,8 @@ export function WalletPopup() {
                               className="flex items-center justify-between py-3 hover:bg-muted/50 rounded-lg px-2 transition-colors"
                             >
                               <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                                  tx.type === 'send' ? 'bg-red-500/20' : 'bg-green-500/20'
-                                }`}>
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${tx.type === 'send' ? 'bg-red-500/20' : 'bg-green-500/20'
+                                  }`}>
                                   {tx.type === 'send' ? (
                                     <Send className="w-5 h-5 text-red-500" />
                                   ) : (
@@ -308,9 +310,8 @@ export function WalletPopup() {
                                 </div>
                               </div>
                               <div className="text-right">
-                                <div className={`font-medium ${
-                                  tx.type === 'send' ? 'text-red-500' : 'text-green-500'
-                                }`}>
+                                <div className={`font-medium ${tx.type === 'send' ? 'text-red-500' : 'text-green-500'
+                                  }`}>
                                   {tx.type === 'send' ? '-' : '+'}{tx.amount} {tx.token}
                                 </div>
                                 <div className="text-sm text-muted-foreground capitalize">
@@ -368,6 +369,12 @@ export function WalletPopup() {
       <ReceiveDialog
         open={showReceiveDialog}
         onOpenChange={setShowReceiveDialog}
+      />
+
+      {/* Stake Dialog */}
+      <StakeDialog
+        open={showStakeDialog}
+        onOpenChange={setShowStakeDialog}
       />
     </>
   );

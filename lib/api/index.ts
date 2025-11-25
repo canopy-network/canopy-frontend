@@ -114,6 +114,9 @@ export { portfolioApi } from "./portfolio";
 // Wallet Transaction API
 export { walletTransactionApi, waitForTransactionCompletion } from "./wallet-transactions";
 
+// Governance API
+export { governanceApi } from "./governance";
+
 // ============================================================================
 // CONVENIENCE RE-EXPORTS
 // ============================================================================

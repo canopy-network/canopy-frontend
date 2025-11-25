@@ -63,13 +63,13 @@ export function AssetsTab({ tokens, totalBalance, totalUSDValue }: AssetsTabProp
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Portfolio Value Chart */}
-      <Card>
-        <CardHeader>
-          <p className="text-sm text-muted-foreground">Estimated Balance</p>
-          <CardTitle className="text-4xl">{formatTokenAmount(totalBalance)} CNPY</CardTitle>
-          <p className="text-sm text-muted-foreground">{totalUSDValue}</p>
+      <Card className="p-2 px-2">
+        <CardHeader className="p-4 sm:p-6">
+          <p className="text-xs sm:text-sm text-muted-foreground">Estimated Balance</p>
+          <CardTitle className="text-2xl sm:text-3xl lg:text-4xl break-all">{formatTokenAmount(totalBalance)} CNPY</CardTitle>
+          <p className="text-xs sm:text-sm text-muted-foreground">{totalUSDValue}</p>
         </CardHeader>
       </Card>
 
@@ -80,16 +80,16 @@ export function AssetsTab({ tokens, totalBalance, totalUSDValue }: AssetsTabProp
           placeholder="Search by chain name or symbol..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
+          className="pl-10 text-sm sm:text-base h-10 sm:h-11"
         />
       </div>
 
-      {/* Assets Table */}
+      {/* Assets Table - Desktop */}
       {sortedTokens.length === 0 ? (
         <Card>
-          <CardContent className="text-center py-12">
-            <Coins className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-            <p className="text-sm text-muted-foreground mb-2">
+          <CardContent className="text-center py-8 sm:py-12 px-4 sm:px-6">
+            <Coins className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <p className="text-xs sm:text-sm text-muted-foreground mb-2">
               {searchQuery ? "No assets found" : "No assets yet"}
             </p>
             <p className="text-xs text-muted-foreground">
@@ -100,78 +100,112 @@ export function AssetsTab({ tokens, totalBalance, totalUSDValue }: AssetsTabProp
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => handleSort("chain")}
-                >
-                  <div className="flex items-center gap-2">
-                    Chain
-                    <ArrowUpDown className="h-4 w-4" />
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-muted/50 text-right"
-                  onClick={() => handleSort("amount")}
-                >
-                  <div className="flex items-center gap-2 justify-end">
-                    Amount
-                    <ArrowUpDown className="h-4 w-4" />
-                  </div>
-                </TableHead>
-                <TableHead className="text-right">24H Change</TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-muted/50 text-right"
-                  onClick={() => handleSort("price")}
-                >
-                  <div className="flex items-center gap-2 justify-end">
-                    Price
-                    <ArrowUpDown className="h-4 w-4" />
-                  </div>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedTokens.map((token) => (
-                <TableRow key={token.symbol} className="cursor-pointer hover:bg-muted/30">
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <span className="text-sm font-bold text-primary">
+        <>
+          {/* Desktop Table */}
+          <Card className="hidden md:block p-2 px-2">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort("chain")}
+                    >
+                      <div className="flex items-center gap-2">
+                        Chain
+                        <ArrowUpDown className="h-4 w-4" />
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50 text-right"
+                      onClick={() => handleSort("amount")}
+                    >
+                      <div className="flex items-center gap-2 justify-end">
+                        Amount
+                        <ArrowUpDown className="h-4 w-4" />
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-right">24H Change</TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50 text-right"
+                      onClick={() => handleSort("price")}
+                    >
+                      <div className="flex items-center gap-2 justify-end">
+                        Price
+                        <ArrowUpDown className="h-4 w-4" />
+                      </div>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedTokens.map((token) => (
+                    <TableRow key={token.symbol} className="cursor-pointer hover:bg-muted/30">
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                            <span className="text-sm font-bold text-primary">
+                              {token.symbol.slice(0, 2)}
+                            </span>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{token.symbol}</p>
+                            <p className="text-sm text-muted-foreground truncate">{token.name}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <p className="font-medium">{token.usdValue || "$0.00"}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {formatTokenAmount(token.balance)} {token.symbol}
+                        </p>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <p className="text-sm text-muted-foreground">--</p>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <p className="font-medium">$0.00</p>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+
+          {/* Mobile Cards */}
+          <div className="md:hidden space-y-2">
+            {sortedTokens.map((token) => (
+              <Card key={token.symbol} className="cursor-pointer hover:bg-muted/30 transition-colors p-2 px-2">
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        <span className="text-xs font-bold text-primary">
                           {token.symbol.slice(0, 2)}
                         </span>
                       </div>
-                      <div>
-                        <p className="font-medium">{token.symbol}</p>
-                        <p className="text-sm text-muted-foreground">{token.name}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium truncate text-sm">{token.symbol}</p>
+                        <p className="text-xs text-muted-foreground truncate">{token.name}</p>
                       </div>
                     </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <p className="font-medium">{token.usdValue || "$0.00"}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatTokenAmount(token.balance)} {token.symbol}
-                    </p>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <p className="text-sm text-muted-foreground">--</p>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <p className="font-medium">$0.00</p>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
+                    <div className="text-right shrink-0">
+                      <p className="font-medium text-sm">{token.usdValue || "$0.00"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatTokenAmount(token.balance)} {token.symbol}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
       )}
 
       {/* Assets with Distribution (Original Design) */}
-      <div className="space-y-2">
-        <h3 className="text-sm font-medium text-muted-foreground">Detailed View</h3>
+      <div className="space-y-2 sm:space-y-3">
+        <h3 className="text-xs sm:text-sm font-medium text-muted-foreground px-1">Detailed View</h3>
         {sortedTokens.map((token) => (
           <AssetItem key={token.symbol} token={token} />
         ))}
