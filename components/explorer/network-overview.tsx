@@ -49,7 +49,7 @@ export function NetworkOverview({
               return (
                 <div
                   key={metric.id}
-                  className="flex lg:h-[120px] flex-col  rounded-[16px] justify-between bg-white/[0.05] px-3 lg:px-6 py-3 lg:py-5 h-full"
+                  className="flex h-[120px] flex-col  rounded-[16px] justify-between bg-white/[0.05] px-3 lg:px-6 py-3 lg:py-5 lg:h-full"
                 >
                   <div className="text-xs font-medium uppercase tracking-[0.08em] text-white/70">
                     {metric.label}

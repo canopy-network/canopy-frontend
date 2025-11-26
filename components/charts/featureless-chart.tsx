@@ -62,10 +62,12 @@ export const FeaturelessChart = ({
   data,
   isDark = true,
   lineColor = "#1dd13a",
+  height = 200,
 }: {
   data: Array<{ time: string | number; value: number }>;
   isDark?: boolean;
   lineColor?: string;
+  height?: number;
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
@@ -80,7 +82,7 @@ export const FeaturelessChart = ({
       attributionLogo: false,
     },
     width: width,
-    height: 200,
+    height,
     grid: {
       vertLines: { visible: false },
       horzLines: { visible: false },

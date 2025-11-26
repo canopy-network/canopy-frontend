@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Search, Box } from "lucide-react";
+import { Search, Box, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
@@ -12,6 +12,7 @@ import {
   searchExplorerEntities,
   ExplorerSearchResult,
 } from "@/lib/api/explorer";
+import { CopyableText } from "@/components/ui/copyable-text";
 
 type ExplorerChainOption = {
   id: string | number;
@@ -39,6 +40,7 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const requestIdRef = useRef(0);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
   const [selectedChain, setSelectedChain] =
     useState<ExplorerChainOption | null>(DEFAULT_CHAIN);
@@ -88,7 +90,7 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
 
   useEffect(() => {
     if (!debouncedQuery) {
-      setSearchResults([]);
+      setSearchResults({ type: "", results: [] });
       setSearchError(null);
       setIsSearching(false);
       return;
@@ -221,7 +223,7 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
     if (targetPath) {
       router.push(targetPath);
       setSearchQuery("");
-      setSearchResults([]);
+      setSearchResults({ type: "", results: [] });
       setDebouncedQuery("");
     }
   };
@@ -229,8 +231,36 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
   const shouldShowResults =
     !isSearching && searchResults.results && searchResults.results.length > 0;
 
+  const handleClear = () => {
+    setSearchQuery("");
+    setSearchResults({ type: "", results: [] });
+    setDebouncedQuery("");
+    setSearchError(null);
+  };
+
+  // Handle click outside to hide results
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target as Node) &&
+        shouldShowResults
+      ) {
+        setSearchResults({ type: "", results: [] });
+      }
+    };
+
+    if (shouldShowResults) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [shouldShowResults]);
+
   return (
-    <div className={cn("relative pr-0", className)}>
+    <div className={cn("relative pr-0", className)} ref={searchContainerRef}>
       <div id="search-input-container" className="relative">
         <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
         <Input
@@ -241,9 +271,20 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
           className="w-full pl-12 pr-[140px] py-6 bg-[#1a1a1a] border-[#2a2a2a] text-white placeholder:text-gray-400 rounded-xl"
         />
 
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="absolute right-[140px] top-1/2 transform -translate-y-1/2 p-1.5 text-gray-400 hover:text-white transition-colors rounded-md hover:bg-white/5"
+            aria-label="Clear search"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+
         {shouldShowResults && (
           <div
-            className="absolute left-0 top-full mt-3 w-full z-20 bg-black p-4 rounded-xl border border-[#2a2a2a] "
+            className="absolute left-0 top-full mt-3 w-full z-20 bg-card p-4 rounded-xl border shadow-xl "
             id="search-results-container"
           >
             <span className="text-sm text-muted-foreground uppercase font-medium pb-3 inline-block">
@@ -276,6 +317,68 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
                     MESSAGE TYPE
                     <span className="text-xs text-white font-normal">
                       {result.message_type}
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            {searchResults.type === "block" &&
+              searchResults.results.length > 0 &&
+              searchResults.results.map((result) => (
+                <Link
+                  key={result.hash}
+                  className="flex flex-row items-center justify-between gap-2 py-3 border-t hover:bg-muted/30 transition-colors cursor-pointer"
+                  href={`/blocks/${result.height}`}
+                >
+                  <div className="h-8 w-8 bg-primary/25 rounded-lg flex items-center justify-center">
+                    <Box className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="flex items-start  ml-2 flex-col mr-auto">
+                    <span className="text-sm text-muted-foreground capitalize font-medium">
+                      Block <span>{result.height}</span>
+                    </span>
+                    <p className="text-sm text-white  max-w-[300px]">
+                      {truncateHash(result.hash)}{" "}
+                      <span className="text-xs text-muted-foreground/50">
+                        {formatTimestamp(result.timestamp)}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="flex items-start  ml-2 flex-col mr-auto">
+                    <span className="text-sm text-muted-foreground/50 capitalize font-medium">
+                      Account
+                    </span>
+                    <div className="max-w-[300px]">
+                      <CopyableText
+                        text={result.proposer_address}
+                        truncate={truncateHash}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            {searchResults.type === "address" &&
+              searchResults.results.length > 0 &&
+              searchResults.results.map((result) => (
+                <Link
+                  key={result.resultaddress}
+                  className="flex flex-row items-center justify-between gap-2 py-3 border-t hover:bg-muted/30 transition-colors cursor-pointer"
+                  href={`/address/${result.address}`}
+                >
+                  <div className="h-8 w-8 bg-primary/25 rounded-lg flex items-center justify-center">
+                    <Box className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="flex items-start  ml-2 flex-col mr-auto">
+                    <span className="text-sm text-muted-foreground capitalize font-medium">
+                      Address <span>{result.address}</span>
+                    </span>
+                  </div>
+                  <div className="flex items-start  ml-2 flex-col mr-auto">
+                    <span className="text-sm text-muted-foreground/50 capitalize font-medium">
+                      Recent Transactions
+                    </span>
+                    <span className="text-xs text-white font-normal">
+                      {result.recent_txs.length}
                     </span>
                   </div>
                 </Link>
