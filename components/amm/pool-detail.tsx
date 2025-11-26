@@ -1,18 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowLeft } from "lucide-react";
-import { mockPools } from "./mock/pool-data";
 import { PoolToken, PoolType } from "./types/amm/pool";
 import { TradePanel } from "./components/trading/trade-panel";
 import { AMMMetricsChart } from "./components/metrics/amm-metrics-chart";
 import { ChartMetric } from "./types/amm/chart";
 import { mockPoolGrowthHistory7d } from "./mock/metrics-data";
+import { useVirtualPoolsStore } from "@/lib/stores/virtual-pools-store";
+import { transformPools } from "./utils/pool-transformer";
 
 interface PoolDetailProps {
   poolId: string;
@@ -24,18 +25,55 @@ export function PoolDetail({ poolId }: PoolDetailProps) {
     ChartMetric.TVL,
   );
 
+  const { currentPool, virtualPools, isLoading, error, fetchVirtualPool } =
+    useVirtualPoolsStore();
+
   const pool = useMemo(() => {
-    return mockPools.find((p) => p.id === poolId);
-  }, [poolId]);
+    if (!currentPool) return null;
+    const transformed = transformPools([currentPool], [], 1);
+    return transformed[0];
+  }, [currentPool]);
 
   // Get all unique tokens from pools for the token selector
   const availableTokens = useMemo(() => {
-    const tokens = new Map<string, PoolToken>();
-    mockPools.forEach((p) => {
-      tokens.set(p.baseToken.symbol, p.baseToken);
+    const tokens = new Map<number, PoolToken>();
+    const transformedPools = transformPools(virtualPools, [], 1);
+    transformedPools.forEach((p) => {
+      tokens.set(p.chainId, p.baseToken);
     });
     return Array.from(tokens.values());
-  }, []);
+  }, [virtualPools]);
+
+  useEffect(() => {
+    fetchVirtualPool(poolId);
+  }, [poolId, fetchVirtualPool]);
+
+  if (isLoading) {
+    return (
+      <div className="p-8">
+        <div className="flex items-center gap-4 mb-8">
+          <Button variant="ghost" size="icon" onClick={() => router.back()}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-3xl font-bold">Loading Pool...</h1>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-8">
+        <div className="flex items-center gap-4 mb-8">
+          <Button variant="ghost" size="icon" onClick={() => router.back()}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-3xl font-bold">Error</h1>
+        </div>
+        <p className="text-red-500">{error}</p>
+      </div>
+    );
+  }
 
   if (!pool) {
     return (

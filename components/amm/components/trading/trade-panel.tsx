@@ -36,7 +36,8 @@ export function TradePanel({
   const [confirmAction, setConfirmAction] = useState<LiquidityAction>(
     LiquidityAction.Deposit,
   );
-  const [selectedBaseToken, setSelectedBaseToken] = useState<PoolToken>(baseToken);
+  const [selectedBaseToken, setSelectedBaseToken] =
+    useState<PoolToken>(baseToken);
 
   const handleOpenConfirm = (action: LiquidityAction) => {
     setConfirmAction(action);

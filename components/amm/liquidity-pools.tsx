@@ -16,17 +16,17 @@ export function LiquidityPools() {
   const { virtualPools, pagination, isLoading, error, fetchVirtualPools } =
     useVirtualPoolsStore();
 
+  const liquidityPools = useMemo(() => {
+    return transformPools(virtualPools, [], 1);
+  }, [virtualPools]);
+
   useEffect(() => {
     if (pagination?.total) {
       fetchVirtualPools({ limit: pagination.total });
     } else {
-      fetchVirtualPools({ limit: 1000 });
+      fetchVirtualPools({ limit: 100 });
     }
   }, [fetchVirtualPools, pagination?.total]);
-
-  const liquidityPools = useMemo(() => {
-    return transformPools(virtualPools, [], 1);
-  }, [virtualPools]);
 
   return (
     <Card>

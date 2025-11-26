@@ -56,7 +56,7 @@ export const columns: ColumnDef<LiquidityPool>[] = [
       const pool = row.original;
       return (
         <Link
-          href={`/amm/pool/${pool.id}`}
+          href={`/amm/pool/${pool.chainId}`}
           className="flex items-center gap-3 hover:opacity-80 transition-opacity"
         >
           <div className="flex -space-x-2">

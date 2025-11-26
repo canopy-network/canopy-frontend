@@ -42,7 +42,7 @@ const calculateTVL = (
 // Transform VirtualPool to LiquidityPool
 export const transformVirtualPool = (
   pool: VirtualPool,
-  tokenSymbol: string = "TOKEN",
+  tokenSymbol?: string,
   tokenIcon: string = "/default-token.png",
   cnpyPriceUSD: number = 1,
   tokenPriceUSD?: number,
@@ -62,14 +62,17 @@ export const transformVirtualPool = (
           .progress_percentage
       : undefined;
 
+  // Use chain_id as token symbol if not provided
+  const symbol = tokenSymbol ?? `CHAIN-${pool.chain_id}`;
+
   return {
     id: pool.id,
     type: PoolType.Virtual,
     chainId: pool.chain_id,
-    pair: `${tokenSymbol}/CNPY`,
-    tokenSymbol,
+    pair: `${symbol}/CNPY`,
+    tokenSymbol: symbol,
     baseToken: {
-      symbol: tokenSymbol,
+      symbol: symbol,
       icon: tokenIcon,
     },
     quoteToken: {
@@ -94,7 +97,7 @@ export const transformVirtualPool = (
 // Transform GraduatedPool to LiquidityPool
 export const transformGraduatedPool = (
   pool: GraduatedPool,
-  tokenSymbol: string = "TOKEN",
+  tokenSymbol?: string,
   tokenIcon: string = "/default-token.png",
   cnpyPriceUSD: number = 1,
   tokenPriceUSD?: number,
@@ -106,14 +109,17 @@ export const transformGraduatedPool = (
     tokenPriceUSD,
   );
 
+  // Use chain_id as token symbol if not provided
+  const symbol = tokenSymbol ?? `CHAIN-${pool.chain_id}`;
+
   return {
     id: pool.id,
     type: PoolType.Graduated,
     chainId: pool.chain_id,
-    pair: `${tokenSymbol}/CNPY`,
-    tokenSymbol,
+    pair: `${symbol}/CNPY`,
+    tokenSymbol: symbol,
     baseToken: {
-      symbol: tokenSymbol,
+      symbol: symbol,
       icon: tokenIcon,
     },
     quoteToken: {
@@ -140,11 +146,11 @@ export const transformPools = (
   cnpyPriceUSD: number = 1,
 ): LiquidityPool[] => {
   const virtual = virtualPools.map((pool) =>
-    transformVirtualPool(pool, "TOKEN", "/default-token.png", cnpyPriceUSD),
+    transformVirtualPool(pool, undefined, "/default-token.png", cnpyPriceUSD),
   );
 
   const graduated = graduatedPools.map((pool) =>
-    transformGraduatedPool(pool, "TOKEN", "/default-token.png", cnpyPriceUSD),
+    transformGraduatedPool(pool, undefined, "/default-token.png", cnpyPriceUSD),
   );
 
   return [...virtual, ...graduated];
