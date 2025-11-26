@@ -11,13 +11,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AMMMetricsChart } from "./amm-metrics-chart";
-import { ChartMetric } from "../types/amm/chart";
+import { ChartMetric } from "../../types/amm/chart";
+import { PoolGrowthHistory } from "../../types/api/metrics";
 import {
-  mockPoolGrowthHistory7d,
   mockPoolGrowthHistory30d,
+  mockPoolGrowthHistory7d,
   mockPoolGrowthHistory90d,
-} from "../mock/metrics-data";
-import { PoolGrowthHistory } from "../types/api/metrics";
+} from "../../mock/metrics-data";
 
 // TODO: Replace with actual volume data from API when available
 // This is a mock multiplier to estimate volume as a percentage of TVL
@@ -136,7 +136,9 @@ export function EcosystemMetrics() {
             </div>
             <Select
               value={selectedTimeframe}
-              onValueChange={(value) => setSelectedTimeframe(value as TimeframeValue)}
+              onValueChange={(value) =>
+                setSelectedTimeframe(value as TimeframeValue)
+              }
             >
               <SelectTrigger className="w-[100px]">
                 <SelectValue />

@@ -1,8 +1,8 @@
 "use client";
 import { LiquidityPools } from "./liquidity-pools";
-import { MetricCard } from "./components/metrics-overview";
-import { EcosystemMetrics } from "./components/ecosystem-metrics";
-import { PortfolioOverview } from "./components/portfolio-overview";
+import { MetricCard } from "./components/metrics/metrics-overview";
+import { EcosystemMetrics } from "./components/metrics/ecosystem-metrics";
+import { PortfolioOverview } from "./components/portfolio/portfolio-overview";
 import { mockOverviewMetrics } from "./mock/metrics-data";
 import { mockPortfolioOverview } from "./mock/portfolio-data";
 import { DollarSign, TrendingUp, Droplets, Users } from "lucide-react";

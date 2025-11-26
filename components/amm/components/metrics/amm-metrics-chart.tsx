@@ -8,8 +8,8 @@ import {
   AreaSeries,
   Time,
 } from "lightweight-charts";
-import { PoolGrowthPoint } from "../types/api/metrics";
-import { ChartMetric } from "../types/amm/chart";
+import { PoolGrowthPoint } from "../../types/api/metrics";
+import { ChartMetric } from "../../types/amm/chart";
 
 // TODO: Replace with actual volume data from API when available
 // This is a mock multiplier to estimate volume as a percentage of TVL

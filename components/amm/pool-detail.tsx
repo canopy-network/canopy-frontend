@@ -9,8 +9,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowLeft } from "lucide-react";
 import { mockPools } from "./mock/pool-data";
 import { PoolType } from "./types/amm/pool";
-import { TradePanel } from "./components/trade-panel";
-import { AMMMetricsChart } from "./components/amm-metrics-chart";
+import { TradePanel } from "./components/trading/trade-panel";
+import { AMMMetricsChart } from "./components/metrics/amm-metrics-chart";
 import { ChartMetric } from "./types/amm/chart";
 import { mockPoolGrowthHistory7d } from "./mock/metrics-data";
 

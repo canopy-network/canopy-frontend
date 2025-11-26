@@ -6,7 +6,7 @@ import { ArrowUpDown, TrendingUp, TrendingDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LiquidityPool, PoolType } from "../types/amm/pool";
+import { LiquidityPool, PoolType } from "../../types/amm/pool";
 
 interface SortableHeaderProps {
   column: Column<LiquidityPool, unknown>;
@@ -118,7 +118,11 @@ export const columns: ColumnDef<LiquidityPool>[] = [
       const apr = row.getValue("apr") as number | undefined;
       return (
         <div className="font-medium">
-          {apr ? `${apr.toFixed(2)}%` : <span className="text-muted-foreground">-</span>}
+          {apr ? (
+            `${apr.toFixed(2)}%`
+          ) : (
+            <span className="text-muted-foreground">-</span>
+          )}
         </div>
       );
     },
@@ -157,9 +161,7 @@ export const columns: ColumnDef<LiquidityPool>[] = [
       const myLiquidity = row.getValue("myLiquidity") as string | undefined;
       return (
         <div className="font-medium">
-          {myLiquidity || (
-            <span className="text-muted-foreground">-</span>
-          )}
+          {myLiquidity || <span className="text-muted-foreground">-</span>}
         </div>
       );
     },

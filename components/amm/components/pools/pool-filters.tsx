@@ -12,8 +12,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Filter } from "lucide-react";
-import { PoolType } from "../types/amm/pool";
-import { PoolFilters as PoolFiltersType } from "../types/amm/filters";
+import { PoolType } from "../../types/amm/pool";
+import { PoolFilters as PoolFiltersType } from "../../types/amm/filters";
 
 const POOLS_TYPE_QUANTITY = Object.keys(PoolType).length;
 

@@ -1,18 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, use } from "react";
 import { AddLiquidityForm } from "@/components/amm/add-liquidity-form";
 import { AddLiquidityStepTwo } from "@/components/amm/add-liquidity-step-two";
-import { LiquidityStepper } from "@/components/amm/components/liquidity-stepper";
+import { LiquidityStepper } from "@/components/amm/components/shared/liquidity-stepper";
 import { ADD_LIQUIDITY_STEPS } from "@/components/amm/constants/add-liquidity";
 
 interface AddLiquidityPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export default function AddLiquidityPage({ params }: AddLiquidityPageProps) {
+  const { id } = use(params);
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedTokenSymbol, setSelectedTokenSymbol] = useState<string>("");
 
@@ -41,10 +42,10 @@ export default function AddLiquidityPage({ params }: AddLiquidityPageProps) {
           </div>
           <div>
             {currentStep === 1 && (
-              <AddLiquidityForm poolId={params.id} onContinue={handleContinueToStepTwo} />
+              <AddLiquidityForm poolId={id} onContinue={handleContinueToStepTwo} />
             )}
             {currentStep === 2 && (
-              <AddLiquidityStepTwo poolId={params.id} selectedTokenSymbol={selectedTokenSymbol} />
+              <AddLiquidityStepTwo poolId={id} selectedTokenSymbol={selectedTokenSymbol} />
             )}
           </div>
         </div>

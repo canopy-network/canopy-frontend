@@ -1,11 +1,12 @@
 import { PoolDetail } from "@/components/amm/pool-detail";
 
 interface PoolPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
-export default function PoolPage({ params }: PoolPageProps) {
-  return <PoolDetail poolId={params.id} />;
+export default async function PoolPage({ params }: PoolPageProps) {
+  const { id } = await params;
+  return <PoolDetail poolId={id} />;
 }

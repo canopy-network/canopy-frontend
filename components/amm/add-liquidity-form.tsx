@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChevronDown } from "lucide-react";
 import { mockPools } from "./mock/pool-data";
 import { PoolToken } from "./types/amm/pool";
-import { TokenSelectorModal } from "./components/token-selector-modal";
+import { TokenSelectorModal } from "./components/shared/token-selector-modal";
 
 interface AddLiquidityFormProps {
   poolId: string;

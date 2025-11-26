@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Maximize2, ShoppingCart } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { mockOrderBookEntries } from "../../mock/order-book-data";
+import { mockOrderBookEntries } from "@/components/amm/mock/order-book-data";
 
 type SortOption = "price" | "volume";
 
@@ -98,7 +98,7 @@ export function OrderBook({
                   "flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors",
                   isSelected
                     ? "bg-[#1B2D1C] border-2 border-[#8CEC8D]"
-                    : "bg-muted/50 hover:bg-muted/70"
+                    : "bg-muted/50 hover:bg-muted/70",
                 )}
                 onClick={() => toggleOrderSelection(order.id)}
               >
@@ -108,7 +108,7 @@ export function OrderBook({
                       "w-5 h-5 rounded border-2 flex items-center justify-center transition-colors",
                       isSelected
                         ? "bg-[#8CEC8D] border-[#8CEC8D]"
-                        : "border-muted-foreground"
+                        : "border-muted-foreground",
                     )}
                   >
                     {isSelected && (
@@ -206,7 +206,7 @@ export function OrderBook({
                       "flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors",
                       isSelected
                         ? "bg-[#1B2D1C] border-2 border-[#8CEC8D]"
-                        : "bg-muted/50 hover:bg-muted/70"
+                        : "bg-muted/50 hover:bg-muted/70",
                     )}
                     onClick={() => toggleOrderSelection(order.id)}
                   >
@@ -216,7 +216,7 @@ export function OrderBook({
                           "w-5 h-5 rounded border-2 flex items-center justify-center transition-colors",
                           isSelected
                             ? "bg-[#8CEC8D] border-[#8CEC8D]"
-                            : "border-muted-foreground"
+                            : "border-muted-foreground",
                         )}
                       >
                         {isSelected && (

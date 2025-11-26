@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { LiquidityPoolTable } from "./components/liquidity-pool-table";
-import { PoolFilters } from "./components/pool-filters";
+import { LiquidityPoolTable } from "./components/pools/liquidity-pool-table";
+import { PoolFilters } from "./components/pools/pool-filters";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { mockPools } from "./mock/pool-data";
 import {
