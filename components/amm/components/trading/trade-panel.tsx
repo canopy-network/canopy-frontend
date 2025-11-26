@@ -5,9 +5,11 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { RefreshCw, FlaskRound, ArrowUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SwapTab } from "./trade-panel/swap-tab";
-import { LiquidityTab } from "./trade-panel/liquidity-tab";
+import { LiquidityTab, LiquidityAction } from "./trade-panel/liquidity-tab";
 import { ConvertTab } from "./trade-panel/convert-tab";
 import { OrderBook } from "./order-book/order-book";
+import { LiquidityConfirmationPanel } from "./trade-panel/liquidity-confirmation-panel";
+import { PoolToken } from "../../types/amm/pool";
 
 enum TradeTab {
   Swap = "swap",
@@ -17,17 +19,26 @@ enum TradeTab {
 
 interface TradePanelProps {
   poolId: string;
-  baseTokenSymbol: string;
-  quoteTokenSymbol: string;
+  baseToken: PoolToken;
+  quoteToken: PoolToken;
   currentPrice: string;
 }
 
 export function TradePanel({
-  baseTokenSymbol,
-  quoteTokenSymbol,
+  baseToken,
+  quoteToken,
   currentPrice,
 }: TradePanelProps) {
   const [activeTab, setActiveTab] = useState<string>(TradeTab.Swap);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<LiquidityAction>(
+    LiquidityAction.Deposit,
+  );
+
+  const handleOpenConfirm = (action: LiquidityAction) => {
+    setConfirmAction(action);
+    setIsConfirmOpen(true);
+  };
 
   const getTabIcon = (tab: TradeTab) => {
     switch (tab) {
@@ -40,9 +51,14 @@ export function TradePanel({
     }
   };
 
+  // Mock values - replace with actual data
+  const baseTokenPrice = "$1.23";
+  const cnpyPrice = "$0.45";
+  const amountUsd = "$250.00";
+
   return (
     <div className="space-y-4">
-      <Card>
+      <Card className="relative overflow-hidden">
         <CardHeader className="pb-0">
           <div className="flex items-center justify-between mb-4">
             <div className="flex gap-2 w-full bg-[#1C1C1C] p-1 rounded-lg">
@@ -67,34 +83,50 @@ export function TradePanel({
         <CardContent className="space-y-2">
           {activeTab === TradeTab.Swap && (
             <SwapTab
-              baseTokenSymbol={baseTokenSymbol}
-              quoteTokenSymbol={quoteTokenSymbol}
+              baseTokenSymbol={baseToken.symbol}
+              quoteTokenSymbol={quoteToken.symbol}
               currentPrice={currentPrice}
             />
           )}
 
           {activeTab === TradeTab.Liquidity && (
             <LiquidityTab
-              baseTokenSymbol={baseTokenSymbol}
-              quoteTokenSymbol={quoteTokenSymbol}
-              currentPrice={currentPrice}
+              baseTokenSymbol={baseToken.symbol}
+              quoteTokenSymbol={quoteToken.symbol}
+              onOpenConfirm={handleOpenConfirm}
             />
           )}
 
           {activeTab === TradeTab.Convert && (
             <ConvertTab
-              baseTokenSymbol={baseTokenSymbol}
-              quoteTokenSymbol={quoteTokenSymbol}
+              baseTokenSymbol={baseToken.symbol}
+              quoteTokenSymbol={quoteToken.symbol}
               currentPrice={currentPrice}
             />
           )}
         </CardContent>
+
+        {activeTab === TradeTab.Liquidity && (
+          <LiquidityConfirmationPanel
+            isOpen={isConfirmOpen}
+            action={confirmAction}
+            baseToken={baseToken}
+            quoteToken={quoteToken}
+            amountUsd={amountUsd}
+            baseTokenPrice={baseTokenPrice}
+            cnpyPrice={cnpyPrice}
+            onClose={() => setIsConfirmOpen(false)}
+            onConfirm={() => {
+              setIsConfirmOpen(false);
+            }}
+          />
+        )}
       </Card>
 
       {activeTab === TradeTab.Convert && (
         <OrderBook
-          baseTokenSymbol={baseTokenSymbol}
-          quoteTokenSymbol={quoteTokenSymbol}
+          baseTokenSymbol={baseToken.symbol}
+          quoteTokenSymbol={quoteToken.symbol}
         />
       )}
     </div>

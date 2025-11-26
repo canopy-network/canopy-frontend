@@ -9,8 +9,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { PoolToken } from "../types/amm/pool";
 import { Search } from "lucide-react";
+import { PoolToken } from "../../types/amm/pool";
 
 interface TokenSelectorModalProps {
   open: boolean;
@@ -36,7 +36,7 @@ export function TokenSelectorModal({
     return tokens.filter(
       (token) =>
         token.symbol.toLowerCase().includes(query) ||
-        token.symbol.toLowerCase().startsWith(query)
+        token.symbol.toLowerCase().startsWith(query),
     );
   }, [tokens, searchQuery]);
 

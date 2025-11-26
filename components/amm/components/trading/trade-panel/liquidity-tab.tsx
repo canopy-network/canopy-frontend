@@ -1,49 +1,33 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowDownUp } from "lucide-react";
-import { cn } from "@/lib/utils";
+
+export enum LiquidityAction {
+  Deposit = "deposit",
+  Withdraw = "withdraw",
+}
 
 interface LiquidityTabProps {
   baseTokenSymbol: string;
   quoteTokenSymbol: string;
-  currentPrice: string;
+  onOpenConfirm: (action: LiquidityAction) => void;
 }
 
 export function LiquidityTab({
   baseTokenSymbol,
   quoteTokenSymbol,
-  currentPrice,
+  onOpenConfirm,
 }: LiquidityTabProps) {
-  const [isAddLiquidity, setIsAddLiquidity] = useState(true);
-
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium">
-          {isAddLiquidity ? "Add Liquidity" : "Withdraw Liquidity"}
-        </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          onClick={() => setIsAddLiquidity(!isAddLiquidity)}
-        >
-          <ArrowDownUp className="h-4 w-4" />
-        </Button>
-      </div>
-
       <div className="rounded-lg border bg-muted/50 p-4">
         <div className="flex items-center justify-between h-full">
           <div className="flex items-center gap-2">
             <div className="w-5 h-5 rounded-full bg-primary" />
             <div>
               <div className="font-medium text-sm">{baseTokenSymbol}</div>
-              <div className="text-xs text-muted-foreground">
-                Balance: 0.00
-              </div>
+              <div className="text-xs text-muted-foreground">Balance: 0.00</div>
             </div>
           </div>
           <div className="text-right">
@@ -64,9 +48,7 @@ export function LiquidityTab({
             <div className="w-5 h-5 rounded-full bg-secondary" />
             <div>
               <div className="font-medium text-sm">{quoteTokenSymbol}</div>
-              <div className="text-xs text-muted-foreground">
-                Balance: 0.00
-              </div>
+              <div className="text-xs text-muted-foreground">Balance: 0.00</div>
             </div>
           </div>
           <div className="text-right">
@@ -81,30 +63,43 @@ export function LiquidityTab({
         </div>
       </div>
 
-      <div className="space-y-2 text-sm mt-3">
+      <div className="flex gap-3 mt-4">
+        <Button
+          size="lg"
+          onClick={() => onOpenConfirm(LiquidityAction.Withdraw)}
+          className="flex-1 text-black bg-red-500 hover:bg-red-500/90"
+        >
+          Withdraw
+        </Button>
+        <Button
+          size="lg"
+          onClick={() => onOpenConfirm(LiquidityAction.Deposit)}
+          className="flex-1 text-black bg-[#30B724] hover:bg-[#30B724]/90"
+        >
+          Deposit
+        </Button>
+      </div>
+
+      <div className="space-y-2 text-sm mt-4">
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Share of Pool</span>
           <span className="font-medium">0%</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">Current Rate</span>
-          <span className="font-medium">
-            1 {baseTokenSymbol} = {currentPrice} {quoteTokenSymbol}
+          <span className="text-muted-foreground">CNPY Staked</span>
+          <span className="font-medium">0.00 CNPY</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground">
+            {baseTokenSymbol} Staked
           </span>
+          <span className="font-medium">0.00 {baseTokenSymbol}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground">Deposit APY</span>
+          <span className="font-medium">0.00%</span>
         </div>
       </div>
-
-      <Button
-        size="lg"
-        className={cn(
-          "w-full mt-4 text-black",
-          isAddLiquidity
-            ? "bg-[#30B724] hover:bg-[#30B724]/90"
-            : "bg-red-500 hover:bg-red-500/90"
-        )}
-      >
-        {isAddLiquidity ? "Add Liquidity" : "Withdraw Liquidity"}
-      </Button>
     </div>
   );
 }
