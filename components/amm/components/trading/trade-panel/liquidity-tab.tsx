@@ -1,7 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ChevronRight } from "lucide-react";
+import { PoolToken } from "../../../types/amm/pool";
+import { TokenSelectorModal } from "../../shared/token-selector-modal";
 
 export enum LiquidityAction {
   Deposit = "deposit",
@@ -9,27 +14,49 @@ export enum LiquidityAction {
 }
 
 interface LiquidityTabProps {
-  baseTokenSymbol: string;
-  quoteTokenSymbol: string;
+  baseToken: PoolToken;
+  quoteToken: PoolToken;
+  availableTokens: PoolToken[];
   onOpenConfirm: (action: LiquidityAction) => void;
+  onTokenSelect: (token: PoolToken) => void;
 }
 
 export function LiquidityTab({
-  baseTokenSymbol,
-  quoteTokenSymbol,
+  baseToken,
+  quoteToken,
+  availableTokens,
   onOpenConfirm,
+  onTokenSelect,
 }: LiquidityTabProps) {
+  const [isTokenSelectorOpen, setIsTokenSelectorOpen] = useState(false);
+
+  const handleTokenSelect = (tokenSymbol: string) => {
+    const token = availableTokens.find((t) => t.symbol === tokenSymbol);
+    if (token) {
+      onTokenSelect(token);
+    }
+  };
+
   return (
     <div className="space-y-3">
       <div className="rounded-lg border bg-muted/50 p-4">
         <div className="flex items-center justify-between h-full">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-primary" />
-            <div>
-              <div className="font-medium text-sm">{baseTokenSymbol}</div>
+          <button
+            onClick={() => setIsTokenSelectorOpen(true)}
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+          >
+            <Avatar className="h-5 w-5">
+              <AvatarImage src={baseToken.icon} />
+              <AvatarFallback>{baseToken.symbol[0]}</AvatarFallback>
+            </Avatar>
+            <div className="text-left">
+              <div className="font-medium text-sm flex items-center gap-1">
+                {baseToken.symbol}
+                <ChevronRight className="h-3 w-3" />
+              </div>
               <div className="text-xs text-muted-foreground">Balance: 0.00</div>
             </div>
-          </div>
+          </button>
           <div className="text-right">
             <Input
               type="number"
@@ -45,9 +72,12 @@ export function LiquidityTab({
       <div className="rounded-lg border bg-muted/50 p-4">
         <div className="flex items-center justify-between h-full">
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-secondary" />
+            <Avatar className="h-5 w-5">
+              <AvatarImage src={quoteToken.icon} />
+              <AvatarFallback>{quoteToken.symbol[0]}</AvatarFallback>
+            </Avatar>
             <div>
-              <div className="font-medium text-sm">{quoteTokenSymbol}</div>
+              <div className="font-medium text-sm">{quoteToken.symbol}</div>
               <div className="text-xs text-muted-foreground">Balance: 0.00</div>
             </div>
           </div>
@@ -91,15 +121,23 @@ export function LiquidityTab({
         </div>
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">
-            {baseTokenSymbol} Staked
+            {baseToken.symbol} Staked
           </span>
-          <span className="font-medium">0.00 {baseTokenSymbol}</span>
+          <span className="font-medium">0.00 {baseToken.symbol}</span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Deposit APY</span>
           <span className="font-medium">0.00%</span>
         </div>
       </div>
+
+      <TokenSelectorModal
+        open={isTokenSelectorOpen}
+        onOpenChange={setIsTokenSelectorOpen}
+        tokens={availableTokens}
+        selectedToken={baseToken.symbol}
+        onSelectToken={handleTokenSelect}
+      />
     </div>
   );
 }

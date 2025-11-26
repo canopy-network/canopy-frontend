@@ -22,22 +22,29 @@ interface TradePanelProps {
   baseToken: PoolToken;
   quoteToken: PoolToken;
   currentPrice: string;
+  availableTokens?: PoolToken[];
 }
 
 export function TradePanel({
   baseToken,
   quoteToken,
   currentPrice,
+  availableTokens = [],
 }: TradePanelProps) {
   const [activeTab, setActiveTab] = useState<string>(TradeTab.Swap);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<LiquidityAction>(
     LiquidityAction.Deposit,
   );
+  const [selectedBaseToken, setSelectedBaseToken] = useState<PoolToken>(baseToken);
 
   const handleOpenConfirm = (action: LiquidityAction) => {
     setConfirmAction(action);
     setIsConfirmOpen(true);
+  };
+
+  const handleTokenSelect = (token: PoolToken) => {
+    setSelectedBaseToken(token);
   };
 
   const getTabIcon = (tab: TradeTab) => {
@@ -91,9 +98,11 @@ export function TradePanel({
 
           {activeTab === TradeTab.Liquidity && (
             <LiquidityTab
-              baseTokenSymbol={baseToken.symbol}
-              quoteTokenSymbol={quoteToken.symbol}
+              baseToken={selectedBaseToken}
+              quoteToken={quoteToken}
+              availableTokens={availableTokens}
               onOpenConfirm={handleOpenConfirm}
+              onTokenSelect={handleTokenSelect}
             />
           )}
 
@@ -110,7 +119,7 @@ export function TradePanel({
           <LiquidityConfirmationPanel
             isOpen={isConfirmOpen}
             action={confirmAction}
-            baseToken={baseToken}
+            baseToken={selectedBaseToken}
             quoteToken={quoteToken}
             amountUsd={amountUsd}
             baseTokenPrice={baseTokenPrice}

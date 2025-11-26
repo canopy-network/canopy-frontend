@@ -28,6 +28,15 @@ export function PoolDetail({ poolId }: PoolDetailProps) {
     return mockPools.find((p) => p.id === poolId);
   }, [poolId]);
 
+  // Get all unique tokens from pools for the token selector
+  const availableTokens = useMemo(() => {
+    const tokens = new Map<string, PoolToken>();
+    mockPools.forEach((p) => {
+      tokens.set(p.baseToken.symbol, p.baseToken);
+    });
+    return Array.from(tokens.values());
+  }, []);
+
   if (!pool) {
     return (
       <div className="p-8">
@@ -239,6 +248,7 @@ export function PoolDetail({ poolId }: PoolDetailProps) {
             baseToken={pool.baseToken}
             quoteToken={pool.quoteToken}
             currentPrice={pool.currentPrice}
+            availableTokens={availableTokens}
           />
         </div>
       </div>
