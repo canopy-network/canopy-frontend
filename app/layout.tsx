@@ -44,9 +44,9 @@ export default function RootLayout({
                 </div>
                 <main className="w-full overflow-auto">
                   <Header />
-                  <div className="flex-1 overflow-y-auto overflow-x-hidden">
-                    <Suspense fallback={null}>{children}</Suspense>
-                  </div>
+                  {/* <div className="flex-1 overflow-y-auto overflow-x-hidden"> */}
+                  <Suspense fallback={null}>{children}</Suspense>
+                  {/* </div> */}
                 </main>
               </div>
               <WalletPopup />

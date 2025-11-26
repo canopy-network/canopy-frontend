@@ -28,6 +28,7 @@ import { useAuthStore } from "@/lib/stores/auth-store";
 import { Badge } from "../ui/badge";
 import { chainStatusesLabels } from "@/lib/utils";
 import { ChainStatus } from "@/types";
+import { getSampleValidatorByAddress } from "@/lib/demo-data/sample-validators";
 
 // Page type definitions
 export type PageType =
@@ -61,6 +62,7 @@ export function Header() {
   const searchParams = useSearchParams();
   const currentChain = useChainsStore((state) => state.currentChain);
   const chains = useChainsStore((state) => state.chains);
+  const fetchChain = useChainsStore((state) => state.fetchChain);
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -84,6 +86,16 @@ export function Header() {
   // Get current filter from URL
   const projectStatus = searchParams.get("project_status") || "new";
 
+  const current_explorer_selected_chain = useChainsStore(
+    (state) => state.currentExplorerSelectedChain
+  );
+
+  // Breadcrumbs state
+  const [breadcrumbs, setBreadcrumbs] = useState<Array<{
+    label: string;
+    href?: string;
+    isLast: boolean;
+  }> | null>(null);
   // Handle click outside to close search
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -126,6 +138,191 @@ export function Header() {
     };
   }, [isHomepageSearchOpen]);
 
+  // Calculate breadcrumbs when dependencies change
+  useEffect(() => {
+    const segments = pathname.split("/").filter(Boolean);
+
+    console.log("segments", segments);
+    if (segments.length === 0) {
+      setBreadcrumbs(null);
+      return;
+    }
+
+    // Don't show breadcrumbs on /explorer page
+    if (pathname === "/explorer") {
+      setBreadcrumbs(null);
+      return;
+    }
+
+    const breadcrumbArray: Array<{
+      label: string;
+      href?: string;
+      isLast: boolean;
+    }> = [];
+
+    // Handle explorer sub-pages: /transactions, /validators, /blocks
+    if (
+      segments[0] === "transactions" ||
+      segments[0] === "validators" ||
+      segments[0] === "blocks"
+    ) {
+      const pageLabels: Record<string, string> = {
+        transactions: "Transactions",
+        validators: "Validators",
+        blocks: "Blocks",
+      };
+
+      breadcrumbArray.push({
+        label: "Explorer",
+        href: "/explorer",
+        isLast: false,
+      });
+
+      // Handle detail pages (segments.length === 2)
+      if (segments.length === 2) {
+        const detailId = decodeURIComponent(segments[1]);
+
+        breadcrumbArray.push({
+          label: pageLabels[segments[0]],
+          href: `/${segments[0]}`,
+          isLast: false,
+        });
+
+        // Format the detail label based on page type
+        let detailLabel = detailId;
+        if (segments[0] === "blocks") {
+          // For blocks, show "#{number}" or "{hash}"
+          detailLabel = `#${detailId}`;
+        } else if (segments[0] === "transactions") {
+          // For transactions, show the hash (truncate if too long)
+          detailLabel =
+            detailId.length > 20 ? `${detailId.substring(0, 20)}...` : detailId;
+        } else if (segments[0] === "validators") {
+          // For validators, try to get the validator name, fallback to address
+          const validator = getSampleValidatorByAddress(detailId);
+          detailLabel = validator?.name || detailId;
+          // Truncate if still too long
+          if (detailLabel.length > 20) {
+            detailLabel = `${detailLabel.substring(0, 20)}...`;
+          }
+        }
+
+        breadcrumbArray.push({
+          label: detailLabel,
+          isLast: true,
+        });
+      } else {
+        // List page (segments.length === 1)
+        breadcrumbArray.push({
+          label: pageLabels[segments[0]],
+          isLast: true,
+        });
+      }
+
+      setBreadcrumbs(breadcrumbArray);
+      return;
+    }
+
+    // Handle /chains/{id}/transactions - show Explorer -> Transactions -> {chain name}
+
+    // First segment (main section)
+    const mainSection = segments[0];
+    const config = routeConfig[mainSection];
+
+    if (config) {
+      breadcrumbArray.push({
+        label: config.label,
+        href: segments.length === 1 ? undefined : config.href,
+        isLast: segments.length === 1,
+      });
+    }
+
+    // Second segment (if exists, usually an ID or subsection)
+    if (segments.length > 1) {
+      // For launchpad routes, try to get the chain name from the store
+      let label = segments[1];
+      let href: string | undefined = undefined;
+      let isLast = segments.length === 2;
+
+      if (mainSection === "chain" && currentChain) {
+        console.log("2 [currentChain]", currentChain);
+        // Use the chain name from the store if available
+        label = currentChain.chain_name || segments[1];
+
+        // If there's a third segment (like /edit), make this breadcrumb clickable
+        if (segments.length > 2) {
+          href = `/chains/${segments[1]}`;
+          isLast = false;
+        }
+      } else if (segments[1].length > 20) {
+        // Truncate long IDs
+        label = `${segments[1].substring(0, 20)}...`;
+      }
+
+      breadcrumbArray.push({
+        label,
+        href,
+        isLast,
+      });
+    }
+
+    // Third segment (if exists, like /edit)
+    if (segments.length > 2) {
+      const thirdSegment = segments[2];
+      let label = thirdSegment;
+
+      // Capitalize and format the segment
+      if (thirdSegment === "edit") {
+        label = "Edit Chain";
+      }
+
+      breadcrumbArray.push({
+        label,
+        isLast: true,
+      });
+    }
+
+    setBreadcrumbs(breadcrumbArray);
+  }, [pathname, currentChain, chains, fetchChain]);
+
+  // Calculate breadcrumbs when dependencies change
+  useEffect(() => {
+    // Get chain name from current_explorer_selected_chain first, then from store, or use chainId as fallback
+
+    // Check if current_explorer_selected_chain matches this chain
+
+    console.log("breadcrumbs", breadcrumbs);
+
+    if (
+      current_explorer_selected_chain &&
+      breadcrumbs &&
+      breadcrumbs.length > 0 &&
+      breadcrumbs[breadcrumbs.length - 1].label === "transactions" &&
+      pathname.includes("/transactions") &&
+      pathname.includes("/chains")
+    ) {
+      const chainName = current_explorer_selected_chain.chain_name;
+
+      setBreadcrumbs([
+        {
+          label: "Explorer",
+          href: "/explorer",
+          isLast: false,
+        },
+
+        {
+          label: "Transactions",
+          href: `/transactions`,
+          isLast: false,
+        },
+        {
+          label: chainName,
+          isLast: true,
+        },
+      ]);
+    }
+  }, [pathname, breadcrumbs, current_explorer_selected_chain]);
+
   // Early return for launchpad pages - after all hooks
   if (pathname.includes("/launchpad")) {
     return null;
@@ -154,19 +351,19 @@ export function Header() {
   const handleChainSelect = (chainId: string) => {
     setIsSearchOpen(false);
     setSearchQuery("");
-    router.push(`/chain/${chainId}`);
+    router.push(`/chains/${chainId}`);
   };
 
   const handleHomepageChainSelect = (chainId: string) => {
     setIsHomepageSearchOpen(false);
     setHomepageSearchQuery("");
-    router.push(`/chain/${chainId}`);
+    router.push(`/chains/${chainId}`);
   };
 
   const handleMobileChainSelect = (chainId: string) => {
     setIsMobileSearchOpen(false);
     setMobileSearchQuery("");
-    router.push(`/chain/${chainId}`);
+    router.push(`/chains/${chainId}`);
   };
 
   // Handle project status filter toggle
@@ -226,83 +423,6 @@ export function Header() {
   };
 
   const pageType = getPageType();
-
-  // Parse pathname to get breadcrumb segments
-  const getBreadcrumbs = () => {
-    const segments = pathname.split("/").filter(Boolean);
-
-    console.log("segments", segments);
-    if (segments.length === 0) {
-      return null;
-    }
-
-    const breadcrumbs: Array<{
-      label: string;
-      href?: string;
-      isLast: boolean;
-    }> = [];
-
-    // First segment (main section)
-    const mainSection = segments[0];
-    const config = routeConfig[mainSection];
-
-    if (config) {
-      breadcrumbs.push({
-        label: config.label,
-        href: segments.length === 1 ? undefined : config.href,
-        isLast: segments.length === 1,
-      });
-    }
-
-    // Second segment (if exists, usually an ID or subsection)
-    if (segments.length > 1) {
-      // For launchpad routes, try to get the chain name from the store
-      let label = segments[1];
-      let href: string | undefined = undefined;
-      let isLast = segments.length === 2;
-
-      if (mainSection === "chain" && currentChain) {
-        console.log("2 [currentChain]", currentChain);
-        // Use the chain name from the store if available
-        label = currentChain.chain_name || segments[1];
-
-        // If there's a third segment (like /edit), make this breadcrumb clickable
-        if (segments.length > 2) {
-          href = `/chain/${segments[1]}`;
-          isLast = false;
-        }
-      } else if (segments[1].length > 20) {
-        // Truncate long IDs
-        label = `${segments[1].substring(0, 20)}...`;
-      }
-
-      breadcrumbs.push({
-        label,
-        href,
-        isLast,
-      });
-    }
-
-    // Third segment (if exists, like /edit)
-    if (segments.length > 2) {
-      const thirdSegment = segments[2];
-      let label = thirdSegment;
-
-      // Capitalize and format the segment
-      if (thirdSegment === "edit") {
-        label = "Edit Chain";
-      }
-
-      breadcrumbs.push({
-        label,
-        isLast: true,
-      });
-    }
-
-    return breadcrumbs;
-  };
-
-  const breadcrumbs = getBreadcrumbs();
 
   return (
     <>
@@ -498,10 +618,6 @@ export function Header() {
               Login
             </Button>
           )}
-
-          <Button onClick={() => togglePopup()} className="hidden lg:block">
-            Open Wallet
-          </Button>
         </div>
       </header>
 

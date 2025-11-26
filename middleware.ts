@@ -7,7 +7,7 @@ import type { NextRequest } from "next/server";
  */
 const ALLOWED_QUERY_PARAMS: Record<string, string[]> = {
   "/": ["filter", "sort_by", "view_type"],
-  "/chain/[id]": ["range", "tab"],
+  "/chains/[id]": ["range", "tab"],
 };
 
 /**
@@ -19,7 +19,7 @@ const PROTECTED_ROUTES = ["/settings", "/launchpad"];
  * Protected route patterns (for dynamic routes)
  */
 const PROTECTED_ROUTE_PATTERNS = [
-  /^\/chain\/[^/]+\/edit$/,
+  /^\/chains\/[^/]+\/edit$/,
   /^\/launchpad\/.+/, // Protect all launchpad sub-routes
 ];
 
