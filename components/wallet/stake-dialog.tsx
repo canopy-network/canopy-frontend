@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,13 +18,15 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { X, ArrowLeft, Check, Info, Wallet } from "lucide-react";
+import { X, ArrowLeft, Check, Info, Wallet, Loader2, AlertCircle, Copy } from "lucide-react";
 import { useWalletStore } from "@/lib/stores/wallet-store";
-import { portfolioApi, chainsApi } from "@/lib/api";
+import { portfolioApi, chainsApi, walletTransactionApi } from "@/lib/api";
 import { generateChainColor } from "@/lib/utils/chain-ui-helpers";
 import type { Chain } from "@/types/chains";
 import type { LocalWallet } from "@/types/wallet";
 import { toast } from "sonner";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import { fromMicroUnits } from "@/lib/utils/denomination";
 
 interface StakeDialogProps {
     open: boolean;
@@ -46,20 +48,31 @@ interface WalletWithBalance {
     balanceUSD: number;
 }
 
+type StakeStep = 1 | 2 | 3 | 4;
+
 export function StakeDialog({
     open,
     onOpenChange,
     selectedChain,
 }: StakeDialogProps) {
     const { currentWallet, wallets } = useWalletStore();
-    const [step, setStep] = useState(1);
+    const [step, setStep] = useState<StakeStep>(1);
     const [amount, setAmount] = useState("");
     const [source, setSource] = useState("wallet");
     const [internalSelectedChain, setInternalSelectedChain] = useState<Chain | null>(null);
     const [chainsWithBalance, setChainsWithBalance] = useState<ChainWithBalance[]>([]);
     const [walletsWithBalance, setWalletsWithBalance] = useState<WalletWithBalance[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Transaction states (aligned with send-transaction-dialog)
+    const [isSending, setIsSending] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [txHash, setTxHash] = useState<string | null>(null);
+
+    // Fee estimation states
+    const [estimatedFee, setEstimatedFee] = useState<string | null>(null);
+    const [isEstimatingFee, setIsEstimatingFee] = useState(false);
+    const [feeError, setFeeError] = useState<string | null>(null);
 
     const activeChain = selectedChain || internalSelectedChain;
 
@@ -305,12 +318,20 @@ export function StakeDialog({
     // Reset state when dialog closes
     useEffect(() => {
         if (!open) {
-            setStep(1);
-            setAmount("");
-            setSource("wallet");
-            if (!selectedChain) {
-                setInternalSelectedChain(null);
-            }
+            setTimeout(() => {
+                setStep(1);
+                setAmount("");
+                setSource("wallet");
+                setTxHash(null);
+                setError(null);
+                setIsSending(false);
+                setEstimatedFee(null);
+                setIsEstimatingFee(false);
+                setFeeError(null);
+                if (!selectedChain) {
+                    setInternalSelectedChain(null);
+                }
+            }, 300);
         }
     }, [open, selectedChain]);
 
@@ -427,33 +448,61 @@ export function StakeDialog({
         }
     };
 
-    const handleContinue = async () => {
-        if (step === 1 && amountNum > 0 && activeChain) {
+    const handleContinueFromStep1 = async () => {
+        if (!activeChain || !amountNum || amountNum <= 0 || !currentWallet) {
+            return;
+        }
+
+        // Estimate fee before showing confirmation
+        setIsEstimatingFee(true);
+        setFeeError(null);
+
+        try {
+            // Get chain ID (numeric)
+            let chainIdNum = 1; // Default
+            if (activeChain.chain_id) {
+                const match = activeChain.chain_id.match(/\d+/);
+                if (match) {
+                    chainIdNum = parseInt(match[0]);
+                }
+            } else {
+                const idMatch = activeChain.id.toString().match(/\d+/);
+                if (idMatch) {
+                    chainIdNum = parseInt(idMatch[0]);
+                }
+            }
+
+            const feeResponse = await walletTransactionApi.estimateFee({
+                transaction_type: "stake",
+                from_address: currentWallet.address,
+                to_address: currentWallet.address, // For stake, to_address is same as from
+                amount: amountNum.toString(),
+                chain_id: chainIdNum,
+            });
+
+            setEstimatedFee(feeResponse.estimated_fee);
+            setIsEstimatingFee(false);
             setStep(2);
-        } else if (step === 2) {
-            // Submit staking transaction
-            await handleStake();
+        } catch (err) {
+            setIsEstimatingFee(false);
+            setFeeError(err instanceof Error ? err.message : "Failed to estimate fee");
+            toast.error("Failed to estimate transaction fee. Please try again.");
         }
     };
 
-    const handleStake = async () => {
-        if (!activeChain || !amountNum || amountNum <= 0) return;
+    const handleConfirmStake = async () => {
+        if (!currentWallet || !activeChain) return;
 
-        const walletToUse = source === "wallet" && currentWallet
-            ? currentWallet
-            : wallets.find(w => w.address === source);
-
-        if (!walletToUse) {
-            toast.error("Wallet not found");
+        // Check if wallet is unlocked
+        if (!currentWallet.isUnlocked || !currentWallet.privateKey) {
+            setError("Wallet is locked. Please unlock your wallet first.");
             return;
         }
 
-        if (!walletToUse.isUnlocked || !walletToUse.privateKey) {
-            toast.error("Wallet is locked. Please unlock it first.");
-            return;
-        }
+        setStep(3);
+        setIsSending(true);
+        setError(null);
 
-        setIsSubmitting(true);
         try {
             // Get chain ID (numeric)
             let chainIdNum = 1; // Default
@@ -480,17 +529,15 @@ export function StakeDialog({
             // Create stake message
             const { createStakeMessage } = await import("@/lib/crypto/transaction");
             const stakeMsg = createStakeMessage(
-                walletToUse.public_key,
+                currentWallet.public_key,
                 amountInMicro,
                 [chainIdNum], // committees - use chainId as committee
-                " ", // netAddress - empty for delegation
-                walletToUse.address, // outputAddress - rewards go to wallet
+                "", // netAddress - MUST be empty for delegation (passive staking)
+                currentWallet.address, // outputAddress - rewards go to wallet
                 true, // delegate - true for passive staking
                 true // compound - compound rewards
+                // signer parameter is optional, defaults to empty string
             );
-
-            // Set signer to wallet address
-            stakeMsg.signer = walletToUse.address;
 
             // Create and sign transaction
             const { createAndSignTransaction } = await import("@/lib/crypto/transaction");
@@ -499,49 +546,64 @@ export function StakeDialog({
                 {
                     type: 'stake',
                     msg: stakeMsg,
-                    fee: 1000, // MIN_DEFAULT_FEE
-                    memo: "Staking transaction",
+                    fee: Number(estimatedFee) || 1000,
+                    memo: " ", // CRITICAL: Always empty string, never undefined/null
                     networkID: 1,
                     chainID: chainIdNum,
                     height: currentHeight,
                 },
-                walletToUse.privateKey,
-                walletToUse.public_key,
-                walletToUse.curveType as any
+                currentWallet.privateKey,
+                currentWallet.public_key,
+                currentWallet.curveType as any
             );
 
             // Submit transaction
-            const { walletTransactionApi } = await import("@/lib/api");
             const response = await walletTransactionApi.sendRawTransaction(signedTx);
 
+            setTxHash(response.transaction_hash);
+            setIsSending(false);
             toast.success("Staking transaction submitted successfully!");
-            setStep(3);
-        } catch (error) {
-            console.error("Failed to stake:", error);
-            toast.error(error instanceof Error ? error.message : "Failed to submit staking transaction");
-        } finally {
-            setIsSubmitting(false);
+        } catch (err) {
+            setIsSending(false);
+            setError(err instanceof Error ? err.message : "Transaction failed");
         }
     };
 
     const handleBack = () => {
         if (step === 2) {
             setStep(1);
+            setEstimatedFee(null);
+            setFeeError(null);
         }
     };
 
     const handleClose = () => {
-        setStep(1);
-        setAmount("");
-        setSource(currentWallet?.address || "wallet");
-        if (!selectedChain) {
-            setInternalSelectedChain(null);
-        }
         onOpenChange(false);
     };
 
-    const handleDone = () => {
-        handleClose();
+    const handleStakeAgain = () => {
+        setStep(1);
+        setAmount("");
+        setTxHash(null);
+        setError(null);
+        setEstimatedFee(null);
+        setFeeError(null);
+    };
+
+    const handleTryAgain = () => {
+        setStep(1);
+        setError(null);
+    };
+
+    const copyToClipboard = (text: string, label: string) => {
+        navigator.clipboard.writeText(text);
+        toast.success(`${label} copied to clipboard`);
+    };
+
+    const formatAddress = (addr: string) => {
+        if (!addr) return "";
+        if (addr.length <= 12) return addr;
+        return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
     };
 
     const getChainColor = (chain: Chain | null): string => {
@@ -569,10 +631,13 @@ export function StakeDialog({
     return (
         <TooltipProvider>
             <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="w-full max-w-[calc(100%-2rem)] sm:max-w-[500px] p-0" showCloseButton={false}>
+                <DialogContent className="sm:max-w-[500px] p-0" showCloseButton={false}>
                     {/* Step 1: Select Chain and Amount */}
                     {step === 1 && (
                         <>
+                            <VisuallyHidden>
+                                <DialogTitle>Stake - Select Chain and Amount</DialogTitle>
+                            </VisuallyHidden>
                             {/* Header */}
                             <div className="relative px-6 py-3 border-b">
                                 <Button
@@ -584,10 +649,7 @@ export function StakeDialog({
                                     <X className="w-5 h-5" />
                                 </Button>
                                 <div className="space-y-1">
-                                    <h2 className="text-xl font-bold">Select Chain</h2>
-                                    <p className="text-sm text-muted-foreground">
-                                        Choose a chain to stake
-                                    </p>
+                                    <h2 className="text-xl font-bold">Stake</h2>
                                 </div>
                             </div>
 
@@ -825,26 +887,48 @@ export function StakeDialog({
                                     </>
                                 )}
 
+                                {/* Fee Estimation Error */}
+                                {feeError && (
+                                    <div className="flex gap-2 p-3 border border-red-500/20 bg-red-500/5 rounded-lg">
+                                        <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                                        <div className="space-y-1 text-sm">
+                                            <p className="font-medium text-red-500">Fee Estimation Failed</p>
+                                            <p className="text-muted-foreground">{feeError}</p>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Continue Button */}
                                 <Button
                                     className="w-full h-12"
-                                    onClick={handleContinue}
+                                    onClick={handleContinueFromStep1}
                                     disabled={
                                         !activeChain ||
                                         !amountNum ||
                                         amountNum <= 0 ||
-                                        amountNum > availableBalance
+                                        amountNum > availableBalance ||
+                                        isEstimatingFee
                                     }
                                 >
-                                    Continue
+                                    {isEstimatingFee ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Estimating Fee...
+                                        </>
+                                    ) : (
+                                        "Continue"
+                                    )}
                                 </Button>
                             </div>
                         </>
                     )}
 
-                    {/* Step 2: Confirmation */}
+                    {/* Step 2: Review & Confirm */}
                     {step === 2 && activeChain && chainData && (
                         <>
+                            <VisuallyHidden>
+                                <DialogTitle>Stake - Review & Confirm</DialogTitle>
+                            </VisuallyHidden>
                             <div className="relative p-6 pb-4">
                                 <Button
                                     variant="ghost"
@@ -862,8 +946,8 @@ export function StakeDialog({
                                 >
                                     <X className="w-5 h-5" />
                                 </Button>
-                                <h2 className="text-xl font-bold text-center pt-8">
-                                    Earn confirmation
+                                <h2 className="text-xl font-bold text-center">
+                                    Review & Confirm
                                 </h2>
                             </div>
 
@@ -874,15 +958,19 @@ export function StakeDialog({
 
                                     <div className="space-y-3">
                                         <div className="flex justify-between">
-                                            <span className="text-sm text-muted-foreground">From</span>
-                                            <span className="text-sm font-medium">
-                                                Wallet balance
-                                            </span>
+                                            <span className="text-sm text-muted-foreground">Amount</span>
+                                            <div className="text-right">
+                                                <p className="text-sm font-medium">
+                                                    {amountNum} {getChainSymbol(activeChain)}
+                                                </p>
+                                            </div>
                                         </div>
 
                                         <div className="flex justify-between">
-                                            <span className="text-sm text-muted-foreground">To</span>
-                                            <span className="text-sm font-medium">Staking</span>
+                                            <span className="text-sm text-muted-foreground">Chain</span>
+                                            <span className="text-sm font-medium">
+                                                {activeChain.chain_name}
+                                            </span>
                                         </div>
 
                                         <div className="flex justify-between">
@@ -892,36 +980,64 @@ export function StakeDialog({
                                             <span className="text-sm font-medium">{apy}%</span>
                                         </div>
 
+                                        <div className="flex justify-between">
+                                            <span className="text-sm text-muted-foreground">Network Fee</span>
+                                            <div className="text-right">
+                                                {isEstimatingFee ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                                        <p className="text-sm font-medium text-muted-foreground">Estimating...</p>
+                                                    </div>
+                                                ) : estimatedFee ? (
+                                                    <p className="text-sm font-medium">{fromMicroUnits(estimatedFee, 6)} CNPY</p>
+                                                ) : (
+                                                    <p className="text-sm font-medium text-red-500">Fee estimation failed</p>
+                                                )}
+                                            </div>
+                                        </div>
+
                                         <div className="flex justify-between pt-2 border-t">
                                             <span className="text-sm font-semibold">Total</span>
                                             <div className="text-right">
                                                 <p className="text-sm font-semibold">
                                                     {amountNum} {getChainSymbol(activeChain)}
                                                 </p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    ${amountUSD.toFixed(2)} USD
-                                                </p>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
+                                {/* Warning */}
+                                {!currentWallet?.isUnlocked && (
+                                    <div className="flex gap-2 p-3 border border-red-500/20 bg-red-500/5 rounded-lg">
+                                        <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                                        <div className="space-y-1 text-sm">
+                                            <p className="font-medium text-red-500">Wallet Locked</p>
+                                            <p className="text-muted-foreground">
+                                                Your wallet must be unlocked to stake. Please unlock your wallet before proceeding.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Disclaimer */}
-                                <div className="p-4 bg-muted/50 rounded-lg">
-                                    <p className="text-xs text-muted-foreground leading-relaxed">
-                                        By clicking "confirm," you are agreeing to lend your crypto to
-                                        Canopy Network according to the terms of the Master Loan
-                                        Agreement. You are also authorizing Canopy to disclose your
-                                        name, email, date of birth, and state of residence to Canopy
-                                        solely for the purposes of fulfilling customer identification
-                                        and anti-money laundering obligations.
-                                    </p>
+                                <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+                                    <div className="flex gap-3">
+                                        <AlertCircle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+                                        <p className="text-sm text-foreground">
+                                            By staking, you agree to delegate your tokens. Please ensure you understand the risks involved.
+                                        </p>
+                                    </div>
                                 </div>
 
                                 {/* Buttons */}
                                 <div className="space-y-3">
-                                    <Button className="w-full h-12" onClick={handleContinue} disabled={isSubmitting}>
-                                        {isSubmitting ? "Processing..." : "Confirm"}
+                                    <Button
+                                        className="w-full h-12"
+                                        onClick={handleConfirmStake}
+                                        disabled={!currentWallet?.isUnlocked || !estimatedFee}
+                                    >
+                                        Confirm & Stake
                                     </Button>
                                     <Button
                                         variant="ghost"
@@ -935,52 +1051,122 @@ export function StakeDialog({
                         </>
                     )}
 
-                    {/* Step 3: Success */}
+                    {/* Step 3: Transaction Status */}
                     {step === 3 && activeChain && chainData && (
                         <>
+                            <VisuallyHidden>
+                                <DialogTitle>Stake - Transaction Status</DialogTitle>
+                            </VisuallyHidden>
                             <div className="relative p-6 pb-4">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="absolute right-2 top-2"
-                                    onClick={handleClose}
-                                >
-                                    <X className="w-5 h-5" />
-                                </Button>
+                                {!isSending && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="absolute right-2 top-2"
+                                        onClick={handleClose}
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </Button>
+                                )}
                             </div>
 
                             <div className="px-6 pb-6 space-y-6">
-                                {/* Success Icon */}
-                                <div className="flex flex-col items-center space-y-4 py-8">
-                                    <div className="w-16 h-16 rounded-full border-2 border-foreground flex items-center justify-center">
-                                        <Check className="w-8 h-8" />
+                                {/* Sending State */}
+                                {isSending && (
+                                    <div className="flex flex-col items-center space-y-4 pb-8">
+                                        <div className="w-16 h-16 rounded-full border-2 border-foreground/40 flex items-center justify-center">
+                                            <Loader2 className="w-8 h-8 animate-spin" />
+                                        </div>
+                                        <h2 className="text-2xl font-bold">Sending Transaction</h2>
+                                        <p className="text-center text-muted-foreground">
+                                            Please wait while your staking transaction is being processed...
+                                        </p>
                                     </div>
-                                    <DialogTitle className="text-2xl font-bold">Success!</DialogTitle>
-                                    <DialogDescription className="sr-only">
-                                        Your staking transaction has been successfully submitted
-                                    </DialogDescription>
-                                    <p className="text-center text-muted-foreground">
-                                        You will begin earning interest on{" "}
-                                        <span className="font-semibold text-foreground">
-                                            {amountNum} {getChainSymbol(activeChain)}
-                                        </span>{" "}
-                                        after one business day.
-                                    </p>
-                                </div>
+                                )}
 
-                                {/* Buttons */}
-                                <div className="space-y-3">
-                                    <Button className="w-full h-12" onClick={handleDone}>
-                                        Done
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        className="w-full"
-                                        onClick={handleDone}
-                                    >
-                                        Go to Portfolio
-                                    </Button>
-                                </div>
+                                {/* Success State */}
+                                {!isSending && !error && txHash && (
+                                    <>
+                                        <div className="flex flex-col items-center space-y-4 py-8">
+                                            <div className="w-16 h-16 rounded-full border-2 border-green-500 flex items-center justify-center">
+                                                <Check className="w-8 h-8 text-green-500" />
+                                            </div>
+                                            <h2 className="text-2xl font-bold">Staking Successful!</h2>
+                                            <p className="text-center text-muted-foreground">
+                                                Your{" "}
+                                                <span className="font-semibold text-foreground">
+                                                    {amountNum} {getChainSymbol(activeChain)}
+                                                </span>{" "}
+                                                has been staked successfully
+                                            </p>
+                                        </div>
+
+                                        {/* Transaction Details */}
+                                        <div className="p-4 bg-muted/30 rounded-lg space-y-3">
+                                            <div className="space-y-1">
+                                                <p className="text-xs text-muted-foreground">Transaction Hash</p>
+                                                <div className="flex items-center gap-2">
+                                                    <p className="text-sm font-mono break-all">{formatAddress(txHash)}</p>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-6 w-6 flex-shrink-0"
+                                                        onClick={() => copyToClipboard(txHash, "Transaction hash")}
+                                                    >
+                                                        <Copy className="w-3 h-3" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                <p className="text-xs text-muted-foreground">Amount</p>
+                                                <p className="text-sm font-medium">
+                                                    {amountNum} {getChainSymbol(activeChain)}
+                                                </p>
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                <p className="text-xs text-muted-foreground">Chain</p>
+                                                <p className="text-sm font-medium">{activeChain.chain_name}</p>
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                <p className="text-xs text-muted-foreground">APY</p>
+                                                <p className="text-sm font-medium">{apy}%</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Buttons */}
+                                        <div className="space-y-3">
+                                            <Button className="w-full h-12" onClick={handleStakeAgain}>
+                                                Stake Again
+                                            </Button>
+                                        </div>
+                                    </>
+                                )}
+
+                                {/* Failed State */}
+                                {!isSending && error && (
+                                    <>
+                                        <div className="flex flex-col items-center space-y-4 py-8">
+                                            <div className="w-16 h-16 rounded-full border-2 border-red-500 flex items-center justify-center">
+                                                <X className="w-8 h-8 text-red-500" />
+                                            </div>
+                                            <h2 className="text-2xl font-bold">Transaction Failed</h2>
+                                            <p className="text-center text-muted-foreground">{error}</p>
+                                        </div>
+
+                                        {/* Buttons */}
+                                        <div className="space-y-3">
+                                            <Button className="w-full h-12" onClick={handleTryAgain}>
+                                                Try Again
+                                            </Button>
+                                            <Button variant="ghost" className="w-full" onClick={handleClose}>
+                                                Cancel
+                                            </Button>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </>
                     )}

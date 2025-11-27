@@ -4,6 +4,16 @@
  * This module provides EXACT protobuf encoding compatible with Canopy Go implementation.
  * The sign bytes must match EXACTLY what the backend generates, or signature verification fails.
  *
+ * CRITICAL: The backend omits fields with default values from protobuf encoding.
+ * We MUST do the same or the bytes won't match and signatures will be invalid.
+ *
+ * Protobuf default values that are OMITTED:
+ * - string: "" (empty string)
+ * - bytes: [] (empty Uint8Array or zero-length)
+ * - int/uint: 0
+ * - bool: false
+ * - repeated: [] (empty array)
+ *
  * References:
  * - canopy/lib/.proto/tx.proto - Transaction structure
  * - canopy/fsm/message.proto - Message structures
@@ -13,6 +23,20 @@
 
 import protobuf from 'protobufjs';
 import { hexToBytes } from '@noble/hashes/utils.js';
+
+/**
+ * Helper function to check if a value should be omitted from protobuf encoding
+ * (i.e., it's a default value that the backend would omit)
+ */
+function shouldOmit(value: any): boolean {
+  if (value === undefined || value === null) return true;
+  if (typeof value === 'string' && value === '') return true;
+  if (value instanceof Uint8Array && value.length === 0) return true;
+  if (typeof value === 'number' && value === 0) return true;
+  if (typeof value === 'boolean' && value === false) return true;
+  if (Array.isArray(value) && value.length === 0) return true;
+  return false;
+}
 
 /**
  * Protobuf root containing all message definitions
@@ -230,51 +254,78 @@ export function encodeMessageSend(
 
 /**
  * Encodes MessageStake - Validator registration
+ *
+ * Backend reference: canopy/fsm/transaction.go:270-278
+ *
+ * CRITICAL: Although backend specifies all fields in the struct, protobuf automatically
+ * omits default values during serialization. We must match this behavior:
+ * - Omit netAddress if empty string ""
+ * - Omit delegate if false
+ * - Omit compound if false
+ * - NEVER include Signer (backend never sets this)
+ *
+ * WORKAROUND: Backend has a bug in canopy/fsm/message_helpers.go:149
+ * It expects "publickey" (lowercase) instead of "publicKey" (camelCase)
  */
 export function encodeMessageStake(params: {
-  publicKey: string;
-  amount: number;
-  committees: number[];
-  netAddress: string;
-  outputAddress: string;
-  delegate: boolean;
-  compound: boolean;
-  signer?: string; // Auto-populated by backend, optional for frontend
+  publickey: string;     // REQUIRED - WORKAROUND: lowercase to match backend bug
+  amount: number;        // REQUIRED
+  committees: number[];  // REQUIRED
+  netAddress: string;    // REQUIRED (can be empty string for delegation)
+  outputAddress: string; // REQUIRED
+  delegate: boolean;     // REQUIRED
+  compound: boolean;     // REQUIRED
+  signer?: string;       // OPTIONAL - backend NEVER includes this, omit it
 }): Uint8Array {
-  const message = MessageStake.create({
-    public_key: hexToBytes(params.publicKey),
+  const messageData: any = {
+    public_key: hexToBytes(params.publickey),
     amount: params.amount,
     committees: params.committees,
-    net_address: params.netAddress,
     output_address: hexToBytes(params.outputAddress),
-    delegate: params.delegate,
-    compound: params.compound,
-    signer: params.signer ? hexToBytes(params.signer) : new Uint8Array(0),
-  });
+  };
+
+  // Protobuf omits default values - we must match this behavior
+  if (!shouldOmit(params.netAddress)) messageData.net_address = params.netAddress;
+  if (!shouldOmit(params.delegate)) messageData.delegate = params.delegate;
+  if (!shouldOmit(params.compound)) messageData.compound = params.compound;
+
+  // NEVER include signer - backend never sets this field
+
+  const message = MessageStake.create(messageData);
   return MessageStake.encode(message).finish();
 }
 
 /**
  * Encodes MessageEditStake - Validator modification
+ *
+ * Backend reference: canopy/fsm/transaction.go:283-290
+ *
+ * CRITICAL: Protobuf automatically omits default values during serialization.
+ * We must match this behavior by using shouldOmit() for optional fields.
  */
 export function encodeMessageEditStake(params: {
-  address: string;
-  amount: number;
-  committees: number[];
-  netAddress: string;
-  outputAddress: string;
-  compound: boolean;
-  signer?: string; // Auto-populated by backend, optional for frontend
+  address: string;       // REQUIRED
+  amount: number;        // REQUIRED
+  committees: number[];  // REQUIRED
+  netAddress: string;    // REQUIRED (can be empty)
+  outputAddress: string; // REQUIRED
+  compound: boolean;     // REQUIRED
+  signer?: string;       // OPTIONAL - backend NEVER includes this, omit it
 }): Uint8Array {
-  const message = MessageEditStake.create({
+  const messageData: any = {
     address: hexToBytes(params.address),
-    amount: params.amount,
-    committees: params.committees,
-    net_address: params.netAddress,
     output_address: hexToBytes(params.outputAddress),
-    compound: params.compound,
-    signer: params.signer ? hexToBytes(params.signer) : new Uint8Array(0),
-  });
+  };
+
+  // Protobuf omits default values - we must match this behavior
+  if (!shouldOmit(params.amount)) messageData.amount = params.amount;
+  if (!shouldOmit(params.committees)) messageData.committees = params.committees;
+  if (!shouldOmit(params.netAddress)) messageData.net_address = params.netAddress;
+  if (!shouldOmit(params.compound)) messageData.compound = params.compound;
+
+  // NEVER include signer
+
+  const message = MessageEditStake.create(messageData);
   return MessageEditStake.encode(message).finish();
 }
 
@@ -310,123 +361,160 @@ export function encodeMessageUnpause(address: string): Uint8Array {
 
 /**
  * Encodes MessageChangeParameter - Governance parameter change proposal
+ *
+ * Backend reference: canopy/fsm/transaction.go:314-321 (uint64) and 330-337 (string)
+ *
+ * CRITICAL: Backend ALWAYS sets Signer field with address, so we must include it.
+ * Protobuf will omit other default values automatically.
  */
 export function encodeMessageChangeParameter(params: {
-  parameterSpace: string;
-  parameterKey: string;
-  parameterValue: { typeUrl: string; value: Uint8Array };
-  startHeight: number;
-  endHeight: number;
-  signer?: string; // Auto-populated by backend
-  proposalHash?: string; // Auto-populated by backend
+  parameterSpace: string;                                     // REQUIRED
+  parameterKey: string;                                       // REQUIRED
+  parameterValue: { typeUrl: string; value: Uint8Array };    // REQUIRED
+  startHeight: number;                                        // REQUIRED
+  endHeight: number;                                          // REQUIRED
+  signer: string;                                             // REQUIRED - backend ALWAYS includes this with address
+  proposalHash?: string;                                      // OPTIONAL - backend NEVER includes this, omit it
 }): Uint8Array {
-  const message = MessageChangeParameter.create({
+  const messageData: any = {
     parameter_space: params.parameterSpace,
     parameter_key: params.parameterKey,
     parameter_value: createAny(params.parameterValue.typeUrl, params.parameterValue.value),
     start_height: params.startHeight,
     end_height: params.endHeight,
-    signer: params.signer ? hexToBytes(params.signer) : new Uint8Array(0),
-    proposal_hash: params.proposalHash || '',
-  });
+    signer: hexToBytes(params.signer),  // Backend always sets this
+  };
+
+  // NEVER include proposal_hash - backend never sets this field
+
+  const message = MessageChangeParameter.create(messageData);
   return MessageChangeParameter.encode(message).finish();
 }
 
 /**
  * Encodes MessageDAOTransfer - DAO treasury transfer proposal
+ *
+ * Backend reference: canopy/fsm/transaction.go:342-347
+ * Fields included: Address, Amount, StartHeight, EndHeight
+ * Fields NEVER included: ProposalHash (backend never sets this)
  */
 export function encodeMessageDAOTransfer(params: {
-  address: string;
-  amount: number;
-  startHeight: number;
-  endHeight: number;
-  proposalHash?: string; // Auto-populated by backend
+  address: string;       // REQUIRED
+  amount: number;        // REQUIRED
+  startHeight: number;   // REQUIRED
+  endHeight: number;     // REQUIRED
+  proposalHash?: string; // OPTIONAL - backend NEVER includes this, omit it
 }): Uint8Array {
-  const message = MessageDAOTransfer.create({
+  const messageData: any = {
     address: hexToBytes(params.address),
     amount: params.amount,
     start_height: params.startHeight,
     end_height: params.endHeight,
-    proposal_hash: params.proposalHash || '',
-  });
+  };
+
+  // NEVER include proposal_hash - backend never sets this field
+
+  const message = MessageDAOTransfer.create(messageData);
   return MessageDAOTransfer.encode(message).finish();
 }
 
 /**
  * Encodes MessageSubsidy - Committee subsidy transfer
+ *
+ * Backend reference: canopy/fsm/transaction.go:357-362
+ * Fields included: Address, ChainId, Amount, Opcode
  */
 export function encodeMessageSubsidy(params: {
-  address: string;
-  chainId: number;
-  amount: number;
-  opcode: string; // Hex string
+  address: string;  // REQUIRED
+  chainId: number;  // REQUIRED
+  amount: number;   // REQUIRED
+  opcode: string;   // REQUIRED - hex string
 }): Uint8Array {
-  const message = MessageSubsidy.create({
+  const messageData: any = {
     address: hexToBytes(params.address),
-    chain_id: params.chainId,
+    chain_id: params.chainId,  // Always include
     amount: params.amount,
-    opcode: hexToBytes(params.opcode),
-  });
+    opcode: hexToBytes(params.opcode),  // Always include
+  };
+
+  const message = MessageSubsidy.create(messageData);
   return MessageSubsidy.encode(message).finish();
 }
 
 /**
  * Encodes MessageCreateOrder - DEX create sell order
+ *
+ * Backend reference: canopy/fsm/transaction.go:367-374
+ * Fields included: ChainId, Data, AmountForSale, RequestedAmount, SellerReceiveAddress, SellersSendAddress
+ * Fields NEVER included: OrderId (backend never sets this, gets auto-populated)
  */
 export function encodeMessageCreateOrder(params: {
-  chainId: number;
-  data: string; // Hex string
-  amountForSale: number;
-  requestedAmount: number;
-  sellerReceiveAddress: string;
-  sellersSendAddress: string;
-  orderId?: string; // Auto-populated by backend
+  chainId: number;              // REQUIRED
+  data: string;                 // REQUIRED - hex string
+  amountForSale: number;        // REQUIRED
+  requestedAmount: number;      // REQUIRED
+  sellerReceiveAddress: string; // REQUIRED
+  sellersSendAddress: string;   // REQUIRED
+  orderId?: string;             // OPTIONAL - backend NEVER includes this, omit it
 }): Uint8Array {
-  const message = MessageCreateOrder.create({
-    ChainId: params.chainId,
-    data: hexToBytes(params.data),
+  const messageData: any = {
+    ChainId: params.chainId,  // Always include
+    data: hexToBytes(params.data),  // Always include
     AmountForSale: params.amountForSale,
     RequestedAmount: params.requestedAmount,
     SellerReceiveAddress: hexToBytes(params.sellerReceiveAddress),
     SellersSendAddress: hexToBytes(params.sellersSendAddress),
-    OrderId: params.orderId ? hexToBytes(params.orderId) : new Uint8Array(0),
-  });
+  };
+
+  // NEVER include OrderId - backend never sets this field
+
+  const message = MessageCreateOrder.create(messageData);
   return MessageCreateOrder.encode(message).finish();
 }
 
 /**
  * Encodes MessageEditOrder - DEX edit sell order
+ *
+ * Backend reference: canopy/fsm/transaction.go:383-390
+ * Fields included: OrderId, ChainId, Data, AmountForSale, RequestedAmount, SellerReceiveAddress
  */
 export function encodeMessageEditOrder(params: {
-  orderId: string;
-  chainId: number;
-  data: string; // Hex string
-  amountForSale: number;
-  requestedAmount: number;
-  sellerReceiveAddress: string;
+  orderId: string;              // REQUIRED
+  chainId: number;              // REQUIRED
+  data: string;                 // REQUIRED - hex string
+  amountForSale: number;        // REQUIRED
+  requestedAmount: number;      // REQUIRED
+  sellerReceiveAddress: string; // REQUIRED
 }): Uint8Array {
-  const message = MessageEditOrder.create({
+  const messageData: any = {
     OrderId: hexToBytes(params.orderId),
-    ChainId: params.chainId,
-    data: hexToBytes(params.data),
+    ChainId: params.chainId,  // Always include
+    data: hexToBytes(params.data),  // Always include
     AmountForSale: params.amountForSale,
     RequestedAmount: params.requestedAmount,
     SellerReceiveAddress: hexToBytes(params.sellerReceiveAddress),
-  });
+  };
+
+  const message = MessageEditOrder.create(messageData);
   return MessageEditOrder.encode(message).finish();
 }
 
 /**
  * Encodes MessageDeleteOrder - DEX delete sell order
+ *
+ * Backend reference: canopy/fsm/transaction.go:399-402
+ * Fields included: OrderId, ChainId
  */
 export function encodeMessageDeleteOrder(params: {
-  orderId: string;
-  chainId: number;
+  orderId: string; // REQUIRED
+  chainId: number; // REQUIRED
 }): Uint8Array {
-  const message = MessageDeleteOrder.create({
+  const messageData: any = {
     OrderId: hexToBytes(params.orderId),
-    ChainId: params.chainId,
-  });
+    ChainId: params.chainId,  // Always include
+  };
+
+  const message = MessageDeleteOrder.create(messageData);
   return MessageDeleteOrder.encode(message).finish();
 }
 
@@ -452,7 +540,7 @@ export function getSignBytesProtobuf(tx: {
   time: number;
   createdHeight: number;
   fee: number;
-  memo: string;
+  memo?: string;
   networkID: number;
   chainID: number;
 }): Uint8Array {
@@ -534,17 +622,24 @@ export function getSignBytesProtobuf(tx: {
 
   // Step 3: Create transaction WITHOUT signature
   // Mirrors lib.Transaction.GetSignBytes() which sets Signature to nil
-  const transaction = Transaction.create({
+  const transactionData: any = {
     message_type: tx.type,
     msg: anyMsg,
     signature: null, // CRITICAL: signature must be null for sign bytes
     created_height: tx.createdHeight,
     time: tx.time,
     fee: tx.fee,
-    memo: tx.memo ?? '', // CRITICAL: Always use empty string, never undefined/null
     network_id: tx.networkID,
     chain_id: tx.chainID,
-  });
+  };
+
+  // CRITICAL: Only include memo if it's not empty
+  // The backend omits empty strings from protobuf
+  if (!shouldOmit(tx.memo)) {
+    transactionData.memo = tx.memo;
+  }
+
+  const transaction = Transaction.create(transactionData);
 
   // Step 4: Encode to protobuf bytes
   return Transaction.encode(transaction).finish();

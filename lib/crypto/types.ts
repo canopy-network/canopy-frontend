@@ -97,7 +97,7 @@ export interface RawTransaction {
   time: number;                           // Unix microseconds
   createdHeight: number;                  // Blockchain height
   fee: number;                            // Transaction fee
-  memo: string;                           // Optional memo
+  memo?: string;                           // Optional memo
   networkID: number;                      // Network identifier
   chainID: number;                        // Chain identifier
 }

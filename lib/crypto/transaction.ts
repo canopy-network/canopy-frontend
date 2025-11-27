@@ -50,7 +50,7 @@ export function createAndSignTransaction(
     time: Date.now() * 1000, // Unix microseconds (Go uses time.Now().UnixMicro())
     createdHeight: params.height,
     fee: params.fee,
-    memo: params.memo ?? " ",
+    memo: params.memo,
     networkID: params.networkID,
     chainID: params.chainID,
   };
@@ -59,6 +59,14 @@ export function createAndSignTransaction(
   // Mirrors lib.Transaction.GetSignBytes() from canopy/lib/tx.go:149-162
   // This MUST produce the EXACT same bytes as the Go implementation!
   const signBytes = getSignBytesProtobuf(unsignedTx);
+
+  // DEBUG: Log the sign bytes for comparison with backend
+  // console.log('🔍 DEBUG - Sign Bytes Info:');
+  // console.log('  Transaction type:', unsignedTx.type);
+  // console.log('  Message:', JSON.stringify(unsignedTx.msg, null, 2));
+  // console.log('  Sign bytes length:', signBytes.length);
+  // console.log('  Sign bytes (hex):', Array.from(signBytes).map(b => b.toString(16).padStart(2, '0')).join(''));
+  // console.log('  Sign bytes (base64):', btoa(String.fromCharCode(...signBytes)));
 
   // Sign the canonical bytes with the correct curve algorithm
   const signatureHex = signMessage(signBytes, privateKeyHex, curveType);
@@ -135,10 +143,11 @@ export function createSendMessage(
  * @param publicKey - Validator public key (hex)
  * @param amount - Amount to stake (micro units)
  * @param committees - Committee IDs to join
- * @param netAddress - Network address for validator
+ * @param netAddress - Network address for validator (empty string for delegation)
  * @param outputAddress - Address to receive rewards
  * @param delegate - Whether this is a delegation
  * @param compound - Whether to compound rewards (earlyWithdrawal = !compound)
+ * @param signer - Optional signer address (can be empty, backend auto-populates)
  * @returns MessageStake payload
  */
 export function createStakeMessage(
@@ -148,15 +157,14 @@ export function createStakeMessage(
   netAddress: string,
   outputAddress: string,
   delegate: boolean,
-  compound: boolean
+  compound: boolean,
 ): TransactionMessage {
   return {
-    publicKey,
+    publickey: publicKey, // WORKAROUND: Backend expects lowercase "publickey" not "publicKey"
     amount,
     committees,
     netAddress,
     outputAddress,
-    signer: '', // Will be populated by backend during signature verification
     delegate,
     compound,
   };
