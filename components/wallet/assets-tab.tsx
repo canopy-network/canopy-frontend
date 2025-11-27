@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Search, ArrowUpDown, Coins } from "lucide-react";
-import { formatTokenAmount } from "@/lib/utils/denomination";
+import {formatBalanceWithCommas, formatTokenAmount} from "@/lib/utils/denomination";
 import type { TokenBalance } from "@/types/wallet";
 import { AssetItem } from "./asset-item";
 
@@ -68,7 +68,7 @@ export function AssetsTab({ tokens, totalBalance, totalUSDValue }: AssetsTabProp
       <Card className="p-2 px-2">
         <CardHeader className="p-4 sm:p-6">
           <p className="text-xs sm:text-sm text-muted-foreground">Estimated Balance</p>
-          <CardTitle className="text-2xl sm:text-3xl lg:text-4xl break-all">{formatTokenAmount(totalBalance)} CNPY</CardTitle>
+          <CardTitle className="text-2xl sm:text-3xl lg:text-4xl break-all">{formatBalanceWithCommas(totalBalance)} CNPY</CardTitle>
           <p className="text-xs sm:text-sm text-muted-foreground">{totalUSDValue}</p>
         </CardHeader>
       </Card>

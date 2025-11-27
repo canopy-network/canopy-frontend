@@ -12,6 +12,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
     Tooltip,
     TooltipContent,
@@ -59,6 +60,7 @@ export function StakeDialog({
     const [step, setStep] = useState<StakeStep>(1);
     const [amount, setAmount] = useState("");
     const [source, setSource] = useState("wallet");
+    const [autoCompound, setAutoCompound] = useState(true);
     const [internalSelectedChain, setInternalSelectedChain] = useState<Chain | null>(null);
     const [chainsWithBalance, setChainsWithBalance] = useState<ChainWithBalance[]>([]);
     const [walletsWithBalance, setWalletsWithBalance] = useState<WalletWithBalance[]>([]);
@@ -121,18 +123,6 @@ export function StakeDialog({
                 // Build chains with balance - show ONLY chains that have staked balance
                 const accounts = portfolioResponse.accounts || [];
 
-                // Debug: Log all accounts to see staking data
-                console.log("🔍 Portfolio accounts:", accounts);
-                console.log("🔍 Each account staking info:");
-                accounts.forEach((a, i) => {
-                    console.log(`  Account ${i}: chain_id=${a.chain_id}, chain_name=${a.chain_name}`);
-                    console.log(`    - staked_balance: ${a.staked_balance}`);
-                    console.log(`    - delegated_balance: ${a.delegated_balance}`);
-                    console.log(`    - available_balance: ${a.available_balance}`);
-                });
-                console.log("🔍 Accounts with staked balance > 0:", accounts.filter(a =>
-                    parseFloat(a.staked_balance || "0") > 0 || parseFloat(a.delegated_balance || "0") > 0
-                ));
 
                 // First, try to match with fetched chains
                 const chainsFromApi: ChainWithBalance[] = fetchedChains
@@ -322,6 +312,7 @@ export function StakeDialog({
                 setStep(1);
                 setAmount("");
                 setSource("wallet");
+                setAutoCompound(true);
                 setTxHash(null);
                 setError(null);
                 setIsSending(false);
@@ -535,7 +526,7 @@ export function StakeDialog({
                 "", // netAddress - MUST be empty for delegation (passive staking)
                 currentWallet.address, // outputAddress - rewards go to wallet
                 true, // delegate - true for passive staking
-                true // compound - compound rewards
+                autoCompound // compound - use user's autocompound preference
                 // signer parameter is optional, defaults to empty string
             );
 
@@ -584,6 +575,7 @@ export function StakeDialog({
     const handleStakeAgain = () => {
         setStep(1);
         setAmount("");
+        setAutoCompound(true);
         setTxHash(null);
         setError(null);
         setEstimatedFee(null);
@@ -854,6 +846,33 @@ export function StakeDialog({
                                             </p>
                                         </div>
 
+                                        {/* Auto-compound Toggle */}
+                                        <div className="space-y-2 pt-4 border-t">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <Label htmlFor="auto-compound" className="text-sm font-medium cursor-pointer">
+                                                        Auto-compound rewards
+                                                    </Label>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+                                                        </TooltipTrigger>
+                                                        <TooltipContent className="max-w-xs">
+                                                            <p>
+                                                                When enabled, your staking rewards will be automatically
+                                                                reinvested to maximize your earnings through compound interest.
+                                                            </p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </div>
+                                                <Switch
+                                                    id="auto-compound"
+                                                    checked={autoCompound}
+                                                    onCheckedChange={setAutoCompound}
+                                                />
+                                            </div>
+                                        </div>
+
                                         {/* Projected Interest */}
                                         <div className="space-y-2 pt-4 border-t">
                                             <div className="flex items-center gap-2">
@@ -867,7 +886,7 @@ export function StakeDialog({
                                                     <TooltipContent className="max-w-xs">
                                                         <p>
                                                             Estimated interest earnings after 1 year
-                                                            based on current APY
+                                                            based on current APY{autoCompound ? ' with auto-compounding' : ''}
                                                         </p>
                                                     </TooltipContent>
                                                 </Tooltip>
@@ -978,6 +997,17 @@ export function StakeDialog({
                                                 Annual % yield
                                             </span>
                                             <span className="text-sm font-medium">{apy}%</span>
+                                        </div>
+
+                                        <div className="flex justify-between">
+                                            <span className="text-sm text-muted-foreground">Auto-compound</span>
+                                            <span className="text-sm font-medium">
+                                                {autoCompound ? (
+                                                    <span className="text-green-600 dark:text-green-400">Enabled</span>
+                                                ) : (
+                                                    <span className="text-muted-foreground">Disabled</span>
+                                                )}
+                                            </span>
                                         </div>
 
                                         <div className="flex justify-between">
