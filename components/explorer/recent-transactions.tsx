@@ -1,10 +1,11 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, Box } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { LiveStatusComponent } from "./live-status-component";
+import { LatestUpdated } from "./latest-updated";
 import { TableArrow } from "@/components/icons";
 import {
   Table,
@@ -15,20 +16,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+import { Transaction } from "@/lib/api/explorer";
+
 const formatAddress = (value: string, prefix = 6, suffix = 6) =>
   `${value.slice(0, prefix)}...${value.slice(-suffix)}`;
-
-interface Transaction {
-  chain_id: number;
-  height: number;
-  tx_hash: string;
-  timestamp: string;
-  message_type: string;
-  signer: string;
-  counterparty: string | null;
-  amount: number | null;
-  fee: number;
-}
 
 interface RecentTransactionsProps {
   transactions: Transaction[];
@@ -38,24 +29,20 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
   return (
     <div className="mb-8 card-like p-4">
       <div className="flex items-center justify-between leading-none">
-        <h2 className="text-2xl font-bold text-white">Recent Transactions</h2>
-        <div className="flex items-center gap-4">
-          <LiveStatusComponent />
-          <div className="flex items-center gap-2 text-muted-foreground text-sm bg-white/[0.05] rounded-lg px-4 py-2">
-            <Box className="w-4 h-4" />
-            <span>Latest update 44 secs ago</span>
-          </div>
-        </div>
+        <h2 className="lg:text-xl text-lg font-bold text-white">
+          Recent Transactions
+        </h2>
+        <LatestUpdated timeAgo="3 mins ago" />
       </div>
 
-      <div className="overflow-hidden mt-6">
+      <div className="overflow-hidden lg:mt-6 mt-3">
         <Table>
           <TableHeader className="">
             <TableRow className="bg-transparent hover:bg-transparent">
-              <TableHead className="text-xs tracking-wide text-muted-foreground">
+              <TableHead className="text-xs pl-0 lg:pl-4 tracking-wide text-muted-foreground">
                 Chain Name
               </TableHead>
-              <TableHead className="text-xs tracking-wide text-muted-foreground">
+              <TableHead className="text-xs px-4 tracking-wide text-muted-foreground">
                 Hash
               </TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground">
@@ -76,7 +63,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
           <TableBody>
             {transactions.map((tx) => (
               <TableRow key={tx.tx_hash} appearance="plain">
-                <TableCell>
+                <TableCell className=" pl-0 lg:pl-4 min-w-36 lg:min-w-0">
                   <Link
                     href={`/chains/${tx.chain_id}/transactions`}
                     className="flex items-center gap-3 hover:opacity-80 transition-opacity"
@@ -87,14 +74,18 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
                       width={32}
                       height={32}
                       className="object-contain rounded-full size-8 border border-white/10"
+                      data-sample="chain-logo"
                     />
-                    <div className="flex flex-col">
-                      <span className="font-semibold text-sm">blockchain</span>
-                    </div>
+                    <span
+                      className="font-semibold text-sm text-ellipsis overflow-hidden whitespace-nowrap"
+                      data-sample="chain-name"
+                    >
+                      blockchain
+                    </span>
                   </Link>
                 </TableCell>
 
-                <TableCell className="text-xs text-white/80">
+                <TableCell className="text-xs text-white/80 px-4">
                   <Link
                     href={`/transactions/${encodeURIComponent(tx.tx_hash)}`}
                     className="hover:opacity-80 transition-opacity hover:underline"
@@ -104,12 +95,16 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
                 </TableCell>
 
                 <TableCell className="text-xs text-white">
-                  <Link
-                    href={`/accounts/${tx.signer}`}
-                    className="hover:opacity-80 transition-opacity hover:underline"
-                  >
-                    {formatAddress(tx.signer, 6, 6)}
-                  </Link>
+                  {tx.signer ? (
+                    <Link
+                      href={`/accounts/${tx.signer}`}
+                      className="hover:opacity-80 transition-opacity hover:underline"
+                    >
+                      {formatAddress(tx.signer, 6, 6)}
+                    </Link>
+                  ) : (
+                    <span className="text-muted-foreground">-</span>
+                  )}
                 </TableCell>
 
                 <TableCell className="w-40 px-0">
@@ -121,23 +116,27 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
                 </TableCell>
 
                 <TableCell className="text-sm text-muted-foreground">
-                  1 minute ago
+                  <span data-sample="relative-time">1 minute ago</span>
                 </TableCell>
 
                 <TableCell className="text-right">
-                  <span className="text-emerald-400 font-semibold text-sm">
-                    {tx.amount?.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}{" "}
-                    CNPY
-                  </span>
+                  {tx.amount != null ? (
+                    <span className="text-emerald-400 font-semibold text-sm">
+                      {tx.amount.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}{" "}
+                      CNPY
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">-</span>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-        <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+        <div className="flex items-center justify-between lg:mt-4 mt-0 lg:pt-4 pt-3 border-t border-border">
           <Link href="/transactions">
             <Button
               variant="ghost"

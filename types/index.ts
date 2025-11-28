@@ -17,6 +17,12 @@ export * from "./templates";
 // Legacy Launchpad types (for backward compatibility)
 export * from "./launchpad";
 
+// Block-related types
+export * from "./blocks";
+
+// Address-related types
+export * from "./addresses";
+
 // Add other type modules here as they are created
 // export * from './user';
 // export * from './trading';

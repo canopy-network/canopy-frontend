@@ -45,7 +45,7 @@ export type PageType =
 
 // Route configuration for breadcrumbs
 const routeConfig: Record<string, { label: string; href?: string }> = {
-  chain: { label: "Launchpad", href: "/" },
+  chains: { label: "Launchpad", href: "/" },
   dashboard: { label: "Dashboard", href: "/dashboard" },
   explorer: { label: "Explorer", href: "/explorer" },
   graduation: { label: "Graduation", href: "/graduation" },
@@ -142,7 +142,6 @@ export function Header() {
   useEffect(() => {
     const segments = pathname.split("/").filter(Boolean);
 
-    console.log("segments", segments);
     if (segments.length === 0) {
       setBreadcrumbs(null);
       return;
@@ -223,6 +222,38 @@ export function Header() {
       return;
     }
 
+    // Handle address pages: /address/{address} - show Explorer -> Account -> {address}
+    if (segments[0] === "address" && segments.length === 2) {
+      const address = decodeURIComponent(segments[1]);
+
+      breadcrumbArray.push({
+        label: "Explorer",
+        href: "/explorer",
+        isLast: false,
+      });
+
+      breadcrumbArray.push({
+        label: "Account",
+        isLast: false,
+      });
+
+      // Format address: show first 6 and last 5 characters
+      const formattedAddress =
+        address.length > 11
+          ? `${address.substring(0, 6)}...${address.substring(
+              address.length - 5
+            )}`
+          : address;
+
+      breadcrumbArray.push({
+        label: formattedAddress,
+        isLast: true,
+      });
+
+      setBreadcrumbs(breadcrumbArray);
+      return;
+    }
+
     // Handle /chains/{id}/transactions - show Explorer -> Transactions -> {chain name}
 
     // First segment (main section)
@@ -244,8 +275,7 @@ export function Header() {
       let href: string | undefined = undefined;
       let isLast = segments.length === 2;
 
-      if (mainSection === "chain" && currentChain) {
-        console.log("2 [currentChain]", currentChain);
+      if (mainSection === "chains" && currentChain) {
         // Use the chain name from the store if available
         label = currentChain.chain_name || segments[1];
 
@@ -287,12 +317,6 @@ export function Header() {
 
   // Calculate breadcrumbs when dependencies change
   useEffect(() => {
-    // Get chain name from current_explorer_selected_chain first, then from store, or use chainId as fallback
-
-    // Check if current_explorer_selected_chain matches this chain
-
-    console.log("breadcrumbs", breadcrumbs);
-
     if (
       current_explorer_selected_chain &&
       breadcrumbs &&
@@ -429,7 +453,7 @@ export function Header() {
       <header
         id="superapp-header"
         data-page-type={pageType}
-        className="flex items-center justify-between px-4 lg:px-6   relative h-16 bg-background"
+        className="flex items-center justify-between px-4 lg:px-6  sticky top-0 z-100  lg:relative h-16 bg-background"
       >
         {/* Mobile Header - visible only on mobile */}
         <div className="flex lg:hidden items-center justify-between w-full relative">

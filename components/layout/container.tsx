@@ -30,7 +30,10 @@ export function Container({
   const Tag = tag || "div";
 
   return (
-    <Tag id={id} className={cn("flex-1 lg:px-6 lg:py-4 px-4", size, className)}>
+    <Tag
+      id={id}
+      className={cn("flex-1 lg:px-6 lg:py-4 px-4 ", size, className)}
+    >
       {children}
     </Tag>
   );

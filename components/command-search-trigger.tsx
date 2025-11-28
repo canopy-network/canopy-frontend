@@ -10,22 +10,28 @@ interface CommandSearchTriggerProps {
   variant?: "explorer" | "sidebar";
   displayChainName?: string;
   explorerMode?: boolean;
-  onChainSelect?: (chain: { id: string; chain_name: string }) => void;
+  onChainSelect?: (chain: { id: number; chain_name: string }) => void;
   isCondensed?: boolean;
   className?: string;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  noRouterPush?: boolean;
+  chainSearchOnly?: boolean;
+  buttonSize?: "default" | "sm" | "lg";
 }
 
 export function CommandSearchTrigger({
   variant = "explorer",
-  displayChainName = "canopy",
+  displayChainName,
   explorerMode = false,
   onChainSelect,
   isCondensed = false,
   className,
   open,
   onOpenChange,
+  noRouterPush = false,
+  chainSearchOnly = false,
+  buttonSize = "default",
 }: CommandSearchTriggerProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const isControlled = open !== undefined;
@@ -40,6 +46,8 @@ export function CommandSearchTrigger({
 
   const handleTriggerClick = () => handleOpenChange(true);
 
+  const buttonSizeClass =
+    buttonSize === "sm" ? "h-9" : buttonSize === "lg" ? "h-10" : "h-9";
   const trigger =
     variant === "sidebar" ? (
       <button
@@ -77,9 +85,14 @@ export function CommandSearchTrigger({
         role="combobox"
         aria-expanded={isOpen}
         onClick={handleTriggerClick}
-        className="h-10 gap-2 text-green-500 border border-green-500 min-w-36 truncate px-8 mr-1 hover:text-green-400 hover:bg-green-500/10"
+        className={cn(
+          "gap-2 text-green-500 border border-green-500 w-28 lg:w-36 truncate lg:px-8 px-2 mr-1 hover:text-green-400 hover:bg-green-500/10",
+          buttonSizeClass,
+          className
+        )}
       >
         <ChevronsUpDown className="h-4 w-4" />
+
         <span className="text-sm capitalize truncate">{displayChainName}</span>
       </Button>
     );
@@ -92,6 +105,8 @@ export function CommandSearchTrigger({
         onOpenChange={handleOpenChange}
         explorerMode={explorerMode}
         onChainSelect={onChainSelect}
+        noRouterPush={noRouterPush}
+        chainSearchOnly={chainSearchOnly}
       />
     </>
   );
