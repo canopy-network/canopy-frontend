@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Search, Box, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { cn, WINDOW_BREAKPOINTS } from "@/lib/utils";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useChainsStore } from "@/lib/stores/chains-store";
 import { CommandSearchTrigger } from "@/components/command-search-trigger";
@@ -262,13 +262,17 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
   return (
     <div className={cn("relative pr-0", className)} ref={searchContainerRef}>
       <div id="search-input-container" className="relative">
-        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+        <Search className="absolute left-3 lg:left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 lg:w-5 lg:h-5 text-gray-400 pointer-events-none" />
         <Input
           type="text"
-          placeholder="Search by address, tx hash, block..."
+          placeholder={
+            window.innerWidth < WINDOW_BREAKPOINTS.LG
+              ? "Search by address, tx hash..."
+              : "Search by address, tx hash, block..."
+          }
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-12 pr-[140px] py-6 bg-[#1a1a1a] border-[#2a2a2a] text-white placeholder:text-gray-400 rounded-xl"
+          className="w-full pl-8 lg:pl-12 pr-[120px] text-xs lg:text-sm lg:pr-[140px] py-5 lg:py-6 bg-[#1a1a1a] border-[#2a2a2a] text-white placeholder:text-gray-400  rounded-xl"
         />
 
         {searchQuery && (

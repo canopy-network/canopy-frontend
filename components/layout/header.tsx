@@ -222,6 +222,38 @@ export function Header() {
       return;
     }
 
+    // Handle address pages: /address/{address} - show Explorer -> Account -> {address}
+    if (segments[0] === "address" && segments.length === 2) {
+      const address = decodeURIComponent(segments[1]);
+
+      breadcrumbArray.push({
+        label: "Explorer",
+        href: "/explorer",
+        isLast: false,
+      });
+
+      breadcrumbArray.push({
+        label: "Account",
+        isLast: false,
+      });
+
+      // Format address: show first 6 and last 5 characters
+      const formattedAddress =
+        address.length > 11
+          ? `${address.substring(0, 6)}...${address.substring(
+              address.length - 5
+            )}`
+          : address;
+
+      breadcrumbArray.push({
+        label: formattedAddress,
+        isLast: true,
+      });
+
+      setBreadcrumbs(breadcrumbArray);
+      return;
+    }
+
     // Handle /chains/{id}/transactions - show Explorer -> Transactions -> {chain name}
 
     // First segment (main section)

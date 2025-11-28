@@ -25,6 +25,8 @@ interface CopyableTextProps {
   prefix?: string;
   /** Suffix to show after the text */
   suffix?: string;
+  /** Whether the icon should use muted-foreground color (default: true) */
+  iconMuted?: boolean;
 }
 
 /**
@@ -36,9 +38,9 @@ export function CopyableText({
   truncate,
   className,
   textClassName = "text-sm text-muted-foreground",
-  buttonClassName,
   prefix,
   suffix,
+  iconMuted = true,
 }: CopyableTextProps) {
   const [copied, setCopied] = useState(false);
 
@@ -64,25 +66,23 @@ export function CopyableText({
       <TooltipProvider>
         <Tooltip open={copied}>
           <TooltipTrigger asChild>
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleCopy();
-              }}
-              className={cn(
-                "opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-muted/50 flex-shrink-0",
-                "focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-primary/50",
-                buttonClassName
-              )}
-              aria-label="Copy to clipboard"
-            >
-              {copied ? (
-                <Check className="w-3.5 h-3.5 text-green-500" />
-              ) : (
-                <Copy className="w-3.5 h-3.5 text-muted-foreground" />
-              )}
-            </button>
+            {copied ? (
+              <Check className="w-4 h-4 text-green-500" />
+            ) : (
+              <Copy
+                stroke="currentColor"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleCopy();
+                }}
+                aria-label="Copy to clipboard"
+                className={cn(
+                  "w-4 h-4 pointer-events-none",
+                  iconMuted ? "text-muted-foreground" : "text-white"
+                )}
+              />
+            )}
           </TooltipTrigger>
           <TooltipContent>
             <p>Copied to clipboard!</p>
