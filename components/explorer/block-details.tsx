@@ -20,20 +20,15 @@ import {
   getSampleTransactions,
   SampleTransaction,
 } from "@/lib/demo-data/sample-transactions";
+import { getExplorerBlock } from "@/lib/api/explorer";
+import type { Block as ApiBlock } from "@/types/blocks";
+import { CopyableText } from "../ui/copyable-text";
 
-// Block interface
-interface Block {
-  number: number;
-  hash: string;
-  parent_hash: string;
-  timestamp: number;
-  transactions: number;
-  reward: string;
-  block_producer: string;
-  fee_recipient: string;
-  gas_used: string;
-  gas_limit: string;
-}
+// Extended block type to include all API response fields
+type ExtendedApiBlock = ApiBlock & {
+  total_txs?: number;
+  total_events?: number;
+};
 
 // Transaction interface
 interface Transaction {
@@ -122,35 +117,6 @@ const formatCombinedTimestamp = (timestamp: number): string => {
   return `${timeAgo} (${fullDate})`;
 };
 
-// Generate sample block data
-const generateSampleBlock = (blockNumber: number): Block => {
-  const now = Date.now();
-  return {
-    number: blockNumber,
-    hash: `0x${Array(64)
-      .fill(0)
-      .map(() => Math.floor(Math.random() * 16).toString(16))
-      .join("")}`,
-    parent_hash: `0x${Array(64)
-      .fill(0)
-      .map(() => Math.floor(Math.random() * 16).toString(16))
-      .join("")}`,
-    timestamp: now - Math.floor(Math.random() * 3600000), // Random time in last hour
-    transactions: Math.floor(Math.random() * 500) + 100,
-    reward: (Math.random() * 200 + 50).toFixed(2),
-    block_producer: `val-${String(Math.floor(Math.random() * 100)).padStart(
-      2,
-      "0"
-    )}`,
-    fee_recipient: `0x${Array(64)
-      .fill(0)
-      .map(() => Math.floor(Math.random() * 16).toString(16))
-      .join("")}`,
-    gas_used: (Math.random() * 50000 + 10000).toFixed(3),
-    gas_limit: "200,000,000",
-  };
-};
-
 // Generate sample transactions from actual sample data
 const generateSampleTransactions = (count: number): Transaction[] => {
   const sampleTransactions = getSampleTransactions();
@@ -171,11 +137,12 @@ interface BlockDetailsProps {
 }
 
 export function BlockDetails({ blockId }: BlockDetailsProps) {
-  const [block, setBlock] = React.useState<Block | null>(null);
+  const [block, setBlock] = React.useState<ExtendedApiBlock | null>(null);
   const [transactions, setTransactions] = React.useState<Transaction[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [parentHash, setParentHash] = React.useState<string>("");
 
   // Copy to clipboard
   const copyToClipboard = async (text: string) => {
@@ -193,21 +160,28 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
         setLoading(true);
         setError(null);
 
-        // TODO: Replace with actual API call when backend is ready
-        // Example: const response = await getBlockById(blockId);
-
-        // Simulate API delay
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
-        // Use sample data for visualization
         const blockNumber = parseInt(blockId, 10);
-        const sampleBlock = generateSampleBlock(blockNumber);
-        setBlock(sampleBlock);
+        if (isNaN(blockNumber)) {
+          setError("Invalid block ID");
+          setLoading(false);
+          return;
+        }
 
-        // Generate transactions for this block
-        const sampleTransactions = generateSampleTransactions(
-          sampleBlock.transactions
-        );
+        // Fetch block from API
+        const apiBlock = await getExplorerBlock(blockNumber);
+        setBlock(apiBlock as ExtendedApiBlock);
+
+        // Generate placeholder parent hash (not available in API)
+        const generatedParentHash = `0x${Array(64)
+          .fill(0)
+          .map(() => Math.floor(Math.random() * 16).toString(16))
+          .join("")}`;
+        setParentHash(generatedParentHash);
+
+        // Keep sample transactions as requested
+        const totalTxs =
+          (apiBlock as ExtendedApiBlock).total_txs ?? apiBlock.num_txs ?? 0;
+        const sampleTransactions = generateSampleTransactions(totalTxs || 10);
         setTransactions(sampleTransactions);
       } catch (err) {
         console.error("Failed to fetch block:", err);
@@ -250,7 +224,7 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
     <>
       {/* Header with Title and Search */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <h1 className="text-2xl font-bold">Block #{block.number}</h1>
+        <h1 className="text-2xl font-bold">Block #{block.height}</h1>
         <div className="w-full flex-1 max-w-[532px]">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -271,28 +245,22 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
           <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
             <p className="text-sm text-muted-foreground">Timestamp:</p>
             <p className="text-sm font-medium">
-              {formatCombinedTimestamp(block.timestamp)}
+              {formatCombinedTimestamp(new Date(block.timestamp).getTime())}
             </p>
           </div>
           <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
             <p className="text-sm text-muted-foreground">Proposed by:</p>
             <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-3">
-              <span className="text-sm text-muted-foreground">
-                Block proposed by
+              <span className="text-sm break-all bg-input/30 px-2 py-2 rounded-md border border-input">
+                <CopyableText text={block.proposer_address} showFull={true} />
               </span>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 w-fit lg:min-w-[120px]"
-              >
-                {block.block_producer}
-              </Button>
             </div>
           </div>
           <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
             <p className="text-sm text-muted-foreground">Transaction count:</p>
             <p className="text-lg font-semibold">
-              {block.transactions} transactions
+              {(block as ExtendedApiBlock).total_txs ?? block.num_txs ?? 0}{" "}
+              transactions
             </p>
           </div>
         </div>
@@ -303,22 +271,16 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
         <div className="divide-y divide-border">
           <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
             <p className="text-sm text-muted-foreground">Fee recipient:</p>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className=" text-sm break-all">{block.fee_recipient}</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0"
-                onClick={() => copyToClipboard(block.fee_recipient)}
-              >
-                <Copy className="w-4 h-4" />
-              </Button>
+            <div className="flex items-center gap-2 flex-wrap  text-sm break-all">
+              <span className="text-sm break-all bg-input/30 px-2 py-2 rounded-md border border-input">
+                <CopyableText text={block.proposer_address} showFull={true} />
+              </span>
             </div>
           </div>
           <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
             <p className="text-sm text-muted-foreground">Block Reward:</p>
             <p className="text-lg font-semibold text-green-500">
-              {block.reward} CNPY
+              {((block.total_fees || 0) / 100).toFixed(2)} CNPY -[sample]
             </p>
           </div>
         </div>
@@ -329,13 +291,11 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
         <div className="divide-y divide-border">
           <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
             <p className="text-sm text-muted-foreground">Gas used:</p>
-            <p className="text-sm font-medium">
-              {parseFloat(block.gas_used).toLocaleString()}
-            </p>
+            <p className="text-sm font-medium">0 -[sample]</p>
           </div>
           <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
             <p className="text-sm text-muted-foreground">Gas Limit:</p>
-            <p className="text-sm font-medium">{block.gas_limit}</p>
+            <p className="text-sm font-medium">200,000,000 -[sample]</p>
           </div>
           <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
             <p className="text-sm text-muted-foreground">Hash:</p>
@@ -355,13 +315,13 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
             <p className="text-sm text-muted-foreground">Parent Hash:</p>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-mono text-sm break-all">
-                {block.parent_hash}
+                {parentHash} -[sample]
               </span>
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-6 w-6 p-0"
-                onClick={() => copyToClipboard(block.parent_hash)}
+                onClick={() => copyToClipboard(parentHash)}
               >
                 <Copy className="w-4 h-4" />
               </Button>
@@ -373,7 +333,8 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
       {/* Transactions Table */}
       <Card className="w-full gap-4">
         <h4 className="text-lg">
-          <b>{block.transactions}</b> Txns found
+          <b>{(block as ExtendedApiBlock).total_txs ?? block.num_txs ?? 0}</b>{" "}
+          Txns found
         </h4>
 
         <Table>
@@ -480,7 +441,7 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
           </Link>
 
           <p className="text-xs text-muted-foreground">
-            Updated {formatTimeAgo(block.timestamp)}
+            Updated {formatTimeAgo(new Date(block.timestamp).getTime())}
           </p>
         </div>
       </Card>

@@ -40,28 +40,93 @@ const TABLE_ARN =
   "arn:aws:dynamodb:us-east-1:027924002187:table/canopy-network-chains-list";
 const TABLE_NAME = getTableNameFromArn(TABLE_ARN);
 
-const API_URL = "http://app.neochiba.net:3001/api/v1/chains";
+const API_URL =
+  "http://app.neochiba.net:3001/api/v1/chains?include=assets&limit=10";
 
 interface ChainData {
   id: number;
   chain_name: string;
   token_name: string | null;
   token_symbol: string;
+  branding: string | null;
 }
 
 interface ChainItem {
+  id: number;
   ticker: string; // token_symbol
   chain_name: string;
   token_name: string; // Use chain_name as fallback if empty
   updated_at: string;
+  branding: string | null;
 }
 
 async function fetchAllChains(): Promise<ChainData[]> {
   console.log("Fetching chains from API...");
-  const response = await axios.get(API_URL);
-  const chains = response.data.data || [];
-  console.log(`Fetched ${chains.length} chains from API`);
-  return chains;
+
+  try {
+    const response = await axios.get(API_URL);
+
+    const pagination = response.data.pagination;
+
+    const chains = response.data.data || [];
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const payload = chains.map((chain: any) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const branding = chain.assets?.find((asset: any) =>
+        ["logo", "branding"].includes(asset.asset_type)
+      )?.file_url;
+
+      return {
+        branding,
+        id: chain.id,
+        chain_name: chain.chain_name,
+        token_name: chain.token_name,
+        token_symbol: chain.token_symbol,
+        updated_at: chain.updated_at,
+      };
+    });
+
+    console.log(
+      `Fetched ${payload.length} chains from page 1 of ${pagination.pages}`
+    );
+
+    let allChains: ChainData[] = payload;
+    for (let i = 1; i < pagination.pages; i++) {
+      console.log(`Fetching page ${i + 1} of ${pagination.pages}`);
+      const response = await axios.get(`${API_URL}&page=${i + 1}`);
+      const chains = response.data.data;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const payload = chains.map((chain: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const branding = chain.assets?.find((asset: any) =>
+          ["logo", "branding"].includes(asset.asset_type)
+        )?.file_url;
+        return {
+          branding,
+          id: chain.id,
+          chain_name: chain.chain_name,
+          token_name: chain.token_name,
+          token_symbol: chain.token_symbol,
+          updated_at: chain.updated_at,
+        };
+      });
+
+      console.log(
+        `Fetched ${payload.length} chains from page ${i + 1} of ${
+          pagination.pages
+        }`
+      );
+
+      allChains = [...allChains, ...payload];
+    }
+
+    console.log(`Fetched ${allChains.length} chains from API`);
+    return allChains;
+  } catch (error: unknown) {
+    console.error("Error fetching chains from API:", error);
+    throw error;
+  }
 }
 
 async function storeChainInDynamoDB(chain: ChainData): Promise<void> {
@@ -69,10 +134,12 @@ async function storeChainInDynamoDB(chain: ChainData): Promise<void> {
   const tokenName = chain.token_name?.trim() || chain.chain_name;
 
   const item: ChainItem = {
+    id: chain.id,
     ticker: chain.token_symbol,
     chain_name: chain.chain_name,
     token_name: tokenName,
     updated_at: new Date().toISOString(),
+    branding: chain.branding,
   };
 
   const command = new PutItemCommand({

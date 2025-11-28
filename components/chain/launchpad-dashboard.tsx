@@ -609,7 +609,7 @@ export function LaunchpadDashboard() {
     return <HomePageSkeleton />;
   }
   return (
-    <div className="min-h-screen text-white">
+    <div className="min-h-screen text-white overflow-x-hidden">
       {/* Error Display */}
       {error && (
         <div className="container mx-auto px-4 py-4">
