@@ -27,7 +27,7 @@ import type { Chain } from "@/types/chains";
 import type { LocalWallet } from "@/types/wallet";
 import { toast } from "sonner";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-import { fromMicroUnits } from "@/lib/utils/denomination";
+import { formatBalanceWithCommas, fromMicroUnits, withCommas } from "@/lib/utils/denomination";
 
 interface StakeDialogProps {
     open: boolean;
@@ -435,7 +435,7 @@ export function StakeDialog({
 
     const handleMaxClick = () => {
         if (chainData) {
-            setAmount(availableBalance.toString());
+            setAmount(formatBalanceWithCommas(availableBalance));
         }
     };
 
@@ -728,7 +728,7 @@ export function StakeDialog({
                                                                             <span className="text-xs text-muted-foreground">
                                                                                 {getChainSymbol(chainData.chain)}
                                                                                 {chainData.balance > 0 && (
-                                                                                    <> • Balance: {chainData.balance.toFixed(2)}</>
+                                                                                    <> • Balance: {withCommas(chainData.balance)}</>
                                                                                 )}
                                                                             </span>
                                                                         </div>
@@ -792,7 +792,7 @@ export function StakeDialog({
                                             </div>
                                             <div className="text-right shrink-0">
                                                 <span className="font-semibold text-sm">
-                                                    {availableBalance.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                                    {formatBalanceWithCommas(availableBalance)}
                                                 </span>
                                                 <span className="text-xs text-muted-foreground block">
                                                     {getChainSymbol(activeChain)}
@@ -842,7 +842,7 @@ export function StakeDialog({
                                                 </span>
                                             </div>
                                             <p className="text-sm text-muted-foreground">
-                                                approx. ${amountUSD.toFixed(2)} USD
+                                                approx. ${withCommas(amountUSD)} USD
                                             </p>
                                         </div>
 
@@ -894,12 +894,12 @@ export function StakeDialog({
                                             <div className="text-center py-2">
                                                 <p className="text-2xl font-bold">
                                                     {amountNum > 0
-                                                        ? projectedYearlyInterest.toFixed(4)
+                                                        ? withCommas(projectedYearlyInterest, 4)
                                                         : "−"}
                                                 </p>
                                                 <p className="text-sm text-muted-foreground">
                                                     approx. $
-                                                    {projectedYearlyInterestUSD.toFixed(2)} USD
+                                                    {withCommas(projectedYearlyInterestUSD)} USD
                                                 </p>
                                             </div>
                                         </div>

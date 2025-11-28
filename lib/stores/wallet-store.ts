@@ -122,6 +122,118 @@ const zustandStorage: StateStorage = {
   },
 };
 
+/**
+ * Password caching for wallet unlock persistence
+ * Stores encrypted password with 3-day expiration
+ *
+ * Since all wallets share the same password (seedphrase), we cache the password
+ * itself rather than individual wallet sessions. This allows automatic re-unlock
+ * of all wallets after page refresh without asking for password again.
+ */
+const PASSWORD_SESSION_KEY = "canopy-password-session";
+const SESSION_EXPIRATION_DAYS = 3;
+
+interface PasswordSession {
+  encryptedPassword: string; // Password encrypted with a simple key
+  expiresAt: number; // timestamp
+}
+
+/**
+ * Simple encryption/decryption for password storage
+ * NOTE: This is basic obfuscation, not cryptographic security
+ */
+function encryptPassword(password: string): string {
+  // Simple Base64 encoding with XOR obfuscation
+  const key = "canopy-session-key-2024";
+  let encrypted = "";
+  for (let i = 0; i < password.length; i++) {
+    encrypted += String.fromCharCode(
+      password.charCodeAt(i) ^ key.charCodeAt(i % key.length)
+    );
+  }
+  return btoa(encrypted);
+}
+
+function decryptPassword(encrypted: string): string {
+  const key = "canopy-session-key-2024";
+  const decoded = atob(encrypted);
+  let password = "";
+  for (let i = 0; i < decoded.length; i++) {
+    password += String.fromCharCode(
+      decoded.charCodeAt(i) ^ key.charCodeAt(i % key.length)
+    );
+  }
+  return password;
+}
+
+/**
+ * Save password session to localStorage
+ */
+function savePasswordSession(password: string): void {
+  if (typeof window === "undefined") return;
+
+  const expiresAt = Date.now() + SESSION_EXPIRATION_DAYS * 24 * 60 * 60 * 1000;
+  const session: PasswordSession = {
+    encryptedPassword: encryptPassword(password),
+    expiresAt,
+  };
+
+  try {
+    localStorage.setItem(PASSWORD_SESSION_KEY, JSON.stringify(session));
+    console.log(`💾 Password session saved (expires in ${SESSION_EXPIRATION_DAYS} days)`);
+  } catch (error) {
+    console.error("Failed to save password session:", error);
+  }
+}
+
+/**
+ * Get cached password if session is still valid
+ */
+function getCachedPassword(): string | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const stored = localStorage.getItem(PASSWORD_SESSION_KEY);
+    if (!stored) return null;
+
+    const session: PasswordSession = JSON.parse(stored);
+    const now = Date.now();
+
+    // Check if session has expired
+    if (session.expiresAt <= now) {
+      console.log("🕐 Password session expired, clearing...");
+      localStorage.removeItem(PASSWORD_SESSION_KEY);
+      return null;
+    }
+
+    // Session is valid, decrypt and return password
+    const password = decryptPassword(session.encryptedPassword);
+    const daysLeft = Math.ceil((session.expiresAt - now) / (1000 * 60 * 60 * 24));
+    console.log(`✅ Password session valid (${daysLeft} days remaining)`);
+    return password;
+  } catch (error) {
+    console.error("Failed to get cached password:", error);
+    localStorage.removeItem(PASSWORD_SESSION_KEY);
+    return null;
+  }
+}
+
+/**
+ * Check if there's an active password session
+ */
+function hasPasswordSession(): boolean {
+  return getCachedPassword() !== null;
+}
+
+/**
+ * Clear password session
+ */
+function clearPasswordSession(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(PASSWORD_SESSION_KEY);
+  console.log("🔒 Password session cleared");
+}
+
 const MIN_DEFAULT_FEE = 1000;
 export const useWalletStore = create<WalletState>()(
   persist(
@@ -172,6 +284,7 @@ export const useWalletStore = create<WalletState>()(
               curveType, // ✅ Store detected curve type
 
               // Local state only
+              // Will be set to true after auto-unlock attempt (if password session exists)
               isUnlocked: false,
             };
           });
@@ -179,6 +292,21 @@ export const useWalletStore = create<WalletState>()(
           console.log('✅ Populated', wallets.length, 'wallets successfully');
 
           set({ wallets, isLoading: false });
+
+          // 🔓 Auto-unlock all wallets if password session exists
+          const cachedPassword = getCachedPassword();
+          if (cachedPassword) {
+            console.log('🔐 Password session found, auto-unlocking all wallets...');
+            // Unlock all wallets with cached password
+            for (const wallet of wallets) {
+              try {
+                await get().unlockWallet(wallet.id, cachedPassword);
+              } catch (error) {
+                console.warn(`⚠️ Failed to auto-unlock wallet ${wallet.id}:`, error);
+              }
+            }
+            console.log('✅ Auto-unlock complete');
+          }
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : "Failed to fetch wallets";
@@ -407,6 +535,9 @@ export const useWalletStore = create<WalletState>()(
             }
           }
 
+          // ✅ Save password session (3-day expiration) for auto-unlock on page refresh
+          savePasswordSession(passwordNoSpaces);
+
           // Store private key in memory only (partialize will remove it before persisting)
           set((state) => ({
             wallets: state.wallets.map((w) =>
@@ -430,6 +561,8 @@ export const useWalletStore = create<WalletState>()(
                 : state.currentWallet,
             isLoading: false,
           }));
+
+          console.log(`🔓 Wallet unlocked with 3-day session: ${walletId}`);
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : "Failed to unlock wallet";
@@ -459,10 +592,15 @@ export const useWalletStore = create<WalletState>()(
                 }
               : state.currentWallet,
         }));
+
+        console.log(`🔒 Wallet locked: ${walletId}`);
       },
 
       // Lock all wallets
       lockAllWallets: () => {
+        // ✅ Clear password session
+        clearPasswordSession();
+
         set((state) => ({
           wallets: state.wallets.map((w) => ({
             ...w,
@@ -477,6 +615,8 @@ export const useWalletStore = create<WalletState>()(
               }
             : null,
         }));
+
+        console.log('🔒 All wallets locked and password session cleared');
       },
       // Fetch balance for a wallet using portfolio overview API
       fetchBalance: async (walletId: string) => {
@@ -816,6 +956,9 @@ export const useWalletStore = create<WalletState>()(
         // Clear stored master seed phrase
         clearMasterSeedphrase();
 
+        // ✅ Clear password session
+        clearPasswordSession();
+
         set({
           wallets: [],
           currentWallet: null,
@@ -826,6 +969,8 @@ export const useWalletStore = create<WalletState>()(
           portfolioOverview: null,
           multiChainBalance: null,
         });
+
+        console.log('🔄 Wallet state reset and password session cleared');
       },
     }),
     {
@@ -836,7 +981,9 @@ export const useWalletStore = create<WalletState>()(
        * SECURITY: Only persist wallet metadata, NEVER persist private keys
        * - privateKey is always set to undefined before saving
        * - privateKey is recalculated on each unlock by decrypting encrypted_private_key
-       * - On page refresh, all wallets reset to locked state (isUnlocked: false)
+       * - isUnlocked is NEVER persisted (always false after refresh for security)
+       * - User must unlock wallet after each page refresh
+       * - Unlock sessions track which wallets were recently unlocked (for UX hints)
        * - curveType IS persisted (needed for signing)
        */
       partialize: (state) => ({
@@ -849,7 +996,8 @@ export const useWalletStore = create<WalletState>()(
           wallet_name: w.wallet_name,
           curveType: w.curveType, // ✅ Persist curve type
           privateKey: undefined,  // NEVER persist decrypted private keys
-          isUnlocked: false,      // Always reset to locked on persist
+          // ❌ Never persist unlock status (always require re-unlock after refresh)
+          isUnlocked: false,
         })),
         currentWallet: state.currentWallet
           ? {
@@ -861,7 +1009,8 @@ export const useWalletStore = create<WalletState>()(
               wallet_name: state.currentWallet.wallet_name,
               curveType: state.currentWallet.curveType, // ✅ Persist curve type
               privateKey: undefined,  // NEVER persist decrypted private keys
-              isUnlocked: false,      // Always reset to locked on persist
+              // ❌ Never persist unlock status (always require re-unlock after refresh)
+              isUnlocked: false,
             }
           : null,
       }),

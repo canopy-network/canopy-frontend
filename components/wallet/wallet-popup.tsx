@@ -13,6 +13,7 @@ import { useWalletStore } from "@/lib/stores/wallet-store";
 import { SendTransactionDialog } from "./send-transaction-dialog";
 import { ReceiveDialog } from "./receive-dialog";
 import { StakeDialog } from "./stake-dialog";
+import { SwitchWalletDialog } from "./switch-wallet-dialog";
 import {
   Copy,
   LogOut,
@@ -24,6 +25,7 @@ import {
   ChevronRight,
   Wallet,
   Activity,
+  ChevronDown,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -33,12 +35,13 @@ import {
 
 export function WalletPopup() {
   const router = useRouter();
-  const { isPopupOpen, closePopup, currentWallet, disconnectWallet } = useWallet();
+  const { isPopupOpen, closePopup, currentWallet, disconnectWallet, switchWallet, wallets, setShowCreateDialog } = useWallet();
   const { balance, transactions, fetchBalance, fetchTransactions } = useWalletStore();
   const [activeTab, setActiveTab] = useState("balances");
   const [showSendDialog, setShowSendDialog] = useState(false);
   const [showReceiveDialog, setShowReceiveDialog] = useState(false);
   const [showStakeDialog, setShowStakeDialog] = useState(false);
+  const [showSwitchWalletDialog, setShowSwitchWalletDialog] = useState(false);
 
   // Fetch balance and transactions when wallet is connected
   useEffect(() => {
@@ -99,21 +102,34 @@ export function WalletPopup() {
                   <div className="w-12 h-12 rounded-full bg-[#1dd13a] flex items-center justify-center flex-shrink-0">
                     <span className="text-lg font-bold text-white">C</span>
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <div className="text-base font-semibold text-foreground">
+                      <div className="text-base font-semibold text-foreground truncate">
                         {formatAddress(currentWallet.address)}
                       </div>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 hover:bg-muted"
+                        className="h-6 w-6 hover:bg-muted flex-shrink-0"
                         onClick={copyAddress}
                       >
                         <Copy className="w-3 h-3" />
                       </Button>
                     </div>
-                    <div className="text-sm text-[#1dd13a]">Connected</div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-sm text-[#1dd13a]">Connected</div>
+                      {wallets.length > 1 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-5 px-2 text-xs hover:bg-muted"
+                          onClick={() => setShowSwitchWalletDialog(true)}
+                        >
+                          Switch
+                          <ChevronDown className="w-3 h-3 ml-1" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -375,6 +391,16 @@ export function WalletPopup() {
       <StakeDialog
         open={showStakeDialog}
         onOpenChange={setShowStakeDialog}
+      />
+
+      {/* Switch Wallet Dialog */}
+      <SwitchWalletDialog
+        open={showSwitchWalletDialog}
+        onOpenChange={setShowSwitchWalletDialog}
+        wallets={wallets}
+        currentWallet={currentWallet}
+        onSelectWallet={switchWallet}
+        onCreateNew={() => setShowCreateDialog(true)}
       />
     </>
   );

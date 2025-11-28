@@ -205,15 +205,27 @@ export function SendTransactionDialog({
       return;
     }
 
+    // Check if fee is available
+    if (!estimatedFee) {
+      setError("Transaction fee not estimated. Please try again.");
+      return;
+    }
+
     setStep(4);
     setIsSending(true);
     setError(null);
 
     try {
+      const feeNumber = parseFloat(estimatedFee);
+
+      if (isNaN(feeNumber)) {
+        throw new Error("Invalid fee amount");
+      }
+
       const request: SendTransactionRequest = {
         from_address: currentWallet.address,
         to_address: toAddress,
-        fee: Number(estimatedFee),
+        fee: feeNumber,
         amount: amount,
         network_id: 1, // Default network ID (mainnet)
         chain_id: selectedAsset.chainId,
@@ -221,13 +233,17 @@ export function SendTransactionDialog({
         memo: memo || undefined,
       };
 
+      console.log("📤 Sending transaction request:", request);
+
       const hash = await sendTransaction(request);
       setTxHash(hash);
       setIsSending(false);
       toast.success("Transaction sent successfully!");
     } catch (err) {
       setIsSending(false);
-      setError(err instanceof Error ? err.message : "Transaction failed");
+      const errorMessage = err instanceof Error ? err.message : "Transaction failed";
+      console.error("❌ Transaction failed:", errorMessage, err);
+      setError(errorMessage);
     }
   };
 

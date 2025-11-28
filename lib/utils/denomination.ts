@@ -200,28 +200,66 @@ export function convertStandardAmountsToMicro<T extends Record<string, any>>(dat
 
 
 /**
+ * Format a number with thousand separators (commas)
+ * Use this for numbers that are already in standard units (not micro)
+ *
+ * @param value - Number to format (already in standard units)
+ * @param decimals - Number of decimal places (default: 2)
+ * @returns Formatted number string with thousand separators
+ *
+ * @example
+ * withCommas(1000) // Returns "1,000.00"
+ * withCommas("1234567.89") // Returns "1,234,567.89"
+ * withCommas(42, 0) // Returns "42"
+ * withCommas(0.123456, 6) // Returns "0.123456"
+ */
+export function withCommas(value: string | number, decimals: number = 2): string {
+  if (value === null || value === undefined || value === "") return "0.00";
+
+  const num = typeof value === "string" ? parseFloat(value) : value;
+
+  if (isNaN(num)) return "0.00";
+
+  return num.toLocaleString(undefined, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+}
+
+/**
  * Formats a balance from micro units to human-readable format with thousand separators
  *
  * Converts micro denomination to standard units and applies locale-specific formatting
  * with commas (or locale-appropriate separators) for better readability.
  *
- * @param amount - Balance in micro units (from backend/blockchain)
+ * @param amount - Balance in micro units (from backend/blockchain) or standard units if isStandard=true
+ * @param decimals - Number of decimal places (default: 2)
+ * @param isStandard - If true, amount is already in standard units (default: false)
  * @returns Formatted balance with thousand separators (e.g., "1,000,000.50")
  *
  * @example
- * formatBalanceWithCommas(1500000) // Returns "1.5"
- * formatBalanceWithCommas("10000000") // Returns "10"
- * formatBalanceWithCommas(1234567890) // Returns "1,234.56789"
+ * formatBalanceWithCommas(1500000) // Returns "1.50" (from micro)
+ * formatBalanceWithCommas("10000000") // Returns "10.00" (from micro)
+ * formatBalanceWithCommas(1234567890) // Returns "1,234.57" (from micro)
+ * formatBalanceWithCommas("1234.56", 2, true) // Returns "1,234.56" (already standard)
  */
-export function formatBalanceWithCommas(amount?: string | number): string {
-  if(!amount) return "0.00"
+export function formatBalanceWithCommas(
+  amount?: string | number,
+  decimals: number = 2,
+  isStandard: boolean = false
+): string {
+  if (!amount) return "0.00";
 
-  if(isNaN(Number(amount))) return "0.00"
+  if (isNaN(Number(amount))) return "0.00";
 
-  return Number(fromMicroUnits(amount)).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
+  // If already in standard units, just format with commas
+  if (isStandard) {
+    return withCommas(amount, decimals);
+  }
+
+  // Convert from micro units first, then format
+  const standardAmount = fromMicroUnits(amount, decimals);
+  return withCommas(standardAmount, decimals);
 }
 // Legacy exports for backward compatibility
 /**

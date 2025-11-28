@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { portfolioApi, chainsApi, governanceApi } from "@/lib/api";
-import { formatTokenAmount } from "@/lib/utils/denomination";
+import { formatTokenAmount, withCommas } from "@/lib/utils/denomination";
 import { generateChainColor } from "@/lib/utils/chain-ui-helpers";
 import type { TokenBalance } from "@/types/wallet";
 import type { Chain } from "@/types/chains";
@@ -347,7 +347,7 @@ export function GovernanceTab({ tokens }: GovernanceTabProps) {
                         <div className="space-y-1">
                             <p className="text-lg font-bold">Total Voting Power</p>
                             <div className="flex items-baseline gap-2">
-                                <p className="text-3xl font-bold">${totalVotingPower.toLocaleString()}</p>
+                                <p className="text-3xl font-bold">${withCommas(totalVotingPower, 0)}</p>
                                 <span className="text-sm text-muted-foreground">USD</span>
                             </div>
                         </div>
@@ -363,10 +363,7 @@ export function GovernanceTab({ tokens }: GovernanceTabProps) {
                                                         style={{ backgroundColor: item.chainColor }}
                                                     />
                                                     <span className="text-muted-foreground">
-                                                        ${item.balance.toLocaleString(undefined, {
-                                                            minimumFractionDigits: 2,
-                                                            maximumFractionDigits: 2,
-                                                        })}
+                                                        ${withCommas(item.balance)}
                                                     </span>
                                                 </div>
                                             </TooltipTrigger>
@@ -396,10 +393,7 @@ export function GovernanceTab({ tokens }: GovernanceTabProps) {
                                                             <span className="font-medium">{item.chainName}</span>
                                                         </div>
                                                         <span className="text-muted-foreground">
-                                                            ${item.balance.toLocaleString(undefined, {
-                                                                minimumFractionDigits: 2,
-                                                                maximumFractionDigits: 2,
-                                                            })}
+                                                            ${withCommas(item.balance)}
                                                         </span>
                                                     </div>
                                                 ))}
@@ -616,13 +610,13 @@ export function GovernanceTab({ tokens }: GovernanceTabProps) {
                                                     <span className="font-medium">For</span>
                                                     <span>
                                                         ({proposal.votesFor}%) ·{" "}
-                                                        {((proposal.totalVotes * proposal.votesFor) / 100).toLocaleString()}{" "}
+                                                        {withCommas((proposal.totalVotes * proposal.votesFor) / 100, 0)}{" "}
                                                         {tokenSymbol}
                                                     </span>
                                                 </div>
                                                 <div className="flex items-center gap-1 text-muted-foreground">
                                                     <span>
-                                                        {((proposal.totalVotes * proposal.votesAgainst) / 100).toLocaleString()}{" "}
+                                                        {withCommas((proposal.totalVotes * proposal.votesAgainst) / 100, 0)}{" "}
                                                         {tokenSymbol} · ({proposal.votesAgainst}%)
                                                     </span>
                                                     <span className="font-medium">Against</span>

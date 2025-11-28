@@ -22,7 +22,7 @@ import {
 import { Info, TrendingUp, Clock, CheckCircle2 } from "lucide-react";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { portfolioApi, chainsApi } from "@/lib/api";
-import { formatTokenAmount } from "@/lib/utils/denomination";
+import { formatTokenAmount, withCommas } from "@/lib/utils/denomination";
 import type { TokenBalance } from "@/types/wallet";
 import type { Chain } from "@/types/chains";
 import { toast } from "sonner";
@@ -115,9 +115,9 @@ export function StakingTab({ tokens }: StakingTabProps) {
                         chainName: chain?.chain_name || account.chain_name || `Chain ${account.chain_id}`,
                         symbol: chain?.token_symbol || generateChainSymbol(account.chain_id),
                         annualYield,
-                        earnedBalance: earnedBalance.toFixed(2),
-                        earnedBalanceUSD: earnedBalanceUSD.toFixed(2),
-                        stakedBalance: totalStaked.toFixed(2),
+                        earnedBalance: withCommas(earnedBalance),
+                        earnedBalanceUSD: withCommas(earnedBalanceUSD),
+                        stakedBalance: withCommas(totalStaked),
                         hasEarnings: earnedBalance > 0,
                     };
                 });
@@ -200,7 +200,7 @@ export function StakingTab({ tokens }: StakingTabProps) {
                                     Total interest earned to date
                                 </p>
                             </div>
-                            <p className="text-2xl sm:text-3xl font-bold break-all">${totalInterestEarned.toFixed(2)} <span className="text-xs sm:text-sm text-muted-foreground font-normal">USD</span></p>
+                            <p className="text-2xl sm:text-3xl font-bold break-all">${withCommas(totalInterestEarned)} <span className="text-xs sm:text-sm text-muted-foreground font-normal">USD</span></p>
                             <div className="flex items-start sm:items-end gap-2 mt-2 sm:mt-3">
                                 <p className="text-xs sm:text-sm text-muted-foreground">
                                     Earn up to 8.05% APY on your crypto. Redeem any time.
@@ -293,7 +293,7 @@ export function StakingTab({ tokens }: StakingTabProps) {
                                                             </div>
                                                         </TableCell>
                                                         <TableCell className="text-right">
-                                                            <span className="font-medium">{chain.annualYield.toFixed(1)}%</span>
+                                                            <span className="font-medium">{withCommas(chain.annualYield, 1)}%</span>
                                                         </TableCell>
                                                         <TableCell className="text-right">
                                                             {chain.hasEarnings ? (
@@ -357,7 +357,7 @@ export function StakingTab({ tokens }: StakingTabProps) {
                                                                 </div>
                                                             </div>
                                                             <div className="text-right shrink-0">
-                                                                <span className="font-medium text-sm">{chain.annualYield.toFixed(1)}%</span>
+                                                                <span className="font-medium text-sm">{withCommas(chain.annualYield, 1)}%</span>
                                                             </div>
                                                         </div>
                                                         <div className="flex items-center justify-between pt-2 border-t">
@@ -451,7 +451,7 @@ export function StakingTab({ tokens }: StakingTabProps) {
                                                         </div>
                                                         <div className="text-left sm:text-right shrink-0">
                                                             <p className="font-medium text-primary text-sm sm:text-base">
-                                                                {chain.annualYield.toFixed(1)}% APY
+                                                                {withCommas(chain.annualYield, 1)}% APY
                                                             </p>
                                                             <p className="text-xs sm:text-sm text-muted-foreground">
                                                                 {formatTokenAmount(chain.earnedBalance)} {chain.symbol} earned
