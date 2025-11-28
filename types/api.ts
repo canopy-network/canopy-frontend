@@ -120,3 +120,26 @@ export interface HealthResponse {
   timestamp: string;
   version: string;
 }
+
+// Re-export AddressResponse from addresses module for convenience
+import type { AddressResponse } from "./addresses";
+export type { AddressResponse };
+
+/**
+ * Address information for UI components
+ */
+export interface AddressInfo {
+  address: string;
+  createdAt: Date;
+  portfolioValue: number;
+  change24h: {
+    absolute: number;
+    percentage: number;
+  };
+  staked: {
+    value: number;
+    free: number;
+  };
+  apiData?: AddressResponse; // Full API response for components that need it
+  cnpyTotal: number;
+}

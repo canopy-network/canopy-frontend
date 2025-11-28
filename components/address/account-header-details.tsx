@@ -5,20 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Copy, Share2, Heart } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { CopyableText } from "../ui/copyable-text";
-
-interface AddressInfo {
-  address: string;
-  createdAt: Date;
-  portfolioValue: number;
-  change24h: {
-    absolute: number;
-    percentage: number;
-  };
-  staked: {
-    value: number;
-    free: number;
-  };
-}
+import { AddressInfo } from "@/types/api";
 
 interface AccountHeaderDetailsProps {
   addressInfo: AddressInfo | null;
@@ -88,6 +75,13 @@ export function AccountHeaderDetails({
                 maximumFractionDigits: 2,
               }) || "0.00"}{" "}
               USD
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {addressInfo?.cnpyTotal?.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }) || "0.00"}{" "}
+              CNPY
             </p>
           </div>
         </Card>

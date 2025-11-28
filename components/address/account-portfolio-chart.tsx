@@ -41,7 +41,7 @@ export function AccountPortfolioChart({ data }: AccountPortfolioChartProps) {
   }
 
   return (
-    <Card className="py-3 px-3 w-full lg:max-w-[282px]">
+    <Card className="py-3 px-3 w-full   xl:max-w-[282px]">
       <div className="relative h-64">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart className="no-focus [&_.recharts-surface]:outline-0">

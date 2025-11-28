@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { LatestUpdated } from "./latest-updated";
-import { Block } from "@/lib/api/explorer";
+import type { Block } from "@/types/blocks";
 import {
   Table,
   TableHeader,
@@ -198,16 +198,19 @@ export function RecentBlocks({
                       href={`/blocks/${block.height}`}
                       className="hover:underline"
                     >
-                      <span className="font-mono text-sm cursor-pointer hover:opacity-80 transition-opacity">
+                      <span className=" text-sm cursor-pointer hover:opacity-80 transition-opacity">
                         {truncateHash(block.hash, 12, 4)}
                       </span>
                     </Link>
                   </TableCell>
                   {/* Column 5: Block Producer */}
                   <TableCell className="p-4">
-                    <span className="font-mono text-sm">
+                    <Link
+                      href={`/address/${block.proposer_address}`}
+                      className="text-sm cursor-pointer hover:opacity-80 transition-opacity hover:underline"
+                    >
                       {truncateHash(block.proposer_address, 12, 4)}
-                    </span>
+                    </Link>
                   </TableCell>
                   {/* Column 6: Transactions */}
                   <TableCell className="p-4">

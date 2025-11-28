@@ -4,12 +4,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AccountPortfolio } from "./account-portfolio";
 import { AccountTransactions } from "./account-transactions";
 import { AccountPositions } from "./account-positions";
+import type { AddressResponse } from "@/types/addresses";
 
 interface AccountDetailsProps {
   address: string;
+  apiData?: AddressResponse;
 }
 
-export function AccountDetails({ address }: AccountDetailsProps) {
+export function AccountDetails({ address, apiData }: AccountDetailsProps) {
   return (
     <Tabs defaultValue="portfolio" className="w-full">
       <TabsList
@@ -28,7 +30,7 @@ export function AccountDetails({ address }: AccountDetailsProps) {
       </TabsList>
 
       <TabsContent value="portfolio" className="mt-4">
-        <AccountPortfolio address={address} />
+        <AccountPortfolio address={address} apiData={apiData} />
       </TabsContent>
 
       <TabsContent value="transactions" className="mt-4">

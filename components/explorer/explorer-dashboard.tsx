@@ -11,7 +11,6 @@ import { RecentBlocks } from "./recent-blocks";
 import { TrendingChains } from "./trending-chains";
 import { Chain } from "@/types/chains";
 import { ExplorerSearchBar } from "./explorer-search-bar";
-import { getSampleTransactions } from "@/lib/demo-data/sample-transactions";
 import {
   getExplorerTransactions,
   type Transaction,
@@ -330,22 +329,6 @@ const sampleTopValidators: Validator[] = Array.from({ length: 6 }, (_, i) => {
   };
 });
 
-// Sample recent transactions data - use actual sample transactions so hashes match
-const sampleTransactions = getSampleTransactions();
-const sampleRecentTransactions: Transaction[] = sampleTransactions
-  .slice(0, 5)
-  .map((tx) => ({
-    chain_id: 0, // Using 0 as default since we don't have chain_id in sample data
-    height: tx.blockHeight,
-    tx_hash: tx.hash, // Use the actual hash from sample transactions
-    timestamp: tx.timestamp,
-    message_type: tx.method.toLowerCase(),
-    signer: tx.from,
-    counterparty: tx.to,
-    amount: tx.amountCnpy,
-    fee: tx.transactionFeeCnpy,
-  }));
-
 interface ExplorerDashboardProps {
   overviewData?: ExplorerOverview | null;
 }
@@ -359,6 +342,7 @@ export function ExplorerDashboard({ overviewData }: ExplorerDashboardProps) {
   const [recentBlocks, setRecentBlocks] = useState<Block[]>([]);
 
   const [isLoadingBlocks, toggleIsLoadingBlocks] = useState(false);
+
   // Format metrics from API data or use fallback
   const overviewMetrics = formatOverviewMetrics(overviewData || null);
 
@@ -392,8 +376,18 @@ export function ExplorerDashboard({ overviewData }: ExplorerDashboardProps) {
   }
 
   useEffect(() => {
+    // Initial fetch
     fetchTransactions();
     fetchBlocks();
+
+    // Set up polling every 10 seconds
+    const interval = setInterval(() => {
+      fetchTransactions();
+      fetchBlocks();
+    }, 10000);
+
+    // Cleanup interval on unmount
+    return () => clearInterval(interval);
   }, []);
 
   return (

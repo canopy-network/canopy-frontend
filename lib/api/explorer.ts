@@ -10,6 +10,21 @@
  */
 
 import { apiClient } from "./client";
+import type {
+  Block,
+  ExplorerBlocksResponse,
+  GetExplorerBlocksParams,
+  ExplorerBlockSearchResult,
+} from "@/types/blocks";
+import type { AddressResponse } from "@/types/addresses";
+
+// Re-export types for backward compatibility
+export type {
+  Block,
+  ExplorerBlocksResponse,
+  GetExplorerBlocksParams,
+} from "@/types/blocks";
+export type { AddressResponse } from "@/types/addresses";
 
 // ============================================================================
 // TYPES
@@ -66,31 +81,6 @@ export interface GetExplorerTransactionsParams {
 }
 
 /**
- * Explorer block response from API
- */
-export interface Block {
-  chain_id: number;
-  height: number;
-  hash: string;
-  timestamp: string;
-  proposer_address: string;
-  num_txs: number;
-  num_events: number;
-  total_fees: number;
-}
-
-/**
- * Explorer blocks response with pagination
- */
-export interface ExplorerBlocksResponse {
-  data: Block[];
-  pagination: {
-    limit: number;
-    next_cursor: number | null;
-  };
-}
-
-/**
  * Explorer search result base interface
  */
 export interface ExplorerSearchResultBase<
@@ -122,59 +112,6 @@ export interface ExplorerTransactionSearchResult
   extends ExplorerSearchResultBase<"transaction", Transaction> {}
 
 /**
- * Explorer block search result data
- */
-export interface ExplorerBlockSearchResult
-  extends ExplorerSearchResultBase<
-    "block",
-    {
-      chain_id: number;
-      height: number;
-      hash: string;
-      timestamp: string;
-      proposer_address: string;
-      num_txs_send?: number;
-      num_txs_stake?: number;
-      num_txs_edit_stake?: number;
-      num_txs_unstake?: number;
-      num_txs_pause?: number;
-      num_txs_unpause?: number;
-      num_txs_change_parameter?: number;
-      num_txs_dao_transfer?: number;
-      num_txs_certificate_result?: number;
-      num_txs_subsidy?: number;
-      num_txs_create_order?: number;
-      num_txs_edit_order?: number;
-      num_txs_delete_order?: number;
-      num_txs_dex_deposit?: number;
-      num_txs_dex_withdraw?: number;
-      num_txs_dex_limit_order?: number;
-      num_events_reward?: number;
-      num_events_slash?: number;
-      num_events_double_sign?: number;
-      num_events_unstake_ready?: number;
-      num_events_order_book_swap?: number;
-      num_events_order_created?: number;
-      num_events_order_edited?: number;
-      num_events_order_deleted?: number;
-      num_events_order_filled?: number;
-      num_events_dex_deposit?: number;
-      num_events_dex_withdraw?: number;
-      num_events_dex_swap?: number;
-      num_events_pool_created?: number;
-      num_events_pool_points_created?: number;
-      num_events_pool_points_redeemed?: number;
-      num_events_pool_points_transfered?: number;
-      num_orders_created?: number;
-      num_orders_edited?: number;
-      num_orders_deleted?: number;
-      total_txs?: number;
-      total_events?: number;
-      total_fees?: number;
-    }
-  > {}
-
-/**
  * Explorer search result union
  */
 export type ExplorerSearchResult =
@@ -182,16 +119,6 @@ export type ExplorerSearchResult =
   | ExplorerTransactionSearchResult
   | ExplorerBlockSearchResult
   | ExplorerSearchResultBase;
-
-/**
- * Query parameters for getting blocks
- */
-export interface GetExplorerBlocksParams {
-  chain_id?: number;
-  limit?: number;
-  cursor?: number;
-  sort?: "asc" | "desc";
-}
 
 // ============================================================================
 // EXPLORER API
@@ -289,6 +216,33 @@ export const explorerApi = {
    */
   getOverview: () =>
     apiClient.get<ExplorerOverviewResponse>("/api/v1/explorer/overview"),
+
+  /**
+   * Get comprehensive address information
+   *
+   * @param address - Address to lookup (40-character hex string)
+   * @param params - Optional query parameters (include_transactions, transaction_limit)
+   * @returns Promise resolving to address data
+   *
+   * @example
+   * ```typescript
+   * const addressInfo = await explorerApi.getAddress('0x1234...', {
+   *   include_transactions: true,
+   *   transaction_limit: 20
+   * });
+   * ```
+   */
+  getAddress: (
+    address: string,
+    params?: {
+      include_transactions?: boolean;
+      transaction_limit?: number;
+    }
+  ) =>
+    apiClient.get<AddressResponse>(
+      `/api/v1/explorer/addresses/${address}`,
+      params
+    ),
 };
 
 // ============================================================================
@@ -513,6 +467,31 @@ export async function getExplorerOverview(): Promise<ExplorerOverview | null> {
     return null;
   } catch (error) {
     console.error("[getExplorerOverview] Error fetching overview:", error);
+    return null;
+  }
+}
+
+/**
+ * Get address information (convenience function)
+ *
+ * @param address - Address to lookup
+ * @param includeTransactions - Whether to include transactions (default: true)
+ * @param transactionLimit - Max transactions per chain (default: 10)
+ * @returns Promise resolving to address data
+ */
+export async function getExplorerAddress(
+  address: string,
+  includeTransactions: boolean = true,
+  transactionLimit: number = 10
+): Promise<AddressResponse | null> {
+  try {
+    const response = await explorerApi.getAddress(address, {
+      include_transactions: includeTransactions,
+      transaction_limit: transactionLimit,
+    });
+    return response.data as AddressResponse;
+  } catch (error) {
+    console.error("[getExplorerAddress] Error fetching address:", error);
     return null;
   }
 }
