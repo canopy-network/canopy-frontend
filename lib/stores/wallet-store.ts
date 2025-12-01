@@ -679,7 +679,6 @@ export const useWalletStore = create<WalletState>()(
             balance: token.balance,
           }))
 
-          console.log("Available assets:", availableAssets);
           set({ availableAssets: availableAssets })
         } catch (error) {
           console.error("Failed to fetch balance:", error);

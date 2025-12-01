@@ -114,6 +114,12 @@ export { portfolioApi } from "./portfolio";
 // Wallet Transaction API
 export { walletTransactionApi, waitForTransactionCompletion } from "./wallet-transactions";
 
+// Transactions API (wallet transactions)
+export { transactionsApi } from "./transactions";
+
+// Staking API
+export { stakingApi } from "./staking";
+
 // Governance API
 export { governanceApi } from "./governance";
 

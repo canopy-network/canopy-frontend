@@ -87,7 +87,32 @@ export function WalletPopup() {
     return acc + usdValue;
   }, 0);
 
-  const recentTransactions = transactions.slice(0, 5);
+  // Determine actual transaction type (send vs receive)
+  const recentTransactions = transactions.slice(0, 5).map((tx) => {
+    // Normalize addresses for comparison (remove 0x prefix if present)
+    const normalizeAddress = (addr?: string) => addr?.toLowerCase().replace(/^0x/, '') || '';
+    const walletAddr = normalizeAddress(currentWallet?.address);
+    const fromAddr = normalizeAddress(tx.from);
+    const toAddr = normalizeAddress(tx.to);
+
+    // Determine actual transaction direction
+    let actualType = tx.type;
+    if (tx.type === 'send') {
+      // If wallet is the recipient, it's actually a receive
+      if (walletAddr === toAddr && walletAddr !== fromAddr) {
+        actualType = 'receive';
+      }
+      // If wallet is the sender, it remains send
+      else if (walletAddr === fromAddr) {
+        actualType = 'send';
+      }
+    }
+
+    return {
+      ...tx,
+      actualType,
+    };
+  });
 
   return (
     <>
@@ -310,25 +335,25 @@ export function WalletPopup() {
                               className="flex items-center justify-between py-3 hover:bg-muted/50 rounded-lg px-2 transition-colors"
                             >
                               <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${tx.type === 'send' ? 'bg-red-500/20' : 'bg-green-500/20'
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${tx.actualType === 'send' ? 'bg-red-500/20' : 'bg-green-500/20'
                                   }`}>
-                                  {tx.type === 'send' ? (
+                                  {tx.actualType === 'send' ? (
                                     <Send className="w-5 h-5 text-red-500" />
                                   ) : (
                                     <Download className="w-5 h-5 text-green-500" />
                                   )}
                                 </div>
                                 <div>
-                                  <div className="font-medium capitalize">{tx.type}</div>
+                                  <div className="font-medium capitalize">{tx.actualType}</div>
                                   <div className="text-sm text-muted-foreground">
                                     {new Date(tx.timestamp).toLocaleDateString()}
                                   </div>
                                 </div>
                               </div>
                               <div className="text-right">
-                                <div className={`font-medium ${tx.type === 'send' ? 'text-red-500' : 'text-green-500'
+                                <div className={`font-medium ${tx.actualType === 'send' ? 'text-red-500' : 'text-green-500'
                                   }`}>
-                                  {tx.type === 'send' ? '-' : '+'}{tx.amount} {tx.token}
+                                  {tx.actualType === 'send' ? '-' : '+'}{tx.amount} {tx.token}
                                 </div>
                                 <div className="text-sm text-muted-foreground capitalize">
                                   {tx.status}

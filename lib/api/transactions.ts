@@ -10,11 +10,25 @@
 
 import { apiClient } from "./client";
 import type { ApiResponse, PaginatedResponse } from "@/types/api";
+import {
+  SendRawTransactionRequest,
+  SendRawTransactionResponse,
+  EstimateFeeRequest,
+  EstimateFeeResponse,
+  TransactionHistoryRequest,
+  TransactionHistoryResponse,
+  PendingTransactionsRequest,
+  PendingTransactionsResponse,
+  TransactionDetail,
+  TransactionStatusResponse,
+  BatchStatusRequest,
+  BatchStatusResponse,
+} from "@/types/api";
 
 /**
- * Transaction data from API
+ * Transaction data from chain API (for chain-specific transactions)
  */
-export interface Transaction {
+export interface ChainTransaction {
   id: string;
   virtual_pool_id: string;
   chain_id: string;
@@ -35,7 +49,7 @@ export interface Transaction {
 }
 
 /**
- * Parameters for fetching transactions
+ * Parameters for fetching chain transactions
  */
 export interface GetTransactionsParams {
   page?: number;
@@ -51,27 +65,144 @@ export interface GetTransactionsParams {
 export async function getChainTransactions(
   chainId: string,
   params?: GetTransactionsParams
-): Promise<PaginatedResponse<Transaction>> {
+): Promise<PaginatedResponse<ChainTransaction>> {
   const url = `/api/v1/chains/${chainId}/transactions`;
-
-  // The API returns: { data: [...], pagination: {...} } at the root level
-  // But apiClient.get wraps it as ApiResponse<T> = { data: T }
-  // So we get: { data: { data: [...], pagination: {...} } }
-  // We need to access response.data to get the actual paginated response
   const response: any = await apiClient.get<any>(url, params);
 
-  console.log("Raw API response:", response);
-
-  // If response.data exists and has the paginated structure, return it
-  // Otherwise, response itself might be the paginated structure
   if (response.data && Array.isArray(response.data.data)) {
-    console.log("Response has nested data structure");
-    return response.data as PaginatedResponse<Transaction>;
+    return response.data as PaginatedResponse<ChainTransaction>;
   } else if (Array.isArray(response.data)) {
-    console.log("Response.data is the array directly");
-    return response as PaginatedResponse<Transaction>;
+    return response as PaginatedResponse<ChainTransaction>;
   }
 
-  console.log("Returning response as-is");
-  return response as PaginatedResponse<Transaction>;
+  return response as PaginatedResponse<ChainTransaction>;
 }
+
+/**
+ * Wallet Transactions API methods
+ * Based on: launchpad/internal/handlers/transactions.go
+ */
+export const transactionsApi = {
+  /**
+   * Send a pre-signed transaction
+   * POST /api/v1/wallet/transactions/send-raw
+   *
+   * @param data - Raw transaction data with signature
+   * @returns Transaction hash and status
+   */
+  sendRawTransaction: async (
+    data: SendRawTransactionRequest
+  ): Promise<SendRawTransactionResponse> => {
+    const response = await apiClient.post<SendRawTransactionResponse>(
+      "/api/v1/wallet/transactions/send-raw",
+      data
+    );
+    return response.data;
+  },
+
+  /**
+   * Estimate transaction fee
+   * POST /api/v1/wallet/transactions/estimate-fee
+   *
+   * @param data - Transaction details for fee estimation
+   * @returns Estimated fee amount
+   */
+  estimateFee: async (
+    data: EstimateFeeRequest
+  ): Promise<EstimateFeeResponse> => {
+    const response = await apiClient.post<EstimateFeeResponse>(
+      "/api/v1/wallet/transactions/estimate-fee",
+      data
+    );
+    return response.data;
+  },
+
+  /**
+   * Get transaction history
+   * POST /api/v1/wallet/transactions/history
+   *
+   * @param data - Filter parameters for transaction history
+   * @returns Paginated list of transactions
+   */
+  getHistory: async (
+    data: TransactionHistoryRequest
+  ): Promise<TransactionHistoryResponse> => {
+    const response = await apiClient.post<TransactionHistoryResponse>(
+      "/api/v1/wallet/transactions/history",
+      data
+    );
+    return response.data;
+  },
+
+  /**
+   * Get pending transactions
+   * POST /api/v1/wallet/transactions/pending
+   *
+   * @param data - Request with addresses to check
+   * @returns List of pending transactions
+   */
+  getPending: async (
+    data: PendingTransactionsRequest
+  ): Promise<PendingTransactionsResponse> => {
+    const response = await apiClient.post<PendingTransactionsResponse>(
+      "/api/v1/wallet/transactions/pending",
+      data
+    );
+    return response.data;
+  },
+
+  /**
+   * Get transaction details
+   * GET /api/v1/wallet/transactions/:hash
+   *
+   * @param hash - Transaction hash
+   * @param chainId - Chain ID (default: 1)
+   * @returns Transaction details
+   */
+  getDetails: async (
+    hash: string,
+    chainId: number = 1
+  ): Promise<TransactionDetail> => {
+    const response = await apiClient.get<TransactionDetail>(
+      `/api/v1/wallet/transactions/${hash}`,
+      { chain_id: chainId }
+    );
+    return response.data;
+  },
+
+  /**
+   * Get transaction status
+   * GET /api/v1/wallet/transactions/:hash/status
+   *
+   * @param hash - Transaction hash
+   * @param chainId - Chain ID (default: 1)
+   * @returns Transaction status
+   */
+  getStatus: async (
+    hash: string,
+    chainId: number = 1
+  ): Promise<TransactionStatusResponse> => {
+    const response = await apiClient.get<TransactionStatusResponse>(
+      `/api/v1/wallet/transactions/${hash}/status`,
+      { chain_id: chainId }
+    );
+    return response.data;
+  },
+
+  /**
+   * Get batch transaction statuses
+   * POST /api/v1/wallet/transactions/batch-status
+   *
+   * @param data - List of transaction hashes
+   * @returns Batch status response with all statuses
+   */
+  getBatchStatus: async (
+    data: BatchStatusRequest
+  ): Promise<BatchStatusResponse> => {
+    const response = await apiClient.post<BatchStatusResponse>(
+      "/api/v1/wallet/transactions/batch-status",
+      data
+    );
+    return response.data;
+  },
+};

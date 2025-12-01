@@ -247,20 +247,18 @@ function WalletContent() {
                 {/* Assets Tab */}
                 <TabsContent value="assets" className="mt-4 sm:mt-6">
                   <AssetsTab
-                    tokens={displayTokens}
-                    totalBalance={displayBalance}
-                    totalUSDValue={displayUSDValue}
+                    addresses={currentWallet ? [currentWallet.address] : []}
                   />
                 </TabsContent>
 
                 {/* Staking Tab */}
                 <TabsContent value="staking" className="mt-4 sm:mt-6">
-                  <StakingTab tokens={displayTokens} />
+                  <StakingTab addresses={currentWallet ? [currentWallet.address] : []} />
                 </TabsContent>
 
                 {/* Activity Tab */}
                 <TabsContent value="activity" className="mt-4 sm:mt-6">
-                  <ActivityTab transactions={displayTransactions} compact />
+                  <ActivityTab addresses={currentWallet ? [currentWallet.address] : []} compact />
                 </TabsContent>
 
                 {/* Governance Tab */}

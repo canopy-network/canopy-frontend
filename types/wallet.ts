@@ -212,7 +212,7 @@ export interface PortfolioOverviewRequest {
  */
 export interface AccountBalancesRequest {
   addresses: string[];             // Target wallet addresses
-  chain_ids?: string[];            // Specific chains to query
+  chain_ids?: string[] | number[];            // Specific chains to query
   height?: number;                 // Blockchain height
 }
 
@@ -336,6 +336,8 @@ export interface PortfolioOverviewResponse {
 export interface DetailedAccountBalance {
   address: string;                   // Wallet address
   chain_id: number;                  // Chain ID (numeric)
+  chain_name: string;                // Chain name
+  token_symbol: string;               // Token symbol (e.g., "C001", "C002" for chains)
   height: number;                    // Blockchain height
   liquid_balance: string;            // Available balance (in uCNPY)
   staked_balance: string;            // Staked balance (in uCNPY)
