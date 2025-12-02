@@ -316,7 +316,7 @@ export function SendTransactionDialog({
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-primary">
                               <span className="text-sm font-bold text-white">
-                                {selectedAsset?.symbol.slice(0, 1)}
+                                {selectedAsset?.name.slice(0, 1)}
                               </span>
                             </div>
                             <div className="flex flex-col items-start">
@@ -341,7 +341,7 @@ export function SendTransactionDialog({
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-primary">
                               <span className="text-sm font-bold text-white">
-                                {asset.symbol}
+                                {selectedAsset?.name.slice(0, 1)}
                               </span>
                             </div>
                             <div className="flex flex-col items-start gap-1">

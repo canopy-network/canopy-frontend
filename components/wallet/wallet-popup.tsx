@@ -117,11 +117,11 @@ export function WalletPopup() {
   return (
     <>
       <Sheet open={isPopupOpen} onOpenChange={closePopup}>
-        <SheetContent side="left" className="w-full sm:max-w-[420px] p-0 flex flex-col bg-card gap-0">
+        <SheetContent side="left" className="w-full sm:max-w-[420px] p-0 flex flex-col bg-card gap-0 overflow-hidden">
           {currentWallet ? (
             <>
               {/* Header - Fixed */}
-              <div className="p-6 space-y-4 border-b border-border">
+              <div className="p-4 sm:p-6 space-y-3 sm:space-y-4 border-b border-border flex-shrink-0">
                 {/* Wallet Address & Avatar */}
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-[#1dd13a] flex items-center justify-center flex-shrink-0">
@@ -167,7 +167,7 @@ export function WalletPopup() {
                     Estimated Balance
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
-                  <h2 className="text-4xl font-bold text-foreground mb-1">
+                  <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-1">
                     ${formatBalanceWithCommas(displayBalance)}
                   </h2>
                 </div>
@@ -226,18 +226,18 @@ export function WalletPopup() {
                   </TabsList>
 
                   {/* Balances Tab */}
-                  <TabsContent value="balances" className="flex-1 overflow-y-auto mt-0 data-[state=inactive]:hidden">
-                    <div className="p-6">
+                  <TabsContent value="balances" className="flex-1 overflow-y-auto mt-0 p-0 data-[state=inactive]:hidden">
+                    <div className="p-4 sm:p-6">
                       {displayTokens.length === 0 ? (
                         /* Empty State */
-                        <Card className="p-12 border-0">
-                          <div className="flex flex-col items-center text-center space-y-4">
-                            <div className="p-4 bg-muted rounded-full">
-                              <Wallet className="w-8 h-8 text-muted-foreground" />
+                        <Card className="p-8 sm:p-12 border-0">
+                          <div className="flex flex-col items-center text-center space-y-3 sm:space-y-4">
+                            <div className="p-3 sm:p-4 bg-muted rounded-full">
+                              <Wallet className="w-6 h-6 sm:w-8 sm:h-8 text-muted-foreground" />
                             </div>
                             <div className="space-y-2">
-                              <h3 className="text-lg font-semibold">No assets yet</h3>
-                              <p className="text-sm text-muted-foreground max-w-md">
+                              <h3 className="text-base sm:text-lg font-semibold">No assets yet</h3>
+                              <p className="text-xs sm:text-sm text-muted-foreground max-w-md">
                                 Start your blockchain journey by creating or investing in chains on the launchpad.
                               </p>
                             </div>
@@ -301,18 +301,18 @@ export function WalletPopup() {
                   </TabsContent>
 
                   {/* Activity Tab */}
-                  <TabsContent value="activity" className="flex-1 overflow-y-auto mt-0 data-[state=inactive]:hidden">
-                    <div className="p-6">
+                  <TabsContent value="activity" className="flex-1 overflow-y-auto mt-0 p-0 data-[state=inactive]:hidden">
+                    <div className="p-4 sm:p-6">
                       {recentTransactions.length === 0 ? (
                         /* Empty State */
-                        <Card className="p-12 border-0">
-                          <div className="flex flex-col items-center text-center space-y-4">
-                            <div className="p-4 bg-muted rounded-full">
-                              <Activity className="w-8 h-8 text-muted-foreground" />
+                        <Card className="p-8 sm:p-12 border-0">
+                          <div className="flex flex-col items-center text-center space-y-3 sm:space-y-4">
+                            <div className="p-3 sm:p-4 bg-muted rounded-full">
+                              <Activity className="w-6 h-6 sm:w-8 sm:h-8 text-muted-foreground" />
                             </div>
                             <div className="space-y-2">
-                              <h3 className="text-lg font-semibold">No activity yet</h3>
-                              <p className="text-sm text-muted-foreground max-w-md">
+                              <h3 className="text-base sm:text-lg font-semibold">No activity yet</h3>
+                              <p className="text-xs sm:text-sm text-muted-foreground max-w-md">
                                 Start your blockchain journey by creating or investing in chains on the launchpad.
                               </p>
                             </div>
@@ -369,7 +369,7 @@ export function WalletPopup() {
               </div>
 
               {/* Footer - Fixed */}
-              <div className="p-5 border-t border-border space-y-3">
+              <div className="p-4 sm:p-5 border-t border-border space-y-2 sm:space-y-3 flex-shrink-0">
                 <Button
                   variant="ghost"
                   className="w-full justify-start gap-3 hover:bg-muted"
