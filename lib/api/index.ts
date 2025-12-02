@@ -159,6 +159,21 @@ export type {
   GetTemplatesParams,
 } from "@/types/templates";
 
+// Explorer API
+export {
+  explorerApi,
+  getExplorerTransactions,
+  getExplorerTransaction,
+  getExplorerBlocks,
+  getExplorerBlock,
+  type Transaction as ExplorerTransaction,
+  type ExplorerTransactionsResponse,
+  type GetExplorerTransactionsParams,
+  type Block as ExplorerBlock,
+  type ExplorerBlocksResponse,
+  type GetExplorerBlocksParams,
+} from "./explorer";
+
 export type {
   Wallet,
   CreateWalletRequest,

@@ -127,7 +127,7 @@ export function CreateChainForm() {
     
     if (result) {
       // Success - redirect or update UI
-      router.push(`/chain/${result.data.id}`);
+      router.push(`/chains/${result.data.id}`);
     }
   };
 

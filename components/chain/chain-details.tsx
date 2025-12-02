@@ -31,6 +31,10 @@ import {
 import { getChainHolders, chainsApi } from "@/lib/api/chains";
 import { DetailSheet } from "./chain-details/detail-sheet";
 import type { ApiTransaction } from "@/lib/api";
+import {
+  TimeframeButton,
+  TimeframeButtonLayout,
+} from "@/components/charts/timeframe-button";
 
 interface ChainDetailsProps {
   chain: ChainExtended;
@@ -424,24 +428,21 @@ export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
           {/* Chart Container */}
           <div className="rounded-xl border text-card-foreground shadow relative h-[272px] bg-muted/40">
             {/* Timeframe Buttons - Overlay on Chart */}
-            <div className="absolute left-2 lg:left-4 top-2.5 z-10 flex gap-0.5 p-0.5 bg-muted/50 rounded-lg">
+            <TimeframeButtonLayout>
               {(["1H", "1D", "1W", "1M", "1Y", "ALL"] as const).map(
                 (timeframe) => (
-                  <Button
+                  <TimeframeButton
                     key={timeframe}
-                    variant={
-                      selectedTimeframe === timeframe ? "secondary" : "ghost"
-                    }
-                    size="sm"
-                    onClick={() => setSelectedTimeframe(timeframe)}
-                    disabled={loadingChart}
-                    className="rounded-md gap-1.5 h-8 text-xs px-3"
+                    timeframe={timeframe}
+                    selectedTimeframe={selectedTimeframe}
+                    setSelectedTimeframe={setSelectedTimeframe}
+                    loadingChart={loadingChart}
                   >
                     {timeframe}
-                  </Button>
+                  </TimeframeButton>
                 )
               )}
-            </div>
+            </TimeframeButtonLayout>
 
             {/* Chart */}
             <div className="h-full pt-12 p-3 lg:px-4">

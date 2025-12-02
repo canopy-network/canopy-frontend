@@ -1,6 +1,6 @@
 {
-  "name": "my-v0-project",
-  "version": "0.8.2",
+  "name": "cnpy-superapp-frontend",
+  "version": "0.10.0",
   "private": true,
   "scripts": {
     "build": "next build",

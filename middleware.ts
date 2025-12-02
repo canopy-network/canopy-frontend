@@ -7,7 +7,8 @@ import type { NextRequest } from "next/server";
  */
 const ALLOWED_QUERY_PARAMS: Record<string, string[]> = {
   "/": ["filter", "sort_by", "view_type"],
-  "/chain/[id]": ["range", "tab"],
+  "/chains/[id]": ["range", "tab"],
+  "/chains/[id]": ["success", "name"],
 };
 
 /**
@@ -19,7 +20,7 @@ const PROTECTED_ROUTES = ["/settings", "/launchpad"];
  * Protected route patterns (for dynamic routes)
  */
 const PROTECTED_ROUTE_PATTERNS = [
-  /^\/chain\/[^/]+\/edit$/,
+  /^\/chains\/[^/]+\/edit$/,
   /^\/launchpad\/.+/, // Protect all launchpad sub-routes
 ];
 
@@ -64,9 +65,10 @@ function getAllowedQueryParams(pathname: string): string[] | null {
   }
 
   // Check for dynamic route patterns
-  // Match /chain/[any-id] pattern
-  if (/^\/chain\/[^/]+$/.test(pathname)) {
-    return ALLOWED_QUERY_PARAMS["/chain/[id]"];
+
+  // Match /chains/[any-id] pattern
+  if (/^\/chains\/[^/]+$/.test(pathname)) {
+    return ALLOWED_QUERY_PARAMS["/chains/[id]"] || null;
   }
 
   // No filtering needed for this route
@@ -78,9 +80,13 @@ function getAllowedQueryParams(pathname: string): string[] | null {
  */
 function filterQueryParams(
   searchParams: URLSearchParams,
-  allowedParams: string[]
+  allowedParams: string[] | null | undefined
 ): URLSearchParams {
   const filtered = new URLSearchParams();
+
+  if (!allowedParams || !Array.isArray(allowedParams)) {
+    return filtered;
+  }
 
   for (const param of allowedParams) {
     const value = searchParams.get(param);

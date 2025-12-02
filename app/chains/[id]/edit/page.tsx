@@ -371,7 +371,7 @@ export default function EditChainPage(props: EditChainPageProps) {
 
       // Exit edit mode and redirect to the chain detail page
       setIsEditMode(false);
-      router.push(`/chain/${chain.id}`);
+      router.push(`/chains/${chain.id}`);
     } catch (error) {
       console.error("Error saving chain:", error);
       setError(

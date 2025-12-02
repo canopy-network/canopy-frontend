@@ -324,7 +324,7 @@ export function LaunchpadDashboard() {
               try {
                 const response = await chainsApi.getChain(chainId, {
                   include:
-                    "creator,template,assets,virtual_pool,graduated_pool",
+                    "creator,template,assets,virtual_pool,graduated_pool,graduation_progress",
                 });
                 return response.data;
               } catch (error) {
@@ -609,7 +609,7 @@ export function LaunchpadDashboard() {
     return <HomePageSkeleton />;
   }
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen text-white overflow-x-hidden">
       {/* Error Display */}
       {error && (
         <div className="container mx-auto px-4 py-4">
@@ -644,7 +644,7 @@ export function LaunchpadDashboard() {
         {/* Main Content */}
         {/* Recent Projects Carousel */}
         <div className="mb-6 lg:mb-12">
-          {chains.length > 0 ? (
+          {chains && chains.length > 0 ? (
             <RecentsProjectsCarousel
               projects={chains}
               onBuyClick={handleBuyClick}
@@ -670,7 +670,7 @@ export function LaunchpadDashboard() {
             className="flex items-center justify-between gap-4"
             id="filter-bar"
           >
-            <div className="card-like p-1 mb-4 lg:mb-8 overflow-auto no-scrollbar w-full">
+            <div className="card-like p-1 mb-4 lg:mb-8 overflow-auto no-scrollbar w-full flex items-center justify-between">
               {/* Left: Tab Buttons */}
               <div className="flex items-center gap-1">
                 {visibleTabs.map((tab) => (
@@ -709,15 +709,16 @@ export function LaunchpadDashboard() {
                   : "flex flex-col gap-3"
               }
             >
-              {sortedChains.map((project) => (
-                <SmallProjectCard
-                  key={project.id}
-                  project={project}
-                  href={`/chain/${project.id}`}
-                  viewMode={viewMode}
-                  accolades={accoladesData[project.id] || []}
-                />
-              ))}
+              {sortedChains &&
+                sortedChains.map((project) => (
+                  <SmallProjectCard
+                    key={project.id}
+                    project={project}
+                    href={`/chains/${project.id}`}
+                    viewMode={viewMode}
+                    accolades={accoladesData[project.id] || []}
+                  />
+                ))}
             </div>
 
             {/* Empty State */}
@@ -750,14 +751,15 @@ export function LaunchpadDashboard() {
                 : "flex flex-col gap-3"
             }
           >
-            {sortedChains.map((project) => (
-              <SmallProjectCard
-                key={project.id}
-                project={project}
-                href={`/chain/${project.id}`}
-                viewMode={viewMode}
-              />
-            ))}
+            {sortedChains &&
+              sortedChains.map((project) => (
+                <SmallProjectCard
+                  key={project.id}
+                  project={project}
+                  href={`/chains/${project.id}`}
+                  viewMode={viewMode}
+                />
+              ))}
             {sortedChains.length === 0 && (
               <div className="text-center py-12 w-full col-span-4">
                 <p className="text-gray-400 text-lg">No new projects</p>
@@ -773,14 +775,15 @@ export function LaunchpadDashboard() {
                 : "flex flex-col gap-3"
             }
           >
-            {sortedChains.map((project) => (
-              <SmallProjectCard
-                key={project.id}
-                project={project}
-                href={`/chain/${project.id}`}
-                viewMode={viewMode}
-              />
-            ))}
+            {sortedChains &&
+              sortedChains.map((project) => (
+                <SmallProjectCard
+                  key={project.id}
+                  project={project}
+                  href={`/chains/${project.id}`}
+                  viewMode={viewMode}
+                />
+              ))}
             {sortedChains.length === 0 && (
               <div className="text-center py-12 w-full col-span-4 ">
                 <p className="text-gray-400 text-lg">No trending projects</p>
@@ -796,14 +799,15 @@ export function LaunchpadDashboard() {
                 : "flex flex-col gap-3"
             }
           >
-            {sortedChains.map((project) => (
-              <SmallProjectCard
-                key={project.id}
-                project={project}
-                href={`/chain/${project.id}`}
-                viewMode={viewMode}
-              />
-            ))}
+            {sortedChains &&
+              sortedChains.map((project) => (
+                <SmallProjectCard
+                  key={project.id}
+                  project={project}
+                  href={`/chains/${project.id}`}
+                  viewMode={viewMode}
+                />
+              ))}
             {sortedChains.length === 0 && (
               <div className="text-center py-12 w-full col-span-4">
                 <p className="text-gray-400 text-lg">No graduated projects</p>
@@ -836,7 +840,7 @@ export function LaunchpadDashboard() {
                   Star chains to save them here for quick access
                 </p>
               </div>
-            ) : sortedChains.length === 0 ? (
+            ) : sortedChains && sortedChains.length === 0 ? (
               <div className="text-center py-12 w-full col-span-4">
                 <Heart className="w-12 h-12 mx-auto text-gray-600 mb-4" />
                 <p className="text-gray-400 text-lg mb-2">
@@ -854,11 +858,12 @@ export function LaunchpadDashboard() {
                 </Button>
               </div>
             ) : (
+              sortedChains &&
               sortedChains.map((project) => (
                 <SmallProjectCard
                   key={project.id}
                   project={project}
-                  href={`/chain/${project.id}`}
+                  href={`/chains/${project.id}`}
                   viewMode={viewMode}
                 />
               ))

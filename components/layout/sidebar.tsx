@@ -4,9 +4,8 @@ import { useState, useEffect } from "react";
 import { MainNav } from "@/components/navigation/main-nav";
 import { WalletConnectButton } from "@/components/wallet/wallet-connect-button";
 import { LoginDialog } from "@/components/auth/login-dialog";
-import CommandSearchDialog from "@/components/command-search-dialog";
 import { Button } from "@/components/ui/button";
-import { Search, Plus, Mail, Wallet } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useCreateChainDialog } from "@/lib/stores/use-create-chain-dialog";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import Link from "next/link";
@@ -14,6 +13,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { cn, WINDOW_BREAKPOINTS } from "@/lib/utils";
 import LaunchOverviewDialog from "@/components/launchpad/launch-overview-dialog";
 import Image from "next/image";
+import { CommandSearchTrigger } from "@/components/command-search-trigger";
 
 export function Sidebar() {
   const { user, isAuthenticated } = useAuthStore();
@@ -118,35 +118,12 @@ export function Sidebar() {
             : "px-4 space-y-3"
         )}
       >
-        <button
-          onClick={() => setShowCommandSearch(true)}
-          className={cn(
-            "flex items-center rounded-full bg-transparent hover:bg-white/5 transition-colors",
-            isCondensed
-              ? "w-10 h-10 justify-center text-white/50"
-              : "w-full h-9 justify-between pl-4 pr-2 text-sm text-white/50"
-          )}
-        >
-          <div className="flex items-center gap-3">
-            <Search className="w-4 h-4" />
-            <span
-              className={cn(
-                "transition-all duration-300",
-                isCondensed ? "hidden" : "block"
-              )}
-            >
-              Search chains...
-            </span>
-          </div>
-          <kbd
-            className={cn(
-              "h-5 select-none items-center gap-1 rounded-2xl bg-white/10 px-1.5 font-mono text-[10px] font-medium text-white/70 transition-all duration-300",
-              isCondensed ? "hidden" : "hidden sm:inline-flex"
-            )}
-          >
-            <span className="text-xs">⌘</span>K
-          </kbd>
-        </button>
+        <CommandSearchTrigger
+          variant="sidebar"
+          isCondensed={isCondensed}
+          open={showCommandSearch}
+          onOpenChange={setShowCommandSearch}
+        />
 
         {isLoggedIn && !isMobile && (
           <Button
@@ -244,12 +221,6 @@ export function Sidebar() {
 
       {/* Login Dialog */}
       <LoginDialog open={loginDialogOpen} onOpenChange={setLoginDialogOpen} />
-
-      {/* Command Search Dialog */}
-      <CommandSearchDialog
-        open={showCommandSearch}
-        onOpenChange={setShowCommandSearch}
-      />
 
       {/* Launch Overview Dialog */}
       <LaunchOverviewDialog
