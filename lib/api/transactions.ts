@@ -9,7 +9,7 @@
  */
 
 import { apiClient } from "./client";
-import type { ApiResponse, PaginatedResponse } from "@/types/api";
+import type { PaginatedResponse } from "@/types/api";
 import {
   SendRawTransactionRequest,
   SendRawTransactionResponse,

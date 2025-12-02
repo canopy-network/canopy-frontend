@@ -577,12 +577,12 @@ export interface SendRawTransactionRequest {
       publicKey: string;
       signature: string;
     };
-    time: number;          // ✅ Números, no strings
-    createdHeight: number; // ✅ Números, no strings
-    fee: number;           // ✅ Números, no strings
+    time: number;
+    createdHeight: number;
+    fee: number;
     memo: string;
-    networkID: number;     // ✅ Números, no strings
-    chainID: number;       // ✅ Números, no strings
+    networkID: number;
+    chainID: number;
   };
 }
 
