@@ -6,16 +6,21 @@ on:
       - 'v*.*.*'
     branches:
       - main
+      - dev
   pull_request:
     branches:
       - main
+      - dev
   workflow_dispatch:
     inputs:
-      deploy_only:
-        description: 'Skip build, just deploy latest image'
-        required: false
-        default: 'false'
-        type: boolean
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - dev
 
 permissions:
   contents: read
@@ -24,10 +29,6 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/canopy-frontend
-  # Staging API URL - baked into the image at build time
-  NEXT_PUBLIC_API_URL: https://api.staging.app.canopynetwork.org
-  NEXTAUTH_URL: https://staging.app.canopynetwork.org
-  NEXT_PUBLIC_DEV_MODE: "false"
 
 jobs:
   # =============================================================================
@@ -36,16 +37,45 @@ jobs:
   build:
     name: Build and Push
     runs-on: ubuntu-latest
-    if: github.event.inputs.deploy_only != 'true'
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.environment != ''
     
     outputs:
       image_tag: ${{ steps.meta.outputs.tags }}
       image_digest: ${{ steps.build.outputs.digest }}
       version: ${{ steps.version.outputs.version }}
+      environment: ${{ steps.set-env.outputs.environment }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Determine environment
+        id: set-env
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            ENV="${{ github.event.inputs.environment }}"
+          elif [[ "${{ github.ref }}" == "refs/heads/dev" ]]; then
+            ENV="dev"
+          else
+            ENV="staging"
+          fi
+          echo "environment=$ENV" >> $GITHUB_OUTPUT
+          echo "Environment: $ENV"
+
+      - name: Set environment variables
+        id: env-vars
+        run: |
+          if [[ "${{ steps.set-env.outputs.environment }}" == "dev" ]]; then
+            echo "api_url=https://api.dev.app.canopynetwork.org" >> $GITHUB_OUTPUT
+            echo "frontend_url=https://dev.app.canopynetwork.org" >> $GITHUB_OUTPUT
+            echo "dev_mode=true" >> $GITHUB_OUTPUT
+            echo "image_suffix=-dev" >> $GITHUB_OUTPUT
+          else
+            echo "api_url=https://api.staging.app.canopynetwork.org" >> $GITHUB_OUTPUT
+            echo "frontend_url=https://staging.app.canopynetwork.org" >> $GITHUB_OUTPUT
+            echo "dev_mode=false" >> $GITHUB_OUTPUT
+            echo "image_suffix=" >> $GITHUB_OUTPUT
+          fi
 
       - name: Determine version
         id: version
@@ -69,12 +99,13 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}${{ steps.env-vars.outputs.image_suffix }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
+            type=raw,value=latest
             type=sha,prefix=sha-
+            type=ref,event=branch
 
       - name: Login to GitHub Container Registry
         if: github.event_name != 'pull_request'
@@ -97,9 +128,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            NEXT_PUBLIC_API_URL=${{ env.NEXT_PUBLIC_API_URL }}
-            NEXT_PUBLIC_DEV_MODE=${{ env.NEXT_PUBLIC_DEV_MODE }}
-            NEXTAUTH_URL=${{ env.NEXTAUTH_URL }}
+            NEXT_PUBLIC_API_URL=${{ steps.env-vars.outputs.api_url }}
+            NEXT_PUBLIC_DEV_MODE=${{ steps.env-vars.outputs.dev_mode }}
+            NEXTAUTH_URL=${{ steps.env-vars.outputs.frontend_url }}
             NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
             GH_CLIENT_ID=${{ secrets.GH_CLIENT_ID }}
             GH_CLIENT_SECRET=${{ secrets.GH_CLIENT_SECRET }}
@@ -112,15 +143,13 @@ jobs:
         run: |
           echo "### 🐳 Docker Image Built" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ steps.set-env.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}${{ steps.env-vars.outputs.image_suffix }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Version:** \`${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Tags:** ${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
-          if [ -n "${{ steps.build.outputs.digest }}" ]; then
-            echo "**Digest:** \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
-          fi
 
   # =============================================================================
-  # Deploy to Kubernetes (staging)
+  # Deploy to Staging (main branch / tags)
   # =============================================================================
   deploy-staging:
     name: Deploy to Staging
@@ -128,8 +157,9 @@ jobs:
     needs: [build]
     if: |
       always() && 
-      (needs.build.result == 'success' || github.event.inputs.deploy_only == 'true') &&
-      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+      needs.build.result == 'success' &&
+      needs.build.outputs.environment == 'staging' &&
+      github.event_name != 'pull_request'
     environment: staging
     
     steps:
@@ -145,21 +175,18 @@ jobs:
             set -euo pipefail
             
             echo "=========================================="
-            echo "🚀 Deploying Frontend to Staging"
+            echo "🚀 Deploying Frontend to STAGING"
             echo "=========================================="
             echo "Timestamp: $(date '+%Y-%m-%d %H:%M:%S UTC')"
             echo "Triggered by: ${{ github.actor }}"
             echo "Commit: ${{ github.sha }}"
-            echo "Ref: ${{ github.ref }}"
             echo ""
             
-            # Image to pull
-            IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+            IMAGE="ghcr.io/canopy-network/canopy-frontend:latest"
             echo "Image: $IMAGE"
             
-            # Login to GHCR
             echo ""
-            echo "=== Logging into GHCR ==="
+            echo "=== Pulling Image ==="
             echo "${{ secrets.GITHUB_TOKEN }}" | sudo k3s ctr images pull --user "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" "$IMAGE" || {
               echo "Direct pull failed, trying docker..."
               echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u "${{ github.actor }}" --password-stdin
@@ -167,43 +194,20 @@ jobs:
               sudo docker save "$IMAGE" | sudo k3s ctr images import -
             }
             
-            # Update the deployment to use the new image
             echo ""
-            echo "=== Updating Kubernetes Deployment ==="
-            sudo k3s kubectl set image deployment/prod-canopy-frontend \
-              canopy-frontend="$IMAGE" \
-              -n canopy-prod
-            
-            # Restart to pull new image
-            echo ""
-            echo "=== Restarting Deployment ==="
+            echo "=== Updating Deployment ==="
+            sudo k3s kubectl set image deployment/prod-canopy-frontend canopy-frontend="$IMAGE" -n canopy-prod
             sudo k3s kubectl rollout restart deployment/prod-canopy-frontend -n canopy-prod
             
-            # Wait for rollout
             echo ""
             echo "=== Waiting for Rollout ==="
             sudo k3s kubectl rollout status deployment/prod-canopy-frontend -n canopy-prod --timeout=300s
             
-            # Show status
-            echo ""
-            echo "=== Deployment Status ==="
-            sudo k3s kubectl get pods -n canopy-prod -l app=canopy-frontend
-            
             echo ""
             echo "=========================================="
-            echo "✅ Deployment Complete!"
+            echo "✅ Staging Deployment Complete!"
             echo "=========================================="
-            echo "Frontend URL: https://staging.app.canopynetwork.org"
-
-      - name: Deployment Summary
-        run: |
-          echo "### 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Environment:** Staging" >> $GITHUB_STEP_SUMMARY
-          echo "**URL:** https://staging.app.canopynetwork.org" >> $GITHUB_STEP_SUMMARY
-          echo "**API:** https://api.staging.app.canopynetwork.org" >> $GITHUB_STEP_SUMMARY
-          echo "**Deployed by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "URL: https://staging.app.canopynetwork.org"
 
       - name: Verify Deployment
         uses: appleboy/ssh-action@v1.0.3
@@ -213,7 +217,180 @@ jobs:
           key: ${{ secrets.K3S_SSH_KEY }}
           port: 22
           script: |
-            echo "=== Health Check ==="
             sleep 10
-            curl -sf https://staging.app.canopynetwork.org/ > /dev/null && echo "✅ Frontend is healthy" || echo "⚠️ Frontend health check failed"
-            curl -sf https://api.staging.app.canopynetwork.org/health > /dev/null && echo "✅ API is healthy" || echo "⚠️ API health check failed"
+            curl -sf https://staging.app.canopynetwork.org/ > /dev/null && echo "✅ Frontend healthy" || echo "⚠️ Frontend check failed"
+            curl -sf https://api.staging.app.canopynetwork.org/health > /dev/null && echo "✅ API healthy" || echo "⚠️ API check failed"
+
+      - name: Summary
+        run: |
+          echo "### 🚀 Staging Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** https://staging.app.canopynetwork.org" >> $GITHUB_STEP_SUMMARY
+          echo "**API:** https://api.staging.app.canopynetwork.org" >> $GITHUB_STEP_SUMMARY
+
+  # =============================================================================
+  # Deploy to Dev (dev branch)
+  # =============================================================================
+  deploy-dev:
+    name: Deploy to Dev
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: |
+      always() && 
+      needs.build.result == 'success' &&
+      needs.build.outputs.environment == 'dev' &&
+      github.event_name != 'pull_request'
+    environment: dev
+    
+    steps:
+      - name: Deploy to K3s
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.K3S_HOST }}
+          username: ${{ secrets.K3S_USER }}
+          key: ${{ secrets.K3S_SSH_KEY }}
+          port: 22
+          script_stop: true
+          script: |
+            set -euo pipefail
+            
+            echo "=========================================="
+            echo "🔧 Deploying Frontend to DEV"
+            echo "=========================================="
+            echo "Timestamp: $(date '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "Triggered by: ${{ github.actor }}"
+            echo "Commit: ${{ github.sha }}"
+            echo ""
+            
+            IMAGE="ghcr.io/canopy-network/canopy-frontend-dev:latest"
+            NAMESPACE="canopy-dev"
+            echo "Image: $IMAGE"
+            echo "Namespace: $NAMESPACE"
+            
+            # Ensure namespace exists
+            sudo k3s kubectl create namespace $NAMESPACE --dry-run=client -o yaml | sudo k3s kubectl apply -f -
+            
+            echo ""
+            echo "=== Pulling Image ==="
+            echo "${{ secrets.GITHUB_TOKEN }}" | sudo k3s ctr images pull --user "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" "$IMAGE" || {
+              echo "Direct pull failed, trying docker..."
+              echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+              sudo docker pull "$IMAGE"
+              sudo docker save "$IMAGE" | sudo k3s ctr images import -
+            }
+            
+            # Check if deployment exists, create if not
+            if ! sudo k3s kubectl get deployment dev-canopy-frontend -n $NAMESPACE &>/dev/null; then
+              echo ""
+              echo "=== Creating Dev Deployment ==="
+              cat <<EOF | sudo k3s kubectl apply -f -
+            apiVersion: apps/v1
+            kind: Deployment
+            metadata:
+              name: dev-canopy-frontend
+              namespace: $NAMESPACE
+              labels:
+                app: canopy-frontend
+                environment: dev
+            spec:
+              replicas: 1
+              selector:
+                matchLabels:
+                  app: canopy-frontend
+                  environment: dev
+              template:
+                metadata:
+                  labels:
+                    app: canopy-frontend
+                    environment: dev
+                spec:
+                  containers:
+                  - name: canopy-frontend
+                    image: $IMAGE
+                    ports:
+                    - containerPort: 3000
+                    resources:
+                      requests:
+                        memory: "256Mi"
+                        cpu: "100m"
+                      limits:
+                        memory: "512Mi"
+                        cpu: "500m"
+            ---
+            apiVersion: v1
+            kind: Service
+            metadata:
+              name: dev-canopy-frontend
+              namespace: $NAMESPACE
+            spec:
+              selector:
+                app: canopy-frontend
+                environment: dev
+              ports:
+              - port: 80
+                targetPort: 3000
+              type: ClusterIP
+            ---
+            apiVersion: networking.k8s.io/v1
+            kind: Ingress
+            metadata:
+              name: dev-canopy-frontend
+              namespace: $NAMESPACE
+              annotations:
+                cert-manager.io/cluster-issuer: letsencrypt-prod
+                traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+                traefik.ingress.kubernetes.io/router.tls: "true"
+            spec:
+              ingressClassName: traefik
+              tls:
+              - hosts:
+                - dev.app.canopynetwork.org
+                secretName: dev-canopy-frontend-tls
+              rules:
+              - host: dev.app.canopynetwork.org
+                http:
+                  paths:
+                  - path: /
+                    pathType: Prefix
+                    backend:
+                      service:
+                        name: dev-canopy-frontend
+                        port:
+                          number: 80
+            EOF
+            else
+              echo ""
+              echo "=== Updating Deployment ==="
+              sudo k3s kubectl set image deployment/dev-canopy-frontend canopy-frontend="$IMAGE" -n $NAMESPACE
+              sudo k3s kubectl rollout restart deployment/dev-canopy-frontend -n $NAMESPACE
+            fi
+            
+            echo ""
+            echo "=== Waiting for Rollout ==="
+            sudo k3s kubectl rollout status deployment/dev-canopy-frontend -n $NAMESPACE --timeout=300s
+            
+            echo ""
+            echo "=== Dev Pods ==="
+            sudo k3s kubectl get pods -n $NAMESPACE -l app=canopy-frontend
+            
+            echo ""
+            echo "=========================================="
+            echo "✅ Dev Deployment Complete!"
+            echo "=========================================="
+            echo "URL: https://dev.app.canopynetwork.org"
+
+      - name: Verify Deployment
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.K3S_HOST }}
+          username: ${{ secrets.K3S_USER }}
+          key: ${{ secrets.K3S_SSH_KEY }}
+          port: 22
+          script: |
+            sleep 15
+            curl -sf https://dev.app.canopynetwork.org/ > /dev/null && echo "✅ Dev Frontend healthy" || echo "⚠️ Dev Frontend check failed (cert may still be issuing)"
+
+      - name: Summary
+        run: |
+          echo "### 🔧 Dev Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** https://dev.app.canopynetwork.org" >> $GITHUB_STEP_SUMMARY
+          echo "**API:** https://api.dev.app.canopynetwork.org" >> $GITHUB_STEP_SUMMARY
