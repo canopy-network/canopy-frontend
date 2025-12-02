@@ -15,6 +15,20 @@ const formatCurrency = (value: number) =>
     maximumFractionDigits: 2,
   })}`;
 
+interface HistoricDataPoint {
+  time: number;
+  value: number;
+}
+
+interface HistoricData {
+  tvl: HistoricDataPoint[];
+  volume: HistoricDataPoint[];
+}
+
+interface ExplorerChartProps {
+  historicData?: HistoricData;
+}
+
 const buildSampleSeries = (base: number, amplitude: number) => {
   const now = Math.floor(Date.now() / 1000);
   return Array.from({ length: 48 }, (_, index) => {
@@ -28,7 +42,7 @@ const buildSampleSeries = (base: number, amplitude: number) => {
   });
 };
 
-const sampleChartData = {
+const defaultChartData = {
   tvl: buildSampleSeries(45_000_000, 1_500_000),
   volume: buildSampleSeries(8_500_000, 600_000),
 };
@@ -38,16 +52,17 @@ const chartMetricConfig = {
   volume: { label: "Volume", color: "#7dd3fc" },
 };
 
-export function ExplorerChart() {
+export function ExplorerChart({ historicData }: ExplorerChartProps) {
   const [chartMetric, setChartMetric] = useState<"tvl" | "volume">("tvl");
   const [selectedTimeframe, setSelectedTimeframe] = useState("1D");
 
-  const latestPoint =
-    sampleChartData[chartMetric][sampleChartData[chartMetric].length - 1];
+  // Use historic data if provided, otherwise use default sample data
+  const chartData = historicData || defaultChartData;
+  const latestPoint = chartData[chartMetric][chartData[chartMetric].length - 1];
 
   return (
     <div className="" id="network-overview-chart">
-      <div className="flex items-center justify-between mb-6 ">
+      <div className="flex items-center justify-between lg:mb-6 mb-3 ">
         <div className="flex items-center gap-3">
           {(["tvl", "volume"] as const).map((metric) => {
             const active = chartMetric === metric;
@@ -85,7 +100,7 @@ export function ExplorerChart() {
         <div className="h-full pt-12 p-3 lg:px-4">
           <ChainDetailChart
             height={324 - 64}
-            data={sampleChartData[chartMetric]}
+            data={chartData[chartMetric]}
             timeframe={selectedTimeframe}
             lineColor={chartMetricConfig[chartMetric].color}
           />

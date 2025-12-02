@@ -1,9 +1,10 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, Box, TrendingUp, TrendingDown } from "lucide-react";
+import { ArrowUpRight, TrendingUp, TrendingDown } from "lucide-react";
 import Link from "next/link";
 import { LiveStatusComponent } from "./live-status-component";
+import { LatestUpdated } from "./latest-updated";
 import {
   Tooltip,
   TooltipContent,
@@ -230,21 +231,17 @@ export function TopValidators({ validators }: TopValidatorsProps) {
   return (
     <div className="card-like p-4">
       <div className="flex items-center justify-between leading-none mb-4 lg:pl-3">
-        <h2 className="text-xl font-bold text-white">Top Validators</h2>
-        <div className="flex items-center gap-4">
-          <LiveStatusComponent />
-          <div className="flex items-center gap-2 text-muted-foreground text-sm bg-white/[0.05] rounded-lg px-4 py-2">
-            <Box className="w-4 h-4" />
-            <span>Latest update 44 secs ago</span>
-          </div>
-        </div>
+        <h2 className="lg:text-xl text-lg font-bold text-white">
+          Top Validators
+        </h2>
+        <LatestUpdated timeAgo="44 secs ago" />
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-3 w-full overflow-x-auto no-scrollbar">
         {validators.map((validator, index) => (
           <div
             key={validator.address}
-            className="rounded-xl px-4 py-3 bg-background hover:bg-background/75 transition-colors cursor-pointer"
+            className="rounded-xl w-[620px] lg:w-full  px-4 py-3 lg:py-4 bg-background hover:bg-background/75 transition-colors cursor-pointer"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -252,12 +249,12 @@ export function TopValidators({ validators }: TopValidatorsProps) {
                   {index + 1}
                 </div>
                 <div className="flex  flex-col">
-                  <h4 className="text-base font-medium capitalize">
+                  <h4 className="text-base font-medium capitalize whitespace-nowrap text-ellipsis overflow-hidden">
                     {validator.name}
                   </h4>
 
                   {validator.chains && validator.chains.length > 0 && (
-                    <div className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+                    <div className="inline-flex items-center gap-2 text-xs text-muted-foreground whitespace-nowrap text-ellipsis overflow-hidden">
                       <span className="font-medium">{validator.chains[0]}</span>
                       {validator.chains.length > 1 && (
                         <span className="px-1.5 py-0.5 bg-muted rounded-lg text-xs font-medium">
@@ -271,18 +268,22 @@ export function TopValidators({ validators }: TopValidatorsProps) {
 
               <div className="flex items-center gap-6">
                 <div className="text-right">
-                  <div className="font-medium">{validator.stake}</div>
+                  <div className="font-medium whitespace-nowrap text-ellipsis overflow-hidden">
+                    {validator.stake}
+                  </div>
                   <div className="text-xs text-muted-foreground mt-1">
                     Stake
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="font-medium">{validator.apr}</div>
+                  <div className="font-medium whitespace-nowrap text-ellipsis overflow-hidden">
+                    {validator.apr}
+                  </div>
                   <div className="text-xs text-muted-foreground mt-1">APR</div>
                 </div>
                 {validator.commissionRate !== undefined && (
                   <div className="text-right">
-                    <div className="font-medium">
+                    <div className="font-medium whitespace-nowrap text-ellipsis overflow-hidden">
                       <CommissionRate
                         rate={validator.commissionRate}
                         change={validator.commissionChange}

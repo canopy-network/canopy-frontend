@@ -142,7 +142,8 @@ export function ChainDetailsHeader({
               <img
                 src={chain.branding}
                 alt={`logo - ${chain.chain_name}`}
-                className="w-8 h-8 rounded-full"
+                className="w-8 h-8 rounded-full border border-white/10 bg-white/[0.05]"
+                style={{ backgroundColor: chain.brand_color }}
               />
             ) : (
               <div

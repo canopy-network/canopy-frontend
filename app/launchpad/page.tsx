@@ -419,7 +419,7 @@ export default function LaunchpadPage() {
       // Reset form and navigate to chain page with success flag
       resetFormData();
       router.push(
-        `/chain/${chain.id}?success=true&name=${encodeURIComponent(
+        `/chains/${chain.id}?success=true&name=${encodeURIComponent(
           chain.chain_name
         )}`
       );
