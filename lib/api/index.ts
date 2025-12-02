@@ -105,6 +105,24 @@ export {
   type Repository as GitHubRepository,
 } from "./github-repos";
 
+// Wallet API
+export { walletApi } from "./wallet";
+
+// Portfolio API
+export { portfolioApi } from "./portfolio";
+
+// Wallet Transaction API
+export { walletTransactionApi, waitForTransactionCompletion } from "./wallet-transactions";
+
+// Transactions API (wallet transactions)
+export { transactionsApi } from "./transactions";
+
+// Staking API
+export { stakingApi } from "./staking";
+
+// Governance API
+export { governanceApi } from "./governance";
+
 // ============================================================================
 // CONVENIENCE RE-EXPORTS
 // ============================================================================
@@ -155,3 +173,18 @@ export {
   type ExplorerBlocksResponse,
   type GetExplorerBlocksParams,
 } from "./explorer";
+
+export type {
+  Wallet,
+  CreateWalletRequest,
+  UpdateWalletRequest,
+  DecryptWalletRequest,
+  DecryptWalletResponse,
+  GetWalletsParams,
+  WalletsListResponse,
+  LocalWallet,
+  WalletCreationResult,
+  WalletBalance,
+  TokenBalance,
+  WalletTransaction,
+} from "@/types/wallet";

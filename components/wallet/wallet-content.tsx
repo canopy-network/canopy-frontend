@@ -68,7 +68,7 @@ export function WalletContent({
 }: {
   showBalance?: boolean;
 }) {
-  const { currentAccount, connectWallet } = useWallet();
+  const { currentWallet, connectWallet } = useWallet();
   const [activeTab, setActiveTab] = useState("buy");
   const [fromAmount, setFromAmount] = useState("");
   const [toAmount, setToAmount] = useState("");
@@ -207,8 +207,8 @@ export function WalletContent({
   }, [fromAmount, activeTab, selectedFromToken, selectedToToken]);
 
   const handleCopyAddress = () => {
-    if (currentAccount?.address) {
-      navigator.clipboard.writeText(currentAccount.address);
+    if (currentWallet?.address) {
+      navigator.clipboard.writeText(currentWallet.address);
     }
   };
 
@@ -239,7 +239,7 @@ export function WalletContent({
 
   return (
     <>
-      {currentAccount && showBalance && (
+      {currentWallet && showBalance && (
         <div className="p-6 pb-4 border-b border-[#2a2a2a]">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -249,8 +249,8 @@ export function WalletContent({
               <div>
                 <p className="text-sm font-medium text-white">Wallet</p>
                 <p className="text-xs text-gray-400">
-                  {currentAccount.address.slice(0, 6)}...
-                  {currentAccount.address.slice(-4)}
+                  {currentWallet.address.slice(0, 6)}...
+                  {currentWallet.address.slice(-4)}
                 </p>
               </div>
             </div>
@@ -353,13 +353,13 @@ export function WalletContent({
         </div>
       </Tabs>
 
-      {currentAccount && activeTab !== "convert" && (
+      {currentWallet && activeTab !== "convert" && (
         <div className="">
           <ActionButton activeTab={activeTab} />
         </div>
       )}
 
-      {currentAccount && activeTab === "convert" && selectedConvertToken && (
+      {currentWallet && activeTab === "convert" && selectedConvertToken && (
         <div className="">
           <Button
             className="w-full h-12 text-base font-medium rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white"
@@ -370,7 +370,7 @@ export function WalletContent({
         </div>
       )}
 
-      {!currentAccount && (
+      {!currentWallet && (
         <div className="">
           <Button
             onClick={() => connectWallet()}

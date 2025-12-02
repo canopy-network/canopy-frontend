@@ -2,47 +2,104 @@
 
 import { Button } from "@/components/ui/button";
 import { useWallet } from "./wallet-provider";
-import { Wallet, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Wallet, Loader2, ChevronDown } from "lucide-react";
+import { useAuthStore } from "@/lib/stores/auth-store";
+import { useWalletStore } from "@/lib/stores/wallet-store";
+import {formatBalanceWithCommas} from "@/lib/utils/denomination";
+import { useEffect } from "react";
 
-export function WalletConnectButton({
-  isCondensed = false,
-}: {
+interface WalletConnectButtonProps {
   isCondensed?: boolean;
-}) {
-  const { currentAccount, isConnecting, connectWallet, togglePopup } =
-    useWallet();
+}
 
-  if (currentAccount) {
+export function WalletConnectButton({ isCondensed = false }: WalletConnectButtonProps) {
+  const { isAuthenticated } = useAuthStore();
+  const { currentWallet, isConnecting, connectWallet, togglePopup } =
+    useWallet();
+  const { balance, fetchBalance } = useWalletStore();
+
+  // Fetch balance when wallet is connected
+  useEffect(() => {
+    if (currentWallet) {
+      fetchBalance(currentWallet.id);
+    }
+  }, [currentWallet]);
+
+  // Format address for display
+  const formatAddress = (address: string) => {
+    if (!address) return "";
+    // Add 0x prefix if not present
+
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
+  // If user is not authenticated, don't show wallet button
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  // If wallet is connected, show wallet info button
+  if (currentWallet) {
+    const displayBalance = balance?.total || "0.00";
+
+    if (isCondensed) {
+      return (
+        <Button
+          variant="outline"
+          onClick={togglePopup}
+          className="w-10 h-10 p-0 bg-transparent border-[#2a2a2a] text-white hover:bg-[#1a1a1a]"
+        >
+          <Wallet className="h-4 w-4" />
+        </Button>
+      );
+    }
+
     return (
       <Button
         variant="outline"
         onClick={togglePopup}
-        className="gap-2 bg-transparent border-[#2a2a2a] text-white hover:bg-[#1a1a1a] w-full justify-start"
+        className="bg-transparent border-[#2a2a2a] text-white hover:bg-[#1a1a1a] w-full h-auto py-3 px-3"
       >
-        <Wallet className="h-4 w-4" />
-        {currentAccount.address.slice(0, 6)}...
-        {currentAccount.address.slice(-4)}
+        <div className="flex items-start gap-3 w-full">
+          <div className="flex-shrink-0">
+            <Wallet className="h-4 w-4 mt-0.5" />
+          </div>
+          <div className="flex-1 min-w-0 text-left">
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <span className="font-mono text-xs text-muted-foreground truncate">
+                {formatAddress(currentWallet.address)}
+              </span>
+              <ChevronDown className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+            </div>
+            <div className="text-sm font-medium truncate">
+              {formatBalanceWithCommas(displayBalance)} CNPY
+            </div>
+          </div>
+        </div>
       </Button>
     );
   }
 
+  // Otherwise, show connect button
   return (
     <Button
       onClick={connectWallet}
       disabled={isConnecting}
-      className={cn(
-        "gap-2 w-full bg-transparent border-green-600/50 text-green-500 hover:bg-green-950/30 hover:border-green-600 h-12 rounded-2xl font-medium",
-        isCondensed ? "h-10 w-10" : "h-12"
-      )}
+      className="gap-2 w-full bg-transparent border-green-600/50 text-green-500 hover:bg-green-950/30 hover:border-green-600 h-12 rounded-2xl font-medium"
       variant="outline"
     >
       {isConnecting ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
+        <>
+          <Loader2 className="h-4 w-4 animate-spin" />
+          {!isCondensed && 'Connecting...'}
+        </>
       ) : (
-        <Wallet className="h-4 w-4" />
+        <>
+          <Wallet className="h-4 w-4" />
+          {!isCondensed && 'Connect wallet'}
+
+        </>
       )}
-      {isCondensed ? null : isConnecting ? "Connecting..." : "Connect wallet"}
     </Button>
   );
 }

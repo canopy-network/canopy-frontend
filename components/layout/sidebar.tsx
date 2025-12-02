@@ -172,7 +172,9 @@ export function Sidebar() {
       {/* Bottom Section */}
       <div
         className={cn(
-          "border-t border-[#2a2a2a] transition-all duration-300 py-4 px-4 transition-all duration-300 flex flex-col gap-3 items-center"
+          "border-t border-[#2a2a2a] transition-all duration-300 py-4 transition-all duration-300 flex flex-col gap-3 items-center",
+            isCondensed ? "px-5" : "px-4"
+
         )}
       >
         {/* Email Authentication */}
