@@ -172,7 +172,8 @@ export function AssetsTab({ addresses }: AssetsTabProps) {
         <CardHeader className="p-4 sm:p-6">
           <p className="text-xs sm:text-sm text-muted-foreground">Estimated Balance</p>
           <CardTitle className="text-2xl sm:text-3xl lg:text-4xl break-all">
-            {formatBalanceWithCommas(totalBalance)} CNPY
+            {/*TODO: This balance should be returning from the backend as micro*/}
+            {Number(totalBalance).toLocaleString()} CNPY
           </CardTitle>
           <div className="flex items-center gap-2">
             <p className="text-xs sm:text-sm text-muted-foreground">{totalUSDValue}</p>
@@ -268,7 +269,7 @@ export function AssetsTab({ addresses }: AssetsTabProps) {
                       <TableCell className="text-right">
                         <p className="font-medium">{token.usdValue || "$0.00"}</p>
                         <p className="text-sm text-muted-foreground">
-                          {formatTokenAmount(token.balance)} {token.symbol}
+                          {formatBalanceWithCommas(token.balance)} {token.symbol}
                         </p>
                       </TableCell>
                       <TableCell className="text-right">

@@ -177,7 +177,8 @@ export function StakingTab({ addresses }: StakingTabProps) {
               </TooltipProvider>
             </div>
             <p className="text-lg sm:text-xl lg:text-2xl font-bold">
-              ${totalInterestEarned.toFixed(2)}
+              {/*TODO: SHOULD RETURNED FROM THE BACKEND AS MICRO*/}
+              ${totalInterestEarned.toLocaleString()}
             </p>
             <p className="text-xs text-muted-foreground">
               {totalRewardsCNPY ? `${totalRewardsCNPY} CNPY` : "0 CNPY"}
