@@ -1,0 +1,7 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+# Configuración para Next.js Runtime en Netlify
+[build.environment]
+  NODE_VERSION = "20"

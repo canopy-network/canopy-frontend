@@ -635,3 +635,11 @@ export interface Accolade {
   /** Timestamp when the accolade was earned (null if not earned) */
   earned_at: string | null;
 }
+
+/**
+ * Chain Height Information
+ */
+export interface ChainHeight {
+  chain_id: string;
+  height: number;
+}

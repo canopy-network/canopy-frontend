@@ -1,106 +1,196 @@
 "use client";
 
 import type React from "react";
-import { createContext, useContext, useState } from "react";
-
-interface WalletAccount {
-  address: string;
-  balance: string;
-  chain: string;
-  isConnected: boolean;
-}
+import { createContext, useContext, useState, useEffect } from "react";
+import { useAuthStore } from "@/lib/stores/auth-store";
+import { useWalletStore } from "@/lib/stores/wallet-store";
+import { LocalWallet } from "@/types/wallet";
+import { SelectWalletDialog } from "./select-wallet-dialog";
+import { WalletConnectionDialog } from "./wallet-connection-dialog";
+import { showErrorToast } from "@/lib/utils/error-handler";
 
 interface WalletContextType {
-  accounts: WalletAccount[];
-  currentAccount: WalletAccount | null;
+  // Wallet State
+  currentWallet: LocalWallet | null;
+  wallets: LocalWallet[];
   isConnecting: boolean;
   isPopupOpen: boolean;
+
+  // Actions
   connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
-  switchAccount: (address: string) => void;
-  addAccount: (chain: string) => Promise<void>;
+  switchWallet: (walletId: string) => void;
   openPopup: () => void;
   closePopup: () => void;
   togglePopup: () => void;
+
+  // Dialog State
+  showSelectDialog: boolean;
+  showCreateDialog: boolean;
+  setShowSelectDialog: (show: boolean) => void;
+  setShowCreateDialog: (show: boolean) => void;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
-  const [accounts, setAccounts] = useState<WalletAccount[]>([]);
-  const [currentAccount, setCurrentAccount] = useState<WalletAccount | null>(
-    null
-  );
+  const { isAuthenticated } = useAuthStore();
+  const {
+    currentWallet,
+    wallets,
+    isLoading,
+    fetchWallets,
+    selectWallet,
+    resetWalletState,
+  } = useWalletStore();
+
   const [isConnecting, setIsConnecting] = useState(false);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [showSelectDialog, setShowSelectDialog] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [hasHydrated, setHasHydrated] = useState(false);
 
+  // Rehydrate wallet store on mount (restore persisted state)
+  useEffect(() => {
+    console.log('🔄 Rehydrating wallet store from localStorage...');
+    useWalletStore.persist.rehydrate();
+    setHasHydrated(true);
+
+    // Log rehydrated state
+    const state = useWalletStore.getState();
+    console.log('✅ Wallet store rehydrated:', {
+      walletsCount: state.wallets.length,
+      currentWallet: state.currentWallet?.address,
+      hasCurrentWallet: !!state.currentWallet,
+    });
+  }, []);
+
+  // Fetch wallets when user is authenticated and store is hydrated
+  useEffect(() => {
+    if (!hasHydrated) {
+      console.log('⏳ Waiting for wallet store hydration...');
+      return; // Wait for hydration
+    }
+
+    if (isAuthenticated) {
+      console.log('🔐 User authenticated, fetching wallets from API...');
+      fetchWallets().catch((error) => {
+        console.error("Failed to fetch wallets:", error);
+      });
+    } else {
+      console.log('🔓 User not authenticated, resetting wallet state...');
+      // Reset wallet state when user logs out
+      resetWalletState();
+    }
+  }, [isAuthenticated, hasHydrated]);
+
+  /**
+   * Connect wallet flow:
+   * 1. Check if user is authenticated
+   * 2. Fetch user's wallets
+   * 3. If no wallets, show create dialog
+   * 4. If has wallets, show select dialog
+   */
   const connectWallet = async () => {
-    setIsConnecting(true);
     try {
-      // Simulate wallet connection
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      setIsConnecting(true);
 
-      const mockAccount: WalletAccount = {
-        address: "0x742d35Cc6634C0532925a3b8D4C0532925a3b8D4",
-        balance: "1,234.56",
-        chain: "Ethereum",
-        isConnected: true,
-      };
+      // Check if user is authenticated
+      if (!isAuthenticated) {
+        showErrorToast(
+          new Error("Please log in first to connect your wallet"),
+          "Authentication Required"
+        );
+        setIsConnecting(false);
+        return;
+      }
 
-      setAccounts([mockAccount]);
-      setCurrentAccount(mockAccount);
+      // Fetch wallets
+      await fetchWallets();
+
+      // Determine which dialog to show
+      if (wallets.length === 0) {
+        // No wallets, show create dialog
+        setShowCreateDialog(true);
+      } else {
+        // Has wallets, show select dialog
+        setShowSelectDialog(true);
+      }
     } catch (error) {
-      console.error("Failed to connect wallet:", error);
+      showErrorToast(error, "Failed to connect wallet");
     } finally {
       setIsConnecting(false);
     }
   };
 
+  /**
+   * Disconnect wallet
+   */
   const disconnectWallet = () => {
-    setAccounts([]);
-    setCurrentAccount(null);
+    // Lock all wallets (remove private keys from memory)
+    useWalletStore.getState().lockAllWallets();
+
+    // Reset current wallet selection
+    useWalletStore.setState({ currentWallet: null });
+
+    // Close popup
     setIsPopupOpen(false);
+  };
+
+  /**
+   * Switch to a different wallet
+   */
+  const switchWallet = (walletId: string) => {
+    selectWallet(walletId);
   };
 
   const openPopup = () => setIsPopupOpen(true);
   const closePopup = () => setIsPopupOpen(false);
   const togglePopup = () => setIsPopupOpen((prev) => !prev);
 
-  const switchAccount = (address: string) => {
-    const account = accounts.find((acc) => acc.address === address);
-    if (account) {
-      setCurrentAccount(account);
-    }
+  const handleSelectSuccess = () => {
+    setShowSelectDialog(false);
   };
 
-  const addAccount = async (chain: string) => {
-    const newAccount: WalletAccount = {
-      address: `0x${Math.random().toString(16).substr(2, 40)}`,
-      balance: "0.00",
-      chain,
-      isConnected: true,
-    };
-
-    setAccounts((prev) => [...prev, newAccount]);
+  const handleCreateSuccess = () => {
+    setShowCreateDialog(false);
+    // Fetch wallets to update the list
+    fetchWallets();
   };
 
   return (
     <WalletContext.Provider
       value={{
-        accounts,
-        currentAccount,
-        isConnecting,
+        currentWallet,
+        wallets,
+        isConnecting: isConnecting || isLoading,
         isPopupOpen,
         connectWallet,
         disconnectWallet,
-        switchAccount,
-        addAccount,
+        switchWallet,
         openPopup,
         closePopup,
         togglePopup,
+        showSelectDialog,
+        showCreateDialog,
+        setShowSelectDialog,
+        setShowCreateDialog,
       }}
     >
       {children}
+
+      {/* Wallet Dialogs */}
+      <SelectWalletDialog
+        open={showSelectDialog}
+        onOpenChange={setShowSelectDialog}
+        onSuccess={handleSelectSuccess}
+      />
+
+      <WalletConnectionDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        onSuccess={handleCreateSuccess}
+      />
     </WalletContext.Provider>
   );
 }
