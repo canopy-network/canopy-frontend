@@ -151,7 +151,8 @@ export function useLaunchpadDashboard({
 
   // Filter projects based on current filters and active tab
   const filteredChains = useMemo(() => {
-    let filtered = [...chains];
+    let filtered = chains || [];
+    if (!chains) return [];
 
     // Apply search filter
     if (filters.searchQuery) {
