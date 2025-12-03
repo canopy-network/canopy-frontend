@@ -189,18 +189,22 @@ export function Sidebar() {
                 {user.avatar_url ? (
                   <img
                     src={user.avatar_url}
-                    alt={user.email || ""}
+                    alt={user.email || user.wallet_address || ""}
                     className="h-6 w-6  min-w-6 rounded-full"
                   />
                 ) : (
                   <span className="text-primary-foreground text-xs font-bold">
-                    {user.email?.slice(0, 2).toUpperCase()}
+                    {user.email
+                      ? user.email.slice(0, 2).toUpperCase()
+                      : user.wallet_address
+                      ? user.wallet_address.slice(2, 4).toUpperCase()
+                      : "??"}
                   </span>
                 )}
               </div>
               {isCondensed ? null : (
                 <span className="text-sm text-white truncate">
-                  {user.email}
+                  {user.email || (user.wallet_address ? `${user.wallet_address.slice(0, 6)}...${user.wallet_address.slice(-4)}` : "Anonymous")}
                 </span>
               )}
             </Button>
