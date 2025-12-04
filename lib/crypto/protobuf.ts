@@ -15,10 +15,84 @@
  * - repeated: [] (empty array)
  *
  * References:
- * - canopy/lib/.proto/tx.proto - Transaction structure
- * - canopy/fsm/message.proto - Message structures
+ * - canopy-newest-version/lib/.proto/tx.proto - Transaction structure
+ * - canopy-newest-version/lib/.proto/message.proto - Message structures
  * - canopy/lib/tx.go:149-162 - GetSignBytes() implementation
- * - canopy/fsm/message.pb.go - All message type definitions
+ * - canopy-newest-version/fsm/message.pb.go - All message type definitions
+ *
+ * SUPPORTED MESSAGE TYPES (16 total):
+ *
+ * ┌─ Transfer ────────────────────────────────────────────────────────────┐
+ * │ • MessageSend - Standard token transfer                               │
+ * └───────────────────────────────────────────────────────────────────────┘
+ *
+ * ┌─ Staking/Validator ───────────────────────────────────────────────────┐
+ * │ • MessageStake - Register as validator                                │
+ * │ • MessageEditStake - Modify validator settings                        │
+ * │ • MessageUnstake - Exit validator network                             │
+ * │ • MessagePause - Temporarily pause validator                          │
+ * │ • MessageUnpause - Resume paused validator                            │
+ * └───────────────────────────────────────────────────────────────────────┘
+ *
+ * ┌─ Governance ──────────────────────────────────────────────────────────┐
+ * │ • MessageChangeParameter - Propose parameter change                   │
+ * │ • MessageDAOTransfer - Propose DAO treasury transfer                  │
+ * └───────────────────────────────────────────────────────────────────────┘
+ *
+ * ┌─ System ──────────────────────────────────────────────────────────────┐
+ * │ • MessageSubsidy - Subsidize committee treasury                       │
+ * └───────────────────────────────────────────────────────────────────────┘
+ *
+ * ┌─ DEX Legacy ──────────────────────────────────────────────────────────┐
+ * │ • MessageCreateOrder - Create token swap order                        │
+ * │ • MessageEditOrder - Edit existing order                              │
+ * │ • MessageDeleteOrder - Delete order                                   │
+ * └───────────────────────────────────────────────────────────────────────┘
+ *
+ * ┌─ DEX v2 (NEW) ────────────────────────────────────────────────────────┐
+ * │ • MessageDexLimitOrder - Create limit order (NEW)                     │
+ * │ • MessageDexLiquidityDeposit - Add liquidity (NEW)                    │
+ * │ • MessageDexLiquidityWithdraw - Remove liquidity (NEW)                │
+ * └───────────────────────────────────────────────────────────────────────┘
+ *
+ * USAGE EXAMPLE:
+ *
+ * ```typescript
+ * import { getSignBytesProtobuf } from './protobuf';
+ * import { signMessage } from './signing';
+ *
+ * // 1. Build unsigned transaction
+ * const tx = {
+ *   type: 'dexLimitOrder',  // Use the message type
+ *   msg: {
+ *     chainId: 1,
+ *     amountForSale: 1000000,
+ *     requestedAmount: 2000000,
+ *     address: 'abc123...',  // hex, no 0x prefix
+ *   },
+ *   time: Date.now() * 1000,  // Unix microseconds
+ *   createdHeight: 12345,
+ *   fee: 1000,
+ *   memo: '',  // IMPORTANT: Always provide string, even if empty
+ *   networkID: 1,
+ *   chainID: 1,
+ * };
+ *
+ * // 2. Get sign bytes (protobuf-encoded)
+ * const signBytes = getSignBytesProtobuf(tx);
+ *
+ * // 3. Sign with private key
+ * const signature = signMessage(signBytes, privateKeyHex, curveType);
+ *
+ * // 4. Attach signature and send to backend
+ * const signedTx = {
+ *   ...tx,
+ *   signature: {
+ *     publicKey: publicKeyHex,
+ *     signature: signatureHex,
+ *   },
+ * };
+ * ```
  */
 
 import protobuf from 'protobufjs';
@@ -33,9 +107,9 @@ function shouldOmit(value: any): boolean {
   if (typeof value === 'string' && value === '') return true;
   if (value instanceof Uint8Array && value.length === 0) return true;
   if (typeof value === 'number' && value === 0) return true;
-  if (typeof value === 'boolean' && value === false) return true;
-  if (Array.isArray(value) && value.length === 0) return true;
-  return false;
+  if (typeof value === 'boolean' && !value) return true;
+  return Array.isArray(value) && value.length === 0;
+
 }
 
 /**
@@ -181,6 +255,34 @@ const root = protobuf.Root.fromJSON({
             ChainId: { type: 'uint64', id: 2 },
           },
         },
+        // MessageDexLimitOrder - DEX limit order
+        MessageDexLimitOrder: {
+          fields: {
+            chain_id: { type: 'uint64', id: 1 },
+            amount_for_sale: { type: 'uint64', id: 2 },
+            requested_amount: { type: 'uint64', id: 3 },
+            address: { type: 'bytes', id: 4 },
+            OrderId: { type: 'bytes', id: 5 },
+          },
+        },
+        // MessageDexLiquidityDeposit - DEX liquidity deposit
+        MessageDexLiquidityDeposit: {
+          fields: {
+            chain_id: { type: 'uint64', id: 1 },
+            amount: { type: 'uint64', id: 2 },
+            address: { type: 'bytes', id: 3 },
+            OrderId: { type: 'bytes', id: 4 },
+          },
+        },
+        // MessageDexLiquidityWithdraw - DEX liquidity withdraw
+        MessageDexLiquidityWithdraw: {
+          fields: {
+            chain_id: { type: 'uint64', id: 1 },
+            percent: { type: 'uint64', id: 2 },
+            address: { type: 'bytes', id: 3 },
+            OrderId: { type: 'bytes', id: 4 },
+          },
+        },
       },
     },
     google: {
@@ -215,6 +317,9 @@ const MessageSubsidy = root.lookupType('types.MessageSubsidy');
 const MessageCreateOrder = root.lookupType('types.MessageCreateOrder');
 const MessageEditOrder = root.lookupType('types.MessageEditOrder');
 const MessageDeleteOrder = root.lookupType('types.MessageDeleteOrder');
+const MessageDexLimitOrder = root.lookupType('types.MessageDexLimitOrder');
+const MessageDexLiquidityDeposit = root.lookupType('types.MessageDexLiquidityDeposit');
+const MessageDexLiquidityWithdraw = root.lookupType('types.MessageDexLiquidityWithdraw');
 
 /**
  * Creates a google.protobuf.Any from a message
@@ -518,6 +623,92 @@ export function encodeMessageDeleteOrder(params: {
   return MessageDeleteOrder.encode(message).finish();
 }
 
+/**
+ * Encodes MessageDexLimitOrder - DEX limit order
+ *
+ * From: canopy-newest-version/lib/.proto/message.proto:220-231
+ *
+ * This is the NEW DEX protocol limit order message.
+ *
+ * Fields included: chain_id, amount_for_sale, requested_amount, address
+ * Fields NEVER included: OrderId (backend auto-populates)
+ */
+export function encodeMessageDexLimitOrder(params: {
+  chainId: number;         // REQUIRED
+  amountForSale: number;   // REQUIRED
+  requestedAmount: number; // REQUIRED (minimum amount seller will receive)
+  address: string;         // REQUIRED - seller's send address (hex)
+  orderId?: string;        // OPTIONAL - backend NEVER includes this, omit it
+}): Uint8Array {
+  const messageData: any = {
+    chain_id: params.chainId,
+    amount_for_sale: params.amountForSale,
+    requested_amount: params.requestedAmount,
+    address: hexToBytes(params.address),
+  };
+
+  // NEVER include OrderId - backend auto-populates this field
+
+  const message = MessageDexLimitOrder.create(messageData);
+  return MessageDexLimitOrder.encode(message).finish();
+}
+
+/**
+ * Encodes MessageDexLiquidityDeposit - DEX liquidity deposit
+ *
+ * From: canopy-newest-version/lib/.proto/message.proto:233-243
+ *
+ * Deposits tokens to the liquidity pool in exchange for liquidity points.
+ *
+ * Fields included: chain_id, amount, address
+ * Fields NEVER included: OrderId (backend auto-populates)
+ */
+export function encodeMessageDexLiquidityDeposit(params: {
+  chainId: number; // REQUIRED
+  amount: number;  // REQUIRED
+  address: string; // REQUIRED - address sending tokens (hex)
+  orderId?: string; // OPTIONAL - backend NEVER includes this, omit it
+}): Uint8Array {
+  const messageData: any = {
+    chain_id: params.chainId,
+    amount: params.amount,
+    address: hexToBytes(params.address),
+  };
+
+  // NEVER include OrderId - backend auto-populates this field
+
+  const message = MessageDexLiquidityDeposit.create(messageData);
+  return MessageDexLiquidityDeposit.encode(message).finish();
+}
+
+/**
+ * Encodes MessageDexLiquidityWithdraw - DEX liquidity withdraw
+ *
+ * From: canopy-newest-version/lib/.proto/message.proto:245-255
+ *
+ * Withdraws tokens from both liquidity pools in exchange for burning liquidity points.
+ *
+ * Fields included: chain_id, percent, address
+ * Fields NEVER included: OrderId (backend auto-populates)
+ */
+export function encodeMessageDexLiquidityWithdraw(params: {
+  chainId: number; // REQUIRED
+  percent: number; // REQUIRED - percent of tokens to withdraw
+  address: string; // REQUIRED - LP's address (hex)
+  orderId?: string; // OPTIONAL - backend NEVER includes this, omit it
+}): Uint8Array {
+  const messageData: any = {
+    chain_id: params.chainId,
+    percent: params.percent,
+    address: hexToBytes(params.address),
+  };
+
+  // NEVER include OrderId - backend auto-populates this field
+
+  const message = MessageDexLiquidityWithdraw.create(messageData);
+  return MessageDexLiquidityWithdraw.encode(message).finish();
+}
+
 // ============================================================================
 // TRANSACTION SIGN BYTES GENERATION
 // ============================================================================
@@ -613,6 +804,21 @@ export function getSignBytesProtobuf(tx: {
       msgTypeName = 'types.MessageDeleteOrder';
       break;
 
+    case 'dexLimitOrder':
+      msgBytes = encodeMessageDexLimitOrder(tx.msg);
+      msgTypeName = 'types.MessageDexLimitOrder';
+      break;
+
+    case 'dexLiquidityDeposit':
+      msgBytes = encodeMessageDexLiquidityDeposit(tx.msg);
+      msgTypeName = 'types.MessageDexLiquidityDeposit';
+      break;
+
+    case 'dexLiquidityWithdraw':
+      msgBytes = encodeMessageDexLiquidityWithdraw(tx.msg);
+      msgTypeName = 'types.MessageDexLiquidityWithdraw';
+      break;
+
     default:
       throw new Error(`Unsupported message type: ${tx.type}`);
   }
@@ -670,7 +876,7 @@ export function encodeSignedTransaction(tx: {
   chainID: number;
 }): Uint8Array {
   // Encode the message payload (reuse getSignBytesProtobuf logic)
-  const unsignedTx = {
+  const lunsignedTx = {
     type: tx.type,
     msg: tx.msg,
     time: tx.time,
