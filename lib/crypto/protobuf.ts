@@ -15,8 +15,8 @@
  * - repeated: [] (empty array)
  *
  * References:
- * - canopy-newest-version/lib/.proto/tx.proto - Transaction structure
- * - canopy-newest-version/lib/.proto/message.proto - Message structures
+ * - canopy/lib/.proto/tx.proto - Transaction structure
+ * - canopy/lib/.proto/message.proto - Message structures
  * - canopy/lib/tx.go:149-162 - GetSignBytes() implementation
  * - canopy-newest-version/fsm/message.pb.go - All message type definitions
  *
