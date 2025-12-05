@@ -37,6 +37,7 @@ export type PageType =
   | "dashboard"
   | "explorer"
   | "graduation"
+  | "liquidity"
   | "amm"
   | "orderbook"
   | "wallet"
@@ -49,6 +50,7 @@ const routeConfig: Record<string, { label: string; href?: string }> = {
   dashboard: { label: "Dashboard", href: "/dashboard" },
   explorer: { label: "Explorer", href: "/explorer" },
   graduation: { label: "Graduation", href: "/graduation" },
+  liquidity: { label: "Liquidity", href: "/liquidity" },
   amm: { label: "AMM", href: "/amm" },
   orderbook: { label: "Order Book", href: "/orderbook" },
   wallet: { label: "Wallet", href: "/wallet" },
