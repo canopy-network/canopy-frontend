@@ -1,0 +1,31 @@
+# Aikido configuration for vulnerability scanning
+# To use Aikido, go to https://www.aikido.dev and connect your repository
+
+# Scan configuration
+scan:
+  # Scan dependencies
+  dependencies: true
+
+  # Scan source code (SAST)
+  sast: true
+
+  # Scan for exposed secrets
+  secrets: true
+
+  # Scan infrastructure configuration
+  iac: true
+
+# Ignore specific files/paths
+ignore:
+  - node_modules
+  - .next
+  - dist
+  - build
+  - .git
+
+# Severity levels to report
+severity:
+  - critical
+  - high
+  - medium
+  - low
