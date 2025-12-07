@@ -234,7 +234,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
             <img
               src="/images/logo.svg"
               alt="Logo"
-              className="invert h-4 mx-auto my-6"
+              className="h-4 mx-auto my-6"
             />
             <DialogTitle className="text-2xl font-bold">
               Welcome back!
@@ -354,7 +354,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
               <img
                 src="/images/logo.svg"
                 alt="Logo"
-                className="invert h-4 mx-auto my-6"
+                className="h-4 mx-auto my-6"
               />
               <DialogTitle className="text-2xl font-bold">
                 Welcome back!
@@ -472,7 +472,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
             <img
               src="/images/logo.svg"
               alt="Logo"
-              className="invert h-4 mx-auto my-6"
+              className="h-4 mx-auto my-6"
             />
             <DialogTitle className="text-2xl font-bold">
               Welcome to Canopy
@@ -530,11 +530,11 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
             )}
 
             <DialogHeader className="text-center">
-              <img
-                src="/images/logo.svg"
-                alt="Logo"
-                className="invert h-4 mx-auto my-6"
-              />
+            <img
+              src="/images/logo.svg"
+              alt="Logo"
+              className="h-4 mx-auto my-6"
+            />
               <DialogTitle className="text-2xl font-bold">
                 {!isConnected ? "Connect Your Wallet" : "Sign in with Ethereum"}
               </DialogTitle>

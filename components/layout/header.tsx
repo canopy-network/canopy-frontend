@@ -26,7 +26,8 @@ import { MobileSidebar } from "@/components/layout/mobile-sidebar";
 import { LoginDialog } from "@/components/auth/login-dialog";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { Badge } from "../ui/badge";
-import { chainStatusesLabels } from "@/lib/utils";
+import { WalletConnectButton } from "@/components/wallet/wallet-connect-button";
+import { WINDOW_BREAKPOINTS, chainStatusesLabels } from "@/lib/utils";
 import { ChainStatus } from "@/types";
 import { getSampleValidatorByAddress } from "@/lib/demo-data/sample-validators";
 
@@ -78,6 +79,7 @@ export function Header() {
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [mobileSearchQuery, setMobileSearchQuery] = useState("");
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Auth state
   const { user, isAuthenticated } = useAuthStore();
@@ -89,6 +91,16 @@ export function Header() {
   const current_explorer_selected_chain = useChainsStore(
     (state) => state.currentExplorerSelectedChain
   );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsSidebarCollapsed(window.innerWidth <= WINDOW_BREAKPOINTS.XL);
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Breadcrumbs state
   const [breadcrumbs, setBreadcrumbs] = useState<Array<{
@@ -447,6 +459,7 @@ export function Header() {
   };
 
   const pageType = getPageType();
+  const shouldShowCollapsedWalletButton = isLoggedIn && isSidebarCollapsed;
 
   return (
     <>
@@ -468,8 +481,12 @@ export function Header() {
           </Button>
 
           {/* Center: Logo */}
-          <Link href="/" className="block h-4 ml-4 mx-auto">
-            <img src="/images/logo.svg" alt="Logo" className="invert h-4" />
+          <Link href="/" className="block ml-4 mx-auto py-2">
+            <img
+              src="/images/logo.svg"
+              alt="Logo"
+              className="h-6 w-auto object-contain"
+            />
           </Link>
 
           {/* Right: Search & Login */}
@@ -482,16 +499,23 @@ export function Header() {
             >
               <Search className="h-5 w-5" />
             </Button>
-            <Button
-              onClick={() =>
-                isLoggedIn ? togglePopup() : setLoginDialogOpen(true)
-              }
-              variant="default"
-              size="sm"
-              className="text-xs px-3"
-            >
-              {isLoggedIn ? "Wallet" : "Login"}
-            </Button>
+            {isLoggedIn ? (
+              <WalletConnectButton isCondensed />
+            ) : (
+              <Button
+                onClick={() => setLoginDialogOpen(true)}
+                variant="ghost"
+                size="sm"
+                className="text-sm font-semibold px-3 py-2 hover:bg-transparent gap-2 text-[#7cff9d] border border-[#36d26a] bg-black/30 rounded-md shadow-[0_0_14px_rgba(124,255,157,0.4)] hover:shadow-[0_0_18px_rgba(124,255,157,0.55)]"
+              >
+                <img
+                  src="/images/ethereum-logo.png"
+                  alt="Ethereum"
+                  className="h-4 w-4 object-contain drop-shadow-[0_0_8px_rgba(124,255,157,0.8)]"
+                />
+                Connect Wallet
+              </Button>
+            )}
           </div>
         </div>
 
@@ -627,21 +651,28 @@ export function Header() {
             )}
           </div>
 
-          <div
-            className="absolute top-0 bottom-0 right-0 z-50 left-0 mx-auto w-[400px] flex items-center hidden lg:flex"
-            id="homepage-actions"
-          ></div>
-
-          {!isLoggedIn && (
-            <Button
-              onClick={() => setLoginDialogOpen(true)}
-              variant="default"
-              size="sm"
-              className="text-xs px-3 xl:hidden ml-auto"
-            >
-              Login
-            </Button>
-          )}
+          <div className="hidden lg:flex items-center gap-4 ml-auto">
+            {shouldShowCollapsedWalletButton && (
+              <div className="w-[200px]">
+                <WalletConnectButton hideBalance />
+              </div>
+            )}
+            {!isLoggedIn && (
+              <Button
+                onClick={() => setLoginDialogOpen(true)}
+                variant="ghost"
+                size="sm"
+                className="text-[#7cff9d] text-sm font-semibold px-3 py-2 hover:bg-transparent gap-2 border border-[#36d26a] bg-black/30 rounded-md shadow-[0_0_14px_rgba(124,255,157,0.4)] hover:shadow-[0_0_18px_rgba(124,255,157,0.55)]"
+              >
+                <img
+                  src="/images/ethereum-logo.png"
+                  alt="Ethereum"
+                  className="h-4 w-4 object-contain drop-shadow-[0_0_8px_rgba(124,255,157,0.8)]"
+                />
+                Connect Wallet
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 
