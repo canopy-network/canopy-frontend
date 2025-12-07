@@ -1,9 +1,13 @@
 {
   "name": "cnpy-superapp-frontend",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "private": true,
   "scripts": {
+    "preinstall": "npm run security:check-install || true",
+    "postinstall": "npm run security:audit || true",
+    "prebuild": "npm run security:check-build",
     "build": "next build",
+    "postbuild": "npm run security:audit || true",
     "dev": "next dev --turbopack -H 0.0.0.0",
     "lint": "eslint .",
     "start": "next start",
@@ -12,7 +16,12 @@
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:manual": "SKIP_WEBSERVER=1 playwright test",
-    "test:e2e:verbose": "playwright test --reporter=list --reporter=html"
+    "test:e2e:verbose": "playwright test --reporter=list --reporter=html",
+    "security:audit": "npm audit",
+    "security:fix": "npm audit fix",
+    "security:check": "npm audit --audit-level=moderate",
+    "security:check-install": "npm audit --audit-level=high --production || echo '⚠️  High or critical vulnerabilities detected. Run npm run security:fix to attempt fixes.'",
+    "security:check-build": "npm audit --audit-level=high --production || (echo '❌ Build blocked: Critical or high severity vulnerabilities detected!' && echo 'Run: npm run security:audit to see details' && echo 'Run: npm run security:fix to attempt automatic fixes' && exit 1)"
   },
   "dependencies": {
     "@auth/core": "^0.34.2",
@@ -69,13 +78,13 @@
     "input-otp": "1.4.1",
     "lightweight-charts": "^5.0.9",
     "lucide-react": "^0.454.0",
-    "next": "^15.5.0",
+    "next": "^15.5.7",
     "next-themes": "^0.4.6",
     "protobufjs": "^7.5.4",
     "qrcode.react": "^4.2.0",
-    "react": "^19.0.0",
+    "react": "^19.2.1",
     "react-day-picker": "^9.11.1",
-    "react-dom": "^19.0.0",
+    "react-dom": "^19.2.1",
     "react-hook-form": "^7.60.0",
     "react-hot-toast": "^2.6.0",
     "react-resizable-panels": "^2.1.7",
@@ -105,10 +114,14 @@
     "typescript": "^5"
   },
   "optionalDependencies": {
+    "@tailwindcss/oxide-darwin-arm64": "^4.0.1",
+    "@tailwindcss/oxide-darwin-x64": "^4.0.1",
     "@tailwindcss/oxide-linux-arm64-gnu": "^4.0.1",
     "@tailwindcss/oxide-linux-arm64-musl": "^4.0.1",
     "@tailwindcss/oxide-linux-x64-gnu": "^4.0.1",
     "@tailwindcss/oxide-linux-x64-musl": "^4.0.1",
+    "lightningcss-darwin-arm64": "^1.29.1",
+    "lightningcss-darwin-x64": "^1.29.1",
     "lightningcss-linux-arm64-gnu": "^1.29.1",
     "lightningcss-linux-arm64-musl": "^1.29.1",
     "lightningcss-linux-x64-gnu": "^1.29.1",
@@ -116,7 +129,7 @@
   },
   "overrides": {
     "next-auth": {
-      "next": "15.5.0"
+      "next": "15.5.7"
     }
   }
 }
