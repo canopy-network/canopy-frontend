@@ -584,6 +584,7 @@ export interface SendRawTransactionRequest {
     networkID: number;
     chainID: number;
   };
+  chain_id?: number;
 }
 
 /**
