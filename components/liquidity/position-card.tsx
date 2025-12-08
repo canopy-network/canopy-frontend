@@ -1,10 +1,12 @@
+"use client";
+
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { ChevronRight } from "lucide-react";
 import tokens from "@/data/tokens.json";
 
 // CNPY Logo component
-function CnpyLogo({ size = 32 }) {
+function CnpyLogo({ size = 32 }: { size?: number }) {
   return (
     <div
       className="rounded-full flex items-center justify-center flex-shrink-0"
@@ -22,7 +24,7 @@ function CnpyLogo({ size = 32 }) {
 }
 
 // Token Avatar component
-function TokenAvatar({ symbol, size = 32 }) {
+function TokenAvatar({ symbol, size = 32 }: { symbol: string; size?: number }) {
   if (symbol === "CNPY") {
     return <CnpyLogo size={size} />;
   }
@@ -46,12 +48,27 @@ function TokenAvatar({ symbol, size = 32 }) {
   );
 }
 
-export default function PositionCard({ position }) {
-  // Get token data
-  const tokenBData = tokens.find((t) => t.symbol === position.tokenB);
+/**
+ * Position data from allocation.by_chain
+ */
+export interface PositionCardProps {
+  position: {
+    chain_id: number;
+    chain_name: string;
+    token_symbol: string;
+    total_value_cnpy: string;
+    percentage: number;
+    valueUSD: number;
+    earnings: number;
+  };
+}
 
-  // Build the pool detail URL
-  const poolUrl = `/liquidity/${position.tokenB.toLowerCase()}-${position.tokenA.toLowerCase()}`;
+export default function PositionCard({ position }: PositionCardProps) {
+  // Get token data
+  const tokenData = tokens.find((t) => t.symbol === position.token_symbol);
+
+  // Build the pool detail URL (token/CNPY pair)
+  const poolUrl = `/liquidity/${position.token_symbol.toLowerCase()}-cnpy`;
 
   return (
     <Link href={poolUrl}>
@@ -62,17 +79,17 @@ export default function PositionCard({ position }) {
           <div className="flex items-center gap-3">
             {/* Token pair avatars */}
             <div className="flex -space-x-2">
-              <TokenAvatar symbol={position.tokenB} size={32} />
-              <TokenAvatar symbol={position.tokenA} size={32} />
+              <TokenAvatar symbol={position.token_symbol} size={32} />
+              <TokenAvatar symbol="CNPY" size={32} />
             </div>
 
             {/* Pool name */}
             <div>
               <div className="font-medium text-sm group-hover:text-primary transition-colors">
-                {position.tokenB}/{position.tokenA}
+                {position.token_symbol}/CNPY
               </div>
               <div className="text-xs text-muted-foreground">
-                {tokenBData?.name || position.tokenB}
+                {tokenData?.name || position.chain_name}
               </div>
             </div>
           </div>
@@ -82,7 +99,7 @@ export default function PositionCard({ position }) {
         </div>
 
         {/* Stats row */}
-        <div className="flex items-end justify-between mt-4 pt-3 border-t border-border">
+        <div className="flex items-end justify-between  pt-3 border-t border-border">
           {/* Value */}
           <div>
             <div className="text-xs text-muted-foreground">Value</div>
@@ -96,10 +113,14 @@ export default function PositionCard({ position }) {
           </div>
 
           {/* Fees Earned */}
-          <div className="text-right">
+          <div className="text-right flex items-end flex-col">
             <div className="text-xs text-muted-foreground">Earned</div>
             <span className="text-lg font-semibold text-green-500">
               +${position.earnings.toFixed(2)}
+            </span>
+
+            <span className="text-xs text-muted-foreground">
+              [Placeholder for now]
             </span>
           </div>
         </div>

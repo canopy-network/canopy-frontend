@@ -112,7 +112,10 @@ export { walletApi } from "./wallet";
 export { portfolioApi } from "./portfolio";
 
 // Wallet Transaction API
-export { walletTransactionApi, waitForTransactionCompletion } from "./wallet-transactions";
+export {
+  walletTransactionApi,
+  waitForTransactionCompletion,
+} from "./wallet-transactions";
 
 // Transactions API (wallet transactions)
 export { transactionsApi } from "./transactions";
@@ -188,3 +191,6 @@ export type {
   TokenBalance,
   WalletTransaction,
 } from "@/types/wallet";
+
+// AMM API
+export { ammApi } from "./amm";

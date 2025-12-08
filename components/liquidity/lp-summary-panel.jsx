@@ -1,36 +1,42 @@
-import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { Info, Plus, ArrowDownToLine } from 'lucide-react'
+"use client";
 
-export default function LpSummaryPanel({ 
-  lpPositions = [], 
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Info, Plus, ArrowDownToLine } from "lucide-react";
+
+export default function LpSummaryPanel({
+  lpPositions = [],
   pools = [],
+  portfolioData,
   onAddLiquidity,
-  onViewHistory
+  onViewHistory,
 }) {
-  // Calculate total LP value
-  const totalValue = lpPositions.reduce((sum, p) => sum + p.valueUSD, 0)
-  
-  // Calculate total fees earned
-  const totalEarnings = lpPositions.reduce((sum, p) => sum + p.earnings, 0)
-  
-  // Calculate weighted APY
-  const weightedApy = totalValue > 0 
-    ? lpPositions.reduce((sum, p) => {
-        const pool = pools.find(pool => pool.id === p.poolId)
-        return sum + (pool?.apr || 0) * (p.valueUSD / totalValue)
-      }, 0)
-    : 0
+  // Use portfolio API data if available, otherwise fallback to calculated values
+  const totalValue = portfolioData?.total_value_cnpy
+    ? parseFloat(portfolioData.total_value_cnpy)
+    : lpPositions.reduce((sum, p) => sum + p.valueUSD, 0);
+
+  // Calculate total fees earned from P&L percentage
+  // Fees earned = total value * (P&L percentage / 100)
+  const pnlPercentage = portfolioData?.performance?.total_pnl_percentage || 0;
+  const totalEarnings = totalValue * (pnlPercentage / 100);
+
+  // Net APY is the total P&L percentage
+  const netApy = pnlPercentage;
 
   const formatCurrency = (value) => {
     if (value >= 1000000) {
-      return `$${(value / 1000000).toFixed(2)}M`
+      return `$${(value / 1000000).toFixed(2)}M`;
     } else if (value >= 1000) {
-      return `$${(value / 1000).toFixed(2)}K`
+      return `$${(value / 1000).toFixed(2)}K`;
     }
-    return `$${value.toFixed(2)}`
-  }
+    return `$${value.toFixed(2)}`;
+  };
 
   return (
     <Card className="p-6">
@@ -40,7 +46,9 @@ export default function LpSummaryPanel({
           {/* Total LP Value */}
           <div>
             <div className="flex items-center gap-1.5 mb-1">
-              <span className="text-sm text-muted-foreground">Total LP Value</span>
+              <span className="text-sm text-muted-foreground">
+                Total LP Value
+              </span>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
@@ -50,9 +58,19 @@ export default function LpSummaryPanel({
                 </TooltipContent>
               </Tooltip>
             </div>
-            <span className="text-3xl font-bold tracking-tight">
-              {formatCurrency(totalValue)}
-            </span>
+
+            <div className="flex items-end gap-3">
+              <span className="text-3xl font-bold tracking-tight">
+                {formatCurrency(totalValue)}
+              </span>
+              <span className="text-lg text-muted-foreground">
+                CNPY{" "}
+                {totalValue.toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </span>
+            </div>
           </div>
 
           {/* Secondary Metrics Row */}
@@ -60,7 +78,9 @@ export default function LpSummaryPanel({
             {/* Total Fees Earned */}
             <div>
               <div className="flex items-center gap-1.5 mb-1">
-                <span className="text-sm text-muted-foreground">Fees Earned</span>
+                <span className="text-sm text-muted-foreground">
+                  Fees Earned
+                </span>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
@@ -70,8 +90,16 @@ export default function LpSummaryPanel({
                   </TooltipContent>
                 </Tooltip>
               </div>
-              <span className="text-xl font-semibold text-green-500">
-                +${totalEarnings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <span
+                className={`text-xl font-semibold ${
+                  totalEarnings >= 0 ? "text-green-500" : "text-red-500"
+                }`}
+              >
+                {totalEarnings >= 0 ? "+" : ""}$
+                {totalEarnings.toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
               </span>
             </div>
 
@@ -88,8 +116,13 @@ export default function LpSummaryPanel({
                   </TooltipContent>
                 </Tooltip>
               </div>
-              <span className="text-xl font-semibold">
-                {weightedApy.toFixed(2)}%
+              <span
+                className={`text-xl font-semibold ${
+                  netApy >= 0 ? "text-green-500" : "text-red-500"
+                }`}
+              >
+                {netApy >= 0 ? "+" : ""}
+                {netApy.toFixed(2)}%
               </span>
             </div>
           </div>
@@ -107,6 +140,10 @@ export default function LpSummaryPanel({
           </Button>
         </div>
       </div>
+      <span>
+        Right now the fees earned and net APY performance is 0 so we will have
+        to use dummy data for now
+      </span>
     </Card>
-  )
+  );
 }

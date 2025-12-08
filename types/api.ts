@@ -234,6 +234,7 @@ export interface TypeAllocation {
 export interface ChainAllocation {
   chain_id: number;
   chain_name: string;
+  token_symbol: string;
   value_cnpy: string;
   value_usd?: string;
   percentage: number;
@@ -303,8 +304,8 @@ export interface PerformanceDataPoint {
 
 export interface PortfolioPerformanceRequest {
   addresses: string[];
-  period: '24h' | '7d' | '30d' | '90d' | '1y' | 'all';
-  granularity: 'hourly' | 'daily' | 'weekly' | 'monthly';
+  period: "24h" | "7d" | "30d" | "90d" | "1y" | "all";
+  granularity: "hourly" | "daily" | "weekly" | "monthly";
 }
 
 export interface PortfolioPerformanceResponse {
@@ -326,7 +327,7 @@ export interface StakingPosition {
   chain_name?: string;
   staked_amount: string;
   staked_cnpy: string;
-  status: 'active' | 'paused' | 'unstaking';
+  status: "active" | "paused" | "unstaking";
   committees?: number[];
   delegate: boolean;
   compound: boolean;
@@ -346,7 +347,7 @@ export interface ChainStats {
 
 export interface StakingPositionsRequest {
   chain_ids?: string;
-  status?: 'active' | 'paused' | 'unstaking';
+  status?: "active" | "paused" | "unstaking";
   limit?: number;
   offset?: number;
 }
@@ -407,7 +408,7 @@ export interface UnstakingEntry {
   estimated_completion: string;
   time_remaining: string;
   unstake_initiated_time: string;
-  status: 'unstaking' | 'ready';
+  status: "unstaking" | "ready";
 }
 
 export interface UnstakingQueueRequest {
@@ -465,7 +466,7 @@ export interface TransactionDetail {
   amount?: string;
   amount_usd?: string;
   fee: string;
-  status: 'completed' | 'pending' | 'failed';
+  status: "completed" | "pending" | "failed";
   block_height?: number;
   timestamp: string;
   confirmations: number;
@@ -482,7 +483,7 @@ export interface TransactionHistoryRequest {
   end_date?: string;
   page: number;
   limit: number;
-  sort: 'asc' | 'desc';
+  sort: "asc" | "desc";
 }
 
 export interface TransactionHistoryResponse {

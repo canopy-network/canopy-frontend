@@ -356,7 +356,7 @@ export default function PoolDetailClient({
                   </div>
                 </div>
 
-                {console.log(chartTimeframe)}
+                {console.log({ chartTimeframe })}
                 {/* <LiquidityChart timeframe={chartTimeframe} height={160} /> */}
               </Card>
             }

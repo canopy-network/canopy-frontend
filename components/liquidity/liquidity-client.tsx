@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import {
-  Share2,
   Droplets,
   Search,
   ArrowUpDown,
@@ -31,6 +30,8 @@ import CancelWithdrawDialog from "./cancel-withdraw-dialog";
 import LpEarningsHistorySheet from "./lp-earnings-history-sheet";
 import LpSummaryPanel from "./lp-summary-panel";
 import PositionCard from "./position-card";
+import { usePortfolioOverview } from "@/lib/hooks/use-portfolio";
+import { useWalletStore } from "@/lib/stores/wallet-store";
 
 // CNPY Logo component
 function CnpyLogo({ size = 32 }) {
@@ -82,12 +83,10 @@ function TokenAvatar({
 
 // Token display component
 function TokenDisplay({
-  tokenA,
   tokenB,
   tokenBData,
   hasUserToken = false,
 }: {
-  tokenA: string;
   tokenB: string;
   tokenBData?: any;
   hasUserToken?: boolean;
@@ -142,6 +141,50 @@ export default function LiquidityClient({
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("tvl");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  // Get wallet addresses for portfolio data
+  const { wallets } = useWalletStore();
+  const walletAddresses = wallets.map((w) => w.address);
+
+  // Fetch portfolio overview data
+  const { data: portfolioData } = usePortfolioOverview(walletAddresses, {
+    enabled: isConnected && walletAddresses.length > 0,
+  });
+
+  // Dummy CNPY to USD conversion rate (replace with real rate when available)
+  const CNPY_TO_USD = 0.00001;
+
+  // Transform allocation.by_chain data into positions
+  const transformedPositions = useMemo(() => {
+    if (!portfolioData?.allocation?.by_chain) {
+      return [];
+    }
+
+    // Calculate total earnings from P&L percentage
+    const totalValueCnpy = parseFloat(portfolioData.total_value_cnpy || "0");
+    const totalValueUSD = totalValueCnpy * CNPY_TO_USD;
+    const pnlPercentage = portfolioData.performance?.total_pnl_percentage || 0;
+    const totalEarnings = totalValueUSD * (pnlPercentage / 100);
+
+    return portfolioData.allocation.by_chain
+      .filter((chain) => chain.token_symbol !== "CNPY") // Filter out CNPY itself
+      .map((chain) => {
+        const valueCnpy = parseFloat(chain.total_value_cnpy);
+        const valueUSD = valueCnpy * CNPY_TO_USD;
+        // Calculate proportional earnings based on position percentage
+        const earnings = totalEarnings * (chain.percentage / 100);
+
+        return {
+          chain_id: chain.chain_id,
+          chain_name: chain.chain_name,
+          token_symbol: chain.token_symbol,
+          total_value_cnpy: chain.total_value_cnpy,
+          percentage: chain.percentage,
+          valueUSD: valueUSD,
+          earnings: earnings,
+        };
+      });
+  }, [portfolioData, CNPY_TO_USD]);
 
   // Dialog states
   const [addLiquidityOpen, setAddLiquidityOpen] = useState(false);
@@ -258,6 +301,11 @@ export default function LiquidityClient({
     setClaimFeesOpen(true);
   };
 
+  const handleClaimFeesSuccess = () => {
+    // Fees claimed successfully - could refetch portfolio data here
+    console.log("Fees claimed successfully");
+  };
+
   const handleCancelWithdraw = (item: any) => {
     setSelectedWithdraw(item);
     setCancelWithdrawOpen(true);
@@ -301,18 +349,22 @@ export default function LiquidityClient({
           <LpSummaryPanel
             lpPositions={lpPositions}
             pools={liquidityPools}
+            portfolioData={portfolioData}
             onAddLiquidity={() => handleAddLiquidity()}
             onViewHistory={() => setEarningsHistoryOpen(true)}
           />
 
           {/* Section 2: Your Positions */}
-          {lpPositions.length > 0 && (
+          {transformedPositions.length > 0 && (
             <div className="space-y-4">
               <h2 className="text-lg font-semibold">Positions</h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {lpPositions.map((position) => (
-                  <PositionCard key={position.id} position={position} />
+                {transformedPositions.map((position) => (
+                  <PositionCard
+                    key={`${position.chain_id}-${position.token_symbol}`}
+                    position={position}
+                  />
                 ))}
               </div>
             </div>
@@ -502,7 +554,6 @@ export default function LiquidityClient({
                               className="flex items-center p-4"
                             >
                               <TokenDisplay
-                                tokenA={pool.tokenA}
                                 tokenB={pool.tokenB}
                                 tokenBData={tokenBData}
                                 hasUserToken={hasUserToken}
@@ -597,6 +648,7 @@ export default function LiquidityClient({
         open={claimFeesOpen}
         onOpenChange={setClaimFeesOpen}
         position={selectedPosition}
+        onClaimSuccess={handleClaimFeesSuccess}
       />
 
       <CancelWithdrawDialog

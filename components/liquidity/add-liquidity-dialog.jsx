@@ -24,6 +24,12 @@ import {
 } from "@/components/ui/tooltip";
 import liquidityPools from "@/data/liquidity-pools.json";
 import tokens from "@/data/tokens.json";
+import { walletTransactionApi, chainsApi } from "@/lib/api";
+import { useWalletStore } from "@/lib/stores/wallet-store";
+import toast from "react-hot-toast";
+
+// Conversion factor for microunits (1 token = 1,000,000 microunits)
+const MICRO_UNITS = 1_000_000;
 
 // CNPY Logo component
 function CnpyLogo({ size = 32 }) {
@@ -75,6 +81,9 @@ export default function AddLiquidityDialog({
   const [amountA, setAmountA] = useState("");
   const [amountB, setAmountB] = useState("");
   const [internalSelectedPool, setInternalSelectedPool] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { currentWallet } = useWalletStore();
 
   // Mock wallet data (replace with actual wallet connection later)
   const isConnected = true;
@@ -104,6 +113,7 @@ export default function AddLiquidityDialog({
       setStep(1);
       setAmountA("");
       setAmountB("");
+      setIsSubmitting(false);
     }
   }, [open]);
 
@@ -180,11 +190,90 @@ export default function AddLiquidityDialog({
     : 0;
   const estimatedApr = activePool?.apr || 0;
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (step === 1 && amountANum > 0 && amountBNum > 0 && activePool) {
       setStep(2);
     } else if (step === 2) {
-      setStep(3);
+      // Call deposit API before moving to success step
+      if (!currentWallet) {
+        toast.error("Please connect your wallet to add liquidity.");
+        return;
+      }
+
+      // Check if wallet is unlocked
+      if (!currentWallet.isUnlocked || !currentWallet.privateKey) {
+        toast.error("Wallet is locked. Please unlock your wallet first.");
+        return;
+      }
+
+      setIsSubmitting(true);
+
+      try {
+        // Convert amount to microunits (base units)
+        const amountInMicroUnits = Math.floor(amountANum * MICRO_UNITS);
+
+        // Pool chain ID - the pool you're depositing into (chain 2+)
+        const poolChainId = activePool.chainId || 2;
+
+        // Transaction chain ID - always root chain (1) for liquidity deposits
+        const transactionChainId = 1;
+
+        // Get current height from root chain (where transaction is sent)
+        const heightResponse = await chainsApi.getChainHeight(
+          String(transactionChainId)
+        );
+        const currentHeight = heightResponse.data.height;
+
+        // Create DEX liquidity deposit message
+        const { createDexLiquidityDepositMessage } = await import(
+          "@/lib/crypto/transaction"
+        );
+        const depositMsg = createDexLiquidityDepositMessage(
+          poolChainId, // The pool chain you're depositing to
+          amountInMicroUnits,
+          currentWallet.address
+        );
+
+        // Create and sign transaction
+        const { createAndSignTransaction } = await import(
+          "@/lib/crypto/transaction"
+        );
+        const signedTx = createAndSignTransaction(
+          {
+            type: "dexLiquidityDeposit",
+            msg: depositMsg,
+            fee: 1000, // TODO: Add fee estimation
+            memo: " ", // CRITICAL: Always empty string, never undefined/null
+            networkID: 1,
+            chainID: transactionChainId, // Root chain where transaction is sent
+            height: currentHeight,
+          },
+          currentWallet.privateKey,
+          currentWallet.public_key,
+          currentWallet.curveType
+        );
+
+        // Submit transaction
+        const response = await walletTransactionApi.sendRawTransaction(
+          signedTx
+        );
+
+        toast.success(
+          `Transaction submitted: ${response.transaction_hash.substring(
+            0,
+            8
+          )}...`
+        );
+
+        setStep(3);
+      } catch (error) {
+        console.error("Failed to add liquidity:", error);
+        toast.error(
+          error.message || "An error occurred while adding liquidity."
+        );
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -218,6 +307,7 @@ export default function AddLiquidityDialog({
                 size="icon"
                 className="h-8 w-8"
                 onClick={handleBack}
+                disabled={isSubmitting}
               >
                 <ArrowLeft className="w-4 h-4" />
               </Button>
@@ -235,6 +325,7 @@ export default function AddLiquidityDialog({
             size="icon"
             className="h-8 w-8"
             onClick={handleClose}
+            disabled={isSubmitting}
           >
             <X className="w-4 h-4" />
           </Button>
@@ -466,8 +557,12 @@ export default function AddLiquidityDialog({
                 </div>
               </div>
 
-              <Button className="w-full" onClick={handleContinue}>
-                Confirm Add Liquidity
+              <Button
+                className="w-full"
+                onClick={handleContinue}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Confirming..." : "Confirm Add Liquidity"}
               </Button>
             </>
           )}

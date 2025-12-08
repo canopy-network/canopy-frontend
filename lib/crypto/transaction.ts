@@ -5,16 +5,16 @@
  * Handles multi-curve signing for Canopy blockchain transactions
  */
 
-import { signMessage } from './signing';
-import { CurveType } from './types';
-import { getSignBytesProtobuf } from './protobuf';
+import { signMessage } from "./signing";
+import { CurveType } from "./types";
+import { getSignBytesProtobuf } from "./protobuf";
 import type {
   TransactionParams,
   RawTransaction,
   TransactionMessage,
   TransactionSignature,
-} from './types';
-import type { SendRawTransactionRequest } from '@/types/wallet';
+} from "./types";
+import type { SendRawTransactionRequest } from "@/types/wallet";
 
 /**
  * Creates and signs a transaction
@@ -44,7 +44,7 @@ export function createAndSignTransaction(
 ): SendRawTransactionRequest {
   // Build unsigned transaction
   // Mirrors lib.Transaction structure from canopy/lib/tx.go
-  const unsignedTx: Omit<RawTransaction, 'signature'> = {
+  const unsignedTx: Omit<RawTransaction, "signature"> = {
     type: params.type,
     msg: params.msg,
     time: Date.now() * 1000, // Unix microseconds (Go uses time.Now().UnixMicro())
@@ -157,7 +157,7 @@ export function createStakeMessage(
   netAddress: string,
   outputAddress: string,
   delegate: boolean,
-  compound: boolean,
+  compound: boolean
 ): TransactionMessage {
   return {
     publickey: publicKey, // WORKAROUND: Backend expects lowercase "publickey" not "publicKey"
@@ -211,7 +211,7 @@ export function createEditStakeMessage(
     committees,
     netAddress,
     outputAddress,
-    signer: '', // Will be populated by backend
+    signer: "", // Will be populated by backend
     compound,
   };
 }
@@ -244,7 +244,7 @@ export function createOrderMessage(
     requestedAmount,
     sellerReceiveAddress,
     sellersSendAddress,
-    orderId: '', // Will be populated by backend (first 20 bytes of tx hash)
+    orderId: "", // Will be populated by backend (first 20 bytes of tx hash)
   };
 }
 
@@ -256,38 +256,38 @@ export function createOrderMessage(
  */
 export function validateTransactionParams(params: TransactionParams): void {
   // Validate message type
-  if (!params.type || typeof params.type !== 'string') {
-    throw new Error('Invalid message type: must be a non-empty string');
+  if (!params.type || typeof params.type !== "string") {
+    throw new Error("Invalid message type: must be a non-empty string");
   }
 
   // Validate message payload
-  if (!params.msg || typeof params.msg !== 'object') {
-    throw new Error('Invalid message: must be an object');
+  if (!params.msg || typeof params.msg !== "object") {
+    throw new Error("Invalid message: must be an object");
   }
 
   // Validate fee
-  if (typeof params.fee !== 'number' || params.fee < 0) {
-    throw new Error('Invalid fee: must be a non-negative number');
+  if (typeof params.fee !== "number" || params.fee < 0) {
+    throw new Error("Invalid fee: must be a non-negative number");
   }
 
   // Validate network ID
-  if (typeof params.networkID !== 'number' || params.networkID <= 0) {
-    throw new Error('Invalid network ID: must be a positive number');
+  if (typeof params.networkID !== "number" || params.networkID <= 0) {
+    throw new Error("Invalid network ID: must be a positive number");
   }
 
   // Validate chain ID
-  if (typeof params.chainID !== 'number' || params.chainID <= 0) {
-    throw new Error('Invalid chain ID: must be a positive number');
+  if (typeof params.chainID !== "number" || params.chainID <= 0) {
+    throw new Error("Invalid chain ID: must be a positive number");
   }
 
   // Validate height
-  if (typeof params.height !== 'number' || params.height < 0) {
-    throw new Error('Invalid height: must be a non-negative number');
+  if (typeof params.height !== "number" || params.height < 0) {
+    throw new Error("Invalid height: must be a non-negative number");
   }
 
   // Validate memo length
   if (params.memo && params.memo.length > 200) {
-    throw new Error('Invalid memo: must be 200 characters or less');
+    throw new Error("Invalid memo: must be 200 characters or less");
   }
 }
 
@@ -318,9 +318,34 @@ export async function getTransactionHash(tx: RawTransaction): Promise<string> {
   const bytes = new TextEncoder().encode(jsonString);
 
   // Use browser's SubtleCrypto for SHA-256
-  const hashBuffer = await crypto.subtle.digest('SHA-256', bytes);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", bytes);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  const hashHex = hashArray
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 
   return hashHex;
+}
+
+/**
+ * Creates a DexLiquidityDeposit transaction message (DEX v2)
+ *
+ * Deposits tokens to the liquidity pool in exchange for liquidity points.
+ *
+ * @param chainId - Committee chain ID
+ * @param amount - Deposit amount in micro units
+ * @param address - Hex-encoded depositor address
+ * @returns MessageDexLiquidityDeposit payload
+ */
+export function createDexLiquidityDepositMessage(
+  chainId: number,
+  amount: number,
+  address: string
+): TransactionMessage {
+  return {
+    chainId,
+    amount,
+    address,
+    orderId: "", // Will be populated by backend
+  };
 }

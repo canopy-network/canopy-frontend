@@ -8,7 +8,8 @@
     "fees24h": 1350,
     "apr": 42.5,
     "tokenAReserve": 500000,
-    "tokenBReserve": 1000000
+    "tokenBReserve": 1000000,
+    "chainId": 2
   },
   {
     "id": "pool-2",
@@ -19,7 +20,8 @@
     "fees24h": 2040,
     "apr": 51.3,
     "tokenAReserve": 600000,
-    "tokenBReserve": 1200000
+    "tokenBReserve": 1200000,
+    "chainId": 2
   },
   {
     "id": "pool-3",
@@ -30,7 +32,8 @@
     "fees24h": 960,
     "apr": 38.2,
     "tokenAReserve": 400000,
-    "tokenBReserve": 800000
+    "tokenBReserve": 800000,
+    "chainId": 2
   },
   {
     "id": "pool-4",
@@ -41,7 +44,8 @@
     "fees24h": 840,
     "apr": 35.7,
     "tokenAReserve": 350000,
-    "tokenBReserve": 700000
+    "tokenBReserve": 700000,
+    "chainId": 2
   },
   {
     "id": "pool-5",
@@ -52,7 +56,8 @@
     "fees24h": 1170,
     "apr": 44.8,
     "tokenAReserve": 480000,
-    "tokenBReserve": 960000
+    "tokenBReserve": 960000,
+    "chainId": 2
   },
   {
     "id": "pool-6",
@@ -63,7 +68,8 @@
     "fees24h": 930,
     "apr": 36.5,
     "tokenAReserve": 420000,
-    "tokenBReserve": 840000
+    "tokenBReserve": 840000,
+    "chainId": 2
   },
   {
     "id": "pool-7",
@@ -74,7 +80,8 @@
     "fees24h": 795,
     "apr": 33.2,
     "tokenAReserve": 320000,
-    "tokenBReserve": 640000
+    "tokenBReserve": 640000,
+    "chainId": 2
   },
   {
     "id": "pool-8",
@@ -85,7 +92,8 @@
     "fees24h": 495,
     "apr": 28.4,
     "tokenAReserve": 280000,
-    "tokenBReserve": 560000
+    "tokenBReserve": 560000,
+    "chainId": 2
   },
   {
     "id": "pool-9",
@@ -96,7 +104,8 @@
     "fees24h": 735,
     "apr": 32.8,
     "tokenAReserve": 300000,
-    "tokenBReserve": 600000
+    "tokenBReserve": 600000,
+    "chainId": 2
   },
   {
     "id": "pool-10",
@@ -107,6 +116,7 @@
     "fees24h": 375,
     "apr": 24.6,
     "tokenAReserve": 250000,
-    "tokenBReserve": 500000
+    "tokenBReserve": 500000,
+    "chainId": 2
   }
 ]
