@@ -105,10 +105,12 @@ jobs:
           images: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}${{ steps.env-vars.outputs.image_suffix }}
             ${{ steps.env-vars.outputs.docker_hub_image }}
+            ${{ steps.env-vars.outputs.dev_image }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest
+            type=raw,value=dev,enable=${{ steps.env-vars.outputs.is_dev == 'true' }}
             type=sha,prefix=sha-
             type=ref,event=branch
 
@@ -150,20 +152,6 @@ jobs:
             S3_SECRET_KEY=${{ secrets.S3_SECRET_KEY }}
             S3_BUCKET_NAME=${{ vars.S3_BUCKET_NAME }}
             S3_ARN=${{ vars.S3_ARN }}
-
-      - name: Tag and push dev image
-        if: github.event_name != 'pull_request' && steps.set-env.outputs.environment == 'dev'
-        run: |
-          SOURCE_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}${{ steps.env-vars.outputs.image_suffix }}:latest"
-          TARGET_IMAGE="ghcr.io/canopy-network/canopy-frontend:dev"
-          echo "Tagging $SOURCE_IMAGE as $TARGET_IMAGE"
-          # Pull the source image (it should already be in the registry from the build step)
-          docker pull $SOURCE_IMAGE
-          # Tag it with the dev tag
-          docker tag $SOURCE_IMAGE $TARGET_IMAGE
-          # Push the tagged image
-          docker push $TARGET_IMAGE
-          echo "✅ Successfully tagged and pushed $TARGET_IMAGE"
 
       - name: Output image info
         run: |
