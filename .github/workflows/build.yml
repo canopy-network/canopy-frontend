@@ -146,6 +146,7 @@ jobs:
             S3_SECRET_KEY=${{ secrets.S3_SECRET_KEY }}
             S3_BUCKET_NAME=${{ vars.S3_BUCKET_NAME }}
             S3_ARN=${{ vars.S3_ARN }}
+            NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=${{ secrets.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID }}
 
       - name: Output image info
         run: |
