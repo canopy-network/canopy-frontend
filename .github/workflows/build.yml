@@ -261,7 +261,7 @@ jobs:
             echo "Commit: ${{ github.sha }}"
             echo ""
             
-            IMAGE="ghcr.io/canopy-network/canopy-frontend-dev:latest"
+            IMAGE="canopynetwork/canopy-frontend:latest"
             NAMESPACE="canopy-dev"
             echo "Image: $IMAGE"
             echo "Namespace: $NAMESPACE"
@@ -271,20 +271,22 @@ jobs:
             
             echo ""
             echo "=== Pulling Image ==="
-            # Try docker pull method first (more reliable for GHCR authentication)
-            echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-            if sudo docker pull "$IMAGE"; then
-              echo "Docker pull successful, importing to k3s..."
-              sudo docker save "$IMAGE" | sudo k3s ctr images import -
-              echo "Image imported to k3s successfully"
-            else
-              echo "Docker pull failed, trying k3s ctr directly..."
-              # Fallback to k3s ctr with proper auth
-              export REGISTRY_AUTH_FILE=$(mktemp)
-              echo "{\"auths\":{\"ghcr.io\":{\"auth\":\"$(echo -n "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" | base64 -w 0)\"}}}" > "$REGISTRY_AUTH_FILE"
-              sudo k3s ctr images pull --registry-auth-file "$REGISTRY_AUTH_FILE" "$IMAGE"
-              rm -f "$REGISTRY_AUTH_FILE"
+            # Use Docker Hub for pulling and importing
+            echo "${{ secrets.DOCKER_HUB_SECRET }}" | sudo docker login -u "canopynetwork" --password-stdin
+            echo "Pulling image with Docker..."
+            # Try to pull, but continue if image already exists locally
+            if ! sudo docker pull "$IMAGE" 2>&1; then
+              echo "Docker pull failed, checking if image exists locally..."
+              if sudo docker images "$IMAGE" --format "{{.Repository}}:{{.Tag}}" | grep -q "^${IMAGE}$"; then
+                echo "Image found locally, using cached version"
+              else
+                echo "ERROR: Image not found locally and pull failed"
+                exit 1
+              fi
             fi
+            echo "Importing image to k3s..."
+            sudo docker save "$IMAGE" | sudo k3s ctr images import -
+            echo "✅ Image successfully imported to k3s"
             
             # Check if deployment exists, create if not
             if ! sudo k3s kubectl get deployment dev-canopy-frontend -n $NAMESPACE &>/dev/null; then
