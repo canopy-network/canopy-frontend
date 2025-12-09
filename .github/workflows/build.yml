@@ -272,7 +272,7 @@ jobs:
             echo ""
             echo "=== Pulling Image ==="
             # Use Docker Hub for pulling and importing
-            echo "${{ secrets.DOCKER_HUB_SECRET }}" | sudo docker login -u "canopynetwork" --password-stdin
+            echo "${{ secrets.DOCKER_HUB_SECRET }}" | sudo docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
             echo "Pulling image with Docker..."
             # Try to pull, but continue if image already exists locally
             if ! sudo docker pull "$IMAGE" 2>&1; then
