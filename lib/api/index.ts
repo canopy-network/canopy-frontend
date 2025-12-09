@@ -37,6 +37,8 @@ export {
   getChainsWithRelations,
   getActiveChains,
   getGraduatedChains,
+  getAllChains,
+  getAllGraduatedChains,
   getChainsByCreator,
   getChainsByTemplate,
 } from "./chains";

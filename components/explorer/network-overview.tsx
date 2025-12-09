@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { ExplorerChart } from "./explorer-chart";
+import { EXPLORER_NEON_GREEN, EXPLORER_NEON_BORDER } from "@/lib/utils/brand";
 
 interface Metric {
   id: string;
@@ -61,15 +62,25 @@ export function NetworkOverview({
                     </div>
                     <div className="flex items-center text-xs font-medium">
                       {isPositive ? (
-                        <ArrowUpRight className="h-4 w-4 text-emerald-400" />
+                        <ArrowUpRight
+                          className="h-4 w-4"
+                          style={{ color: EXPLORER_NEON_GREEN }}
+                        />
                       ) : (
                         <ArrowDownRight className="h-4 w-4 text-red-400" />
                       )}
                       <span
                         className={cn(
-                          isPositive ? "text-emerald-400" : "text-red-400",
+                          isPositive
+                            ? "text-[--explorer-neon-green]"
+                            : "text-red-400",
                           "text-xs font-medium mr-1"
                         )}
+                        style={
+                          isPositive
+                            ? { color: EXPLORER_NEON_GREEN }
+                            : undefined
+                        }
                       >
                         {`${valuePart}%`}
                       </span>

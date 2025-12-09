@@ -20,6 +20,7 @@ import {
   getExplorerTrendingChains,
   type ExplorerTrendingChain,
 } from "@/lib/api/explorer";
+import { getGraduatedChains, getAllGraduatedChains } from "@/lib/api/chains";
 
 interface Validator {
   name: string;
@@ -352,6 +353,7 @@ export function ExplorerDashboard({ overviewData }: ExplorerDashboardProps) {
   const [trendingChains, setTrendingChains] = useState<ChainSummary[]>(
     sampleTrendingChains
   );
+  const [newChains, setNewChains] = useState<Chain[]>([]);
 
   const [isLoadingBlocks, toggleIsLoadingBlocks] = useState(false);
 
@@ -401,11 +403,74 @@ export function ExplorerDashboard({ overviewData }: ExplorerDashboardProps) {
     }
   }
 
+  async function fetchNewChains() {
+    try {
+      // Fast path: single page fetch
+      const graduatedChainsResponse = await getGraduatedChains({
+        include: "virtual_pool,graduated_pool",
+        limit: 8,
+      });
+
+      let graduatedChains =
+        (graduatedChainsResponse as any)?.data || graduatedChainsResponse || [];
+
+      if (
+        graduatedChains &&
+        typeof graduatedChains === "object" &&
+        Array.isArray((graduatedChains as any).data)
+      ) {
+        graduatedChains = (graduatedChains as any).data;
+      }
+
+      // Fallback to all pages if first fetch returns nothing
+      if (!Array.isArray(graduatedChains) || graduatedChains.length === 0) {
+        const allGraduated = await getAllGraduatedChains({
+          include: "virtual_pool,graduated_pool",
+          limit: 50,
+        });
+
+        graduatedChains =
+          (allGraduated as any)?.data || allGraduated || graduatedChains;
+        if (
+          graduatedChains &&
+          typeof graduatedChains === "object" &&
+          Array.isArray((graduatedChains as any).data)
+        ) {
+          graduatedChains = (graduatedChains as any).data;
+        }
+      }
+
+      if (graduatedChains.length === 0) {
+        setNewChains([]);
+        return;
+      }
+
+      const withGraduation = graduatedChains
+        .filter((chain) => chain.graduation_time)
+        .sort(
+          (a, b) =>
+            new Date(b.graduation_time || 0).getTime() -
+            new Date(a.graduation_time || 0).getTime()
+        );
+
+      const withoutGraduation = graduatedChains.filter(
+        (chain) => !chain.graduation_time
+      );
+
+      const ordered = [...withGraduation, ...withoutGraduation];
+      setNewChains(ordered.slice(0, 8));
+    } catch (error) {
+      console.error("Failed to fetch new chains:", error);
+      setNewChains([]);
+    }
+  }
+
   useEffect(() => {
     // Initial fetch
     fetchTransactions();
     fetchBlocks();
     fetchTrendingChains();
+    fetchNewChains();
 
     // Set up polling every 10 seconds
     const interval = setInterval(() => {
@@ -422,11 +487,11 @@ export function ExplorerDashboard({ overviewData }: ExplorerDashboardProps) {
       <Container
         tag="section"
         type="2xl"
-        className="bg-background sticky top-0 lg:py-2 z-99 mb-4 lg:mb-0"
-      >
-        <ExplorerSearchBar />
-      </Container>
-      <Container tag="section" type="2xl" className="space-y-4 lg:space-y-6">
+          className="bg-background sticky top-0 lg:py-2 z-99 mb-4 lg:mb-0"
+        >
+          <ExplorerSearchBar />
+        </Container>
+        <Container tag="section" type="2xl" className="space-y-4 lg:space-y-6">
         {/* Search Bar */}
 
         <NetworkOverview
@@ -447,12 +512,12 @@ export function ExplorerDashboard({ overviewData }: ExplorerDashboardProps) {
         }}
       />
 
-      <TrendingChains chains={trendingChains} />
+          <TrendingChains chains={trendingChains} />
 
-        {/* Bottom Grid: New Launches, Top Validators, Recent Transactions */}
+          {/* Bottom Grid: New Launches, Top Validators, Recent Transactions */}
 
-        <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6 lg:mb-8 ">
-          <NewLaunches chains={sampleNewLaunches} />
+          <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6 lg:mb-8 ">
+          <NewLaunches chains={newChains} />
           <TopValidators validators={sampleTopValidators} />
         </div>
 

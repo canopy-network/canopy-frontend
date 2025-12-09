@@ -13,6 +13,7 @@ import {
   ExplorerSearchResult,
 } from "@/lib/api/explorer";
 import { CopyableText } from "@/components/ui/copyable-text";
+import { EXPLORER_ICON_GLOW } from "@/lib/utils/brand";
 
 type ExplorerChainOption = {
   id: string | number;
@@ -262,7 +263,7 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
   return (
     <div className={cn("relative pr-0", className)} ref={searchContainerRef}>
       <div id="search-input-container" className="relative">
-        <Search className="absolute left-3 lg:left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 lg:w-5 lg:h-5 text-gray-400 pointer-events-none" />
+        <Search className={`absolute left-3 lg:left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 lg:w-5 lg:h-5 text-gray-400 pointer-events-none ${EXPLORER_ICON_GLOW}`} />
         <Input
           type="text"
           placeholder={

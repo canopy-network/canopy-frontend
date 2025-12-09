@@ -80,9 +80,11 @@ interface ValidatorsExplorerProps {
 }
 
 const statusAccent: Record<SampleValidator["status"], string> = {
-  Online: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
+  Online:
+    "border-[#36d26a] bg-[#36d26a]/10 text-[#7cff9d] shadow-[0_0_14px_rgba(124,255,157,0.35)]",
   Offline: "border-gray-500/40 bg-gray-500/10 text-gray-300",
-  Jailed: "border-red-500/40 bg-red-500/10 text-red-300",
+  Jailed:
+    "border-red-500/60 bg-red-500/10 text-red-300 shadow-[0_0_12px_rgba(239,68,68,0.3)]",
 };
 
 export function ValidatorsExplorer({
@@ -182,7 +184,7 @@ export function ValidatorsExplorer({
   };
 
   return (
-    <Container type="boxed" className="space-y-6 xl:px-0">
+    <Container type="boxed" className="space-y-6 px-6 lg:px-10 mt-6">
       <div
         id="validators-page-header"
         className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
@@ -217,7 +219,7 @@ export function ValidatorsExplorer({
 
       {children ? <div>{children}</div> : null}
 
-      <Card className="p-6">
+      <Card className="p-6 border-primary/10 bg-gradient-to-br from-background via-background/70 to-primary/5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs text-muted-foreground">
@@ -279,10 +281,11 @@ export function ValidatorsExplorer({
                   <TableCell>
                     <span
                       className={cn(
-                        "inline-flex items-center rounded-md border px-3 py-1 text-xs font-medium",
+                        "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold",
                         statusAccent[validator.status]
                       )}
                     >
+                      <span className="h-2 w-2 rounded-full bg-current shadow-[0_0_0_3px_rgba(255,255,255,0.08)]" />
                       {validator.status}
                     </span>
                   </TableCell>
@@ -304,7 +307,7 @@ export function ValidatorsExplorer({
                   </TableCell>
 
                   <TableCell className="text-right">
-                    <span className="text-emerald-400 font-semibold text-sm">
+                    <span className="font-semibold text-sm text-[#7cff9d]">
                       {validator.rewards.toLocaleString(undefined, {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
