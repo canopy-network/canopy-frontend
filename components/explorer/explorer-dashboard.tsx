@@ -8,7 +8,7 @@ import { NewLaunches } from "./new-launches";
 import { TopValidators } from "./top-validators";
 import { RecentTransactions } from "./recent-transactions";
 import { RecentBlocks } from "./recent-blocks";
-import { TrendingChains } from "./trending-chains";
+import { TrendingChains, type ChainSummary } from "./trending-chains";
 import { Chain } from "@/types/chains";
 import { ExplorerSearchBar } from "./explorer-search-bar";
 import {
@@ -17,6 +17,8 @@ import {
   type ExplorerOverview,
   getExplorerBlocks,
   Block,
+  getExplorerTrendingChains,
+  type ExplorerTrendingChain,
 } from "@/lib/api/explorer";
 
 interface Validator {
@@ -26,30 +28,10 @@ interface Validator {
   apr: string;
   uptime: number;
   uptimeTrend?: number[]; // Array of uptime values for sparkline (7 or 30 data points)
-  commissionRate?: number; // Commission rate percentage
-  commissionChange?: number; // Change in commission rate (positive = increased, negative = decreased)
   healthScore?: number; // Performance score 0-100
   status?: "healthy" | "warning" | "at_risk"; // Health status
   statusMessage?: string; // Tooltip message
   chains?: string[]; // Array of chain names the validator is staking for
-}
-
-interface ChainSummary {
-  id: string;
-  name: string;
-  ticker?: string;
-  market_cap: string;
-  marketCapRaw?: number; // Raw market cap value in USD for CNPY conversion
-  tvl: string;
-  tvlRaw?: number; // Raw TVL value in USD for CNPY conversion
-  liquidity: string;
-  liquidityRaw?: number; // Raw liquidity value in USD for CNPY conversion
-  volume_24h: string;
-  volume24hRaw?: number; // Raw volume value in USD for CNPY conversion
-  change_24h: number;
-  validators: number;
-  holders: number;
-  chartData?: number[]; // 24 data points for the chart
 }
 
 // Helper functions for randomization
@@ -184,6 +166,8 @@ const sampleTrendingChains: ChainSummary[] = Array.from(
 
     return {
       id: `chain-${i + 1}`,
+      chainId: i + 1,
+      rank: i + 1,
       name: randomChainName(),
       ticker: `$${randomTokenSymbol()}`,
       market_cap: formatMarketCap(marketCap),
@@ -201,6 +185,35 @@ const sampleTrendingChains: ChainSummary[] = Array.from(
     };
   }
 );
+
+const formatTrendingValue = (value?: number | null) => {
+  if (value === undefined || value === null) return "-";
+  if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(1)}B`;
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(1)}K`;
+  return `$${value.toLocaleString()}`;
+};
+
+const mapTrendingChainsToSummary = (
+  chains: ExplorerTrendingChain[]
+): ChainSummary[] =>
+  chains.map((chain) => ({
+    id: chain.chain_id ? chain.chain_id.toString() : `rank-${chain.rank}`,
+    chainId: chain.chain_id,
+    name: chain.chain_name || "Unknown Chain",
+    rank: chain.rank,
+    market_cap: formatTrendingValue(chain.market_cap),
+    marketCapRaw: chain.market_cap,
+    tvl: formatTrendingValue(chain.tvl),
+    tvlRaw: chain.tvl,
+    liquidity: formatTrendingValue(chain.liquidity ?? chain.tvl),
+    liquidityRaw: chain.liquidity ?? chain.tvl,
+    volume_24h: formatTrendingValue(chain.volume_24h),
+    volume24hRaw: chain.volume_24h,
+    change_24h: chain.change_24h ?? 0,
+    validators: chain.validators ?? 0,
+    holders: chain.holders ?? 0,
+  }));
 
 // Sample new launches data - using Chain interface structure
 const sampleNewLaunches: Chain[] = Array.from({ length: 5 }, (_, i) => {
@@ -267,8 +280,6 @@ const sampleTopValidators: Validator[] = Array.from({ length: 6 }, (_, i) => {
   const stake = randomBetween(200000, 800000);
   const apr = randomFloat(5, 12, 1);
   const uptime = randomFloat(95, 99.99, 2);
-  const commissionRate = randomFloat(0, 10, 1);
-  const commissionChange = randomFloat(-2, 2, 2);
 
   // Generate health score and status
   // Status based on healthScore: 100 = healthy, 60-99 = warning, <60 = at_risk
@@ -315,8 +326,6 @@ const sampleTopValidators: Validator[] = Array.from({ length: 6 }, (_, i) => {
     apr: `${apr}%`,
     uptime: uptime,
     uptimeTrend: uptimeTrend,
-    commissionRate: commissionRate,
-    commissionChange: commissionChange,
     healthScore: healthScore,
     status: status,
     statusMessage:
@@ -340,6 +349,9 @@ export function ExplorerDashboard({ overviewData }: ExplorerDashboardProps) {
   );
 
   const [recentBlocks, setRecentBlocks] = useState<Block[]>([]);
+  const [trendingChains, setTrendingChains] = useState<ChainSummary[]>(
+    sampleTrendingChains
+  );
 
   const [isLoadingBlocks, toggleIsLoadingBlocks] = useState(false);
 
@@ -375,10 +387,25 @@ export function ExplorerDashboard({ overviewData }: ExplorerDashboardProps) {
     }
   }
 
+  async function fetchTrendingChains() {
+    try {
+      const apiTrendingChains = await getExplorerTrendingChains({
+        limit: 10,
+      });
+
+      if (apiTrendingChains.length > 0) {
+        setTrendingChains(mapTrendingChainsToSummary(apiTrendingChains));
+      }
+    } catch (error) {
+      console.error("Failed to fetch trending chains:", error);
+    }
+  }
+
   useEffect(() => {
     // Initial fetch
     fetchTransactions();
     fetchBlocks();
+    fetchTrendingChains();
 
     // Set up polling every 10 seconds
     const interval = setInterval(() => {
@@ -417,10 +444,10 @@ export function ExplorerDashboard({ overviewData }: ExplorerDashboardProps) {
                 ? overviewData.volume_24h * (0.95 + Math.random() * 0.1)
                 : 8_500_000 + Math.random() * 600_000,
             })),
-          }}
-        />
+        }}
+      />
 
-        <TrendingChains chains={sampleTrendingChains} />
+      <TrendingChains chains={trendingChains} />
 
         {/* Bottom Grid: New Launches, Top Validators, Recent Transactions */}
 

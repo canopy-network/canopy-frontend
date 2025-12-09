@@ -19,8 +19,6 @@ interface Validator {
   apr: string;
   uptime: number;
   uptimeTrend?: number[]; // Array of uptime values for sparkline (7 or 30 data points)
-  commissionRate?: number; // Commission rate percentage
-  commissionChange?: number; // Change in commission rate (positive = increased, negative = decreased)
   healthScore?: number; // Performance score 0-100
   status?: "healthy" | "warning" | "at_risk"; // Health status
   statusMessage?: string; // Tooltip message
@@ -46,27 +44,6 @@ function UptimeTrend({ data, color }: { data: number[]; color: string }) {
         <TrendingUp className="w-3 h-3" />
       ) : (
         <TrendingDown className="w-3 h-3" />
-      )}
-    </div>
-  );
-}
-
-// Commission rate with change indicator
-function CommissionRate({ rate, change }: { rate: number; change?: number }) {
-  const hasChange = change !== undefined && change !== 0;
-  const isIncrease = change && change > 0;
-
-  return (
-    <div className="inline-flex items-center gap-1">
-      <span className="font-medium">{rate.toFixed(1)}%</span>
-      {hasChange && (
-        <span className={isIncrease ? "text-red-500" : "text-green-500"}>
-          {isIncrease ? (
-            <TrendingUp className="w-3 h-3" />
-          ) : (
-            <TrendingDown className="w-3 h-3" />
-          )}
-        </span>
       )}
     </div>
   );
@@ -281,19 +258,6 @@ export function TopValidators({ validators }: TopValidatorsProps) {
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">APR</div>
                 </div>
-                {validator.commissionRate !== undefined && (
-                  <div className="text-right">
-                    <div className="font-medium whitespace-nowrap text-ellipsis overflow-hidden">
-                      <CommissionRate
-                        rate={validator.commissionRate}
-                        change={validator.commissionChange}
-                      />
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      Commission
-                    </div>
-                  </div>
-                )}
                 <div className="text-right">
                   <span
                     className={`inline-flex items-center justify-end gap-1 px-1 rounded-md font-medium ${getUptimeColor(

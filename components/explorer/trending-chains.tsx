@@ -13,10 +13,13 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { LatestUpdated } from "./latest-updated";
-interface ChainSummary {
+
+export interface ChainSummary {
   id: string;
+  chainId?: number;
   name: string;
   ticker?: string;
+  rank?: number;
   market_cap: string;
   marketCapRaw?: number; // Raw market cap value in USD for CNPY conversion
   tvl: string;
@@ -128,20 +131,27 @@ export function TrendingChains({ chains }: TrendingChainsProps) {
               <TableRow key={chain.id} appearance="plain">
                 <TableCell className="pl-0 lg:pl-4">
                   <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted font-medium">
-                    {index + 1}
+                    {chain.rank ?? index + 1}
                   </div>
                 </TableCell>
                 <TableCell className="pl-0 lg:pl-4">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-md bg-gradient-to-br from-purple-500 to-pink-500" />
-                    <div className="flex flex-col">
+                    <Link
+                      href={
+                        chain.chainId
+                          ? `/chains/${chain.chainId}`
+                          : `/chains/${chain.id}`
+                      }
+                      className="flex flex-col hover:text-primary transition-colors"
+                    >
                       <span className="font-medium">{chain.name}</span>
                       {chain.ticker && (
                         <span className="text-xs text-muted-foreground">
                           {chain.ticker}
                         </span>
                       )}
-                    </div>
+                    </Link>
                   </div>
                 </TableCell>
                 <TableCell className="pl-0 lg:pl-4">
