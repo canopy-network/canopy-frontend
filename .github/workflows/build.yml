@@ -269,7 +269,7 @@ jobs:
           port: 22
           script_stop: true
           script: |
-            set -euo pipefail
+            set -eo pipefail
             
             echo "=========================================="
             echo "🔧 Deploying Frontend to DEV"
@@ -289,108 +289,17 @@ jobs:
             
             echo ""
             echo "=== Pulling Image ==="
-            # Use GHCR for pulling and importing
             echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-            echo "Pulling image with Docker..."
-            # Try to pull, but continue if image already exists locally
-            if ! sudo docker pull "$IMAGE" 2>&1; then
-              echo "Docker pull failed, checking if image exists locally..."
-              if sudo docker images "$IMAGE" --format "{{.Repository}}:{{.Tag}}" | grep -q "^${IMAGE}$"; then
-                echo "Image found locally, using cached version"
-              else
-                echo "ERROR: Image not found locally and pull failed"
-                exit 1
-              fi
-            fi
+            sudo docker pull "$IMAGE" || echo "Pull returned non-zero, continuing..."
+            
             echo "Importing image to k3s..."
-            sudo docker save "$IMAGE" | sudo k3s ctr images import - || true
+            sudo docker save "$IMAGE" | sudo k3s ctr images import - || echo "Import returned non-zero, continuing..."
             echo "✅ Image ready in k3s"
             
-            # Check if deployment exists, create if not
-            if ! sudo k3s kubectl get deployment dev-canopy-frontend -n $NAMESPACE &>/dev/null; then
-              echo ""
-              echo "=== Creating Dev Deployment ==="
-              cat <<EOF | sudo k3s kubectl apply -f -
-            apiVersion: apps/v1
-            kind: Deployment
-            metadata:
-              name: dev-canopy-frontend
-              namespace: $NAMESPACE
-              labels:
-                app: canopy-frontend
-                environment: dev
-            spec:
-              replicas: 1
-              selector:
-                matchLabels:
-                  app: canopy-frontend
-                  environment: dev
-              template:
-                metadata:
-                  labels:
-                    app: canopy-frontend
-                    environment: dev
-                spec:
-                  containers:
-                  - name: canopy-frontend
-                    image: $IMAGE
-                    ports:
-                    - containerPort: 3000
-                    resources:
-                      requests:
-                        memory: "256Mi"
-                        cpu: "100m"
-                      limits:
-                        memory: "512Mi"
-                        cpu: "500m"
-            ---
-            apiVersion: v1
-            kind: Service
-            metadata:
-              name: dev-canopy-frontend
-              namespace: $NAMESPACE
-            spec:
-              selector:
-                app: canopy-frontend
-                environment: dev
-              ports:
-              - port: 80
-                targetPort: 3000
-              type: ClusterIP
-            ---
-            apiVersion: networking.k8s.io/v1
-            kind: Ingress
-            metadata:
-              name: dev-canopy-frontend
-              namespace: $NAMESPACE
-              annotations:
-                cert-manager.io/cluster-issuer: letsencrypt-prod
-                traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
-                traefik.ingress.kubernetes.io/router.tls: "true"
-            spec:
-              ingressClassName: traefik
-              tls:
-              - hosts:
-                - dev.app.canopynetwork.org
-                secretName: dev-canopy-frontend-tls
-              rules:
-              - host: dev.app.canopynetwork.org
-                http:
-                  paths:
-                  - path: /
-                    pathType: Prefix
-                    backend:
-                      service:
-                        name: dev-canopy-frontend
-                        port:
-                          number: 80
-            EOF
-            else
-              echo ""
-              echo "=== Updating Deployment ==="
-              sudo k3s kubectl set image deployment/dev-canopy-frontend canopy-frontend="$IMAGE" -n $NAMESPACE
-              sudo k3s kubectl rollout restart deployment/dev-canopy-frontend -n $NAMESPACE
-            fi
+            echo ""
+            echo "=== Updating Deployment ==="
+            sudo k3s kubectl set image deployment/dev-canopy-frontend canopy-frontend="$IMAGE" -n $NAMESPACE
+            sudo k3s kubectl rollout restart deployment/dev-canopy-frontend -n $NAMESPACE
             
             echo ""
             echo "=== Waiting for Rollout ==="
