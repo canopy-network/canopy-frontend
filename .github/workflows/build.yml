@@ -198,17 +198,27 @@ jobs:
             echo "Commit: ${{ github.sha }}"
             echo ""
             
-            IMAGE="ghcr.io/canopy-network/canopy-frontend:latest"
+            IMAGE="ghcr.io/canopy-network/canopy-frontend:staging"
             echo "Image: $IMAGE"
             
             echo ""
             echo "=== Pulling Image ==="
-            echo "${{ secrets.GITHUB_TOKEN }}" | sudo k3s ctr images pull --user "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" "$IMAGE" || {
-              echo "Direct pull failed, trying docker..."
-              echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-              sudo docker pull "$IMAGE"
-              sudo docker save "$IMAGE" | sudo k3s ctr images import -
-            }
+            # Use GHCR for pulling and importing
+            echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            echo "Pulling image with Docker..."
+            # Try to pull, but continue if image already exists locally
+            if ! sudo docker pull "$IMAGE" 2>\&1; then
+              echo "Docker pull failed, checking if image exists locally..."
+              if sudo docker images "$IMAGE" --format "{{.Repository}}:{{.Tag}}" | grep -q "^${IMAGE}$"; then
+                echo "Image found locally, using cached version"
+              else
+                echo "ERROR: Image not found locally and pull failed"
+                exit 1
+              fi
+            fi
+            echo "Importing image to k3s..."
+            sudo docker save "$IMAGE" | sudo k3s ctr images import -
+            echo "✅ Image successfully imported to k3s"
             
             echo ""
             echo "=== Updating Deployment ==="
