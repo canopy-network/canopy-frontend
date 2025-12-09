@@ -39,14 +39,14 @@ export function MobileSidebar({
         <Link
           href="/"
           className={cn(
-            "overflow-hidden transition-all duration-300 block w-32 mr-auto"
+            "overflow-hidden transition-all duration-300 block w-36 mr-auto"
           )}
           onClick={onClose}
         >
           <img
             src="/images/logo.svg"
             alt="Logo"
-            className={cn("invert w-32 min-w-32")}
+            className={cn("w-36 min-w-36")}
           />
         </Link>
       </div>
@@ -68,20 +68,22 @@ export function MobileSidebar({
       </div>
 
       {/* Create Chain Button */}
-      {isLoggedIn && (
-        <div className="px-4 py-2 border-b border-[#2a2a2a]">
-          <Button
-            className="w-full justify-start gap-2 bg-transparent hover:bg-[#1a1a1a] text-white border-none font-medium"
-            onClick={() => {
-              onClose();
-              onCreateChain();
-            }}
-          >
-            <Plus className="h-4 w-4" />
-            Create chain
-          </Button>
-        </div>
-      )}
+      <div className="px-4 py-2 border-b border-[#2a2a2a]">
+        <Button
+          className="w-full justify-start gap-2 bg-transparent hover:bg-[#1a1a1a] text-white border-none font-medium"
+          onClick={() => {
+            onClose();
+            if (!isLoggedIn) {
+              onLoginClick();
+              return;
+            }
+            onCreateChain();
+          }}
+        >
+          <Plus className="h-4 w-4" />
+          Create chain
+        </Button>
+      </div>
 
       {/* Navigation */}
       <div className="flex-1 overflow-auto p-4">
@@ -121,11 +123,11 @@ export function MobileSidebar({
               onClose();
               onLoginClick();
             }}
-            className="w-full gap-2 bg-transparent hover:bg-[#1a1a1a] text-white border border-[#2a2a2a] font-medium"
-            variant="outline"
+            className="w-full gap-2 bg-gradient-to-r from-[#0a2a12] via-[#103a1b] to-[#164c25] hover:from-[#08230e] hover:via-[#0e3216] hover:to-[#133f1d] text-[#7cff9d] font-semibold border border-[#36d26a] shadow-[0_0_12px_2px_rgba(124,255,157,0.2)] hover:shadow-[0_0_16px_3px_rgba(124,255,157,0.35)] transition-transform hover:-translate-y-[1px]"
+            variant="default"
           >
             <Mail className="h-4 w-4" />
-            Login
+            Connect Wallet
           </Button>
         )}
 

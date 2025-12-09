@@ -38,6 +38,8 @@ import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { updateProfile, uploadUserMedia } from "@/lib/api";
+import { sendEmailCode, linkEmail } from "@/lib/api/auth";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +48,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { WalletLinkingSection } from "@/components/settings/wallet-linking-section";
 
 function SettingsContent() {
   const user = useAuthStore((state) => state.user);
@@ -82,6 +85,12 @@ function SettingsContent() {
   });
 
   const [backupEmail, setBackupEmail] = useState("");
+  const [primaryEmail, setPrimaryEmail] = useState(user?.email || "");
+  const [emailCode, setEmailCode] = useState("");
+  const [isEmailCodeSent, setIsEmailCodeSent] = useState(false);
+  const [isLinkingEmail, setIsLinkingEmail] = useState(false);
+  const [emailLinkError, setEmailLinkError] = useState<string | null>(null);
+  const [devEmailCode, setDevEmailCode] = useState<string | null>(null);
 
   const [activeSection, setActiveSection] = useState("public-profile");
 
@@ -354,6 +363,74 @@ function SettingsContent() {
   };
 
   const hasDisplayName = user?.display_name && user.display_name.trim() !== "";
+
+  const handleSendEmailCode = async () => {
+    if (!primaryEmail || primaryEmail.trim() === "") {
+      setEmailLinkError("Please enter an email address");
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(primaryEmail)) {
+      setEmailLinkError("Please enter a valid email address");
+      return;
+    }
+
+    try {
+      setIsLinkingEmail(true);
+      setEmailLinkError(null);
+
+      const response = await sendEmailCode(primaryEmail);
+
+      setIsEmailCodeSent(true);
+      toast.success("Verification code sent to your email!");
+
+      // Store dev code if available (but don't auto-fill)
+      if (response.data.code) {
+        setDevEmailCode(response.data.code);
+      }
+    } catch (error: any) {
+      console.error("Failed to send email code:", error);
+      setEmailLinkError(error.message || "Failed to send verification code");
+      toast.error("Failed to send verification code");
+    } finally {
+      setIsLinkingEmail(false);
+    }
+  };
+
+  const handleLinkEmail = async () => {
+    if (!emailCode || emailCode.trim() === "") {
+      setEmailLinkError("Please enter the verification code");
+      return;
+    }
+
+    try {
+      setIsLinkingEmail(true);
+      setEmailLinkError(null);
+
+      const response = await linkEmail(primaryEmail, emailCode);
+
+      // Update user in store
+      if (user) {
+        setUser({
+          ...user,
+          email: primaryEmail,
+        });
+      }
+
+      toast.success("Email linked successfully!");
+      setIsEmailCodeSent(false);
+      setEmailCode("");
+      setDevEmailCode(null);
+    } catch (error: any) {
+      console.error("Failed to link email:", error);
+      setEmailLinkError(error.message || "Failed to link email");
+      toast.error("Failed to link email");
+    } finally {
+      setIsLinkingEmail(false);
+    }
+  };
 
   return (
     <div className="min-h-screen px-4">
@@ -891,16 +968,72 @@ function SettingsContent() {
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        defaultValue="user@canopy.com"
-                        disabled
-                        className="opacity-60 cursor-not-allowed"
-                      />
+                      <div className="flex gap-2">
+                        <Input
+                          id="email"
+                          type="email"
+                          value={primaryEmail}
+                          onChange={(e) => setPrimaryEmail(e.target.value)}
+                          placeholder={!user?.email ? "Enter your email address" : ""}
+                          disabled={!!user?.email || isEmailCodeSent}
+                          className={user?.email ? "opacity-60 cursor-not-allowed" : ""}
+                        />
+                        {!user?.email && !isEmailCodeSent && (
+                          <Button
+                            onClick={handleSendEmailCode}
+                            disabled={isLinkingEmail || !primaryEmail}
+                            type="button"
+                          >
+                            {isLinkingEmail ? "Sending..." : "Send Code"}
+                          </Button>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground">
-                        Your primary email address cannot be changed.
+                        {user?.email
+                          ? "Your primary email address cannot be changed."
+                          : "Add an email address to your account for notifications and recovery."}
                       </p>
+
+                      {/* Verification Code Input */}
+                      {!user?.email && isEmailCodeSent && (
+                        <div className="space-y-2 pt-2">
+                          {/* Dev Code Banner */}
+                          {devEmailCode && (
+                            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm">
+                              <span className="text-yellow-800 font-medium">Dev code:</span>{" "}
+                              <span className="text-yellow-900 font-mono">{devEmailCode}</span>
+                            </div>
+                          )}
+
+                          <Label htmlFor="emailCode">Verification Code</Label>
+                          <div className="flex gap-2">
+                            <Input
+                              id="emailCode"
+                              type="text"
+                              value={emailCode}
+                              onChange={(e) => setEmailCode(e.target.value)}
+                              placeholder="Enter 6-digit code"
+                              maxLength={6}
+                              disabled={isLinkingEmail}
+                            />
+                            <Button
+                              onClick={handleLinkEmail}
+                              disabled={isLinkingEmail || !emailCode}
+                              type="button"
+                            >
+                              {isLinkingEmail ? "Verifying..." : "Verify"}
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Enter the 6-digit code sent to {primaryEmail}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Error Display */}
+                      {emailLinkError && (
+                        <p className="text-xs text-red-500">{emailLinkError}</p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="backup-email">Backup Email</Label>
@@ -917,6 +1050,9 @@ function SettingsContent() {
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Wallet Linking */}
+                <WalletLinkingSection />
 
                 {/* Save Button */}
                 <div className="flex justify-end">

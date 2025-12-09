@@ -69,12 +69,16 @@ jobs:
             echo "api_url=https://api.dev.app.canopynetwork.org" >> $GITHUB_OUTPUT
             echo "frontend_url=https://dev.app.canopynetwork.org" >> $GITHUB_OUTPUT
             echo "dev_mode=true" >> $GITHUB_OUTPUT
-            echo "image_suffix=-dev" >> $GITHUB_OUTPUT
+            echo "image_suffix=" >> $GITHUB_OUTPUT
+            echo "dev_image=ghcr.io/canopy-network/canopy-frontend" >> $GITHUB_OUTPUT
+            echo "is_dev=true" >> $GITHUB_OUTPUT
           else
             echo "api_url=https://api.staging.app.canopynetwork.org" >> $GITHUB_OUTPUT
             echo "frontend_url=https://staging.app.canopynetwork.org" >> $GITHUB_OUTPUT
             echo "dev_mode=false" >> $GITHUB_OUTPUT
             echo "image_suffix=" >> $GITHUB_OUTPUT
+            echo "dev_image=" >> $GITHUB_OUTPUT
+            echo "is_dev=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Determine version
@@ -100,10 +104,13 @@ jobs:
         with:
           images: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}${{ steps.env-vars.outputs.image_suffix }}
+            ${{ steps.env-vars.outputs.docker_hub_image }}
+            ${{ steps.env-vars.outputs.dev_image }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest
+            type=raw,value=dev,enable=${{ steps.env-vars.outputs.is_dev == 'true' }}
             type=sha,prefix=sha-
             type=ref,event=branch
 
@@ -114,6 +121,7 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+          logout: false
 
       - name: Build and push
         id: build
@@ -143,7 +151,7 @@ jobs:
         run: |
           echo "### 🐳 Docker Image Built" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Environment:** ${{ steps.set-env.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**.Environment:** ${{ steps.set-env.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
           echo "**Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}${{ steps.env-vars.outputs.image_suffix }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Version:** \`${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Tags:** ${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
@@ -182,17 +190,27 @@ jobs:
             echo "Commit: ${{ github.sha }}"
             echo ""
             
-            IMAGE="ghcr.io/canopy-network/canopy-frontend:latest"
+            IMAGE="ghcr.io/canopy-network/canopy-frontend:staging"
             echo "Image: $IMAGE"
             
             echo ""
             echo "=== Pulling Image ==="
-            echo "${{ secrets.GITHUB_TOKEN }}" | sudo k3s ctr images pull --user "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" "$IMAGE" || {
-              echo "Direct pull failed, trying docker..."
-              echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-              sudo docker pull "$IMAGE"
-              sudo docker save "$IMAGE" | sudo k3s ctr images import -
-            }
+            # Use GHCR for pulling and importing
+            echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            echo "Pulling image with Docker..."
+            # Try to pull, but continue if image already exists locally
+            if ! sudo docker pull "$IMAGE" 2>\&1; then
+              echo "Docker pull failed, checking if image exists locally..."
+              if sudo docker images "$IMAGE" --format "{{.Repository}}:{{.Tag}}" | grep -q "^${IMAGE}$"; then
+                echo "Image found locally, using cached version"
+              else
+                echo "ERROR: Image not found locally and pull failed"
+                exit 1
+              fi
+            fi
+            echo "Importing image to k3s..."
+            sudo docker save "$IMAGE" | sudo k3s ctr images import -
+            echo "✅ Image successfully imported to k3s"
             
             echo ""
             echo "=== Updating Deployment ==="
@@ -261,7 +279,7 @@ jobs:
             echo "Commit: ${{ github.sha }}"
             echo ""
             
-            IMAGE="ghcr.io/canopy-network/canopy-frontend-dev:latest"
+            IMAGE="ghcr.io/canopy-network/canopy-frontend:dev"
             NAMESPACE="canopy-dev"
             echo "Image: $IMAGE"
             echo "Namespace: $NAMESPACE"
@@ -271,12 +289,22 @@ jobs:
             
             echo ""
             echo "=== Pulling Image ==="
-            echo "${{ secrets.GITHUB_TOKEN }}" | sudo k3s ctr images pull --user "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" "$IMAGE" || {
-              echo "Direct pull failed, trying docker..."
-              echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-              sudo docker pull "$IMAGE"
-              sudo docker save "$IMAGE" | sudo k3s ctr images import -
-            }
+            # Use GHCR for pulling and importing
+            echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            echo "Pulling image with Docker..."
+            # Try to pull, but continue if image already exists locally
+            if ! sudo docker pull "$IMAGE" 2>&1; then
+              echo "Docker pull failed, checking if image exists locally..."
+              if sudo docker images "$IMAGE" --format "{{.Repository}}:{{.Tag}}" | grep -q "^${IMAGE}$"; then
+                echo "Image found locally, using cached version"
+              else
+                echo "ERROR: Image not found locally and pull failed"
+                exit 1
+              fi
+            fi
+            echo "Importing image to k3s..."
+            sudo docker save "$IMAGE" | sudo k3s ctr images import -
+            echo "✅ Image successfully imported to k3s"
             
             # Check if deployment exists, create if not
             if ! sudo k3s kubectl get deployment dev-canopy-frontend -n $NAMESPACE &>/dev/null; then

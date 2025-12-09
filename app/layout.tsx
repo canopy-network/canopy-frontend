@@ -9,6 +9,7 @@ import { StoreProvider } from "@/components/providers/store-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ErrorBoundary } from "@/components/providers/error-boundary";
 import { AuthCookieSync } from "@/components/auth/auth-cookie-sync";
+import { Web3Provider } from "@/components/web3/web3-provider";
 import { Toaster } from "sonner";
 import { Toaster as HotToaster } from "react-hot-toast";
 import "./globals.css";
@@ -35,11 +36,19 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className={inter.className}>
         <ErrorBoundary>
+<<<<<<< HEAD
           <QueryProvider>
             <StoreProvider>
               <AuthCookieSync />
               <WalletProvider>
                 <TooltipProvider>
+=======
+          <Web3Provider>
+            <QueryProvider>
+              <StoreProvider>
+                <AuthCookieSync />
+                <WalletProvider>
+>>>>>>> origin/dev
                   <div className="flex h-screen bg-background overflow-hidden">
                     {/* Desktop Sidebar - hidden on mobile */}
                     <div className="hidden lg:block">
@@ -66,10 +75,17 @@ export default function RootLayout({
                     }}
                   />
                   <HotToaster />
+<<<<<<< HEAD
                 </TooltipProvider>
               </WalletProvider>
             </StoreProvider>
           </QueryProvider>
+=======
+                </WalletProvider>
+              </StoreProvider>
+            </QueryProvider>
+          </Web3Provider>
+>>>>>>> origin/dev
         </ErrorBoundary>
       </body>
     </html>

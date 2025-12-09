@@ -85,7 +85,7 @@ const createAuthStore = () => {
 
   return create<AuthState>()(
     persist(
-      (set) => ({
+      (set, getState) => ({
         // Initial state
         user: null,
         token: null,
@@ -114,9 +114,11 @@ const createAuthStore = () => {
             }
           }
 
+          const currentState = getState();
+
           set({
             user,
-            token,
+            token: token || currentState.token,
             isAuthenticated: true,
             error: null,
           });

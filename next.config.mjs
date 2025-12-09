@@ -1,3 +1,8 @@
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
@@ -30,6 +35,14 @@ const nextConfig = {
         destination: `${apiUrl}/:path*`,
       },
     ]
+  },
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@react-native-async-storage/async-storage': path.resolve(__dirname, 'lib/shims/async-storage.ts'),
+      'pino-pretty': path.resolve(__dirname, 'lib/shims/pino-pretty.ts'),
+    }
+    return config
   }
 }
 //Dummy
