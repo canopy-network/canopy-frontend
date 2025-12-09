@@ -112,15 +112,6 @@ jobs:
             type=sha,prefix=sha-
             type=ref,event=branch
 
-      - name: Tag and push dev image
-        if: github.event_name != 'pull_request' && steps.set-env.outputs.environment == 'dev'
-        run: |
-          SOURCE_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}${{ steps.env-vars.outputs.image_suffix }}:latest"
-          TARGET_IMAGE="ghcr.io/canopy-network/canopy-frontend:dev"
-          echo "Tagging $SOURCE_IMAGE as $TARGET_IMAGE"
-          # Use docker buildx imagetools to create a manifest pointing to the same image
-          docker buildx imagetools create --tag $TARGET_IMAGE $SOURCE_IMAGE
-
       - name: Login to GitHub Container Registry
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
@@ -159,6 +150,20 @@ jobs:
             S3_SECRET_KEY=${{ secrets.S3_SECRET_KEY }}
             S3_BUCKET_NAME=${{ vars.S3_BUCKET_NAME }}
             S3_ARN=${{ vars.S3_ARN }}
+
+      - name: Tag and push dev image
+        if: github.event_name != 'pull_request' && steps.set-env.outputs.environment == 'dev'
+        run: |
+          SOURCE_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}${{ steps.env-vars.outputs.image_suffix }}:latest"
+          TARGET_IMAGE="ghcr.io/canopy-network/canopy-frontend:dev"
+          echo "Tagging $SOURCE_IMAGE as $TARGET_IMAGE"
+          # Pull the source image (it should already be in the registry from the build step)
+          docker pull $SOURCE_IMAGE
+          # Tag it with the dev tag
+          docker tag $SOURCE_IMAGE $TARGET_IMAGE
+          # Push the tagged image
+          docker push $TARGET_IMAGE
+          echo "✅ Successfully tagged and pushed $TARGET_IMAGE"
 
       - name: Output image info
         run: |
@@ -292,8 +297,8 @@ jobs:
             
             echo ""
             echo "=== Pulling Image ==="
-            # Use Docker Hub for pulling and importing
-            echo "${{ secrets.DOCKER_HUB_SECRET }}" | sudo docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
+            # Use GHCR for pulling and importing
+            echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u "${{ github.actor }}" --password-stdin
             echo "Pulling image with Docker..."
             # Try to pull, but continue if image already exists locally
             if ! sudo docker pull "$IMAGE" 2>&1; then
