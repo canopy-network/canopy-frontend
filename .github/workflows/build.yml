@@ -69,7 +69,7 @@ jobs:
             echo "api_url=https://api.dev.app.canopynetwork.org" >> $GITHUB_OUTPUT
             echo "frontend_url=https://dev.app.canopynetwork.org" >> $GITHUB_OUTPUT
             echo "dev_mode=true" >> $GITHUB_OUTPUT
-            echo "image_suffix=-dev" >> $GITHUB_OUTPUT
+            echo "image_suffix=" >> $GITHUB_OUTPUT
             echo "dev_image=ghcr.io/canopy-network/canopy-frontend" >> $GITHUB_OUTPUT
             echo "is_dev=true" >> $GITHUB_OUTPUT
           else
