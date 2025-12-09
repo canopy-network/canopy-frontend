@@ -22,10 +22,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import liquidityPools from "@/data/liquidity-pools.json";
 import tokens from "@/data/tokens.json";
 import { walletTransactionApi, chainsApi } from "@/lib/api";
 import { useWalletStore } from "@/lib/stores/wallet-store";
+import { useLiquidityPoolsStore } from "@/lib/stores/liquidity-pools-store";
 import toast from "react-hot-toast";
 
 // Conversion factor for microunits (1 token = 1,000,000 microunits)
@@ -84,6 +84,7 @@ export default function AddLiquidityDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { currentWallet } = useWalletStore();
+  const { available_pools: storePools } = useLiquidityPoolsStore();
 
   // Mock wallet data (replace with actual wallet connection later)
   const isConnected = true;
@@ -102,7 +103,7 @@ export default function AddLiquidityDialog({
     ],
   };
 
-  const pools = availablePools.length > 0 ? availablePools : liquidityPools;
+  const pools = availablePools.length > 0 ? availablePools : storePools;
   const needsPoolSelection = !selectedPool && pools.length > 0;
   const activePool = selectedPool || internalSelectedPool;
 

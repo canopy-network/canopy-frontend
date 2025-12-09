@@ -349,3 +349,31 @@ export function createDexLiquidityDepositMessage(
     orderId: "", // Will be populated by backend
   };
 }
+
+/**
+ * Creates a DexLimitOrder transaction message (DEX v2)
+ *
+ * Creates a limit order to swap tokens on the DEX.
+ *
+ * @param chainId - Committee chain ID (the chain you're RECEIVING tokens from)
+ *                  Example: Selling CNPY (chain 1) for DEFI (chain 2) => chainId = 2
+ *                  Example: Selling DEFI (chain 2) for CNPY (chain 1) => chainId = 1
+ * @param amountForSale - Amount selling in micro units (from current chain)
+ * @param requestedAmount - Minimum amount to receive in micro units (from target chain)
+ * @param address - Hex-encoded seller address
+ * @returns MessageDexLimitOrder payload
+ */
+export function createDexLimitOrderMessage(
+  chainId: number,
+  amountForSale: number,
+  requestedAmount: number,
+  address: string
+): TransactionMessage {
+  return {
+    chainId,
+    amountForSale,
+    requestedAmount,
+    address,
+    orderId: "", // Will be populated by backend
+  };
+}

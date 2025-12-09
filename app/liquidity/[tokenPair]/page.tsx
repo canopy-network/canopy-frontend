@@ -1,13 +1,10 @@
-import PoolDetailClient from "@/components/liquidity/pool-detail-client";
-import liquidityPools from "@/data/liquidity-pools.json";
-import tokens from "@/data/tokens.json";
-import { notFound } from "next/navigation";
+"use client";
 
-interface PoolDetailPageProps {
-  params: Promise<{
-    tokenPair: string;
-  }>;
-}
+import { useEffect } from "react";
+import { useParams, notFound } from "next/navigation";
+import PoolDetailClient from "@/components/liquidity/pool-detail-client";
+import { useLiquidityPoolsStore } from "@/lib/stores/liquidity-pools-store";
+import tokens from "@/data/tokens.json";
 
 // Mock LP positions data - in a real app, this would come from your backend
 const mockLpPositions = [
@@ -49,21 +46,38 @@ const mockLpPositions = [
   },
 ];
 
-// This is a server component by default in Next.js App Router
-export default async function PoolDetailPage({ params }: PoolDetailPageProps) {
-  const { tokenPair } = await params;
+export default function PoolDetailPage() {
+  const params = useParams();
+  const { available_pools, fetchPools } = useLiquidityPoolsStore();
+  const tokenPair = params.tokenPair as string;
+
+  // Fetch pools on mount if not already loaded
+  useEffect(() => {
+    if (available_pools.length === 0) {
+      fetchPools();
+    }
+  }, [available_pools.length, fetchPools]);
 
   // Parse the token pair (format: tokenb-tokena, e.g., "hlth-cnpy")
   const [tokenB, tokenA] = tokenPair.split("-").map((t) => t.toUpperCase());
 
   // Find the pool
-  const pool = liquidityPools.find(
+  const pool = available_pools.find(
     (p) => p.tokenB === tokenB && p.tokenA === tokenA
   );
 
-  // If pool not found, show 404
-  if (!pool) {
+  // If pool not found and we've already loaded pools, show 404
+  if (!pool && available_pools.length > 0) {
     notFound();
+  }
+
+  // Show loading state while pools are being fetched
+  if (!pool) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-muted-foreground">Loading pool...</div>
+      </div>
+    );
   }
 
   return (

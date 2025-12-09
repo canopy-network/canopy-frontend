@@ -42,32 +42,32 @@ export default function RootLayout({
                 <AuthCookieSync />
                 <WalletProvider>
                   <TooltipProvider>
-                  <div className="flex h-screen bg-background overflow-hidden">
-                    {/* Desktop Sidebar - hidden on mobile */}
-                    <div className="hidden lg:block">
-                      <Sidebar />
-                    </div>
-                    <main className="w-full overflow-auto">
-                      <Header />
-                      <div className="flex-1 overflow-y-auto overflow-x-hidden">
-                        <Suspense fallback={null}>{children}</Suspense>
+                    <div className="flex h-screen bg-background overflow-hidden">
+                      {/* Desktop Sidebar - hidden on mobile */}
+                      <div className="hidden lg:block">
+                        <Sidebar />
                       </div>
-                    </main>
-                  </div>
-                  <WalletPopup />
-                  <Toaster
-                    position="top-center"
-                    theme="dark"
-                    toastOptions={{
-                      style: {
-                        background: "rgba(255, 255, 255, 0.1)",
-                        border: "1px solid rgba(255, 255, 255, 0.1)",
-                        color: "white",
-                        backdropFilter: "blur(8px)",
-                      },
-                    }}
-                  />
-                  <HotToaster />
+                      <main className="w-full overflow-auto">
+                        <Header />
+                        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+                          <Suspense fallback={null}>{children}</Suspense>
+                        </div>
+                      </main>
+                    </div>
+                    <WalletPopup />
+                    <Toaster
+                      position="top-center"
+                      theme="dark"
+                      toastOptions={{
+                        style: {
+                          background: "rgba(255, 255, 255, 0.1)",
+                          border: "1px solid rgba(255, 255, 255, 0.1)",
+                          color: "white",
+                          backdropFilter: "blur(8px)",
+                        },
+                      }}
+                    />
+                    <HotToaster />
                   </TooltipProvider>
                 </WalletProvider>
               </StoreProvider>

@@ -1,5 +1,8 @@
+"use client";
+
+import { useEffect } from "react";
 import LiquidityClient from "@/components/liquidity/liquidity-client";
-import liquidityPools from "@/data/liquidity-pools.json";
+import { useLiquidityPoolsStore } from "@/lib/stores/liquidity-pools-store";
 import tokens from "@/data/tokens.json";
 
 interface LpPosition {
@@ -35,8 +38,16 @@ interface LpEarnings {
   tokenB: string;
 }
 
-// This is a server component by default in Next.js App Router
 export default function LiquidityPage() {
+  const { available_pools, fetchPools } = useLiquidityPoolsStore();
+
+  // Fetch pools on mount if not already loaded
+  useEffect(() => {
+    if (available_pools.length === 0) {
+      fetchPools();
+    }
+  }, [available_pools.length, fetchPools]);
+
   // In a real app, you would fetch user data from your backend/database
   // For now, we'll use mock data
   const lpPositions: LpPosition[] = [
@@ -121,7 +132,7 @@ export default function LiquidityPage() {
 
   return (
     <LiquidityClient
-      liquidityPools={liquidityPools}
+      liquidityPools={available_pools}
       tokens={tokens}
       lpPositions={lpPositions}
       lpWithdrawing={lpWithdrawing}

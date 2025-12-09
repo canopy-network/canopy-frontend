@@ -27,9 +27,8 @@ import {
 } from "lucide-react";
 import tokens from "@/data/tokens.json";
 import { useWallet } from "@/components/wallet/wallet-provider";
-import WithdrawLiquidityDialog from "./withdraw-liquidity-dialog";
-import AddLiquidityDialog from "./add-liquidity-dialog";
-import LiquidityChart from "./liquidity-chart";
+
+import TradingModule from "../trading/trading-module";
 
 // CNPY Logo component
 function CnpyLogo({ size = 32 }: { size?: number }) {
@@ -574,6 +573,7 @@ export default function PoolDetailClient({
 
           {/* Right Sidebar */}
           <div className="space-y-6">
+            <TradingModule variant="liquidity" />
             {/* Add Liquidity Card - Placeholder for Trading Module */}
             <Card className="p-6">
               <h3 className="text-lg font-semibold mb-4">Add Liquidity</h3>

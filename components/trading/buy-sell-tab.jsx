@@ -1,0 +1,413 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { ArrowDown, Zap, Settings, ChevronRight } from "lucide-react";
+import { useWalletStore } from "@/lib/stores/wallet-store";
+import SlippageSettings from "./slippage-settings";
+
+// CNPY Logo SVG Component
+function CnpyLogo({ className = "w-5 h-5" }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 18 17"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M12.7649 0.880227C12.658 0.827134 12.5342 0.905351 12.5342 1.02378V3.04351C12.5342 3.18794 12.7104 3.26027 12.8135 3.15814L14.069 1.91394C14.1383 1.84534 14.1317 1.73215 14.0535 1.67368C13.6439 1.36708 13.2123 1.10259 12.7649 0.880227Z"
+        fill="currentColor"
+      />
+      <path
+        d="M10.4705 0.127791C10.5477 0.141319 10.6032 0.208239 10.6032 0.285896V5.28157C10.6032 5.32456 10.586 5.36579 10.5553 5.3962L8.90769 7.02887C8.80463 7.13099 8.62842 7.05867 8.62842 6.91423V0.163239C8.62842 0.0764816 8.69735 0.00493239 8.78487 0.00272091C9.34863 -0.0115243 9.91358 0.0301658 10.4705 0.127791Z"
+        fill="currentColor"
+      />
+      <path
+        d="M6.64953 9.26628C6.68021 9.23588 6.69744 9.19464 6.69744 9.15164V0.531669C6.69744 0.424066 6.59358 0.346317 6.48993 0.37839C5.89636 0.562066 5.31929 0.812546 4.77074 1.12983C4.72107 1.15856 4.69092 1.21149 4.69092 1.26849V10.8158C4.69092 10.9602 4.86713 11.0325 4.97019 10.9304L6.64953 9.26628Z"
+        fill="currentColor"
+      />
+      <path
+        d="M2.4827 3.0726C2.57734 2.95748 2.75983 3.02558 2.75983 3.17407L2.75984 13.0535C2.75984 13.0965 2.7426 13.1377 2.71192 13.1681L2.53426 13.3441C2.46504 13.4128 2.35058 13.4059 2.29159 13.3285C-0.0224758 10.292 0.0412298 6.04232 2.4827 3.0726Z"
+        fill="currentColor"
+      />
+      <path
+        d="M10.3924 8.65513C10.2467 8.65513 10.1737 8.48052 10.2768 8.37839L11.9244 6.74572C11.9551 6.71532 11.9966 6.69824 12.04 6.69824H17.1031C17.1812 6.69824 17.2486 6.75292 17.2625 6.82908C17.3635 7.38074 17.408 7.94056 17.396 8.49942C17.3942 8.58642 17.3219 8.65513 17.234 8.65513H10.3924Z"
+        fill="currentColor"
+      />
+      <path
+        d="M14.1825 4.50709C14.0795 4.60922 14.1525 4.78383 14.2982 4.78383H16.3466C16.4664 4.78383 16.5454 4.66045 16.4911 4.55456C16.2638 4.11067 15.9935 3.68279 15.6806 3.27689C15.6215 3.20007 15.5077 3.19389 15.4388 3.26223L14.1825 4.50709Z"
+        fill="currentColor"
+      />
+      <path
+        d="M8.13428 10.5684C8.09089 10.5684 8.04928 10.5854 8.0186 10.6158L6.33926 12.28C6.2362 12.3821 6.30919 12.5567 6.45493 12.5567H16.1382C16.196 12.5567 16.2496 12.5265 16.2784 12.4769C16.5952 11.933 16.8447 11.3612 17.027 10.7733C17.0588 10.6707 16.9803 10.5684 16.8721 10.5684H8.13428Z"
+        fill="currentColor"
+      />
+      <path
+        d="M3.91045 14.9412C3.83293 14.8825 3.82636 14.7696 3.89534 14.7013L4.08101 14.5173C4.11169 14.4868 4.1533 14.4697 4.19669 14.4697H14.2374C14.3867 14.4697 14.4559 14.6496 14.3406 14.7438C11.33 17.208 6.99201 17.2737 3.91045 14.9412Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+export default function BuySellTab({
+  mode = "buy",
+  chainData,
+  isPreview = false,
+  onShowConfirmation,
+}) {
+  const { wallets } = useWalletStore();
+  const isConnected = wallets.length > 0;
+  const [amount, setAmount] = useState("");
+  const [slippage, setSlippage] = useState(1.0);
+  const [showSlippageSettings, setShowSlippageSettings] = useState(false);
+  const [inputMode, setInputMode] = useState("token"); // 'token' or 'usd'
+
+  // CNPY price is $1 (stablecoin)
+  const cnpyPrice = 1;
+  const tokenPrice = chainData?.currentPrice || 0.001;
+
+  // CNPY token object
+  const cnpyToken = {
+    symbol: "CNPY",
+    name: "Canopy",
+    currentPrice: cnpyPrice,
+    brandColor: "#10b981",
+  };
+
+  // Chain token object
+  const chainToken = chainData
+    ? {
+        symbol: chainData.ticker,
+        name: chainData.name,
+        currentPrice: tokenPrice,
+        brandColor: chainData.brandColor || "#10b981",
+      }
+    : null;
+
+  // Get the input token info based on mode
+  const getInputToken = () => {
+    if (mode === "buy") {
+      return { ...cnpyToken, price: cnpyPrice };
+    } else {
+      return chainToken ? { ...chainToken, price: tokenPrice } : null;
+    }
+  };
+
+  // Get the output token info based on mode
+  const getOutputToken = () => {
+    if (mode === "buy") {
+      return chainToken ? { ...chainToken, price: tokenPrice } : null;
+    } else {
+      return { ...cnpyToken, price: cnpyPrice };
+    }
+  };
+
+  const inputToken = getInputToken();
+  const outputToken = getOutputToken();
+
+  // Calculate input values based on current mode
+  const getInputValues = () => {
+    if (!amount || amount === "") {
+      return { tokenAmount: "0", usdAmount: "$0.00" };
+    }
+
+    const inputAmount = parseFloat(amount);
+    const price = inputToken.price;
+
+    if (inputMode === "token") {
+      const usdValue = inputAmount * price;
+      return {
+        tokenAmount: amount,
+        usdAmount: `$${usdValue.toFixed(2)}`,
+      };
+    } else {
+      const tokenValue = price > 0 ? inputAmount / price : 0;
+      return {
+        tokenAmount: tokenValue.toLocaleString("en-US", {
+          maximumFractionDigits: 6,
+        }),
+        usdAmount: `$${inputAmount.toFixed(2)}`,
+      };
+    }
+  };
+
+  const inputValues = getInputValues();
+
+  // Get actual token amount for conversion
+  const getTokenAmountForConversion = () => {
+    if (!amount || amount === "") return 0;
+    const inputAmount = parseFloat(amount);
+    if (inputMode === "token") {
+      return inputAmount;
+    } else {
+      const price = inputToken.price;
+      return price > 0 ? inputAmount / price : 0;
+    }
+  };
+
+  // Calculate conversion
+  const calculateConversion = () => {
+    const tokenAmount = getTokenAmountForConversion();
+    if (!tokenAmount || tokenAmount === 0) {
+      return { tokens: "0", usd: "$0.00" };
+    }
+
+    const fromPrice = inputToken.price;
+    const toPrice = outputToken.price;
+
+    if (toPrice === 0) return { tokens: "0", usd: "$0.00" };
+
+    const usdValue = tokenAmount * fromPrice;
+    const tokensReceived = usdValue / toPrice;
+
+    return {
+      tokens: tokensReceived.toLocaleString("en-US", {
+        maximumFractionDigits: 6,
+      }),
+      usd: `$${usdValue.toFixed(2)}`,
+    };
+  };
+
+  const conversion = calculateConversion();
+
+  // Toggle input mode between token and USD
+  const toggleInputMode = () => {
+    const price = inputToken.price;
+    if (price === 0) return;
+
+    if (amount && amount !== "") {
+      const currentAmount = parseFloat(amount);
+      if (inputMode === "token") {
+        const usdValue = currentAmount * price;
+        setAmount(usdValue.toFixed(2));
+      } else {
+        const tokenValue = currentAmount / price;
+        setAmount(tokenValue.toString());
+      }
+    }
+
+    setInputMode(inputMode === "token" ? "usd" : "token");
+  };
+
+  const handleUseMax = () => {
+    // TODO: Set to actual max balance
+    setAmount("100");
+  };
+
+  const handleContinue = () => {
+    if (chainData && amount && onShowConfirmation) {
+      const tokenAmount =
+        inputMode === "token" ? amount : inputValues.tokenAmount;
+      // Pass full token objects for the confirmation dialog
+      onShowConfirmation({
+        fromToken: mode === "buy" ? cnpyToken : chainToken,
+        toToken: mode === "buy" ? chainToken : cnpyToken,
+        fromAmount: tokenAmount,
+        toAmount: conversion.tokens,
+      });
+    }
+  };
+
+  // Calculate exchange rate
+  const getExchangeRate = () => {
+    if (mode === "buy") {
+      // 1 CNPY = X chain tokens
+      return (cnpyPrice / tokenPrice).toFixed(6);
+    } else {
+      // 1 chain token = X CNPY
+      return (tokenPrice / cnpyPrice).toFixed(6);
+    }
+  };
+
+  return (
+    <>
+      {/* Input Token Card */}
+      <div className="px-4">
+        <Card className="bg-muted/30 p-4 space-y-3">
+          {/* Token Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {/* Token Avatar */}
+              {mode === "buy" ? (
+                // CNPY Avatar
+                <div className="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                  <CnpyLogo className="w-5 h-5 text-white" />
+                </div>
+              ) : (
+                // Chain Token Avatar
+                <div
+                  className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{
+                    backgroundColor: chainData?.brandColor || "#10b981",
+                  }}
+                >
+                  <span className="text-base font-bold text-white">
+                    {chainData?.ticker?.[0]}
+                  </span>
+                </div>
+              )}
+              <div className="text-left">
+                <div className="flex items-center gap-2">
+                  <p className="text-base font-semibold">{inputToken.symbol}</p>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  0 {inputToken.symbol}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={handleUseMax}
+            >
+              Use max
+            </Button>
+          </div>
+
+          {/* Amount Input */}
+          <div className="flex items-center justify-center">
+            <div className="flex items-center gap-1">
+              {inputMode === "usd" && (
+                <span className="text-4xl font-bold text-muted-foreground">
+                  $
+                </span>
+              )}
+              <input
+                type="text"
+                inputMode="decimal"
+                value={amount}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                    setAmount(value);
+                  }
+                }}
+                placeholder="0"
+                className="text-4xl font-bold bg-transparent border-0 outline-none p-0 h-auto text-center w-full placeholder:text-muted-foreground"
+              />
+            </div>
+          </div>
+
+          {/* Token Amount / USD Toggle */}
+          <div className="flex items-center justify-center gap-2">
+            <button
+              onClick={toggleInputMode}
+              className="text-base text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
+            >
+              {inputMode === "token" ? (
+                <span>{inputValues.usdAmount}</span>
+              ) : (
+                <span>
+                  {inputValues.tokenAmount} {inputToken.symbol}
+                </span>
+              )}
+              <Zap className="w-4 h-4" />
+            </button>
+          </div>
+        </Card>
+      </div>
+
+      {/* Swap Direction Button */}
+      <div className="relative flex justify-center">
+        <Button
+          variant="outline"
+          size="icon"
+          className="rounded-full h-8 w-8 bg-background border-2"
+          disabled
+        >
+          <ArrowDown className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {/* Output Token Card */}
+      <div className="px-4">
+        <Card className="bg-muted/30 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {/* Token Avatar */}
+              {mode === "buy" ? (
+                // Chain Token Avatar
+                <div
+                  className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{
+                    backgroundColor: chainData?.brandColor || "#10b981",
+                  }}
+                >
+                  <span className="text-base font-bold text-white">
+                    {chainData?.ticker?.[0]}
+                  </span>
+                </div>
+              ) : (
+                // CNPY Avatar
+                <div className="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                  <CnpyLogo className="w-5 h-5 text-white" />
+                </div>
+              )}
+              <div className="text-left">
+                <div className="flex items-center gap-2">
+                  <p className="text-base font-semibold">{outputToken.name}</p>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  0 {outputToken.symbol}
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-base font-semibold">{conversion.tokens}</p>
+              <p className="text-sm text-muted-foreground">{conversion.usd}</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Connect Wallet / Continue Button */}
+      <div className="px-4 pt-4 pb-3">
+        <Button
+          className="w-full h-11"
+          size="lg"
+          disabled={isPreview || !amount}
+          onClick={handleContinue}
+        >
+          {isPreview
+            ? "Preview Mode"
+            : isConnected
+            ? "Continue"
+            : "Connect Wallet"}
+        </Button>
+      </div>
+
+      {/* Exchange Rate and Slippage */}
+      {chainData && (
+        <div className="px-4 pb-4">
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Zap className="w-3.5 h-3.5" />
+              <span>
+                1 {inputToken.symbol} = {getExchangeRate()} {outputToken.symbol}
+              </span>
+            </div>
+            <button
+              onClick={() => setShowSlippageSettings(true)}
+              className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <span className="font-semibold">{slippage}%</span>
+              <Settings className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Slippage Settings Dialog */}
+      <SlippageSettings
+        open={showSlippageSettings}
+        onOpenChange={setShowSlippageSettings}
+        slippage={slippage}
+        onSlippageChange={setSlippage}
+      />
+    </>
+  );
+}
