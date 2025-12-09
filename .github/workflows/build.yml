@@ -70,11 +70,15 @@ jobs:
             echo "frontend_url=https://dev.app.canopynetwork.org" >> $GITHUB_OUTPUT
             echo "dev_mode=true" >> $GITHUB_OUTPUT
             echo "image_suffix=-dev" >> $GITHUB_OUTPUT
+            echo "dev_image=ghcr.io/canopy-network/canopy-frontend" >> $GITHUB_OUTPUT
+            echo "is_dev=true" >> $GITHUB_OUTPUT
           else
             echo "api_url=https://api.staging.app.canopynetwork.org" >> $GITHUB_OUTPUT
             echo "frontend_url=https://staging.app.canopynetwork.org" >> $GITHUB_OUTPUT
             echo "dev_mode=false" >> $GITHUB_OUTPUT
             echo "image_suffix=" >> $GITHUB_OUTPUT
+            echo "dev_image=" >> $GITHUB_OUTPUT
+            echo "is_dev=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Determine version
@@ -106,6 +110,15 @@ jobs:
             type=raw,value=latest
             type=sha,prefix=sha-
             type=ref,event=branch
+
+      - name: Tag and push dev image
+        if: github.event_name != 'pull_request' && steps.set-env.outputs.environment == 'dev'
+        run: |
+          SOURCE_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}${{ steps.env-vars.outputs.image_suffix }}:latest"
+          TARGET_IMAGE="ghcr.io/canopy-network/canopy-frontend:dev"
+          echo "Tagging $SOURCE_IMAGE as $TARGET_IMAGE"
+          # Use docker buildx imagetools to create a manifest pointing to the same image
+          docker buildx imagetools create --tag $TARGET_IMAGE $SOURCE_IMAGE
 
       - name: Login to GitHub Container Registry
         if: github.event_name != 'pull_request'
@@ -143,7 +156,7 @@ jobs:
         run: |
           echo "### 🐳 Docker Image Built" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Environment:** ${{ steps.set-env.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**.Environment:** ${{ steps.set-env.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
           echo "**Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}${{ steps.env-vars.outputs.image_suffix }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Version:** \`${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Tags:** ${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
@@ -261,7 +274,7 @@ jobs:
             echo "Commit: ${{ github.sha }}"
             echo ""
             
-            IMAGE="ghcr.io/canopy-network/canopy-frontend-dev:latest"
+            IMAGE="ghcr.io/canopy-network/canopy-frontend:dev"
             NAMESPACE="canopy-dev"
             echo "Image: $IMAGE"
             echo "Namespace: $NAMESPACE"
