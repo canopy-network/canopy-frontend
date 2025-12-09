@@ -36,19 +36,12 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className={inter.className}>
         <ErrorBoundary>
-<<<<<<< HEAD
-          <QueryProvider>
-            <StoreProvider>
-              <AuthCookieSync />
-              <WalletProvider>
-                <TooltipProvider>
-=======
           <Web3Provider>
             <QueryProvider>
               <StoreProvider>
                 <AuthCookieSync />
                 <WalletProvider>
->>>>>>> origin/dev
+                  <TooltipProvider>
                   <div className="flex h-screen bg-background overflow-hidden">
                     {/* Desktop Sidebar - hidden on mobile */}
                     <div className="hidden lg:block">
@@ -75,17 +68,11 @@ export default function RootLayout({
                     }}
                   />
                   <HotToaster />
-<<<<<<< HEAD
-                </TooltipProvider>
-              </WalletProvider>
-            </StoreProvider>
-          </QueryProvider>
-=======
+                  </TooltipProvider>
                 </WalletProvider>
               </StoreProvider>
             </QueryProvider>
           </Web3Provider>
->>>>>>> origin/dev
         </ErrorBoundary>
       </body>
     </html>
