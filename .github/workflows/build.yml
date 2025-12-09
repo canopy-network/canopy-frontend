@@ -104,6 +104,7 @@ jobs:
         with:
           images: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}${{ steps.env-vars.outputs.image_suffix }}
+            ${{ steps.env-vars.outputs.docker_hub_image }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -127,6 +128,13 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to Docker Hub
+        if: github.event_name != 'pull_request' && steps.set-env.outputs.environment == 'dev'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_SECRET }}
 
       - name: Build and push
         id: build
@@ -284,12 +292,22 @@ jobs:
             
             echo ""
             echo "=== Pulling Image ==="
-            echo "${{ secrets.GITHUB_TOKEN }}" | sudo k3s ctr images pull --user "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" "$IMAGE" || {
-              echo "Direct pull failed, trying docker..."
-              echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-              sudo docker pull "$IMAGE"
-              sudo docker save "$IMAGE" | sudo k3s ctr images import -
-            }
+            # Use Docker Hub for pulling and importing
+            echo "${{ secrets.DOCKER_HUB_SECRET }}" | sudo docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
+            echo "Pulling image with Docker..."
+            # Try to pull, but continue if image already exists locally
+            if ! sudo docker pull "$IMAGE" 2>&1; then
+              echo "Docker pull failed, checking if image exists locally..."
+              if sudo docker images "$IMAGE" --format "{{.Repository}}:{{.Tag}}" | grep -q "^${IMAGE}$"; then
+                echo "Image found locally, using cached version"
+              else
+                echo "ERROR: Image not found locally and pull failed"
+                exit 1
+              fi
+            fi
+            echo "Importing image to k3s..."
+            sudo docker save "$IMAGE" | sudo k3s ctr images import -
+            echo "✅ Image successfully imported to k3s"
             
             # Check if deployment exists, create if not
             if ! sudo k3s kubectl get deployment dev-canopy-frontend -n $NAMESPACE &>/dev/null; then

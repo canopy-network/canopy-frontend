@@ -5,7 +5,7 @@ import { MainNav } from "@/components/navigation/main-nav";
 import { WalletConnectButton } from "@/components/wallet/wallet-connect-button";
 import { LoginDialog } from "@/components/auth/login-dialog";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Wallet } from "lucide-react";
 import { useCreateChainDialog } from "@/lib/stores/use-create-chain-dialog";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import Link from "next/link";
@@ -24,7 +24,16 @@ export function Sidebar() {
   const [isHovered, setIsHovered] = useState(false);
   const [showLaunchDialog, setShowLaunchDialog] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [addressVisibleChars, setAddressVisibleChars] = useState(22);
   const pathname = usePathname();
+
+  const formatWalletAddress = (address?: string, maxVisible: number = 22) => {
+    if (!address) return "";
+    if (address.length <= maxVisible) return address;
+    const front = Math.ceil((maxVisible - 1) / 2);
+    const back = maxVisible - front - 1; // 1 char for ellipsis
+    return `${address.slice(0, front)}…${address.slice(-back)}`;
+  };
 
   // User is considered logged in if either email auth or GitHub auth is active
   const checkCompact = () => {
@@ -43,6 +52,18 @@ export function Sidebar() {
   const checkMobile = () => {
     setIsMobile(window.innerWidth < WINDOW_BREAKPOINTS.LG);
   };
+
+  // Adjust visible characters for wallet address based on viewport width
+  useEffect(() => {
+    const updateVisibleChars = () => {
+      const width = window.innerWidth;
+      setAddressVisibleChars(18);
+    };
+
+    updateVisibleChars();
+    window.addEventListener("resize", updateVisibleChars);
+    return () => window.removeEventListener("resize", updateVisibleChars);
+  }, []);
 
   // Check if sidebar should be compact
   useEffect(() => {
@@ -95,7 +116,7 @@ export function Sidebar() {
           className={cn(
             "overflow-hidden transition-all duration-300  block  ",
             isCondensed
-              ? "w-[16px] max-w-[16px] mx-auto"
+              ? "w-[24px] max-w-[24px] mx-auto"
               : "w-38 mr-auto xl:px-4"
           )}
         >
@@ -104,7 +125,10 @@ export function Sidebar() {
             height={128}
             src="/images/logo.svg"
             alt="Logo"
-            className={cn("invert w-32 min-w-32")}
+            className={cn(
+              isCondensed ? "w-26 min-w-26" : "w-auto min-w-auto",
+              "h-auto object-contain"
+            )}
           />
         </Link>
       </div>
@@ -125,9 +149,14 @@ export function Sidebar() {
           onOpenChange={setShowCommandSearch}
         />
 
-        {isLoggedIn && !isMobile && (
+        {!isMobile && (
           <Button
             onClick={() => {
+              if (!isLoggedIn) {
+                setLoginDialogOpen(true);
+                return;
+              }
+
               // Check if dialog has been shown this session
               const hasSeenDialog = sessionStorage.getItem(
                 "hasSeenLaunchDialog"
@@ -185,35 +214,63 @@ export function Sidebar() {
               variant="clear"
               className="w-full  py-3 px-2 rounded-xl"
             >
-              <div className="h-6 w-6 min-w-6  rounded-full bg-primary flex items-center justify-center">
+              <div className="h-6 w-6 min-w-6 rounded bg-gradient-to-br from-[#0a2a12] via-[#103a1b] to-[#164c25] flex items-center justify-center border border-[#36d26a] shadow-[0_0_8px_rgba(54,210,106,0.4)]">
                 {user.avatar_url ? (
                   <img
                     src={user.avatar_url}
-                    alt={user.email || ""}
-                    className="h-6 w-6  min-w-6 rounded-full"
+                    alt={user.email || user.wallet_address || ""}
+                    className="h-6 w-6 min-w-6 rounded object-cover"
                   />
                 ) : (
-                  <span className="text-primary-foreground text-xs font-bold">
-                    {user.email?.slice(0, 2).toUpperCase()}
-                  </span>
+                  <img
+                    src="/images/ethereum-logo.png"
+                    alt="Ethereum"
+                    className="h-5 w-5 object-contain"
+                  />
                 )}
               </div>
               {isCondensed ? null : (
-                <span className="text-sm text-white truncate">
-                  {user.email}
+                <span className="text-sm text-white truncate font-mono flex-1 text-left">
+                  {user.email ||
+                    (user.wallet_address
+                      ? formatWalletAddress(user.wallet_address, addressVisibleChars)
+                      : "Anonymous")}
                 </span>
               )}
             </Button>
           </>
         ) : (
-          <Button
-            onClick={() => setLoginDialogOpen(true)}
-            variant="outline"
-            size="sm"
-            className="w-full text-xs"
-          >
-            Login
-          </Button>
+          <>
+            {isCondensed ? (
+              <Button
+                onClick={() => setLoginDialogOpen(true)}
+                variant="default"
+                size="icon"
+                className="bg-black/30 text-[#7cff9d] border border-[#36d26a] shadow-[0_0_12px_2px_rgba(124,255,157,0.3)] hover:shadow-[0_0_16px_3px_rgba(124,255,157,0.45)] transition-transform hover:-translate-y-[1px] rounded-full"
+                aria-label="Connect Wallet"
+              >
+                <img
+                  src="/images/ethereum-logo.png"
+                  alt="Ethereum"
+                  className="h-4 w-4 object-contain drop-shadow-[0_0_8px_rgba(124,255,157,0.8)]"
+                />
+              </Button>
+            ) : (
+              <Button
+                onClick={() => setLoginDialogOpen(true)}
+                variant="ghost"
+                size="sm"
+                className="w-full text-sm font-semibold text-[#7cff9d] border border-[#36d26a] bg-black/30 rounded-md shadow-[0_0_14px_rgba(124,255,157,0.4)] hover:shadow-[0_0_18px_rgba(124,255,157,0.55)] transition-transform hover:-translate-y-[1px] gap-2"
+              >
+                <img
+                  src="/images/ethereum-logo.png"
+                  alt="Ethereum"
+                  className="h-4 w-4 object-contain drop-shadow-[0_0_8px_rgba(124,255,157,0.8)]"
+                />
+                Connect Wallet
+              </Button>
+            )}
+          </>
         )}
 
         {isLoggedIn && <WalletConnectButton isCondensed={isCondensed} />}
