@@ -132,8 +132,29 @@ export const ChainDetailChart = ({
     priceLineVisible: false,
     crosshairMarkerBorderColor: "red",
   };
+
+  // Format large numbers for tooltip display
+  const formatTooltipValue = (value: number): string => {
+    if (value >= 1_000_000) {
+      // For millions, remove last 6 digits and show M
+      return `$${Math.floor(value / 1_000_000)}M`;
+    } else if (value >= 1_000) {
+      // For thousands, remove last 3 digits and show K
+      return `$${Math.floor(value / 1_000)}K`;
+    } else {
+      // For values less than 1000, show as is without decimals
+      return `$${Math.floor(value)}`;
+    }
+  };
+
   useEffect(() => {
     if (!chartContainerRef.current) return;
+
+    const existingTooltip =
+      chartContainerRef.current.querySelector(".chart-tooltip");
+    if (existingTooltip) {
+      existingTooltip.remove();
+    }
 
     const toolTip = document.createElement("span");
     toolTip.classList.add("chart-tooltip");
@@ -196,7 +217,7 @@ export const ChainDetailChart = ({
       series.setData(test_data as any);
     }
 
-    const toolTipWidth = 80;
+    const toolTipWidth = 200;
     const toolTipHeight = 80;
     const toolTipMargin = 15;
 
@@ -220,7 +241,7 @@ export const ChainDetailChart = ({
         const data = param.seriesData.get(series) as any;
         const price = data?.value || data?.close || 0;
         toolTip.innerHTML = `<div class="chart-tooltip-value">
-          $${price.toFixed(6)}
+          ${formatTooltipValue(price)}
           </div><div class="chart-tooltip-date">
           ${format(new Date(date * 1000), "MMMM do, h:mm a")}
           </div>`;
@@ -318,6 +339,9 @@ export const ChainDetailChart = ({
       // Clear any pending debounce timer
       if (debounceTimer) {
         clearTimeout(debounceTimer);
+      }
+      if (toolTip && toolTip.parentNode) {
+        toolTip.parentNode.removeChild(toolTip);
       }
       chart.remove();
       chartRef.current = null;

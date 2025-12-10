@@ -159,7 +159,7 @@ body,
 
 /* Chart Tooltip Styling*/
 .chart-tooltip {
-  width: 152px;
+  width: 172px;
   /* height: 64px; */
   position: absolute;
   display: none;
