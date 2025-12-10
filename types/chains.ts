@@ -359,6 +359,7 @@ export interface GetChainsParams {
   status?: ChainStatus;
   creator?: string;
   template_id?: string;
+  filter?: string; // Keyword filter for chain name/symbol search
   page?: number;
   limit?: number;
   include?: string;

@@ -345,6 +345,7 @@ export interface ChainStats {
 }
 
 export interface StakingPositionsRequest {
+  address?: string;
   chain_ids?: string;
   status?: 'active' | 'paused' | 'unstaking';
   limit?: number;
@@ -376,6 +377,7 @@ export interface ValidatorReward {
 }
 
 export interface StakingRewardsRequest {
+  address?: string;
   chain_ids?: string;
   status?: string;
   limit?: number;
@@ -411,6 +413,7 @@ export interface UnstakingEntry {
 }
 
 export interface UnstakingQueueRequest {
+  address?: string;
   chain_ids?: string;
   status?: string;
   limit?: number;
@@ -458,7 +461,8 @@ export interface EstimateFeeResponse {
 export interface TransactionDetail {
   hash: string;
   chain_id: number;
-  chain_name?: string;
+  chain_name: string;
+  token_symbol: string;
   type: string;
   from_address: string;
   to_address?: string;

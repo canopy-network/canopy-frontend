@@ -1,3 +1,8 @@
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
@@ -10,7 +15,21 @@ const nextConfig = {
     unoptimized: true,
   },
   output: 'standalone',
-  serverExternalPackages: ['zustand', '@noble/curves', '@noble/hashes', '@scure/bip39'],
+  // Transpile packages that have nested dependencies
+  transpilePackages: [
+    'zustand',
+    '@noble/curves',
+    '@noble/hashes',
+    '@scure/bip39',
+    'viem',
+    'wagmi',
+    '@wagmi/core',
+    '@rainbow-me/rainbowkit',
+    '@reown/appkit',
+    '@reown/appkit-controllers',
+    '@walletconnect/utils',
+    'valtio',
+  ],
   // Force SSR for all pages - disable static generation
   trailingSlash: true,
   generateEtags: false,
@@ -30,7 +49,54 @@ const nextConfig = {
         destination: `${apiUrl}/:path*`,
       },
     ]
-  }
+  },
+  webpack: (config, { isServer }) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@react-native-async-storage/async-storage': path.join(__dirname, 'lib', 'shims', 'async-storage.ts'),
+      'pino-pretty': path.join(__dirname, 'lib', 'shims', 'pino-pretty.ts'),
+    }
+
+    // Polyfills for Node.js modules in browser
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        crypto: false,
+        stream: false,
+        http: false,
+        https: false,
+        zlib: false,
+        path: false,
+        os: false,
+      }
+    }
+
+    // Ensure proper resolution for ESM packages
+    config.resolve.extensionAlias = {
+      '.js': ['.ts', '.tsx', '.js', '.jsx'],
+      '.mjs': ['.mts', '.mjs'],
+      '.cjs': ['.cts', '.cjs'],
+    }
+
+    return config
+  },
+  experimental: {
+    turbo: {
+      resolveAlias: {
+        '@react-native-async-storage/async-storage': './lib/shims/async-storage.ts',
+        'pino-pretty': './lib/shims/pino-pretty.ts',
+      },
+    },
+    // Enable optimized package imports for better tree-shaking
+    optimizePackageImports: [
+      'lucide-react',
+      'date-fns',
+      'recharts',
+    ],
+  },
 }
 //Dummy
 export default nextConfig

@@ -288,7 +288,7 @@ function WalletContent() {
                   <Button
                     variant="outline"
                     className="h-auto py-4 flex-col gap-2"
-                    disabled
+                    onClick={() => setShowReceiveDialog(true)}
                   >
                     <Download className="h-5 w-5" />
                     <span className="text-xs">Buy</span>
@@ -296,7 +296,7 @@ function WalletContent() {
                   <Button
                     variant="outline"
                     className="h-auto py-4 flex-col gap-2"
-                    disabled
+                    onClick={() => toast.info("Swap coming soon")}
                   >
                     <Repeat className="h-5 w-5" />
                     <span className="text-xs">Swap</span>
@@ -346,7 +346,10 @@ function WalletContent() {
                     <Button
                       variant="outline"
                       className="h-auto py-4 flex-col gap-2"
-                      disabled
+                      onClick={() => {
+                        setShowReceiveDialog(true);
+                        setShowQuickActionsSheet(false);
+                      }}
                     >
                       <Download className="h-5 w-5" />
                       <span className="text-xs">Buy</span>
@@ -354,7 +357,10 @@ function WalletContent() {
                     <Button
                       variant="outline"
                       className="h-auto py-4 flex-col gap-2"
-                      disabled
+                      onClick={() => {
+                        toast.info("Swap coming soon");
+                        setShowQuickActionsSheet(false);
+                      }}
                     >
                       <Repeat className="h-5 w-5" />
                       <span className="text-xs">Swap</span>

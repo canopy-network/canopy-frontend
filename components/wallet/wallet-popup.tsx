@@ -14,6 +14,7 @@ import { SendTransactionDialog } from "./send-transaction-dialog";
 import { ReceiveDialog } from "./receive-dialog";
 import { StakeDialog } from "./stake-dialog";
 import { SwitchWalletDialog } from "./switch-wallet-dialog";
+import { ActivityTab } from "./activity-tab";
 import {
   Copy,
   LogOut,
@@ -209,17 +210,17 @@ export function WalletPopup() {
 
               {/* Tabs - Scrollable */}
               <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-                  <TabsList className="w-full justify-start bg-transparent p-0 px-6 border-b border-border rounded-none h-auto flex-shrink-0">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className=" flex min-h-0">
+                  <TabsList className="w-full justify-start bg-transparent p-0    rounded-none h-auto flex-shrink-0">
                     <TabsTrigger
                       value="balances"
-                      className="py-3 px-0 mr-6 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent data-[state=active]:text-foreground"
+                      className="py-3  rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent data-[state=active]:text-foreground"
                     >
                       Balances
                     </TabsTrigger>
                     <TabsTrigger
                       value="activity"
-                      className="py-3 px-0 mr-6 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent text-muted-foreground data-[state=active]:text-foreground"
+                      className="py-3 bg-none rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent text-muted-foreground data-[state=active]:text-foreground"
                     >
                       Activity
                     </TabsTrigger>
@@ -303,66 +304,12 @@ export function WalletPopup() {
                   {/* Activity Tab */}
                   <TabsContent value="activity" className="flex-1 overflow-y-auto mt-0 p-0 data-[state=inactive]:hidden">
                     <div className="p-4 sm:p-6">
-                      {recentTransactions.length === 0 ? (
-                        /* Empty State */
-                        <Card className="p-8 sm:p-12 border-0">
-                          <div className="flex flex-col items-center text-center space-y-3 sm:space-y-4">
-                            <div className="p-3 sm:p-4 bg-muted rounded-full">
-                              <Activity className="w-6 h-6 sm:w-8 sm:h-8 text-muted-foreground" />
-                            </div>
-                            <div className="space-y-2">
-                              <h3 className="text-base sm:text-lg font-semibold">No activity yet</h3>
-                              <p className="text-xs sm:text-sm text-muted-foreground max-w-md">
-                                Start your blockchain journey by creating or investing in chains on the launchpad.
-                              </p>
-                            </div>
-                            <Button
-                              onClick={() => {
-                                closePopup();
-                                router.push("/");
-                              }}
-                              className="mt-2"
-                            >
-                              Go to Launchpad
-                            </Button>
-                          </div>
-                        </Card>
-                      ) : (
-                        <div className="space-y-3">
-                          {recentTransactions.map((tx, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center justify-between py-3 hover:bg-muted/50 rounded-lg px-2 transition-colors"
-                            >
-                              <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${tx.actualType === 'send' ? 'bg-red-500/20' : 'bg-green-500/20'
-                                  }`}>
-                                  {tx.actualType === 'send' ? (
-                                    <Send className="w-5 h-5 text-red-500" />
-                                  ) : (
-                                    <Download className="w-5 h-5 text-green-500" />
-                                  )}
-                                </div>
-                                <div>
-                                  <div className="font-medium capitalize">{tx.actualType}</div>
-                                  <div className="text-sm text-muted-foreground">
-                                    {new Date(tx.timestamp).toLocaleDateString()}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <div className={`font-medium ${tx.actualType === 'send' ? 'text-red-500' : 'text-green-500'
-                                  }`}>
-                                  {tx.actualType === 'send' ? '-' : '+'}{tx.amount} {tx.token}
-                                </div>
-                                <div className="text-sm text-muted-foreground capitalize">
-                                  {tx.status}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      <ActivityTab
+                        addresses={currentWallet ? [currentWallet.address] : []}
+                        compact={true}
+                        showSearchInput={false}
+                        showDateFilter={false}
+                      />
                     </div>
                   </TabsContent>
                 </Tabs>

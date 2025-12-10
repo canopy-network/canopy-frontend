@@ -10,9 +10,13 @@ import { useEffect } from "react";
 
 interface WalletConnectButtonProps {
   isCondensed?: boolean;
+  hideBalance?: boolean;
 }
 
-export function WalletConnectButton({ isCondensed = false }: WalletConnectButtonProps) {
+export function WalletConnectButton({
+  isCondensed = false,
+  hideBalance = false,
+}: WalletConnectButtonProps) {
   const { isAuthenticated } = useAuthStore();
   const { currentWallet, isConnecting, connectWallet, togglePopup } =
     useWallet();
@@ -28,9 +32,10 @@ export function WalletConnectButton({ isCondensed = false }: WalletConnectButton
   // Format address for display
   const formatAddress = (address: string) => {
     if (!address) return "";
-    // Add 0x prefix if not present
-
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+    const maxVisible = 15;
+    if (address.length <= maxVisible) return address;
+    const addr = address.startsWith("0x") ? address : `0x${address}`;
+    return `${addr.slice(0, 8)}…${addr.slice(-5)}`;
   };
 
   // If user is not authenticated, don't show wallet button
@@ -41,46 +46,57 @@ export function WalletConnectButton({ isCondensed = false }: WalletConnectButton
   // If wallet is connected, show wallet info button
   if (currentWallet) {
     const displayBalance = balance?.total || "0.00";
+    const contentAlignment = hideBalance ? "items-center" : "items-start";
 
     if (isCondensed) {
       return (
         <Button
-          variant="outline"
+          variant="ghost"
           onClick={togglePopup}
-          className="w-10 h-10 p-0 bg-transparent border-[#2a2a2a] text-white hover:bg-[#1a1a1a]"
+          className="w-10 h-10 p-0 bg-black/30 border border-[#36d26a] rounded-full text-[#7cff9d] shadow-[0_0_12px_2px_rgba(124,255,157,0.3)] hover:shadow-[0_0_16px_3px_rgba(124,255,157,0.45)]"
         >
-          <Wallet className="h-4 w-4" />
+          <img
+            src="/images/canopy-icon.svg"
+            alt="Canopy"
+            className="h-4 w-4 object-contain drop-shadow-[0_0_8px_rgba(124,255,157,0.8)]"
+          />
         </Button>
       );
     }
 
     return (
       <Button
-        variant="outline"
+        variant="ghost"
         onClick={togglePopup}
-        className="bg-transparent border-[#2a2a2a] text-white hover:bg-[#1a1a1a] w-full h-auto py-3 px-3"
+        className="bg-transparent text-white hover:bg-white/5 w-full h-auto py-3 px-2 border border-[#36d26a] rounded-md shadow-[0_0_14px_rgba(124,255,157,0.35)]"
       >
-        <div className="flex items-start gap-3 w-full">
-          <div className="flex-shrink-0">
-            <Wallet className="h-4 w-4 mt-0.5" />
+        <div className={`flex ${contentAlignment} gap-2 w-full`}>
+          <div className="flex-shrink-0 h-8 w-8 rounded bg-gradient-to-br from-[#0a2a12] via-[#103a1b] to-[#164c25] border border-[#36d26a] shadow-[0_0_12px_rgba(124,255,157,0.45)] flex items-center justify-center">
+            <img
+              src="/images/canopy-icon.svg"
+              alt="Canopy"
+              className="h-4 w-4 object-contain drop-shadow-[0_0_6px_rgba(124,255,157,0.6)]"
+            />
           </div>
-          <div className="flex-1 min-w-0 text-left">
-            <div className="flex items-center justify-between gap-2 mb-1">
-              <span className="font-mono text-xs text-muted-foreground truncate">
+          <div className="flex-1 min-w-0 text-left space-y-1">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-sm text-white truncate">
                 {formatAddress(currentWallet.address)}
               </span>
               <ChevronDown className="h-3 w-3 text-muted-foreground flex-shrink-0" />
             </div>
-            <div className="text-sm font-medium truncate">
-              {formatBalanceWithCommas(displayBalance)} CNPY
-            </div>
+            {!hideBalance && (
+              <div className="text-lg font-semibold text-[#7cff9d] truncate">
+                {formatBalanceWithCommas(displayBalance)} CNPY
+              </div>
+            )}
           </div>
         </div>
       </Button>
     );
   }
 
-  // Otherwise, show connect button
+  // Otherwise, show connect button (Canopy wallet)
   return (
     <Button
       onClick={connectWallet}
@@ -95,7 +111,11 @@ export function WalletConnectButton({ isCondensed = false }: WalletConnectButton
         </>
       ) : (
         <>
-          <Wallet className="h-4 w-4" />
+          <img
+            src="/images/canopy-icon.svg"
+            alt="Canopy"
+            className="h-4 w-4 object-contain"
+          />
           {!isCondensed && 'Connect wallet'}
 
         </>

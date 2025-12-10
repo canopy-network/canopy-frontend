@@ -19,6 +19,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { X, ArrowLeft, Check, Info, Wallet, Loader2, AlertCircle, Copy } from "lucide-react";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { portfolioApi, chainsApi, walletTransactionApi } from "@/lib/api";
@@ -62,6 +63,9 @@ export function StakeDialog({
     const [source, setSource] = useState("wallet");
     const [autoCompound, setAutoCompound] = useState(true);
     const [internalSelectedChain, setInternalSelectedChain] = useState<Chain | null>(null);
+    const [committeesInput, setCommitteesInput] = useState<number[]>([]);
+    const [showCommittees, setShowCommittees] = useState(false);
+    const [committeesQuery, setCommitteesQuery] = useState("");
     const [chainsWithBalance, setChainsWithBalance] = useState<ChainWithBalance[]>([]);
     const [walletsWithBalance, setWalletsWithBalance] = useState<WalletWithBalance[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -92,16 +96,11 @@ export function StakeDialog({
                 });
                 const fetchedChains = chainsResponse.data || [];
 
-                console.log("========== STAKE DIALOG DEBUG ==========");
-                console.log("📋 Fetched chains:", fetchedChains.length);
-                console.log("📋 Chain IDs from API:", fetchedChains.map(c => ({ id: c.id, chain_id: c.chain_id, name: c.chain_name })));
 
                 // Get all wallet addresses
                 const walletAddresses = wallets.map(w => w.address);
-                console.log("👛 Wallet addresses:", walletAddresses);
 
                 if (walletAddresses.length === 0) {
-                    console.log("❌ No wallets found");
                     setIsLoading(false);
                     return;
                 }
@@ -111,7 +110,6 @@ export function StakeDialog({
                     addresses: walletAddresses,
                 });
 
-                console.log("📊 Full Portfolio Response:", portfolioResponse);
 
                 // Calculate price per token
                 const portfolioTotalUSD = parseFloat(portfolioResponse.total_value_usd || "0");
@@ -176,7 +174,6 @@ export function StakeDialog({
 
                         // Debug log for chains with balance
                         if (totalAvailable > 0 || totalStaked > 0) {
-                            console.log(`✅ Chain ${chain.chain_name}: available=${totalAvailable}, staked=${totalStaked}`);
                         }
 
                         // Only include chains that have available balance > 0 (can stake)
@@ -228,11 +225,8 @@ export function StakeDialog({
                 });
 
                 const chainsFromPortfolio: ChainWithBalance[] = [];
-                console.log("🔍 Chains from API with balance:", chainsFromApi.length, chainsFromApi.map(c => c.chain.chain_name));
-                console.log("🔍 Portfolio chain_ids:", Array.from(accountsByChainId.keys()));
 
                 accountsByChainId.forEach((chainAccounts, chainId) => {
-                    console.log(`🔍 Processing portfolio chain_id=${chainId}, accounts=${chainAccounts.length}`);
 
                     // Check if this chain_id was already matched with a fetched chain
                     const alreadyMatched = chainsFromApi.some(c => {
@@ -245,7 +239,6 @@ export function StakeDialog({
                         return false;
                     });
 
-                    console.log(`   Already matched in API chains: ${alreadyMatched}`);
 
                     if (!alreadyMatched) {
                         // Calculate totals for this chain
@@ -279,14 +272,12 @@ export function StakeDialog({
                                 apy,
                             });
 
-                            console.log(`✅ Added chain from portfolio: ${firstAccount.chain_name} (id=${chainId}), available=${totalAvailable}`);
                         }
                     }
                 });
 
                 // Combine both sources
                 const chainsData = [...chainsFromApi, ...chainsFromPortfolio];
-                console.log("📋 Final chains with balance:", chainsData.length, chainsData);
 
                 setChainsWithBalance(chainsData);
 
@@ -313,6 +304,9 @@ export function StakeDialog({
                 setAmount("");
                 setSource("wallet");
                 setAutoCompound(true);
+                setCommitteesInput([]);
+                setShowCommittees(false);
+                setCommitteesQuery("");
                 setTxHash(null);
                 setError(null);
                 setIsSending(false);
@@ -411,7 +405,6 @@ export function StakeDialog({
             setInternalSelectedChain(chainData.chain);
         } else {
             console.warn("Chain not found for chainId:", chainId);
-            console.log("Available chains:", chainsWithBalance.map(c => ({ id: c.chain.id, chain_id: c.chain.chain_id, name: c.chain.chain_name })));
         }
     };
 
@@ -519,10 +512,14 @@ export function StakeDialog({
 
             // Create stake message
             const { createStakeMessage } = await import("@/lib/crypto/transaction");
+            const committees = isCnpyChain
+                ? Array.from(new Set([chainIdNum, ...committeesInput].filter((n) => !isNaN(n) && n > 0)))
+                : [chainIdNum];
+
             const stakeMsg = createStakeMessage(
                 currentWallet.public_key,
                 amountInMicro,
-                [chainIdNum], // committees - use chainId as committee
+                committees,
                 "", // netAddress - MUST be empty for delegation (passive staking)
                 currentWallet.address, // outputAddress - rewards go to wallet
                 true, // delegate - true for passive staking
@@ -620,6 +617,11 @@ export function StakeDialog({
         return chain.token_symbol || `C${chain.chain_id?.padStart(3, "0") || "000"}`;
     };
 
+    const isCnpyChain =
+        (activeChain?.token_symbol || "").toUpperCase() === "CNPY" ||
+        activeChain?.chain_id === "1" ||
+        activeChain?.chain_id === "0";
+
     return (
         <TooltipProvider>
             <Dialog open={open} onOpenChange={onOpenChange}>
@@ -653,9 +655,13 @@ export function StakeDialog({
                                             Select Chain
                                         </Label>
                                         <Select
-                                            value={activeChain ? (activeChain.chain_id || `chain-${activeChain.id}`) : ""}
+                                            value={
+                                                activeChain
+                                                    ? activeChain.chain_id || `chain-${activeChain.id}`
+                                                    : ""
+                                            }
                                             onValueChange={handleChainSelect}
-                                            disabled={isLoading}
+                                            disabled={isLoading || !!activeChain}
                                         >
                                             <SelectTrigger className="h-auto py-6 w-full [&>span]:line-clamp-none [&>span]:block">
                                                 <SelectValue placeholder="Choose a chain to stake">
@@ -728,7 +734,7 @@ export function StakeDialog({
                                                                             <span className="text-xs text-muted-foreground">
                                                                                 {getChainSymbol(chainData.chain)}
                                                                                 {chainData.balance > 0 && (
-                                                                                    <> • Balance: {withCommas(chainData.balance)}</>
+                                                                                    <> - Balance: {formatBalanceWithCommas(chainData.balance)}</>
                                                                                 )}
                                                                             </span>
                                                                         </div>
@@ -739,6 +745,11 @@ export function StakeDialog({
                                                 )}
                                             </SelectContent>
                                         </Select>
+                                        {activeChain && (
+                                            <p className="text-xs text-muted-foreground">
+                                                Chain selection is locked for this flow. Close and reopen to choose a different chain.
+                                            </p>
+                                        )}
                                     </div>
                                 )}
 
@@ -846,6 +857,94 @@ export function StakeDialog({
                                             </p>
                                         </div>
 
+                                        {isCnpyChain && (
+                                            <div className="space-y-3 pt-4 border-t">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="space-y-0.5">
+                                                        <p className="text-sm font-medium">
+                                                            Delegate to baby chains (optional)
+                                                        </p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            Add chain IDs to earn native rewards alongside CNPY.
+                                                        </p>
+                                                    </div>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-8"
+                                                        onClick={() => setShowCommittees((prev) => !prev)}
+                                                    >
+                                                        {showCommittees ? "Hide" : "Add chains"}
+                                                    </Button>
+                                                </div>
+                                                {showCommittees && (
+                                                    <div className="space-y-2">
+                                                        <Command>
+                                                            <CommandInput
+                                                                placeholder="Search chains"
+                                                                value={committeesQuery}
+                                                                onValueChange={setCommitteesQuery}
+                                                            />
+                                                            <CommandList>
+                                                                <CommandEmpty>No chains found.</CommandEmpty>
+                                                                <CommandGroup>
+                                                                    {chainsWithBalance
+                                                                        .map((chain) => {
+                                                                            const chainIdValue = chain.chain.chain_id
+                                                                                ? parseInt(chain.chain.chain_id.match(/\d+/)?.[0] || "0")
+                                                                                : parseInt(chain.chain.id);
+                                                                            if (isNaN(chainIdValue)) return null;
+                                                                            const term = committeesQuery.toLowerCase();
+                                                                            if (
+                                                                                term &&
+                                                                                !(
+                                                                                    chain.chain.chain_name?.toLowerCase().includes(term) ||
+                                                                                    chain.chain.token_symbol?.toLowerCase().includes(term)
+                                                                                )
+                                                                            ) {
+                                                                                return null;
+                                                                            }
+                                                                            const isSelected = committeesInput.includes(chainIdValue);
+                                                                            const isMain =
+                                                                                chainIdValue === 1 ||
+                                                                                chain.chain.token_symbol?.toUpperCase() === "CNPY";
+                                                                            return (
+                                                                                <CommandItem
+                                                                                    key={chainIdValue}
+                                                                                    onSelect={() => {
+                                                                                        if (isMain) return;
+                                                                                        setCommitteesInput((prev) =>
+                                                                                            prev.includes(chainIdValue)
+                                                                                                ? prev.filter((id) => id !== chainIdValue)
+                                                                                                : [...prev, chainIdValue]
+                                                                                        );
+                                                                                    }}
+                                                                                >
+                                                                                    <span className="mr-2 text-xs w-10 text-muted-foreground">
+                                                                                        {chainIdValue}
+                                                                                    </span>
+                                                                                    <span className="flex-1 text-sm">
+                                                                                        {chain.chain.chain_name || chain.chain.token_symbol}
+                                                                                    </span>
+                                                                                    {isMain ? (
+                                                                                        <span className="text-xs text-muted-foreground">Main</span>
+                                                                                    ) : isSelected ? (
+                                                                                        <span className="text-xs text-primary">Selected</span>
+                                                                                    ) : null}
+                                                                                </CommandItem>
+                                                                            );
+                                                                        })}
+                                                                </CommandGroup>
+                                                            </CommandList>
+                                                        </Command>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            Staking is multichain: CNPY stays locked once, rewards flow from all selected chains.
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
                                         {/* Auto-compound Toggle */}
                                         <div className="space-y-2 pt-4 border-t">
                                             <div className="flex items-center justify-between">
@@ -871,6 +970,17 @@ export function StakeDialog({
                                                     onCheckedChange={setAutoCompound}
                                                 />
                                             </div>
+                                            {!autoCompound && (
+                                                <div className="flex items-start gap-3 p-3 border border-yellow-500/30 bg-yellow-500/10 rounded-lg">
+                                                    <Info className="w-4 h-4 text-yellow-600 mt-0.5" />
+                                                    <div className="space-y-1 text-xs">
+                                                        <p className="font-semibold text-yellow-700">20% reward penalty</p>
+                                                        <p className="text-muted-foreground">
+                                                            Disabling auto-compound incurs a 20% penalty on your staking rewards to help maintain network security and stability.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
 
                                         {/* Projected Interest */}
@@ -891,16 +1001,16 @@ export function StakeDialog({
                                                     </TooltipContent>
                                                 </Tooltip>
                                             </div>
-                                            <div className="text-center py-2">
-                                                <p className="text-2xl font-bold">
-                                                    {amountNum > 0
-                                                        ? withCommas(projectedYearlyInterest, 4)
-                                                        : "−"}
-                                                </p>
-                                                <p className="text-sm text-muted-foreground">
-                                                    approx. $
-                                                    {withCommas(projectedYearlyInterestUSD)} USD
-                                                </p>
+                                                <div className="text-center py-2">
+                                                    <p className="text-2xl font-bold">
+                                                        {amountNum > 0
+                                                            ? withCommas(projectedYearlyInterest, 4)
+                                                            : "--"}
+                                                    </p>
+                                                    <p className="text-sm text-muted-foreground">
+                                                        approx. $
+                                                        {withCommas(projectedYearlyInterestUSD)} USD
+                                                    </p>
                                             </div>
                                         </div>
                                     </>
@@ -977,6 +1087,16 @@ export function StakeDialog({
 
                                     <div className="space-y-3">
                                         <div className="flex justify-between">
+                                            <span className="text-sm text-muted-foreground">From</span>
+                                            <span className="text-sm font-medium">Wallet balance</span>
+                                        </div>
+
+                                        <div className="flex justify-between">
+                                            <span className="text-sm text-muted-foreground">To</span>
+                                            <span className="text-sm font-medium">Staking</span>
+                                        </div>
+
+                                        <div className="flex justify-between">
                                             <span className="text-sm text-muted-foreground">Amount</span>
                                             <div className="text-right">
                                                 <p className="text-sm font-medium">
@@ -1005,7 +1125,19 @@ export function StakeDialog({
                                                 {autoCompound ? (
                                                     <span className="text-green-600 dark:text-green-400">Enabled</span>
                                                 ) : (
-                                                    <span className="text-muted-foreground">Disabled</span>
+                                                    <div className="flex items-center gap-1 text-yellow-600">
+                                                        <span>Disabled (20% penalty)</span>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Info className="w-3.5 h-3.5" />
+                                                            </TooltipTrigger>
+                                                            <TooltipContent className="max-w-xs">
+                                                                <p>
+                                                                    Disabling auto-compound incurs a 20% penalty on your staking rewards to help maintain network security and stability.
+                                                                </p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </div>
                                                 )}
                                             </span>
                                         </div>
@@ -1205,4 +1337,6 @@ export function StakeDialog({
         </TooltipProvider>
     );
 }
+
+
 

@@ -93,3 +93,49 @@ export async function verifyCode(
     code,
   });
 }
+
+/**
+ * Link email response
+ */
+export interface LinkEmailResponse {
+  message: string;
+  user: {
+    id: string;
+    email: string;
+    wallet_address: string;
+    display_name: string | null;
+    username: string | null;
+    avatar_url: string | null;
+    bio: string | null;
+    github_username: string | null;
+    telegram_handle: string | null;
+    twitter_handle: string | null;
+    website_url: string | null;
+    is_verified: boolean;
+    email_verified_at: string | null;
+    verification_tier: string;
+    reputation_score: number;
+    total_chains_created: number;
+    total_cnpy_invested: number;
+    created_at: string;
+    updated_at: string;
+    last_active_at: string | null;
+  };
+}
+
+/**
+ * Links an email address to an existing authenticated account (wallet-only)
+ * This endpoint requires authentication and links the verified email to the current user.
+ * @param email - Valid email address
+ * @param code - 6-digit numeric code
+ * @returns Promise with the updated user
+ */
+export async function linkEmail(
+  email: string,
+  code: string
+): Promise<ApiResponse<LinkEmailResponse>> {
+  return apiClient.post<LinkEmailResponse>("/api/v1/auth/email/link", {
+    email,
+    code,
+  });
+}
