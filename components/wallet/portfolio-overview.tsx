@@ -157,74 +157,74 @@ export function PortfolioOverview({ addresses }: PortfolioOverviewProps) {
       </Card>
 
       {/* Key Metrics Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2  gap-3 sm:gap-4">
         {/* Yield Earnings */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Yield APY
+        <Card className="overflow-hidden">
+          <CardHeader className="pb-2 sm:pb-3 px-4 sm:px-6 pt-4 sm:pt-6">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1.5 sm:gap-2">
+              <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+              <span className="truncate">Yield APY</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-green-500">
+          <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+            <div className="text-2xl sm:text-3xl font-bold text-green-500 truncate">
               {overview.yield.blended_apy}%
             </div>
-            <div className="text-xs text-muted-foreground mt-1">
+            <div className="text-xs text-muted-foreground mt-1 truncate">
               {formatCNPY(performance.yield_earnings.total_yield_cnpy)} CNPY earned
             </div>
           </CardContent>
         </Card>
 
         {/* Staked Balance */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Coins className="h-4 w-4" />
-              Staked
+        <Card className="overflow-hidden">
+          <CardHeader className="pb-2 sm:pb-3 px-4 sm:px-6 pt-4 sm:pt-6">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1.5 sm:gap-2">
+              <Coins className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+              <span className="truncate">Staked</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
+          <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+            <div className="text-2xl sm:text-3xl font-bold truncate">
               {formatCNPY(overview.allocation.by_type.staked.value_cnpy)}
             </div>
-            <div className="text-xs text-muted-foreground mt-1">
+            <div className="text-xs text-muted-foreground mt-1 truncate">
               {formatPercentage(overview.allocation.by_type.staked.percentage)}% of portfolio
             </div>
           </CardContent>
         </Card>
 
         {/* Liquid Balance */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <PieChart className="h-4 w-4" />
-              Liquid
+        <Card className="overflow-hidden">
+          <CardHeader className="pb-2 sm:pb-3 px-4 sm:px-6 pt-4 sm:pt-6">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1.5 sm:gap-2">
+              <PieChart className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+              <span className="truncate">Liquid</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
+          <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+            <div className="text-2xl sm:text-3xl font-bold truncate">
               {formatCNPY(overview.allocation.by_type.liquid.value_cnpy)}
             </div>
-            <div className="text-xs text-muted-foreground mt-1">
+            <div className="text-xs text-muted-foreground mt-1 truncate">
               {formatPercentage(overview.allocation.by_type.liquid.percentage)}% of portfolio
             </div>
           </CardContent>
         </Card>
 
         {/* Net Flow */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Percent className="h-4 w-4" />
-              Net Flow (7d)
+        <Card className="overflow-hidden">
+          <CardHeader className="pb-2 sm:pb-3 px-4 sm:px-6 pt-4 sm:pt-6">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1.5 sm:gap-2">
+              <Percent className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+              <span className="truncate">Net Flow (7d)</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
+          <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+            <div className="text-2xl sm:text-3xl font-bold truncate">
               {formatCNPY(performance.transactions_summary.net_flow_cnpy)}
             </div>
-            <div className="text-xs text-muted-foreground mt-1">
+            <div className="text-xs text-muted-foreground mt-1 truncate">
               In: {formatCNPY(performance.transactions_summary.total_inflows_cnpy)}
             </div>
           </CardContent>

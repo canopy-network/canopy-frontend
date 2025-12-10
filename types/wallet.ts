@@ -247,6 +247,7 @@ export interface PortfolioAccount {
   address: string;
   chain_id: number;                  // Chain ID as number
   chain_name: string;                // Chain name
+  token_symbol: string;              // Token symbol (e.g., "CNPY", "DEFI")
   balance: string;                   // Total balance (in micro units)
   staked_balance: string;            // Staked balance (in micro units)
   delegated_balance: string;         // Delegated balance (in micro units)
@@ -310,22 +311,93 @@ export interface PerformanceDataPoint {
  * Transaction summary
  */
 export interface TransactionsSummary {
-  total_transactions: number;
-  buys: number;
-  sells: number;
-  transfers: number;
-  other: number;
+  total_inflows_cnpy: string;
+  total_outflows_cnpy: string;
+  net_flow_cnpy: string;
+}
+
+/**
+ * DEX swap P&L details
+ */
+export interface DexSwapPnL {
+  total_swaps: number;
+  successful_swaps: number;
+  failed_swaps: number;
+  total_sold_cnpy: string;
+  total_bought_cnpy: string;
+  net_pnl_cnpy: string;
+  avg_execution_ratio: number;
+}
+
+/**
+ * LP position P&L details
+ */
+export interface LpPositionPnL {
+  total_deposits: number;
+  total_withdrawals: number;
+  total_deposited_cnpy: string;
+  total_withdrawn_cnpy: string;
+  realized_pnl_cnpy: string;
+  unrealized_pnl_cnpy: string;
+  net_pnl_cnpy: string;
+  total_points_held: string;
+}
+
+/**
+ * Yield earnings details
+ */
+export interface YieldEarnings {
+  total_yield_cnpy: string;
+  staking_rewards_cnpy: string;
+  lp_fees_cnpy: string;
+  staking_apy: number;
+  lp_apy: number;
+  blended_apy: number;
+}
+
+/**
+ * Yield info from overview
+ */
+export interface YieldInfo {
+  total_earnings_cnpy: string;
+  blended_apy: number;
+  staking_earnings: {
+    total_cnpy: string;
+    apy: number;
+    position_count: number;
+  };
+  lp_fee_earnings: {
+    total_cnpy: string;
+    apy: number;
+    position_count: number;
+  };
+}
+
+/**
+ * Chain allocation with token symbol
+ */
+export interface ChainAllocation {
+  chain_id: number;
+  chain_name: string;
+  token_symbol: string;
+  total_value_cnpy: string;
+  percentage: number;
 }
 
 /**
  * Portfolio overview response
  */
 export interface PortfolioOverviewResponse {
+
   total_value_cnpy: string;
   total_value_usd?: string;
   accounts: PortfolioAccount[];
-  allocation: PortfolioAllocation;
+  allocation: {
+    by_chain: ChainAllocation[];
+    by_type: TypeAllocation;
+  };
   performance: PortfolioPerformance;
+  yield: YieldInfo;
   last_updated: string;
 }
 
@@ -371,20 +443,22 @@ export interface AccountBalancesResponse {
  * Portfolio performance response
  */
 export interface PortfolioPerformanceResponse {
-  start_date: string;
-  end_date: string;
-  period: string;
-  starting_value_cnpy: string;
-  starting_value_usd?: string;
-  ending_value_cnpy: string;
-  ending_value_usd?: string;
-  total_pnl_cnpy: string;
-  total_pnl_usd?: string;
-  realized_pnl_cnpy: string;
-  unrealized_pnl_cnpy: string;
-  percentage_change: number;
-  time_series: PerformanceDataPoint[];
-  transactions_summary: TransactionsSummary;
+  data: {
+    period: string;
+    start_date: string;
+    end_date: string;
+    starting_value_cnpy: string;
+    ending_value_cnpy: string;
+    total_pnl_cnpy: string;
+    total_pnl_percentage: number;
+    realized_pnl_cnpy: string;
+    unrealized_pnl_cnpy: string;
+    dex_swap_pnl: DexSwapPnL;
+    lp_position_pnl: LpPositionPnL;
+    time_series: PerformanceDataPoint[];
+    transactions_summary: TransactionsSummary;
+    yield_earnings: YieldEarnings;
+  };
 }
 
 /**
