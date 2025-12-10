@@ -12,15 +12,11 @@
 
 import { ReactNode } from "react";
 import { WagmiProvider } from "wagmi";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
 import { config } from "@/lib/web3/config";
 
 // Import RainbowKit styles
 import "@rainbow-me/rainbowkit/styles.css";
-
-// Create a client outside the component to avoid recreation on each render
-const queryClient = new QueryClient();
 
 interface Web3ProviderProps {
   children: ReactNode;
@@ -29,15 +25,14 @@ interface Web3ProviderProps {
 /**
  * Web3 Provider component
  * Provides Web3 context to all child components
+ * Note: QueryClientProvider is handled by the parent QueryProvider in the layout
  */
 export function Web3Provider({ children }: Web3ProviderProps) {
   return (
     <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider theme={darkTheme()}>
-          {children}
-        </RainbowKitProvider>
-      </QueryClientProvider>
+      <RainbowKitProvider theme={darkTheme()}>
+        {children}
+      </RainbowKitProvider>
     </WagmiProvider>
   );
 }

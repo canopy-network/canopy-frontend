@@ -119,7 +119,7 @@ export const transactionsApi = {
 
   /**
    * Get transaction history
-   * POST /api/v1/wallet/transactions/history
+   * GET /api/v1/wallet/transactions/history
    *
    * @param data - Filter parameters for transaction history
    * @returns Paginated list of transactions
@@ -127,16 +127,44 @@ export const transactionsApi = {
   getHistory: async (
     data: TransactionHistoryRequest
   ): Promise<TransactionHistoryResponse> => {
-    const response = await apiClient.post<TransactionHistoryResponse>(
+    const params: Record<string, any> = {};
+
+    // Convert TransactionHistoryRequest to query parameters
+    if (data.addresses && data.addresses.length > 0) {
+      params.addresses = data.addresses.join(',');
+    }
+    if (data.chain_ids && data.chain_ids.length > 0) {
+      params.chain_ids = data.chain_ids.join(',');
+    }
+    if (data.transaction_types && data.transaction_types.length > 0) {
+      params.transaction_types = data.transaction_types.join(',');
+    }
+    if (data.start_date) {
+      params.start_date = data.start_date;
+    }
+    if (data.end_date) {
+      params.end_date = data.end_date;
+    }
+    if (data.page) {
+      params.page = data.page;
+    }
+    if (data.limit) {
+      params.limit = data.limit;
+    }
+    if (data.sort) {
+      params.sort = data.sort;
+    }
+
+    const response = await apiClient.get<TransactionHistoryResponse>(
       "/api/v1/wallet/transactions/history",
-      data
+      params
     );
     return response.data;
   },
 
   /**
    * Get pending transactions
-   * POST /api/v1/wallet/transactions/pending
+   * GET /api/v1/wallet/transactions/pending
    *
    * @param data - Request with addresses to check
    * @returns List of pending transactions
@@ -144,9 +172,19 @@ export const transactionsApi = {
   getPending: async (
     data: PendingTransactionsRequest
   ): Promise<PendingTransactionsResponse> => {
-    const response = await apiClient.post<PendingTransactionsResponse>(
+    const params: Record<string, any> = {};
+
+    // Convert PendingTransactionsRequest to query parameters
+    if (data.addresses && data.addresses.length > 0) {
+      params.addresses = data.addresses.join(',');
+    }
+    if (data.chain_ids && data.chain_ids.length > 0) {
+      params.chain_ids = data.chain_ids.join(',');
+    }
+
+    const response = await apiClient.get<PendingTransactionsResponse>(
       "/api/v1/wallet/transactions/pending",
-      data
+      params
     );
     return response.data;
   },
@@ -191,17 +229,29 @@ export const transactionsApi = {
 
   /**
    * Get batch transaction statuses
-   * POST /api/v1/wallet/transactions/batch-status
+   * GET /api/v1/wallet/transactions/batch-status
    *
    * @param data - List of transaction hashes
+   * @param chainId - Optional chain ID
    * @returns Batch status response with all statuses
    */
   getBatchStatus: async (
-    data: BatchStatusRequest
+    data: BatchStatusRequest,
+    chainId?: number
   ): Promise<BatchStatusResponse> => {
-    const response = await apiClient.post<BatchStatusResponse>(
+    const params: Record<string, any> = {};
+
+    // Convert BatchStatusRequest to query parameters
+    if (data.transaction_hashes && data.transaction_hashes.length > 0) {
+      params.hashes = data.transaction_hashes.join(',');
+    }
+    if (chainId) {
+      params.chain_id = chainId;
+    }
+
+    const response = await apiClient.get<BatchStatusResponse>(
       "/api/v1/wallet/transactions/batch-status",
-      data
+      params
     );
     return response.data;
   },

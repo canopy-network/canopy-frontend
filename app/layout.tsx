@@ -36,8 +36,8 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className={inter.className}>
         <ErrorBoundary>
-          <Web3Provider>
-            <QueryProvider>
+          <QueryProvider>
+            <Web3Provider>
               <StoreProvider>
                 <AuthCookieSync />
                 <WalletProvider>
@@ -69,8 +69,8 @@ export default function RootLayout({
                   <HotToaster />
                 </WalletProvider>
               </StoreProvider>
-            </QueryProvider>
-          </Web3Provider>
+            </Web3Provider>
+          </QueryProvider>
         </ErrorBoundary>
       </body>
     </html>

@@ -728,7 +728,7 @@ export function StakeDialog({
                                                                             <span className="text-xs text-muted-foreground">
                                                                                 {getChainSymbol(chainData.chain)}
                                                                                 {chainData.balance > 0 && (
-                                                                                    <> • Balance: {withCommas(chainData.balance)}</>
+                                                                                    <> • Balance: {formatBalanceWithCommas(chainData.balance)}</>
                                                                                 )}
                                                                             </span>
                                                                         </div>

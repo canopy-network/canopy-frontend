@@ -458,7 +458,8 @@ export interface EstimateFeeResponse {
 export interface TransactionDetail {
   hash: string;
   chain_id: number;
-  chain_name?: string;
+  chain_name: string;
+  token_symbol: string;
   type: string;
   from_address: string;
   to_address?: string;
