@@ -362,7 +362,7 @@ export function createDexLimitOrderMessage(
     chainId,
     amountForSale,
     requestedAmount,
-    address,
+    sellerReceiveAddress: address,
     orderId: "", // Will be populated by backend
   };
 }

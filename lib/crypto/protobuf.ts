@@ -261,7 +261,7 @@ const root = protobuf.Root.fromJSON({
             chain_id: { type: 'uint64', id: 1 },
             amount_for_sale: { type: 'uint64', id: 2 },
             requested_amount: { type: 'uint64', id: 3 },
-            address: { type: 'bytes', id: 4 },
+            sellerReceiveAddress: { type: 'bytes', id: 4 },
             OrderId: { type: 'bytes', id: 5 },
           },
         },
@@ -637,14 +637,14 @@ export function encodeMessageDexLimitOrder(params: {
   chainId: number;         // REQUIRED
   amountForSale: number;   // REQUIRED
   requestedAmount: number; // REQUIRED (minimum amount seller will receive)
-  address: string;         // REQUIRED - seller's send address (hex)
+  sellerReceiveAddress: string;         // REQUIRED - seller's send address (hex)
   orderId?: string;        // OPTIONAL - backend NEVER includes this, omit it
 }): Uint8Array {
   const messageData: any = {
     chain_id: params.chainId,
     amount_for_sale: params.amountForSale,
     requested_amount: params.requestedAmount,
-    address: hexToBytes(params.address),
+    sellerReceiveAddress: hexToBytes(params.sellerReceiveAddress),
   };
 
   // NEVER include OrderId - backend auto-populates this field
