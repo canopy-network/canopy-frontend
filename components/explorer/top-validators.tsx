@@ -232,7 +232,6 @@ export function TopValidators({ validators }: TopValidatorsProps) {
             <TableRow appearance="plain">
               <TableHead className="pl-0 lg:pl-4">Rank</TableHead>
               <TableHead className="pl-0 lg:pl-4">Validator</TableHead>
-              <TableHead className="pl-0 lg:pl-4">Chain</TableHead>
               <TableHead className="pl-0 lg:pl-4">Stake</TableHead>
               <TableHead className="pl-0 lg:pl-4">APR</TableHead>
               <TableHead className="pl-0 lg:pl-4">Uptime</TableHead>
@@ -253,7 +252,9 @@ export function TopValidators({ validators }: TopValidatorsProps) {
                       <span
                         className="w-10 h-10 inline-flex items-center justify-center border-2 border-background rounded-full bg-muted"
                         dangerouslySetInnerHTML={{
-                          __html: canopyIconSvg(getCanopyAccent(validator.name)),
+                          __html: canopyIconSvg(
+                            getCanopyAccent(validator.name)
+                          ),
                         }}
                       />
                       {validator.status && (
@@ -277,23 +278,7 @@ export function TopValidators({ validators }: TopValidatorsProps) {
                     </div>
                   </div>
                 </TableCell>
-                <TableCell className="pl-0 lg:pl-4">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="w-8 h-8 inline-flex items-center justify-center border-2 border-background rounded-full bg-muted"
-                      dangerouslySetInnerHTML={{
-                        __html: canopyIconSvg(
-                          getCanopyAccent(
-                            validator.chains?.[0] || validator.name
-                          )
-                        ),
-                      }}
-                    />
-                    <span className="text-sm text-muted-foreground">
-                      {validator.chains?.[0] || "—"}
-                    </span>
-                  </div>
-                </TableCell>
+
                 <TableCell className="pl-0 lg:pl-4">
                   <div className="font-medium">{validator.stake}</div>
                 </TableCell>

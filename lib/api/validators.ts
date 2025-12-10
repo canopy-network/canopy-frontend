@@ -7,7 +7,7 @@
 import { apiClient } from "./client";
 
 /**
- * Validator data structure from API
+ * Validator data structure from API (list endpoint)
  */
 export interface ValidatorData {
   address: string;
@@ -25,6 +25,44 @@ export interface ValidatorData {
 }
 
 /**
+ * Cross-chain validator stake info
+ */
+export interface CrossChainStake {
+  chain_id: number;
+  staked_amount: number; // In micro units
+  status: "active" | "unstaking" | "paused";
+  committees: number[] | null;
+  updated_at: string;
+}
+
+/**
+ * Slashing history information
+ */
+export interface SlashingHistory {
+  evidence_count: number;
+  height: number;
+  updated_at: string;
+}
+
+/**
+ * Detailed validator data structure from API (single validator endpoint)
+ */
+export interface ValidatorDetailData {
+  address: string;
+  public_key: string;
+  net_address: string; // TCP address
+  staked_amount: number; // In micro units
+  output: string; // Output address
+  committees: number[] | null;
+  status: "active" | "unstaking" | "paused";
+  delegate: boolean;
+  compound: boolean;
+  slashing_history: SlashingHistory;
+  cross_chain: CrossChainStake[];
+  updated_at: string;
+}
+
+/**
  * Validators API response
  * Note: apiClient.get already unwraps response.data, so this is the direct structure returned
  */
@@ -36,6 +74,13 @@ export interface ValidatorsResponse {
     limit: number;
     offset: number;
   };
+}
+
+/**
+ * Single validator API response
+ */
+export interface ValidatorDetailResponse {
+  data: ValidatorDetailData;
 }
 
 /**
@@ -68,5 +113,19 @@ export const validatorsApi = {
       params
     );
     return response.data;
+  },
+
+  /**
+   * Get a single validator by address
+   * GET /api/v1/validators/:address
+   *
+   * @param address - Validator address
+   * @returns Detailed validator information
+   */
+  getValidator: async (address: string): Promise<ValidatorDetailData> => {
+    const response = await apiClient.get<ValidatorDetailResponse>(
+      `/api/v1/validators/${address}`
+    );
+    return response.data; // API wraps in { data: {...} }
   },
 };

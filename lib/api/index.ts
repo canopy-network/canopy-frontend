@@ -134,6 +134,9 @@ export {
   type ValidatorData,
   type ValidatorsResponse,
   type ValidatorsRequest,
+  type ValidatorDetailData,
+  type CrossChainStake,
+  type SlashingHistory,
 } from "./validators";
 
 // ============================================================================
