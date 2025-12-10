@@ -839,8 +839,7 @@ export const useWalletStore = create<WalletState>()(
             throw validationError;
           }
 
-          // Create and sign the transaction with multi-curve support
-          console.log("🔐 Signing transaction with protobuf...");
+
           const signedTx = createAndSignTransaction(
             txParams,
             wallet.privateKey,    // ✅ Private key
@@ -848,8 +847,7 @@ export const useWalletStore = create<WalletState>()(
             wallet.curveType as CurveType // ✅ Curve type determines signing algorithm!
           );
 
-          console.log("✅ Transaction signed locally with", wallet.curveType);
-          console.log("📤 Submitting raw transaction to backend...");
+          signedTx.chain_id = chainId
 
           // Submit the raw transaction to the backend
           const response = await walletTransactionApi.sendRawTransaction(signedTx);

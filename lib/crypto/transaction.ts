@@ -55,20 +55,9 @@ export function createAndSignTransaction(
     chainID: params.chainID,
   };
 
-  // Get PROTOBUF sign bytes (transaction without signature)
-  // Mirrors lib.Transaction.GetSignBytes() from canopy/lib/tx.go:149-162
-  // This MUST produce the EXACT same bytes as the Go implementation!
   const signBytes = getSignBytesProtobuf(unsignedTx);
 
-  // DEBUG: Log the sign bytes for comparison with backend
-  // console.log('🔍 DEBUG - Sign Bytes Info:');
-  // console.log('  Transaction type:', unsignedTx.type);
-  // console.log('  Message:', JSON.stringify(unsignedTx.msg, null, 2));
-  // console.log('  Sign bytes length:', signBytes.length);
-  // console.log('  Sign bytes (hex):', Array.from(signBytes).map(b => b.toString(16).padStart(2, '0')).join(''));
-  // console.log('  Sign bytes (base64):', btoa(String.fromCharCode(...signBytes)));
 
-  // Sign the canonical bytes with the correct curve algorithm
   const signatureHex = signMessage(signBytes, privateKeyHex, curveType);
 
   // Create signature structure
