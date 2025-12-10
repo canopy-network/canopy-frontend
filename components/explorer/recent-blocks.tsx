@@ -15,6 +15,7 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
+import { EXPLORER_ICON_GLOW } from "@/lib/utils/brand";
 
 // Function to truncate hash: first chars + ... + last chars
 const truncateHash = (
@@ -91,7 +92,7 @@ export function RecentBlocks({
       <div className="flex items-center justify-between">
         <>
           <div className="flex items-center gap-2">
-            <Box className="w-5 h-5 text-primary lg:block hidden" />
+            <Box className={`w-5 h-5 lg:block hidden ${EXPLORER_ICON_GLOW}`} />
             <h3 className="text-lg font-semibold">Recent Blocks</h3>
           </div>
           <LatestUpdated timestamp={mostRecentTimestamp} />
@@ -166,8 +167,8 @@ export function RecentBlocks({
                         data-column="1"
                         className="flex items-center gap-4 flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
                       >
-                        <div className="flex items-center justify-center w-10 h-10 bg-primary/10 rounded-lg flex-shrink-0 px-0">
-                          <Box className="w-5 h-5 text-primary" />
+                        <div className="flex items-center justify-center w-10 h-10 bg-black/30 border border-[#36d26a] rounded-lg flex-shrink-0 px-0 shadow-[0_0_14px_rgba(124,255,157,0.3)]">
+                          <Box className={`w-5 h-5 ${EXPLORER_ICON_GLOW}`} />
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="font-semibold text-sm">
@@ -236,7 +237,7 @@ export function RecentBlocks({
                 <TableCell colSpan={7} className="text-center py-12">
                   <div className="flex justify-center mb-4">
                     <div className="p-3 bg-muted rounded-full">
-                      <Search className="w-6 h-6 text-muted-foreground" />
+                      <Search className={`w-6 h-6 text-muted-foreground ${EXPLORER_ICON_GLOW}`} />
                     </div>
                   </div>
                   <p className="text-sm font-medium text-muted-foreground mb-1">
@@ -253,18 +254,18 @@ export function RecentBlocks({
       </div>
 
       {/* View All Blocks Button */}
-      <div className="flex items-center justify-start pt-4 border-t border-border">
-        <Link href="/blocks">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground hover:text-foreground gap-1"
-          >
-            View All Blocks
-            <ArrowUpRight className="w-4 h-4" />
-          </Button>
-        </Link>
-      </div>
-    </Card>
+        <div className="flex items-center justify-start pt-4 border-t border-border">
+          <Link href="/blocks">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground gap-1"
+            >
+              View All Blocks
+              <ArrowUpRight className={`w-4 h-4 ${EXPLORER_ICON_GLOW}`} />
+            </Button>
+          </Link>
+        </div>
+      </Card>
   );
 }

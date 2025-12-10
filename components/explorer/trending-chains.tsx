@@ -13,10 +13,15 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { LatestUpdated } from "./latest-updated";
-interface ChainSummary {
+import { canopyIconSvg, getCanopyAccent } from "@/lib/utils/brand";
+import { EXPLORER_NEON_GREEN } from "@/lib/utils/brand";
+
+export interface ChainSummary {
   id: string;
+  chainId?: number;
   name: string;
   ticker?: string;
+  rank?: number;
   market_cap: string;
   marketCapRaw?: number; // Raw market cap value in USD for CNPY conversion
   tvl: string;
@@ -120,7 +125,7 @@ export function TrendingChains({ chains }: TrendingChainsProps) {
                 Validators
               </TableHead>
               <TableHead className="">Holders</TableHead>
-              <TableHead className=""></TableHead>
+              <TableHead className="text-right pr-2">24H Trend</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -128,20 +133,32 @@ export function TrendingChains({ chains }: TrendingChainsProps) {
               <TableRow key={chain.id} appearance="plain">
                 <TableCell className="pl-0 lg:pl-4">
                   <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted font-medium">
-                    {index + 1}
+                    {chain.rank ?? index + 1}
                   </div>
                 </TableCell>
                 <TableCell className="pl-0 lg:pl-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-md bg-gradient-to-br from-purple-500 to-pink-500" />
-                    <div className="flex flex-col">
+                    <div
+                      className="w-8 h-8 rounded-md flex items-center justify-center bg-muted"
+                      dangerouslySetInnerHTML={{
+                        __html: canopyIconSvg(getCanopyAccent(chain.id)),
+                      }}
+                    />
+                    <Link
+                      href={
+                        chain.chainId
+                          ? `/chains/${chain.chainId}`
+                          : `/chains/${chain.id}`
+                      }
+                      className="flex flex-col hover:text-primary transition-colors"
+                    >
                       <span className="font-medium">{chain.name}</span>
                       {chain.ticker && (
                         <span className="text-xs text-muted-foreground">
                           {chain.ticker}
                         </span>
                       )}
-                    </div>
+                    </Link>
                   </div>
                 </TableCell>
                 <TableCell className="pl-0 lg:pl-4">
@@ -192,7 +209,7 @@ export function TrendingChains({ chains }: TrendingChainsProps) {
                         <span
                           className={`px-1 mx-2 -top-0.5 relative py-0.5 rounded-md text-sm font-medium w-fit ${
                             chain.change_24h >= 0
-                              ? "bg-green-500/10 text-green-500"
+                              ? "border border-[#36d26a] bg-[#36d26a]/10 text-[#7cff9d]"
                               : "bg-red-500/10 text-red-500"
                           }`}
                         >
@@ -217,8 +234,18 @@ export function TrendingChains({ chains }: TrendingChainsProps) {
                 <TableCell className="">
                   <div className="flex items-center gap-2">
                     <div className="flex -space-x-2">
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 border-2 border-background" />
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 border-2 border-background" />
+                      <span
+                        className="w-6 h-6 inline-flex items-center justify-center border-2 border-background rounded-full bg-muted"
+                        dangerouslySetInnerHTML={{
+                          __html: canopyIconSvg(getCanopyAccent(chain.id)),
+                        }}
+                      />
+                      <span
+                        className="w-6 h-6 inline-flex items-center justify-center border-2 border-background rounded-full bg-muted"
+                        dangerouslySetInnerHTML={{
+                          __html: canopyIconSvg(getCanopyAccent(`${chain.id}-b`)),
+                        }}
+                      />
                     </div>
                     <span>+{chain.holders}</span>
                   </div>
