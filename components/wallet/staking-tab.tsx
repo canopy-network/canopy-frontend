@@ -66,6 +66,7 @@ export function StakingTab({ addresses }: StakingTabProps) {
     refetchAll,
   } = useStaking({
     enabled: addresses.length > 0,
+    address: addresses[0], // Filter by first address (selected wallet)
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 

@@ -110,11 +110,13 @@ export function useUnstakingQueue(
  */
 export function useStaking(options?: {
   enabled?: boolean;
+  address?: string;
   chainIds?: string;
   status?: "active" | "paused" | "unstaking";
   refetchInterval?: number;
 }) {
   const params: StakingPositionsRequest = {
+    address: options?.address,
     chain_ids: options?.chainIds,
     status: options?.status,
   };
@@ -125,7 +127,7 @@ export function useStaking(options?: {
   });
 
   const rewards = useStakingRewards(
-    { chain_ids: options?.chainIds },
+    { address: options?.address, chain_ids: options?.chainIds },
     {
       enabled: options?.enabled,
       refetchInterval: options?.refetchInterval,
@@ -133,7 +135,7 @@ export function useStaking(options?: {
   );
 
   const unstaking = useUnstakingQueue(
-    { chain_ids: options?.chainIds },
+    { address: options?.address, chain_ids: options?.chainIds },
     {
       enabled: options?.enabled,
       refetchInterval: options?.refetchInterval ?? 10000,
@@ -183,11 +185,13 @@ export function useStaking(options?: {
 /**
  * Helper hook to get active staking positions only
  *
+ * @param address - Optional wallet address filter
  * @param chainIds - Optional chain IDs filter
  * @returns Active staking positions
  */
-export function useActiveStakes(chainIds?: string) {
+export function useActiveStakes(address?: string, chainIds?: string) {
   const { positions, isLoadingPositions } = useStaking({
+    address,
     status: "active",
     chainIds,
   });
@@ -201,11 +205,13 @@ export function useActiveStakes(chainIds?: string) {
 /**
  * Helper hook to get total staked amount
  *
+ * @param address - Optional wallet address filter
  * @param chainIds - Optional chain IDs filter
  * @returns Total staked amount across all positions
  */
-export function useTotalStaked(chainIds?: string) {
+export function useTotalStaked(address?: string, chainIds?: string) {
   const { positions, isLoadingPositions } = useStaking({
+    address,
     status: "active",
     chainIds,
   });
@@ -225,11 +231,12 @@ export function useTotalStaked(chainIds?: string) {
 /**
  * Helper hook to get claimable rewards
  *
+ * @param address - Optional wallet address filter
  * @param chainIds - Optional chain IDs filter
  * @returns Total claimable rewards
  */
-export function useClaimableRewards(chainIds?: string) {
-  const { rewards, isLoadingRewards } = useStaking({ chainIds });
+export function useClaimableRewards(address?: string, chainIds?: string) {
+  const { rewards, isLoadingRewards } = useStaking({ address, chainIds });
 
   const totalClaimable = rewards.reduce((sum, reward) => {
     const amount = parseFloat(reward.claimable_rewards) || 0;

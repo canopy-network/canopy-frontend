@@ -443,7 +443,6 @@ export interface AccountBalancesResponse {
  * Portfolio performance response
  */
 export interface PortfolioPerformanceResponse {
-  data: {
     period: string;
     start_date: string;
     end_date: string;
@@ -458,7 +457,6 @@ export interface PortfolioPerformanceResponse {
     time_series: PerformanceDataPoint[];
     transactions_summary: TransactionsSummary;
     yield_earnings: YieldEarnings;
-  };
 }
 
 /**

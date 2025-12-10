@@ -92,6 +92,7 @@ function StakingContent() {
     refetchAll,
   } = useStaking({
     enabled: !!currentWallet,
+    address: currentWallet?.address,
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 

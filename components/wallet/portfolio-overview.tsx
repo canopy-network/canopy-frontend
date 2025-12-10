@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowUpRight, ArrowDownRight, TrendingUp, Coins, PieChart, Percent } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { portfolioApi } from "@/lib/api/portfolio";
 import type { PortfolioOverviewResponse, PortfolioPerformanceResponse } from "@/types/wallet";
@@ -19,7 +19,6 @@ export function PortfolioOverview({ addresses }: PortfolioOverviewProps) {
 
   useEffect(() => {
     if (addresses.length === 0) {
-      console.log("PortfolioOverview: No addresses provided");
       setLoading(false);
       return;
     }
@@ -27,16 +26,10 @@ export function PortfolioOverview({ addresses }: PortfolioOverviewProps) {
     const fetchData = async () => {
       try {
         setLoading(true);
-        console.log("PortfolioOverview: Fetching data for addresses:", addresses);
-
-        // Fetch overview and performance in parallel
         const [overviewData, perfData] = await Promise.all([
           portfolioApi.getPortfolioOverview({ addresses }),
           portfolioApi.getPortfolioPerformance({ addresses, period: "7d" })
         ]);
-
-        console.log("Overview data:", overviewData);
-        console.log("Performance data:", perfData);
 
         setOverview(overviewData);
         setPerformance(perfData);
@@ -55,12 +48,9 @@ export function PortfolioOverview({ addresses }: PortfolioOverviewProps) {
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="h-48 bg-muted/50 animate-pulse rounded-lg" />
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-32 bg-muted/50 animate-pulse rounded-lg" />
-          ))}
-        </div>
+        <div className="h-32 bg-muted/50 animate-pulse rounded-lg" />
+        <div className="h-20 bg-muted/50 animate-pulse rounded-lg" />
+        <div className="h-64 bg-muted/50 animate-pulse rounded-lg" />
       </div>
     );
   }
@@ -71,7 +61,6 @@ export function PortfolioOverview({ addresses }: PortfolioOverviewProps) {
         <CardContent className="py-12 text-center">
           <p className="text-destructive mb-2">Error loading portfolio</p>
           <p className="text-sm text-muted-foreground">{error}</p>
-          <p className="text-xs text-muted-foreground mt-4">Check the console for more details</p>
         </CardContent>
       </Card>
     );
@@ -81,8 +70,7 @@ export function PortfolioOverview({ addresses }: PortfolioOverviewProps) {
     return (
       <Card>
         <CardContent className="py-12 text-center">
-          <Coins className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-          <p className="text-muted-foreground mb-2">No portfolio data available</p>
+          <p className="text-muted-foreground">No portfolio data available</p>
         </CardContent>
       </Card>
     );
@@ -94,7 +82,7 @@ export function PortfolioOverview({ addresses }: PortfolioOverviewProps) {
     return new Intl.NumberFormat('en-US', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
-    }).format(num / 1000000); // Convert to millions for display
+    }).format(num / 1000000);
   };
 
   const formatPercentage = (value: number) => {
@@ -107,215 +95,172 @@ export function PortfolioOverview({ addresses }: PortfolioOverviewProps) {
   const isPositivePnL = parseFloat(performance.total_pnl_cnpy) >= 0;
 
   return (
-    <div className="space-y-6">
-      {/* Hero Section - Total Balance & PnL */}
-      <Card className="border-2 bg-gradient-to-br from-background to-muted/20">
+    <div className="space-y-4">
+      {/* Hero - Total Balance & P&L */}
+      <Card>
         <CardContent className="pt-6">
-          <div className="space-y-6">
-            {/* Total Balance */}
+          <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm text-muted-foreground mb-2">Total Portfolio Value</div>
+              <div className="text-xs text-muted-foreground mb-1">Total Portfolio Value</div>
               <div className="flex items-baseline gap-2">
-                <div className="text-5xl font-bold tracking-tight">{totalValue}</div>
-                <div className="text-2xl text-muted-foreground font-medium">CNPY</div>
+                <div className="text-4xl font-bold">{totalValue}</div>
+                <div className="text-lg text-muted-foreground">CNPY</div>
               </div>
             </div>
 
-            {/* PnL Section */}
-            <div className="flex items-center gap-6 pt-4 border-t">
-              <div className="flex-1">
-                <div className="text-xs text-muted-foreground mb-1">7-Day P&L</div>
-                <div className="flex items-center gap-2">
-                  <div className={cn(
-                    "text-2xl font-semibold",
-                    isPositivePnL ? "text-green-500" : "text-red-500"
-                  )}>
-                    {isPositivePnL ? "+" : ""}{pnlValue} CNPY
-                  </div>
-                  {isPositivePnL ? (
-                    <ArrowUpRight className="h-5 w-5 text-green-500" />
-                  ) : (
-                    <ArrowDownRight className="h-5 w-5 text-red-500" />
-                  )}
+            <div className="text-right">
+              <div className="text-xs text-muted-foreground mb-1">7-Day P&L</div>
+              <div className="flex items-center justify-end gap-1.5">
+                <div className={cn(
+                  "text-xl font-semibold",
+                  isPositivePnL ? "text-green-500" : "text-red-500"
+                )}>
+                  {isPositivePnL ? "+" : ""}{pnlValue}
                 </div>
+                {isPositivePnL ? (
+                  <ArrowUpRight className="h-4 w-4 text-green-500" />
+                ) : (
+                  <ArrowDownRight className="h-4 w-4 text-red-500" />
+                )}
               </div>
-
-              {pnlPercentage !== 0 && (
-                <div className="text-right">
-                  <div className="text-xs text-muted-foreground mb-1">Change</div>
-                  <div className={cn(
-                    "text-2xl font-semibold",
-                    isPositivePnL ? "text-green-500" : "text-red-500"
-                  )}>
-                    {isPositivePnL ? "+" : ""}{formatPercentage(pnlPercentage)}%
-                  </div>
-                </div>
-              )}
+              <div className="text-xs text-muted-foreground mt-1">
+                {isPositivePnL ? "+" : ""}{formatPercentage(pnlPercentage)}%
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Key Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2  gap-3 sm:gap-4">
-        {/* Yield Earnings */}
-        <Card className="overflow-hidden">
-          <CardHeader className="pb-2 sm:pb-3 px-4 sm:px-6 pt-4 sm:pt-6">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1.5 sm:gap-2">
-              <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-              <span className="truncate">Yield APY</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
-            <div className="text-2xl sm:text-3xl font-bold text-green-500 truncate">
-              {overview.yield.blended_apy}%
+      {/* Key Metrics - Unified */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-2 gap-6">
+            {/* APY & Yield Earnings */}
+            <div>
+              <div className="flex items-baseline gap-2 mb-1">
+                <div className="text-3xl font-bold text-green-500">
+                  {overview.yield.blended_apy}%
+                </div>
+                <div className="text-xs text-muted-foreground">APY</div>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {formatCNPY(performance.yield_earnings.total_yield_cnpy)} CNPY earned
+              </div>
             </div>
-            <div className="text-xs text-muted-foreground mt-1 truncate">
-              {formatCNPY(performance.yield_earnings.total_yield_cnpy)} CNPY earned
-            </div>
-          </CardContent>
-        </Card>
 
-        {/* Staked Balance */}
-        <Card className="overflow-hidden">
-          <CardHeader className="pb-2 sm:pb-3 px-4 sm:px-6 pt-4 sm:pt-6">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1.5 sm:gap-2">
-              <Coins className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-              <span className="truncate">Staked</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
-            <div className="text-2xl sm:text-3xl font-bold truncate">
-              {formatCNPY(overview.allocation.by_type.staked.value_cnpy)}
+            {/* Staked vs Liquid */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm font-medium">
+                  {formatCNPY(overview.allocation.by_type.staked.value_cnpy)} CNPY
+                </div>
+                <div className="text-sm font-medium">
+                  {formatCNPY(overview.allocation.by_type.liquid.value_cnpy)} CNPY
+                </div>
+              </div>
+              <div className="h-2 bg-muted rounded-full overflow-hidden flex">
+                <div
+                  className="bg-primary"
+                  style={{ width: `${overview.allocation.by_type.staked.percentage}%` }}
+                />
+                <div
+                  className="bg-blue-500"
+                  style={{ width: `${overview.allocation.by_type.liquid.percentage}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between mt-1">
+                <div className="text-xs text-muted-foreground">
+                  {formatPercentage(overview.allocation.by_type.staked.percentage)}% Staked
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {formatPercentage(overview.allocation.by_type.liquid.percentage)}% Liquid
+                </div>
+              </div>
             </div>
-            <div className="text-xs text-muted-foreground mt-1 truncate">
-              {formatPercentage(overview.allocation.by_type.staked.percentage)}% of portfolio
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Liquid Balance */}
-        <Card className="overflow-hidden">
-          <CardHeader className="pb-2 sm:pb-3 px-4 sm:px-6 pt-4 sm:pt-6">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1.5 sm:gap-2">
-              <PieChart className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-              <span className="truncate">Liquid</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
-            <div className="text-2xl sm:text-3xl font-bold truncate">
-              {formatCNPY(overview.allocation.by_type.liquid.value_cnpy)}
-            </div>
-            <div className="text-xs text-muted-foreground mt-1 truncate">
-              {formatPercentage(overview.allocation.by_type.liquid.percentage)}% of portfolio
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Net Flow */}
-        <Card className="overflow-hidden">
-          <CardHeader className="pb-2 sm:pb-3 px-4 sm:px-6 pt-4 sm:pt-6">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1.5 sm:gap-2">
-              <Percent className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-              <span className="truncate">Net Flow (7d)</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
-            <div className="text-2xl sm:text-3xl font-bold truncate">
-              {formatCNPY(performance.transactions_summary.net_flow_cnpy)}
-            </div>
-            <div className="text-xs text-muted-foreground mt-1 truncate">
-              In: {formatCNPY(performance.transactions_summary.total_inflows_cnpy)}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Chain Distribution */}
+      {/* Portfolio Distribution - Unified Assets & Chains */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Assets by Chain</CardTitle>
+          <CardTitle className="text-base">Portfolio Distribution</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {overview.allocation.by_chain.map((chain: any) => (
+        <CardContent className="space-y-3">
+          {overview.allocation.by_chain.map((chain) => {
+            // Get all accounts for this chain
+            const chainAccounts = overview.accounts.filter(acc => acc.chain_id === chain.chain_id);
+            const stakedAmount = chainAccounts.reduce((sum, acc) => sum + parseFloat(acc.staked_balance), 0);
+
+            return (
               <div key={chain.chain_id} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                {/* Chain Summary Row */}
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                  <div className="flex items-center gap-3 flex-1">
                     <div className={cn(
-                      "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold",
+                      "w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold",
                       chain.chain_id === 1 ? "bg-primary/20 text-primary" : "bg-blue-500/20 text-blue-500"
                     )}>
                       {chain.token_symbol.slice(0, 2)}
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <div className="font-semibold">{chain.chain_name}</div>
-                      <div className="text-sm text-muted-foreground">{chain.token_symbol}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {chainAccounts.length} {chainAccounts.length === 1 ? 'account' : 'accounts'}
+                        {stakedAmount > 0 && ` · ${formatCNPY(stakedAmount)} staked`}
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-semibold">{formatCNPY(chain.total_value_cnpy)} CNPY</div>
-                    <div className="text-sm text-muted-foreground">
-                      {formatPercentage(chain.percentage)}%
+
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <div className="font-semibold">
+                        {formatCNPY(chain.total_value_cnpy)} CNPY
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatPercentage(chain.percentage)}% of portfolio
+                      </div>
+                    </div>
+                    <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className={cn(
+                          "h-full rounded-full",
+                          chain.chain_id === 1 ? "bg-primary" : "bg-blue-500"
+                        )}
+                        style={{ width: `${chain.percentage}%` }}
+                      />
                     </div>
                   </div>
                 </div>
 
-                {/* Progress bar */}
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className={cn(
-                      "h-full rounded-full transition-all",
-                      chain.chain_id === 1 ? "bg-primary" : "bg-blue-500"
-                    )}
-                    style={{ width: `${chain.percentage}%` }}
-                  />
-                </div>
+                {/* Account Details - Nested */}
+                {chainAccounts.length > 1 && (
+                  <div className="pl-14 space-y-1">
+                    {chainAccounts.map((account) => (
+                      <div
+                        key={account.address}
+                        className="flex items-center justify-between py-1.5 text-sm"
+                      >
+                        <div className="text-muted-foreground truncate">
+                          {account.address.slice(0, 8)}...{account.address.slice(-6)}
+                        </div>
+                        <div className="text-right">
+                          <span className="font-medium">
+                            {formatCNPY(account.balance)} {account.token_symbol}
+                          </span>
+                          {parseFloat(account.staked_balance) > 0 && (
+                            <span className="text-xs text-muted-foreground ml-2">
+                              ({formatCNPY(account.staked_balance)} staked)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Individual Accounts */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Account Details</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {overview.accounts.map((account: any) => (
-              <div
-                key={`${account.chain_id}-${account.address}`}
-                className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <div className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold",
-                    account.chain_id === 1 ? "bg-primary/20 text-primary" : "bg-blue-500/20 text-blue-500"
-                  )}>
-                    {account.token_symbol.slice(0, 2)}
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium">{account.chain_name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {account.address.slice(0, 6)}...{account.address.slice(-4)}
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-semibold">
-                    {formatCNPY(account.balance)} {account.token_symbol}
-                  </div>
-                  {parseFloat(account.staked_balance) > 0 && (
-                    <div className="text-xs text-muted-foreground">
-                      {formatCNPY(account.staked_balance)} staked
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+            );
+          })}
         </CardContent>
       </Card>
     </div>
