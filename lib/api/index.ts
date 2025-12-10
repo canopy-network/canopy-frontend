@@ -114,7 +114,10 @@ export { walletApi } from "./wallet";
 export { portfolioApi } from "./portfolio";
 
 // Wallet Transaction API
-export { walletTransactionApi, waitForTransactionCompletion } from "./wallet-transactions";
+export {
+  walletTransactionApi,
+  waitForTransactionCompletion,
+} from "./wallet-transactions";
 
 // Transactions API (wallet transactions)
 export { transactionsApi } from "./transactions";
@@ -124,6 +127,14 @@ export { stakingApi } from "./staking";
 
 // Governance API
 export { governanceApi } from "./governance";
+
+// Validators API
+export {
+  validatorsApi,
+  type ValidatorData,
+  type ValidatorsResponse,
+  type ValidatorsRequest,
+} from "./validators";
 
 // ============================================================================
 // CONVENIENCE RE-EXPORTS

@@ -331,8 +331,6 @@ export async function getExplorerBlocks(
   params?: GetExplorerBlocksParams
 ): Promise<Block[]> {
   const response = await explorerApi.getBlocks(params);
-  console.log("[getExplorerBlocks] response", response);
-  console.log("[getExplorerBlocks] response.data", response.data);
 
   const data: Block[] = response.data as unknown as Block[];
   return data || [];

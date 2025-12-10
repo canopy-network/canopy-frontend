@@ -21,6 +21,7 @@ import {
   type ExplorerTrendingChain,
 } from "@/lib/api/explorer";
 import { getGraduatedChains, getAllGraduatedChains } from "@/lib/api/chains";
+import { validatorsApi, type ValidatorData } from "@/lib/api/validators";
 
 interface Validator {
   name: string;
@@ -93,6 +94,48 @@ const formatMarketCap = (value: number) => {
 // Helper function to format metrics from API data
 const formatOverviewMetrics = (data: ExplorerOverview | null) => {
   console.log("[formatOverviewMetrics] data", data);
+
+  // Fallback data if API data is not available
+  if (!data) {
+    return [
+      {
+        id: "tvl",
+        label: "TVL",
+        value: "$0",
+        delta: "+0% last 24h",
+      },
+      {
+        id: "volume",
+        label: "Volume",
+        value: "$0",
+        delta: "+0% last 24h",
+      },
+      {
+        id: "active_chains",
+        label: "Active Chains",
+        value: "0",
+        delta: "+0 this week",
+      },
+      {
+        id: "validators",
+        label: "Validators",
+        value: "0",
+        delta: "+0% last 24h",
+      },
+      {
+        id: "holders",
+        label: "Holders",
+        value: "0",
+        delta: "+0% last 24h",
+      },
+      {
+        id: "transactions",
+        label: "Total Transactions",
+        value: "0",
+        delta: "+0% last 24h",
+      },
+    ];
+  }
 
   // Format real API data
   const formatNumber = (value: number) => {
@@ -276,86 +319,23 @@ const sampleNewLaunches: Chain[] = Array.from({ length: 5 }, (_, i) => {
   };
 });
 
-// Sample top validators data
-const sampleTopValidators: Validator[] = Array.from({ length: 6 }, (_, i) => {
-  const stake = randomBetween(200000, 800000);
-  const apr = randomFloat(5, 12, 1);
-  const uptime = randomFloat(95, 99.99, 2);
-
-  // Generate health score and status
-  // Status based on healthScore: 100 = healthy, 60-99 = warning, <60 = at_risk
-  const healthScore = randomFloat(50, 100, 0);
-  let status: "healthy" | "warning" | "at_risk";
-  if (healthScore >= 95) {
-    status = "healthy";
-  } else if (healthScore >= 60) {
-    status = "warning";
-  } else {
-    status = "at_risk";
-  }
-
-  // Generate uptime trend data (7 days)
-  const baseUptime = uptime;
-  const uptimeTrend = Array.from({ length: 7 }, () => {
-    const variation = randomFloat(-0.5, 0.5, 2);
-    return Math.max(90, Math.min(100, baseUptime + variation));
-  });
-
-  // Generate placeholder chain names
-  const chainNames = [
-    "Ethereum",
-    "Polygon",
-    "Avalanche",
-    "Solana",
-    "BNB Chain",
-    "Arbitrum",
-    "Optimism",
-    "Base",
-    "Cosmos",
-    "Polkadot",
-  ];
-  const numChains = randomBetween(1, 4); // 1-4 chains per validator
-  const chains = chainNames.sort(() => Math.random() - 0.5).slice(0, numChains);
-
-  return {
-    name: `val-${String(i + 1).padStart(2, "0")}`,
-    address: `0x${Array(40)
-      .fill(0)
-      .map(() => Math.floor(Math.random() * 16).toString(16))
-      .join("")}`,
-    stake: formatMarketCap(stake),
-    apr: `${apr}%`,
-    uptime: uptime,
-    uptimeTrend: uptimeTrend,
-    healthScore: healthScore,
-    status: status,
-    statusMessage:
-      status === "healthy"
-        ? "Healthy — no missed blocks in the last 24h"
-        : status === "warning"
-        ? "Warning — some missed blocks detected"
-        : "At risk — multiple missed blocks or slashing detected",
-    chains: chains,
-  };
-});
-
 interface ExplorerDashboardProps {
   overviewData?: ExplorerOverview | null;
 }
 
 export function ExplorerDashboard({ overviewData }: ExplorerDashboardProps) {
-  const [searchQuery, setSearchQuery] = useState("");
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>(
     []
   );
 
   const [recentBlocks, setRecentBlocks] = useState<Block[]>([]);
-  const [trendingChains, setTrendingChains] = useState<ChainSummary[]>(
-    sampleTrendingChains
-  );
+  const [trendingChains, setTrendingChains] =
+    useState<ChainSummary[]>(sampleTrendingChains);
   const [newChains, setNewChains] = useState<Chain[]>([]);
 
   const [isLoadingBlocks, toggleIsLoadingBlocks] = useState(false);
+
+  const [topValidators, setTopValidators] = useState<Validator[]>([]);
 
   // Format metrics from API data or use fallback
   const overviewMetrics = formatOverviewMetrics(overviewData || null);
@@ -465,17 +445,76 @@ export function ExplorerDashboard({ overviewData }: ExplorerDashboardProps) {
     }
   }
 
+  async function fetchValidators() {
+    try {
+      const response = await validatorsApi.getValidators({
+        status: "active",
+        limit: 9,
+      });
+
+      // Transform API data to match Validator interface
+      const validatorsData = response.validators.map(
+        (validator: ValidatorData) => {
+          // Parse voting power
+          const votingPower = parseFloat(validator.voting_power);
+
+          // Calculate APR based on voting power (mock calculation for now)
+          const apr = (votingPower * 0.12).toFixed(1); // ~12% base APR scaled by voting power
+
+          const uptime =
+            validator.status === "active"
+              ? (95 + votingPower / 20).toFixed(2)
+              : "0.00";
+
+          // Generate health score based on status and voting power
+          let healthScore = 0;
+          let status: "healthy" | "warning" | "at_risk" = "at_risk";
+
+          if (validator.status === "active") {
+            healthScore = Math.min(100, 80 + votingPower / 5);
+            if (healthScore >= 95) {
+              status = "healthy";
+            } else if (healthScore >= 60) {
+              status = "warning";
+            }
+          }
+
+          return {
+            name: validator.chain_name,
+            address: validator.address,
+            stake: validator.staked_cnpy,
+            apr: `${apr}%`,
+            uptime: parseFloat(uptime),
+            status,
+            healthScore: Math.round(healthScore),
+            commissionRate: validator.delegate ? 10 : 5,
+            chains: validator.committees
+              ? validator.committees.map((id) => `Chain ${id}`)
+              : [validator.chain_name],
+          };
+        }
+      );
+
+      setTopValidators(validatorsData);
+    } catch (error) {
+      console.error("Failed to fetch validators:", error);
+      // Keep empty array on error
+    }
+  }
+
   useEffect(() => {
     // Initial fetch
     fetchTransactions();
     fetchBlocks();
     fetchTrendingChains();
     fetchNewChains();
+    fetchValidators();
 
     // Set up polling every 10 seconds
     const interval = setInterval(() => {
       fetchTransactions();
       fetchBlocks();
+      fetchValidators();
     }, 10000);
 
     // Cleanup interval on unmount
@@ -487,11 +526,11 @@ export function ExplorerDashboard({ overviewData }: ExplorerDashboardProps) {
       <Container
         tag="section"
         type="2xl"
-          className="bg-background sticky top-0 lg:py-2 z-99 mb-4 lg:mb-0"
-        >
-          <ExplorerSearchBar />
-        </Container>
-        <Container tag="section" type="2xl" className="space-y-4 lg:space-y-6">
+        className="bg-background sticky top-0 lg:py-2 z-99 mb-4 lg:mb-0"
+      >
+        <ExplorerSearchBar />
+      </Container>
+      <Container tag="section" type="2xl" className="space-y-4 lg:space-y-6">
         {/* Search Bar */}
 
         <NetworkOverview
@@ -509,16 +548,16 @@ export function ExplorerDashboard({ overviewData }: ExplorerDashboardProps) {
                 ? overviewData.volume_24h * (0.95 + Math.random() * 0.1)
                 : 8_500_000 + Math.random() * 600_000,
             })),
-        }}
-      />
+          }}
+        />
 
-          <TrendingChains chains={trendingChains} />
+        <TrendingChains chains={trendingChains} />
 
-          {/* Bottom Grid: New Launches, Top Validators, Recent Transactions */}
+        {/* Bottom Grid: New Launches, Top Validators, Recent Transactions */}
 
-          <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6 lg:mb-8 ">
+        <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6 lg:mb-8 ">
           <NewLaunches chains={newChains} />
-          <TopValidators validators={sampleTopValidators} />
+          <TopValidators validators={topValidators} />
         </div>
 
         <RecentBlocks

@@ -31,6 +31,7 @@ import {
   getSampleValidators,
   SampleValidator,
 } from "@/lib/demo-data/sample-validators";
+import { validatorsApi, type ValidatorData } from "@/lib/api/validators";
 
 const ROWS_PER_PAGE = 20;
 
@@ -94,12 +95,106 @@ export function ValidatorsExplorer({
 }: ValidatorsExplorerProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [apiValidators, setApiValidators] = useState<SampleValidator[]>([]);
+  const [isLoadingValidators, setIsLoadingValidators] = useState(false);
   const router = useRouter();
 
   const chainContextId = chainContext?.id ?? null;
   const chainContextName = chainContext?.name ?? null;
 
+  // Fetch validators from API
+  useEffect(() => {
+    async function fetchValidators() {
+      try {
+        setIsLoadingValidators(true);
+        const response = await validatorsApi.getValidators({
+          chain_id: chainContextId ? parseInt(chainContextId) : undefined,
+          limit: 100,
+        });
+
+        // Transform API data to match SampleValidator interface
+        const transformedValidators: SampleValidator[] =
+          response.validators.map((validator: ValidatorData) => {
+            // Parse staked amount
+            const stakedCnpy = parseFloat(
+              validator.staked_cnpy.replace(/,/g, "")
+            );
+            const votingPower = parseFloat(validator.voting_power);
+
+            // Map status
+            let statusDisplay: "Online" | "Offline" | "Jailed" = "Online";
+            if (validator.status === "unstaking") {
+              statusDisplay = "Offline";
+            } else if (validator.status === "paused") {
+              statusDisplay = "Jailed";
+            }
+
+            // Calculate APR and rewards based on voting power
+            const apr = votingPower * 0.12; // 12% base APR
+            const rewards = stakedCnpy * apr * 0.01; // Annual rewards estimate
+
+            return {
+              id: `${validator.chain_id}-${validator.address}`,
+              name: `Validator ${validator.address.substring(0, 8)}`,
+              chain: {
+                id: validator.chain_id.toString(),
+                name: validator.chain_name,
+                ticker:
+                  validator.chain_id === 1
+                    ? "CNPY"
+                    : `C00${validator.chain_id}`,
+                branding: "#1dd13a",
+              },
+              address: validator.address,
+              stake: stakedCnpy,
+              votingPower: votingPower,
+              commission: validator.delegate ? "10%" : "5%",
+              uptime: validator.status === "active" ? 99.9 : 0,
+              status: statusDisplay,
+              blocks: 0, // TODO: Add blocks from API when available
+              apr: apr,
+              rewards: rewards,
+              committees: validator.committees || [validator.chain_id],
+              rank: 0, // TODO: Calculate rank based on stake
+              autoCompound: validator.compound,
+              totalDelegated: validator.delegate ? stakedCnpy : 0,
+              committeeStakes: validator.committees
+                ? validator.committees.map((id) => ({
+                    committeeId: id,
+                    stake: stakedCnpy / validator.committees!.length,
+                    percentage: votingPower / validator.committees!.length,
+                  }))
+                : [
+                    {
+                      committeeId: validator.chain_id,
+                      stake: stakedCnpy,
+                      percentage: votingPower,
+                    },
+                  ],
+              totalNetworkControl: votingPower,
+            };
+          });
+
+        setApiValidators(transformedValidators);
+        setIsLoadingValidators(false);
+      } catch (error) {
+        console.error("Failed to fetch validators:", error);
+        setIsLoadingValidators(false);
+        // Fallback to sample data on error
+        setApiValidators(getSampleValidators());
+      }
+    }
+
+    fetchValidators();
+  }, [chainContextId]);
+
   const validatorSource = useMemo(() => {
+    // Use API data if available, otherwise fallback to sample data
+    if (apiValidators.length > 0) {
+      return apiValidators;
+    }
+
+    // Fallback to sample data if API hasn't loaded yet
     if (!chainContextId) {
       return getSampleValidators();
     }
@@ -122,7 +217,7 @@ export function ValidatorsExplorer({
         name: chainContextName ?? validator.chain.name,
       },
     }));
-  }, [chainContextId, chainContextName]);
+  }, [chainContextId, chainContextName, apiValidators]);
 
   const chainFilterId = chainContextId;
   const displayChainName = chainContextName ?? "All Chains";
