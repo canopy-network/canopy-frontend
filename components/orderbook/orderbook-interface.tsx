@@ -324,16 +324,6 @@ export function OrderBookInterface() {
               </Button>
             </div>
           )}
-          {orderType === "sell" && isEthConnected && ethAddress && (
-            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-md text-sm">
-              <div className="flex items-center gap-2">
-                <Wallet className="w-4 h-4 text-green-500" />
-                <span>ETH Wallet:</span>
-                <span className="font-mono text-xs">{ethAddress.slice(0, 8)}...{ethAddress.slice(-6)}</span>
-              </div>
-            </div>
-          )}
-
           {/* Success/Error Messages */}
           {submitSuccess && (
             <div className="p-3 bg-green-500/10 text-green-500 rounded-md text-sm">
