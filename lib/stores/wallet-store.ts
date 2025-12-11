@@ -113,7 +113,9 @@ export interface WalletState {
   createOrder: (
     committeeId: number,  // Committee responsible for counter-asset swap
     amountForSale: number,
-    requestedAmount: number
+    requestedAmount: number,
+    sellerEthAddress: string,  // Ethereum address to receive USDC
+    usdcContractAddress: string // USDC contract address (with 0x prefix)
   ) => Promise<string>;
 
   // Actions - Utilities
@@ -942,7 +944,9 @@ export const useWalletStore = create<WalletState>()(
       createOrder: async (
         committeeId: number,  // Committee responsible for counter-asset swap
         amountForSale: number,
-        requestedAmount: number
+        requestedAmount: number,
+        sellerEthAddress: string,  // Ethereum address to receive USDC
+        usdcContractAddress: string // USDC contract address (with 0x prefix)
       ): Promise<string> => {
         try {
           set({ isLoading: true, error: null });
@@ -962,6 +966,10 @@ export const useWalletStore = create<WalletState>()(
             throw new Error("Wallet curve type not detected. Please refresh your wallets.");
           }
 
+          if (!sellerEthAddress) {
+            throw new Error("Ethereum address required. Please connect your Ethereum wallet.");
+          }
+
           // Get current blockchain height (always use chain 1 for the main chain)
           const BLOCKCHAIN_CHAIN_ID = 1;
           const currentHeight = await chainsApi.getChainHeight(String(BLOCKCHAIN_CHAIN_ID));
@@ -969,16 +977,25 @@ export const useWalletStore = create<WalletState>()(
           // Fetch fee params for createOrder transaction
           const feeParams = await get().fetchFeeParams();
 
+          // Prepare addresses:
+          // - sellerReceiveAddress: Ethereum address where seller receives USDC (no 0x prefix)
+          // - sellersSendAddress: Canopy address where seller's CNPY is escrowed from
+          // - data: USDC contract address (no 0x prefix) - committee uses this to watch for payments
+          const ethAddressNoPrefix = sellerEthAddress.startsWith("0x")
+            ? sellerEthAddress.slice(2)
+            : sellerEthAddress;
+          const usdcAddressNoPrefix = usdcContractAddress.startsWith("0x")
+            ? usdcContractAddress.slice(2)
+            : usdcContractAddress;
+
           // Create order message
-          // committeeId goes in the message (committee responsible for counter-asset)
-          // Use wallet address for both receive and send addresses
           const msg = createOrderMessage(
             committeeId,  // Committee ID in message
-            "",  // data field - empty string
+            usdcAddressNoPrefix,  // data field - USDC contract address
             amountForSale,
             requestedAmount,
-            currentWallet.address,  // sellerReceiveAddress
-            currentWallet.address   // sellersSendAddress
+            ethAddressNoPrefix,      // sellerReceiveAddress - Ethereum address
+            currentWallet.address    // sellersSendAddress - Canopy address
           );
 
           // Build transaction parameters
