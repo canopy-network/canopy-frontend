@@ -1,22 +1,34 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowUpDown, TrendingUp } from "lucide-react"
+import { ArrowUpDown, TrendingUp, Loader2, AlertCircle, Wallet } from "lucide-react"
+import { orderbookApi } from "@/lib/api"
+import { useWalletStore } from "@/lib/stores/wallet-store"
+import { BuyOrderDialog } from "./buy-order-dialog"
+import { useAccount, useChainId } from "wagmi"
+import { useConnectModal } from "@rainbow-me/rainbowkit"
+import { USDC_ADDRESSES } from "@/lib/web3/config"
+import type { OrderBookApiOrder, DisplayOrder } from "@/types/orderbook"
 
-interface Order {
-  id: string
-  type: "buy" | "sell"
-  price: number
-  amount: number
-  total: number
-  filled: number
-  status: "active" | "partial" | "filled"
+const DECIMALS = 1_000_000 // 6 decimals
+const ORDER_COMMITTEE_ID = 3 // Committee responsible for counter-asset swaps
+
+function transformOrder(order: OrderBookApiOrder): DisplayOrder {
+  const amount = order.amountForSale / DECIMALS
+  const total = order.requestedAmount / DECIMALS
+  const price = order.requestedAmount / order.amountForSale
+  return {
+    id: order.id,
+    price,
+    amount,
+    total,
+  }
 }
 
 export function OrderBookInterface() {
@@ -24,26 +36,179 @@ export function OrderBookInterface() {
   const [price, setPrice] = useState("")
   const [amount, setAmount] = useState("")
 
-  // Mock order book data
-  const buyOrders: Order[] = [
-    { id: "1", type: "buy", price: 1.245, amount: 50000, total: 62250, filled: 0, status: "active" },
-    { id: "2", type: "buy", price: 1.2445, amount: 75000, total: 93337.5, filled: 0, status: "active" },
-    { id: "3", type: "buy", price: 1.244, amount: 100000, total: 124400, filled: 25000, status: "partial" },
-    { id: "4", type: "buy", price: 1.2435, amount: 150000, total: 186525, filled: 0, status: "active" },
-    { id: "5", type: "buy", price: 1.243, amount: 200000, total: 248600, filled: 0, status: "active" },
-  ]
+  // API state
+  const [sellOrders, setSellOrders] = useState<DisplayOrder[]>([])
+  const [rawOrders, setRawOrders] = useState<OrderBookApiOrder[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const sellOrders: Order[] = [
-    { id: "6", type: "sell", price: 1.246, amount: 45000, total: 56070, filled: 0, status: "active" },
-    { id: "7", type: "sell", price: 1.2465, amount: 80000, total: 99720, filled: 0, status: "active" },
-    { id: "8", type: "sell", price: 1.247, amount: 120000, total: 149640, filled: 60000, status: "partial" },
-    { id: "9", type: "sell", price: 1.2475, amount: 90000, total: 112275, filled: 0, status: "active" },
-    { id: "10", type: "sell", price: 1.248, amount: 110000, total: 137280, filled: 0, status: "active" },
-  ]
+  // Order submission state
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null)
 
-  const currentPrice = 1.2455
-  const priceChange = +0.0015
-  const priceChangePercent = +0.12
+  // Buy order dialog state
+  const [selectedOrder, setSelectedOrder] = useState<OrderBookApiOrder | null>(null)
+  const [isBuyDialogOpen, setIsBuyDialogOpen] = useState(false)
+
+  // Wallet store
+  const { currentWallet, createOrder, isLoading: walletLoading } = useWalletStore()
+
+  // Ethereum wallet (wagmi)
+  const { address: ethAddress, isConnected: isEthConnected } = useAccount()
+  const chainId = useChainId()
+  const { openConnectModal } = useConnectModal()
+  const usdcAddress = chainId ? USDC_ADDRESSES[chainId] : undefined
+
+  const fetchOrderBook = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const response = await orderbookApi.getOrderBook({ chainId: ORDER_COMMITTEE_ID })
+      // response.data is an array of ChainOrderBook
+      const orderBooks = response.data || []
+      // Flatten all raw orders from all chains
+      const allRawOrders = orderBooks.flatMap((book) => book.orders || [])
+      // Sort by price descending (highest price first for sell orders)
+      allRawOrders.sort((a, b) => {
+        const priceA = a.requestedAmount / a.amountForSale
+        const priceB = b.requestedAmount / b.amountForSale
+        return priceB - priceA
+      })
+      setRawOrders(allRawOrders)
+      // Transform for display
+      setSellOrders(allRawOrders.map(transformOrder))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch order book")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchOrderBook()
+  }, [fetchOrderBook])
+
+  // Handle clicking on a sell order to buy
+  const handleOrderClick = (orderId: string) => {
+    const order = rawOrders.find((o) => o.id === orderId)
+    if (order) {
+      setSelectedOrder(order)
+      setIsBuyDialogOpen(true)
+    }
+  }
+
+  // Handle successful buy order
+  const handleBuySuccess = () => {
+    setIsBuyDialogOpen(false)
+    setSelectedOrder(null)
+    // Refresh order book
+    setTimeout(() => fetchOrderBook(), 2000)
+  }
+
+  // Handle placing an order
+  const handlePlaceOrder = async () => {
+    // Clear previous messages
+    setSubmitError(null)
+    setSubmitSuccess(null)
+
+    // Validate Canopy wallet
+    if (!currentWallet) {
+      setSubmitError("Please connect a Canopy wallet first")
+      return
+    }
+
+    if (!currentWallet.isUnlocked) {
+      setSubmitError("Please unlock your Canopy wallet first")
+      return
+    }
+
+    // Validate Ethereum wallet (required for sell orders to receive USDC)
+    if (orderType === "sell") {
+      if (!isEthConnected || !ethAddress) {
+        setSubmitError("Please connect your Ethereum wallet to receive USDC")
+        return
+      }
+
+      if (!usdcAddress) {
+        setSubmitError("USDC not supported on this network. Please switch to Ethereum Mainnet.")
+        return
+      }
+    }
+
+    // Validate inputs
+    const priceValue = parseFloat(price)
+    const amountValue = parseFloat(amount.replace(/,/g, ""))
+
+    if (isNaN(priceValue) || priceValue <= 0) {
+      setSubmitError("Please enter a valid price")
+      return
+    }
+
+    if (isNaN(amountValue) || amountValue <= 0) {
+      setSubmitError("Please enter a valid amount")
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      let amountForSale: number
+      let requestedAmount: number
+
+      if (orderType === "sell") {
+        // Selling CNPY for USDC
+        // amountForSale = CNPY amount in micro units
+        // requestedAmount = USDC amount (CNPY * price) in micro units
+        amountForSale = Math.round(amountValue * DECIMALS)
+        requestedAmount = Math.round(amountValue * priceValue * DECIMALS)
+      } else {
+        // Buying CNPY with USDC - this should use LockOrder flow, not CreateOrder
+        // For now, show error as Buy CNPY should click existing sell orders
+        setSubmitError("To buy CNPY, click on a sell order in the order book")
+        setIsSubmitting(false)
+        return
+      }
+
+      const txHash = await createOrder(
+        ORDER_COMMITTEE_ID,
+        amountForSale,
+        requestedAmount,
+        ethAddress!,     // Seller's Ethereum address to receive USDC
+        usdcAddress!     // USDC contract address
+      )
+
+      setSubmitSuccess(`Order created! TX: ${txHash.slice(0, 16)}...`)
+
+      // Clear form
+      setPrice("")
+      setAmount("")
+
+      // Refresh order book after a short delay
+      setTimeout(() => {
+        fetchOrderBook()
+      }, 2000)
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Failed to create order")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // Calculate current price from best sell order, or use placeholder
+  const currentPrice = sellOrders.length > 0
+    ? sellOrders[sellOrders.length - 1].price
+    : 0
+  const priceChange = 0
+  const priceChangePercent = 0
+
+  // Calculate total for display
+  const calculatedTotal = price && amount
+    ? (parseFloat(price) * parseFloat(amount.replace(/,/g, ""))).toLocaleString()
+    : "0.00"
+
+  const isWalletReady = currentWallet?.isUnlocked
+  const isButtonDisabled = isSubmitting || walletLoading || !isWalletReady
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -53,61 +218,78 @@ export function OrderBookInterface() {
           <div className="flex items-center justify-between">
             <CardTitle>Order Book - CNPY/USDC</CardTitle>
             <div className="flex items-center space-x-2">
-              <div className="text-2xl font-bold">${currentPrice.toFixed(4)}</div>
-              <Badge variant="default" className="bg-green-500/10 text-green-500">
-                <TrendingUp className="w-3 h-3 mr-1" />+{priceChange.toFixed(4)} ({priceChangePercent}%)
-              </Badge>
+              <div className="text-2xl font-bold">
+                {currentPrice > 0 ? `$${currentPrice.toFixed(4)}` : "--"}
+              </div>
+              {currentPrice > 0 && (
+                <Badge variant="default" className="bg-green-500/10 text-green-500">
+                  <TrendingUp className="w-3 h-3 mr-1" />+{priceChange.toFixed(4)} ({priceChangePercent}%)
+                </Badge>
+              )}
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {/* Sell Orders */}
-            <div>
-              <div className="flex justify-between text-sm text-muted-foreground mb-2">
-                <span>Price (USDC)</span>
-                <span>Amount (CNPY)</span>
-                <span>Total (USDC)</span>
-              </div>
-              <div className="space-y-1">
-                {sellOrders.reverse().map((order) => (
-                  <div
-                    key={order.id}
-                    className="flex justify-between items-center p-2 rounded hover:bg-red-500/5 border-l-2 border-red-500/20"
-                  >
-                    <span className="text-red-500 font-mono">{order.price.toFixed(4)}</span>
-                    <span className="font-mono">{order.amount.toLocaleString()}</span>
-                    <span className="font-mono">${order.total.toLocaleString()}</span>
-                  </div>
-                ))}
-              </div>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-muted-foreground">Loading order book...</span>
             </div>
+          ) : error ? (
+            <div className="flex items-center justify-center py-12 text-red-500">
+              {error}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Sell Orders */}
+              <div>
+                <div className="flex justify-between text-sm text-muted-foreground mb-2">
+                  <span>Price (USDC)</span>
+                  <span>Amount (CNPY)</span>
+                  <span>Total (USDC)</span>
+                </div>
+                <div className="space-y-1">
+                  {sellOrders.length > 0 ? (
+                    sellOrders.map((order) => (
+                      <button
+                        key={order.id}
+                        onClick={() => handleOrderClick(order.id)}
+                        className="w-full flex justify-between items-center p-2 rounded hover:bg-red-500/10 border-l-2 border-red-500/20 cursor-pointer transition-colors text-left"
+                      >
+                        <span className="text-red-500 font-mono">{order.price.toFixed(4)}</span>
+                        <span className="font-mono">{order.amount.toLocaleString()}</span>
+                        <span className="font-mono">${order.total.toLocaleString()}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="text-center py-4 text-muted-foreground">
+                      No sell orders available
+                    </div>
+                  )}
+                </div>
+              </div>
 
-            {/* Current Price */}
-            <div className="flex items-center justify-center py-2 border-y">
-              <div className="flex items-center space-x-2">
-                <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
-                <span className="text-lg font-bold">${currentPrice.toFixed(4)}</span>
-                <span className="text-sm text-green-500">Last Price</span>
+              {/* Current Price */}
+              <div className="flex items-center justify-center py-2 border-y">
+                <div className="flex items-center space-x-2">
+                  <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-lg font-bold">
+                    {currentPrice > 0 ? `$${currentPrice.toFixed(4)}` : "--"}
+                  </span>
+                  <span className="text-sm text-green-500">Last Price</span>
+                </div>
               </div>
-            </div>
 
-            {/* Buy Orders */}
-            <div>
-              <div className="space-y-1">
-                {buyOrders.map((order) => (
-                  <div
-                    key={order.id}
-                    className="flex justify-between items-center p-2 rounded hover:bg-green-500/5 border-l-2 border-green-500/20"
-                  >
-                    <span className="text-green-500 font-mono">{order.price.toFixed(4)}</span>
-                    <span className="font-mono">{order.amount.toLocaleString()}</span>
-                    <span className="font-mono">${order.total.toLocaleString()}</span>
+              {/* Buy Orders */}
+              <div>
+                <div className="space-y-1">
+                  <div className="text-center py-4 text-muted-foreground">
+                    No buy orders available
                   </div>
-                ))}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 
@@ -117,6 +299,44 @@ export function OrderBookInterface() {
           <CardTitle>Place Order</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Wallet Status */}
+          {!currentWallet && (
+            <div className="flex items-center gap-2 p-3 bg-yellow-500/10 text-yellow-500 rounded-md text-sm">
+              <AlertCircle className="w-4 h-4" />
+              Please connect a Canopy wallet to place orders
+            </div>
+          )}
+          {currentWallet && !currentWallet.isUnlocked && (
+            <div className="flex items-center gap-2 p-3 bg-yellow-500/10 text-yellow-500 rounded-md text-sm">
+              <AlertCircle className="w-4 h-4" />
+              Please unlock your Canopy wallet to place orders
+            </div>
+          )}
+          {/* Ethereum wallet status - only show for sell orders */}
+          {orderType === "sell" && !isEthConnected && (
+            <div className="flex items-center justify-between p-3 bg-yellow-500/10 text-yellow-500 rounded-md text-sm">
+              <div className="flex items-center gap-2">
+                <Wallet className="w-4 h-4" />
+                Connect Ethereum wallet to receive USDC
+              </div>
+              <Button size="sm" variant="outline" onClick={() => openConnectModal?.()}>
+                Connect
+              </Button>
+            </div>
+          )}
+          {/* Success/Error Messages */}
+          {submitSuccess && (
+            <div className="p-3 bg-green-500/10 text-green-500 rounded-md text-sm">
+              {submitSuccess}
+            </div>
+          )}
+          {submitError && (
+            <div className="flex items-center gap-2 p-3 bg-red-500/10 text-red-500 rounded-md text-sm">
+              <AlertCircle className="w-4 h-4" />
+              {submitError}
+            </div>
+          )}
+
           <Tabs value={orderType} onValueChange={(value) => setOrderType(value as "buy" | "sell")}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="buy" className="text-green-500">
@@ -128,34 +348,31 @@ export function OrderBookInterface() {
             </TabsList>
 
             <TabsContent value="buy" className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="buy-price">Price (USDC)</Label>
-                <Input id="buy-price" placeholder="1.2450" value={price} onChange={(e) => setPrice(e.target.value)} />
+              <div className="p-6 text-center space-y-4 border rounded-lg bg-muted/30">
+                <div className="text-4xl">📈</div>
+                <h3 className="font-semibold">Buy CNPY from Sell Orders</h3>
+                <p className="text-sm text-muted-foreground">
+                  To buy CNPY, click on a sell order in the order book on the left.
+                  You'll need both your Canopy wallet (to receive CNPY) and Ethereum wallet (to pay USDC).
+                </p>
+                {sellOrders.length > 0 && (
+                  <p className="text-sm text-green-500">
+                    {sellOrders.length} sell order{sellOrders.length > 1 ? "s" : ""} available
+                  </p>
+                )}
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="buy-amount">Amount (CNPY)</Label>
-                <Input
-                  id="buy-amount"
-                  placeholder="10,000"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Total (USDC)</Label>
-                <div className="p-2 bg-muted rounded text-sm">
-                  {price && amount
-                    ? `$${(Number.parseFloat(price) * Number.parseFloat(amount.replace(/,/g, ""))).toLocaleString()}`
-                    : "$0.00"}
-                </div>
-              </div>
-              <Button className="w-full bg-green-500 hover:bg-green-600">Place Buy Order</Button>
             </TabsContent>
 
             <TabsContent value="sell" className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="sell-price">Price (USDC)</Label>
-                <Input id="sell-price" placeholder="1.2460" value={price} onChange={(e) => setPrice(e.target.value)} />
+                <Input
+                  id="sell-price"
+                  placeholder="1.2460"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  disabled={isSubmitting}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="sell-amount">Amount (CNPY)</Label>
@@ -164,17 +381,29 @@ export function OrderBookInterface() {
                   placeholder="10,000"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
+                  disabled={isSubmitting}
                 />
               </div>
               <div className="space-y-2">
                 <Label>Total (USDC)</Label>
                 <div className="p-2 bg-muted rounded text-sm">
-                  {price && amount
-                    ? `$${(Number.parseFloat(price) * Number.parseFloat(amount.replace(/,/g, ""))).toLocaleString()}`
-                    : "$0.00"}
+                  ${calculatedTotal}
                 </div>
               </div>
-              <Button className="w-full bg-red-500 hover:bg-red-600">Place Sell Order</Button>
+              <Button
+                className="w-full bg-red-500 hover:bg-red-600"
+                onClick={handlePlaceOrder}
+                disabled={isButtonDisabled}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Placing Order...
+                  </>
+                ) : (
+                  "Place Sell Order"
+                )}
+              </Button>
             </TabsContent>
           </Tabs>
 
@@ -182,16 +411,16 @@ export function OrderBookInterface() {
           <div className="space-y-2">
             <Label>Quick Fill</Label>
             <div className="grid grid-cols-4 gap-2">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" disabled={isSubmitting}>
                 25%
               </Button>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" disabled={isSubmitting}>
                 50%
               </Button>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" disabled={isSubmitting}>
                 75%
               </Button>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" disabled={isSubmitting}>
                 100%
               </Button>
             </div>
@@ -210,6 +439,14 @@ export function OrderBookInterface() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Buy Order Dialog */}
+      <BuyOrderDialog
+        order={selectedOrder}
+        open={isBuyDialogOpen}
+        onOpenChange={setIsBuyDialogOpen}
+        onSuccess={handleBuySuccess}
+      />
     </div>
   )
 }
