@@ -95,7 +95,7 @@ export function MobileSidebar({
       {/* Footer - Auth Section */}
       <div className="border-t border-[#2a2a2a] p-4 space-y-3">
         {/* Email Authentication */}
-        {isAuthenticated && user ? (
+        {isAuthenticated && user && user.email ? (
           <div className="space-y-2">
             <div className="flex items-center gap-2 p-2 bg-[#1a1a1a] rounded-lg">
               <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center">

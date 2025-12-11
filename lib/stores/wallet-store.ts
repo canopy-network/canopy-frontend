@@ -12,7 +12,12 @@
  */
 
 import { create } from "zustand";
-import { persist, createJSONStorage, StateStorage } from "zustand/middleware";
+import {
+  persist,
+  createJSONStorage,
+  StateStorage,
+  devtools,
+} from "zustand/middleware";
 import {
   LocalWallet,
   UpdateWalletRequest,
@@ -249,8 +254,8 @@ function clearPasswordSession(): void {
 
 const MIN_DEFAULT_FEE = 1000;
 export const useWalletStore = create<WalletState>()(
-  persist(
-    (set, get) => ({
+  devtools(
+    persist((set, get) => ({
       // Initial state
       wallets: [],
       currentWallet: null,
@@ -317,16 +322,21 @@ export const useWalletStore = create<WalletState>()(
 
           set({ wallets, isLoading: false });
 
-          // 🔓 Auto-unlock all wallets if password session exists
-          const cachedPassword = getCachedPassword();
-          if (cachedPassword) {
-            console.log(
-              "🔐 Password session found, auto-unlocking all wallets..."
-            );
-            // Unlock all wallets with cached password
+          // 🔓 Auto-unlock all wallets silently using password session or master seedphrase
+          let unlockPassword = getCachedPassword();
+          if (!unlockPassword) {
+            // Fallback to master seedphrase (stored when creating wallet)
+            const masterSeedphrase = retrieveMasterSeedphrase();
+            if (masterSeedphrase) {
+              unlockPassword = masterSeedphrase.replace(/\s+/g, "");
+            }
+          }
+
+          if (unlockPassword) {
+            console.log("🔐 Auto-unlocking all wallets...");
             for (const wallet of wallets) {
               try {
-                await get().unlockWallet(wallet.id, cachedPassword);
+                await get().unlockWallet(wallet.id, unlockPassword);
               } catch (error) {
                 console.warn(
                   `⚠️ Failed to auto-unlock wallet ${wallet.id}:`,
@@ -376,15 +386,22 @@ export const useWalletStore = create<WalletState>()(
         const wallet = wallets.find((w) => w.id === walletId);
 
         if (wallet) {
-          // If wallet is not unlocked, try to auto-unlock with password session
+          // If wallet is not unlocked, try to auto-unlock silently
           if (!wallet.isUnlocked || !wallet.privateKey) {
-            const cachedPassword = getCachedPassword();
-            if (cachedPassword) {
+            let unlockPassword = getCachedPassword();
+            if (!unlockPassword) {
+              const masterSeedphrase = retrieveMasterSeedphrase();
+              if (masterSeedphrase) {
+                unlockPassword = masterSeedphrase.replace(/\s+/g, "");
+              }
+            }
+
+            if (unlockPassword) {
               try {
                 console.log(
                   `🔓 Auto-unlocking wallet ${walletId} on selection...`
                 );
-                await get().unlockWallet(walletId, cachedPassword);
+                await get().unlockWallet(walletId, unlockPassword);
                 // Get the updated wallet after unlock
                 const updatedWallets = get().wallets;
                 const updatedWallet = updatedWallets.find(
@@ -400,11 +417,11 @@ export const useWalletStore = create<WalletState>()(
                   `⚠️ Failed to auto-unlock wallet ${walletId} on selection:`,
                   error
                 );
-                // Still set the wallet even if unlock fails (user can unlock manually later)
+                // Still set the wallet even if unlock fails
                 set({ currentWallet: wallet });
               }
             } else {
-              // No password session, just set the wallet
+              // No password available, just set the wallet
               set({ currentWallet: wallet });
             }
           } else {
@@ -1096,7 +1113,7 @@ export const useWalletStore = create<WalletState>()(
 
         console.log("🔄 Wallet state reset and password session cleared");
       },
-    }),
+    })),
     {
       name: "canopy-wallet-storage",
       storage: createJSONStorage(() => zustandStorage),
