@@ -202,8 +202,7 @@ export function Sidebar() {
       <div
         className={cn(
           "border-t border-[#2a2a2a] transition-all duration-300 py-4 transition-all duration-300 flex flex-col gap-3 items-center",
-            isCondensed ? "px-5" : "px-4"
-
+          isCondensed ? "px-5" : "px-4"
         )}
       >
         {/* Email Authentication */}
@@ -233,7 +232,10 @@ export function Sidebar() {
                 <span className="text-sm text-white truncate font-mono flex-1 text-left">
                   {user.email ||
                     (user.wallet_address
-                      ? formatWalletAddress(user.wallet_address, addressVisibleChars)
+                      ? formatWalletAddress(
+                          user.wallet_address,
+                          addressVisibleChars
+                        )
                       : "Anonymous")}
                 </span>
               )}
@@ -273,7 +275,9 @@ export function Sidebar() {
           </>
         )}
 
-        {isLoggedIn && <WalletConnectButton isCondensed={isCondensed} />}
+        {isLoggedIn && user && (
+          <WalletConnectButton isCondensed={isCondensed} />
+        )}
       </div>
 
       {/* Login Dialog */}

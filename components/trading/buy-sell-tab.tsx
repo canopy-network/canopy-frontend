@@ -1,12 +1,20 @@
+"use client";
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowDown, Zap, Settings, ChevronRight } from "lucide-react";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import SlippageSettings from "./slippage-settings";
+import type {
+  ChainData,
+  Token,
+  InputMode,
+  ConfirmationData,
+} from "@/types/trading";
 
 // CNPY Logo SVG Component
-function CnpyLogo({ className = "w-5 h-5" }) {
+function CnpyLogo({ className = "w-5 h-5" }: { className?: string }) {
   return (
     <svg
       className={className}
@@ -50,25 +58,41 @@ function CnpyLogo({ className = "w-5 h-5" }) {
   );
 }
 
+interface BuySellTabProps {
+  mode?: "buy" | "sell";
+  chainData?: ChainData | null;
+  isPreview?: boolean;
+  onShowConfirmation?: (data: ConfirmationData) => void;
+}
+
+interface InputValues {
+  tokenAmount: string;
+  usdAmount: string;
+}
+
 export default function BuySellTab({
   mode = "buy",
   chainData,
   isPreview = false,
   onShowConfirmation,
-}) {
-  const { wallets } = useWalletStore();
+}: BuySellTabProps) {
+  const { wallets, currentWallet } = useWalletStore();
   const isConnected = wallets.length > 0;
+
+  console.log("[currentWallet]", currentWallet);
+  const isWalletUnlocked =
+    currentWallet?.isUnlocked && currentWallet?.privateKey;
   const [amount, setAmount] = useState("");
   const [slippage, setSlippage] = useState(1.0);
   const [showSlippageSettings, setShowSlippageSettings] = useState(false);
-  const [inputMode, setInputMode] = useState("token"); // 'token' or 'usd'
+  const [inputMode, setInputMode] = useState<InputMode>("token"); // 'token' or 'usd'
 
   // CNPY price is $1 (stablecoin)
   const cnpyPrice = 1;
   const tokenPrice = chainData?.currentPrice || 0.001;
 
   // CNPY token object
-  const cnpyToken = {
+  const cnpyToken: Token = {
     symbol: "CNPY",
     name: "Canopy",
     currentPrice: cnpyPrice,
@@ -76,7 +100,7 @@ export default function BuySellTab({
   };
 
   // Chain token object
-  const chainToken = chainData
+  const chainToken: Token | null = chainData
     ? {
         symbol: chainData.ticker,
         name: chainData.name,
@@ -86,34 +110,38 @@ export default function BuySellTab({
     : null;
 
   // Get the input token info based on mode
-  const getInputToken = () => {
+  const getInputToken = (): Token | null => {
     if (mode === "buy") {
-      return { ...cnpyToken, price: cnpyPrice };
+      return { ...cnpyToken, currentPrice: cnpyPrice };
     } else {
-      return chainToken ? { ...chainToken, price: tokenPrice } : null;
+      return chainToken;
     }
   };
 
   // Get the output token info based on mode
-  const getOutputToken = () => {
+  const getOutputToken = (): Token | null => {
     if (mode === "buy") {
-      return chainToken ? { ...chainToken, price: tokenPrice } : null;
+      return chainToken;
     } else {
-      return { ...cnpyToken, price: cnpyPrice };
+      return { ...cnpyToken, currentPrice: cnpyPrice };
     }
   };
 
   const inputToken = getInputToken();
   const outputToken = getOutputToken();
 
+  if (!inputToken || !outputToken) {
+    return null;
+  }
+
   // Calculate input values based on current mode
-  const getInputValues = () => {
+  const getInputValues = (): InputValues => {
     if (!amount || amount === "") {
       return { tokenAmount: "0", usdAmount: "$0.00" };
     }
 
     const inputAmount = parseFloat(amount);
-    const price = inputToken.price;
+    const price = inputToken.currentPrice || 0;
 
     if (inputMode === "token") {
       const usdValue = inputAmount * price;
@@ -135,26 +163,26 @@ export default function BuySellTab({
   const inputValues = getInputValues();
 
   // Get actual token amount for conversion
-  const getTokenAmountForConversion = () => {
+  const getTokenAmountForConversion = (): number => {
     if (!amount || amount === "") return 0;
     const inputAmount = parseFloat(amount);
     if (inputMode === "token") {
       return inputAmount;
     } else {
-      const price = inputToken.price;
+      const price = inputToken.currentPrice || 0;
       return price > 0 ? inputAmount / price : 0;
     }
   };
 
   // Calculate conversion
-  const calculateConversion = () => {
+  const calculateConversion = (): { tokens: string; usd: string } => {
     const tokenAmount = getTokenAmountForConversion();
     if (!tokenAmount || tokenAmount === 0) {
       return { tokens: "0", usd: "$0.00" };
     }
 
-    const fromPrice = inputToken.price;
-    const toPrice = outputToken.price;
+    const fromPrice = inputToken.currentPrice || 0;
+    const toPrice = outputToken.currentPrice || 0;
 
     if (toPrice === 0) return { tokens: "0", usd: "$0.00" };
 
@@ -173,7 +201,7 @@ export default function BuySellTab({
 
   // Toggle input mode between token and USD
   const toggleInputMode = () => {
-    const price = inputToken.price;
+    const price = inputToken.currentPrice || 0;
     if (price === 0) return;
 
     if (amount && amount !== "") {
@@ -201,8 +229,8 @@ export default function BuySellTab({
         inputMode === "token" ? amount : inputValues.tokenAmount;
       // Pass full token objects for the confirmation dialog
       onShowConfirmation({
-        fromToken: mode === "buy" ? cnpyToken : chainToken,
-        toToken: mode === "buy" ? chainToken : cnpyToken,
+        fromToken: mode === "buy" ? cnpyToken : chainToken!,
+        toToken: mode === "buy" ? chainToken! : cnpyToken,
         fromAmount: tokenAmount,
         toAmount: conversion.tokens,
       });
@@ -210,7 +238,7 @@ export default function BuySellTab({
   };
 
   // Calculate exchange rate
-  const getExchangeRate = () => {
+  const getExchangeRate = (): string => {
     if (mode === "buy") {
       // 1 CNPY = X chain tokens
       return (cnpyPrice / tokenPrice).toFixed(6);
@@ -348,7 +376,9 @@ export default function BuySellTab({
               )}
               <div className="text-left">
                 <div className="flex items-center gap-2">
-                  <p className="text-base font-semibold">{outputToken.name}</p>
+                  <p className="text-base font-semibold">
+                    {outputToken.symbol}
+                  </p>
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />
                 </div>
                 <p className="text-sm text-muted-foreground">
@@ -374,9 +404,11 @@ export default function BuySellTab({
         >
           {isPreview
             ? "Preview Mode"
-            : isConnected
-            ? "Continue"
-            : "Connect Wallet"}
+            : !isConnected
+            ? "Connect Wallet"
+            : !isWalletUnlocked
+            ? "Unlock Wallet"
+            : "Continue"}
         </Button>
       </div>
 

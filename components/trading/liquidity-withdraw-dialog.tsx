@@ -1,8 +1,26 @@
+"use client";
+
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
+import type { Token } from "@/types/trading";
+import type { LiquidityPool } from "@/lib/stores/liquidity-pools-store";
 
-export default function LiquidityConfirmationDialog({
+interface LiquidityWithdrawDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onConfirm?: () => void;
+  tokenA: Token;
+  tokenB: Token;
+  amountA: string;
+  amountB: string;
+  lpTokens?: string;
+  pool?: LiquidityPool | null;
+  networkFee?: number; // Default network fee in CNPY
+  duration?: number; // seconds for pending state
+}
+
+export default function LiquidityWithdrawDialog({
   open,
   onClose,
   onConfirm,
@@ -10,23 +28,23 @@ export default function LiquidityConfirmationDialog({
   tokenB,
   amountA,
   amountB,
+  lpTokens,
   pool,
-  isSubmitting = false,
-  networkFee = 0.001, // Default network fee in CNPY (0.001 CNPY = 1000 microunits)
+  networkFee = 0.2333, // Default network fee in CNPY
   duration = 4, // seconds for pending state
-}) {
+}: LiquidityWithdrawDialogProps) {
   const [isAnimating, setIsAnimating] = useState(false);
-  const [view, setView] = useState("confirm"); // 'confirm', 'pending', 'success'
+  const [view, setView] = useState<"confirm" | "pending" | "success">(
+    "confirm"
+  ); // 'confirm', 'pending', 'success'
   const [timeLeft, setTimeLeft] = useState(duration);
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     if (open) {
-      // Trigger animation after mount
       requestAnimationFrame(() => {
         setIsAnimating(true);
       });
-      // Reset state when opening
       setView("confirm");
       setTimeLeft(duration);
       setProgress(0);
@@ -54,14 +72,14 @@ export default function LiquidityConfirmationDialog({
     return () => clearInterval(interval);
   }, [view, duration]);
 
-  const handleDeposit = async () => {
-    // Call the onConfirm callback to actually submit the transaction
-    if (onConfirm) {
-      await onConfirm();
-    }
+  const handleWithdraw = () => {
+    setView("pending");
+    setTimeLeft(duration);
+    setProgress(0);
   };
 
   const handleDone = () => {
+    onConfirm && onConfirm();
     onClose();
   };
 
@@ -76,11 +94,11 @@ export default function LiquidityConfirmationDialog({
   const networkFeeUSD = networkFee * (tokenB.currentPrice || 0);
 
   // Pool share calculation (mock)
-  const currentShare = 0.221;
-  const newShare = 0.322;
+  const currentShare = 0.322;
+  const newShare = 0.221;
 
   // Timer formatting
-  const formatTime = (seconds) => {
+  const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, "0")}:${secs
@@ -88,7 +106,7 @@ export default function LiquidityConfirmationDialog({
       .padStart(2, "0")}`;
   };
 
-  const circumference = 2 * Math.PI * 80; // radius = 80
+  const circumference = 2 * Math.PI * 80;
   const strokeDashoffset = circumference - (progress / 100) * circumference;
 
   return (
@@ -101,7 +119,7 @@ export default function LiquidityConfirmationDialog({
         onClick={view === "confirm" ? onClose : undefined}
       />
 
-      {/* Dialog Content - positioned at bottom, grows upward */}
+      {/* Dialog Content */}
       <div
         className={`absolute inset-x-0 bottom-0 z-20 bg-background rounded-2xl transition-transform duration-300 ease-out ${
           isAnimating ? "translate-y-0" : "translate-y-full"
@@ -157,56 +175,54 @@ export default function LiquidityConfirmationDialog({
                 </div>
               </div>
 
-              {/* Deposit Amount */}
+              {/* Withdraw Amount */}
               <div className="text-center space-y-1.5 mb-4">
                 <h2 className="text-xl font-bold">
-                  Deposit ${totalUSD.toFixed(0)} worth of{" "}
+                  Withdraw ${totalUSD.toFixed(0)} worth of{" "}
                   <span className="text-muted-foreground">{tokenA.symbol}</span>{" "}
                   and{" "}
                   <span className="text-muted-foreground">{tokenB.symbol}</span>
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  ${usdValueA.toFixed(2)} of {tokenA.symbol} and $
-                  {usdValueB.toFixed(2)} of {tokenB.symbol}
+                  {amountAValue.toFixed(2)} {tokenA.symbol} and{" "}
+                  {amountBValue.toFixed(2)} {tokenB.symbol}
                 </p>
               </div>
             </div>
 
             {/* Transaction Details */}
             <div className="px-6 space-y-2">
-              {/* Share of Pool */}
+              {/* You'll Receive */}
               <div className="flex items-center justify-between pt-2 border-t border-border">
                 <span className="text-sm text-muted-foreground">
-                  Share of pool
+                  You'll receive
                 </span>
                 <div className="text-right">
                   <p className="text-sm font-semibold">
-                    {currentShare}% →{" "}
-                    <span className="text-green-500">{newShare}%</span>
+                    {amountAValue.toFixed(2)} {tokenA.symbol} +{" "}
+                    {amountBValue.toFixed(2)} {tokenB.symbol}
                   </p>
                 </div>
               </div>
 
-              {/* Deposit APY */}
+              {/* Share of Pool */}
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">
-                  Deposit APY
+                  Share of pool
                 </span>
-                <p className="text-sm font-semibold text-green-500">
-                  {pool?.apr || 6.2}%
+                <p className="text-sm font-semibold">
+                  {currentShare}% →{" "}
+                  <span className="text-red-500">{newShare}%</span>
                 </p>
               </div>
 
-              {/* Net Balance */}
+              {/* Remaining Position */}
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">
-                  Net Balance
+                  Remaining position
                 </span>
                 <p className="text-sm font-semibold">
-                  $50 →{" "}
-                  <span className="text-green-500">
-                    ${(50 + totalUSD).toFixed(0)}
-                  </span>
+                  ${(250.9 - totalUSD).toFixed(2)}
                 </p>
               </div>
 
@@ -221,15 +237,14 @@ export default function LiquidityConfirmationDialog({
               </div>
             </div>
 
-            {/* Deposit Button */}
+            {/* Withdraw Button */}
             <div className="p-6 pt-4">
               <Button
                 className="w-full h-11 text-base"
                 size="lg"
-                onClick={handleDeposit}
-                disabled={isSubmitting}
+                onClick={handleWithdraw}
               >
-                {isSubmitting ? "Processing..." : "Deposit"}
+                Withdraw
               </Button>
             </div>
           </>
@@ -239,7 +254,6 @@ export default function LiquidityConfirmationDialog({
           <div className="p-6 pt-12 pb-6 flex flex-col items-center">
             {/* Countdown Timer with Progress Circle */}
             <div className="relative w-48 h-48 mb-6">
-              {/* Background Circle */}
               <svg className="w-full h-full transform -rotate-90">
                 <circle
                   cx="96"
@@ -250,7 +264,6 @@ export default function LiquidityConfirmationDialog({
                   fill="none"
                   className="text-muted/20"
                 />
-                {/* Progress Circle */}
                 <circle
                   cx="96"
                   cy="96"
@@ -265,7 +278,6 @@ export default function LiquidityConfirmationDialog({
                 />
               </svg>
 
-              {/* Timer Text */}
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <p className="text-sm text-muted-foreground mb-2">Time left</p>
                 <p className="text-4xl font-bold tabular-nums">
@@ -274,14 +286,12 @@ export default function LiquidityConfirmationDialog({
               </div>
             </div>
 
-            {/* Status Text */}
-            <h2 className="text-xl font-bold mb-2">Depositing liquidity...</h2>
+            <h2 className="text-xl font-bold mb-2">Withdrawing liquidity...</h2>
             <p className="text-sm text-muted-foreground text-center mb-6">
-              Adding {amountAValue.toFixed(2)} {tokenA.symbol} and{" "}
-              {amountBValue.toFixed(2)} {tokenB.symbol} to the pool
+              Removing {amountAValue.toFixed(2)} {tokenA.symbol} and{" "}
+              {amountBValue.toFixed(2)} {tokenB.symbol} from the pool
             </p>
 
-            {/* Close Button */}
             <Button
               variant="secondary"
               className="w-full h-11 text-base"
@@ -295,7 +305,7 @@ export default function LiquidityConfirmationDialog({
 
         {view === "success" && (
           <div className="p-6 pt-8 pb-6 flex flex-col items-center">
-            {/* Token Icons - Overlapping pair */}
+            {/* Token Icons */}
             <div className="flex -space-x-2 mb-3">
               <div
                 className="w-8 h-8 rounded-full flex items-center justify-center border-2 border-background z-10"
@@ -331,15 +341,13 @@ export default function LiquidityConfirmationDialog({
               </div>
             </div>
 
-            {/* Success Message */}
             <h2 className="text-xl font-semibold text-center mb-1">
-              Deposited ${totalUSD.toFixed(0)} to{" "}
+              Withdrew{" "}
               <span className="text-muted-foreground">
                 {tokenA.symbol}/{tokenB.symbol}
               </span>
             </h2>
 
-            {/* Token Amount */}
             <p className="text-sm text-muted-foreground mb-6">
               {amountAValue.toFixed(2)} {tokenA.symbol} +{" "}
               {amountBValue.toFixed(2)} {tokenB.symbol}
@@ -347,16 +355,13 @@ export default function LiquidityConfirmationDialog({
 
             {/* Transaction Details */}
             <div className="w-full space-y-2 mb-6">
-              {/* Deposited */}
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Deposited</span>
+                <span className="text-sm text-muted-foreground">Received</span>
                 <span className="text-sm font-medium">
-                  {amountAValue.toFixed(2)} {tokenA.symbol} ($
-                  {usdValueA.toFixed(0)})
+                  ${totalUSD.toFixed(2)}
                 </span>
               </div>
 
-              {/* Transaction Date */}
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">
                   Transaction Date
@@ -378,27 +383,16 @@ export default function LiquidityConfirmationDialog({
                 </span>
               </div>
 
-              {/* Deposit APY */}
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">
-                  Deposit APY
-                </span>
-                <span className="text-sm font-medium">{pool?.apr || 6.2}%</span>
-              </div>
-
-              {/* Net Balance */}
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">
-                  Net Balance
+                  Remaining Position
                 </span>
                 <span className="text-sm font-medium">
-                  <span className="text-muted-foreground">$50 → </span>$
-                  {(50 + totalUSD).toFixed(0)}
+                  ${(250.9 - totalUSD).toFixed(2)}
                 </span>
               </div>
             </div>
 
-            {/* Close Button */}
             <Button
               variant="secondary"
               className="w-full h-10 text-sm"

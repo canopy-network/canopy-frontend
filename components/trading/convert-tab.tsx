@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -13,9 +15,16 @@ import { useWalletStore } from "@/lib/stores/wallet-store";
 import BridgeTokenDialog from "@/components/trading/bridge-token-dialog";
 import ConvertTransactionDialog from "@/components/trading/convert-transaction-dialog";
 import orderBookData from "@/data/order-book.json";
+import type {
+  ChainData,
+  BridgeToken,
+  ConnectedWallets,
+  OrderBookOrder,
+  OrderSelection,
+} from "@/types/trading";
 
 // CNPY Logo SVG Component
-function CnpyLogo({ className = "w-6 h-6" }) {
+function CnpyLogo({ className = "w-6 h-6" }: { className?: string }) {
   return (
     <svg
       className={className}
@@ -60,8 +69,13 @@ function CnpyLogo({ className = "w-6 h-6" }) {
 }
 
 // Chain badge component
-function ChainBadge({ chain, size = "sm" }) {
-  const chainConfig = {
+interface ChainBadgeProps {
+  chain: string;
+  size?: "sm" | "md";
+}
+
+function ChainBadge({ chain, size = "sm" }: ChainBadgeProps) {
+  const chainConfig: Record<string, { color: string; label: string }> = {
     ethereum: { color: "#627EEA", label: "ETH" },
     solana: { color: "#9945FF", label: "SOL" },
   };
@@ -80,7 +94,11 @@ function ChainBadge({ chain, size = "sm" }) {
 }
 
 // Calculate order selection
-function calculateOrderSelection(orders, inputAmount, sortMode) {
+function calculateOrderSelection(
+  orders: OrderBookOrder[],
+  inputAmount: number,
+  sortMode: "best_price" | "best_fill"
+): OrderSelection {
   if (!inputAmount || inputAmount <= 0) {
     return {
       selectedOrders: [],
@@ -97,7 +115,8 @@ function calculateOrderSelection(orders, inputAmount, sortMode) {
   });
 
   let remainingBudget = inputAmount;
-  const selectedOrders = [];
+  const selectedOrders: (OrderBookOrder & { cost: number; savings: number })[] =
+    [];
   let totalSavings = 0;
   let totalCost = 0;
   let cnpyReceived = 0;
@@ -125,7 +144,19 @@ function calculateOrderSelection(orders, inputAmount, sortMode) {
 }
 
 // Compact Order Row with fill percentage
-function OrderRow({ order, isSelected, index, percentOfBudget }) {
+interface OrderRowProps {
+  order: OrderBookOrder & { cost?: number; savings?: number };
+  isSelected: boolean;
+  index: number;
+  percentOfBudget: number;
+}
+
+function OrderRow({
+  order,
+  isSelected,
+  index,
+  percentOfBudget,
+}: OrderRowProps) {
   return (
     <div
       className={`relative flex items-center justify-between py-2 px-3 rounded-lg transition-all duration-200 overflow-hidden ${
@@ -159,13 +190,29 @@ function OrderRow({ order, isSelected, index, percentOfBudget }) {
           </span>
         )}
       </div>
-      {isSelected && (
+      {isSelected && order.savings !== undefined && (
         <span className="relative text-xs text-green-500 font-medium">
-          +${order.savings?.toFixed(2)}
+          +${order.savings.toFixed(2)}
         </span>
       )}
     </div>
   );
+}
+
+interface ConvertTabProps {
+  chainData?: ChainData | null;
+  isPreview?: boolean;
+  onSelectToken?: (mode: "from" | "to" | "tokenA" | "tokenB") => void;
+  onOpenWalletDialog?: () => void;
+  onAmountChange?: (amount: number) => void;
+  onSourceTokenChange?: (token: BridgeToken | null) => void;
+  orderBookSelection?: OrderSelection;
+}
+
+interface ButtonState {
+  disabled: boolean;
+  text: string;
+  variant: "connect" | "disabled" | "error" | "convert";
 }
 
 export default function ConvertTab({
@@ -176,19 +223,21 @@ export default function ConvertTab({
   onAmountChange,
   onSourceTokenChange,
   orderBookSelection,
-}) {
+}: ConvertTabProps) {
   const { wallets } = useWalletStore();
   const isConnected = wallets.length > 0;
 
   const [showBridgeDialog, setShowBridgeDialog] = useState(false);
-  const [sourceToken, setSourceToken] = useState(null);
+  const [sourceToken, setSourceToken] = useState<BridgeToken | null>(null);
   const [amount, setAmount] = useState("");
-  const [sortMode, setSortMode] = useState("best_price");
+  const [sortMode, setSortMode] = useState<"best_price" | "best_fill">(
+    "best_price"
+  );
   const [showOrders, setShowOrders] = useState(false);
   const [isShaking, setIsShaking] = useState(false);
   const [showTransactionDialog, setShowTransactionDialog] = useState(false);
 
-  const [connectedWallets, setConnectedWallets] = useState({
+  const [connectedWallets, setConnectedWallets] = useState<ConnectedWallets>({
     ethereum: {
       connected: true,
       address: "0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199",
@@ -201,7 +250,7 @@ export default function ConvertTab({
     },
   });
 
-  const handleConnectWallet = async (chainId) => {
+  const handleConnectWallet = async (chainId: string) => {
     await new Promise((resolve) => setTimeout(resolve, 1500));
     setConnectedWallets((prev) => ({
       ...prev,
@@ -216,7 +265,7 @@ export default function ConvertTab({
     }));
   };
 
-  const handleTokenSelected = (token) => {
+  const handleTokenSelected = (token: BridgeToken) => {
     setSourceToken(token);
     setAmount("");
     onSourceTokenChange?.(token);
@@ -225,8 +274,10 @@ export default function ConvertTab({
 
   // Calculate order selection locally
   const availableOrders = useMemo(() => {
-    if (!sourceToken) return orderBookData.sellOrders;
-    return orderBookData.sellOrders.filter(
+    const sellOrders = (orderBookData as { sellOrders: OrderBookOrder[] })
+      .sellOrders;
+    if (!sourceToken) return sellOrders;
+    return sellOrders.filter(
       (order) => order.token === sourceToken.symbol || !sourceToken.symbol
     );
   }, [sourceToken]);
@@ -253,7 +304,7 @@ export default function ConvertTab({
   // Notify parent
   useEffect(() => {
     onAmountChange?.(parseFloat(amount) || 0);
-  }, [amount]);
+  }, [amount, onAmountChange]);
 
   const handleUseMax = () => {
     if (sourceToken) {
@@ -261,7 +312,7 @@ export default function ConvertTab({
     }
   };
 
-  const getButtonState = () => {
+  const getButtonState = (): ButtonState => {
     if (!isConnected)
       return { disabled: false, text: "Connect Wallet", variant: "connect" };
     if (!sourceToken)
@@ -596,7 +647,7 @@ export default function ConvertTab({
       />
 
       {/* Convert Transaction Progress Dialog */}
-      {showTransactionDialog && (
+      {showTransactionDialog && sourceToken && (
         <ConvertTransactionDialog
           open={showTransactionDialog}
           onClose={() => {

@@ -1,9 +1,26 @@
+"use client";
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Plus, ChevronRight, ArrowDown, Zap, Settings } from "lucide-react";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import SlippageSettings from "./slippage-settings";
+import type { Token, InputMode, ConfirmationData } from "@/types/trading";
+
+interface SwapTabProps {
+  fromToken?: Token | null;
+  toToken?: Token | null;
+  isPreview?: boolean;
+  onSelectToken?: (mode: "from" | "to") => void;
+  onSwapTokens?: () => void;
+  onShowConfirmation?: (data: ConfirmationData) => void;
+}
+
+interface InputValues {
+  tokenAmount: string;
+  usdAmount: string;
+}
 
 export default function SwapTab({
   fromToken = null,
@@ -12,16 +29,20 @@ export default function SwapTab({
   onSelectToken,
   onSwapTokens,
   onShowConfirmation,
-}) {
-  const { wallets } = useWalletStore();
+}: SwapTabProps) {
+  const { wallets, currentWallet } = useWalletStore();
   const isConnected = wallets.length > 0;
+
+  console.log("currentWallet", currentWallet);
+  const isWalletUnlocked =
+    currentWallet?.isUnlocked && currentWallet?.privateKey;
   const [amount, setAmount] = useState("");
   const [slippage, setSlippage] = useState(1.0); // Default 1% slippage
   const [showSlippageSettings, setShowSlippageSettings] = useState(false);
-  const [inputMode, setInputMode] = useState("token"); // 'token' or 'usd'
+  const [inputMode, setInputMode] = useState<InputMode>("token"); // 'token' or 'usd'
 
   // Calculate the token amount and USD value based on input mode
-  const getInputValues = () => {
+  const getInputValues = (): InputValues => {
     if (!amount || amount === "" || !fromToken) {
       return { tokenAmount: "0", usdAmount: "$0.00" };
     }
@@ -51,7 +72,7 @@ export default function SwapTab({
   const inputValues = getInputValues();
 
   // Get the actual token amount for conversion (always in tokens)
-  const getTokenAmountForConversion = () => {
+  const getTokenAmountForConversion = (): number => {
     if (!amount || amount === "" || !fromToken) return 0;
     const inputAmount = parseFloat(amount);
     if (inputMode === "token") {
@@ -64,7 +85,7 @@ export default function SwapTab({
   };
 
   // Calculate conversion based on token prices
-  const calculateConversion = () => {
+  const calculateConversion = (): { tokens: string; usd: string } => {
     const tokenAmount = getTokenAmountForConversion();
     if (!tokenAmount || tokenAmount === 0 || !fromToken || !toToken) {
       return { tokens: "0", usd: "$0.00" };
@@ -349,9 +370,11 @@ export default function SwapTab({
             ? "Preview Mode"
             : !fromToken || !toToken
             ? "Select tokens"
-            : isConnected
-            ? "Continue"
-            : "Connect Wallet"}
+            : !isConnected
+            ? "Connect Wallet"
+            : !isWalletUnlocked
+            ? "Unlock Wallet"
+            : "Continue"}
         </Button>
       </div>
 

@@ -52,13 +52,13 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   // Rehydrate wallet store on mount (restore persisted state)
   useEffect(() => {
-    console.log('🔄 Rehydrating wallet store from localStorage...');
+    console.log("🔄 Rehydrating wallet store from localStorage...");
     useWalletStore.persist.rehydrate();
     setHasHydrated(true);
 
     // Log rehydrated state
     const state = useWalletStore.getState();
-    console.log('✅ Wallet store rehydrated:', {
+    console.log("✅ Wallet store rehydrated:", {
       walletsCount: state.wallets.length,
       currentWallet: state.currentWallet?.address,
       hasCurrentWallet: !!state.currentWallet,
@@ -68,17 +68,17 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   // Fetch wallets when user is authenticated and store is hydrated
   useEffect(() => {
     if (!hasHydrated) {
-      console.log('⏳ Waiting for wallet store hydration...');
+      console.log("⏳ Waiting for wallet store hydration...");
       return; // Wait for hydration
     }
 
     if (isAuthenticated) {
-      console.log('🔐 User authenticated, fetching wallets from API...');
+      console.log("🔐 User authenticated, fetching wallets from API...");
       fetchWallets().catch((error) => {
         console.error("Failed to fetch wallets:", error);
       });
     } else {
-      console.log('🔓 User not authenticated, resetting wallet state...');
+      console.log("🔓 User not authenticated, resetting wallet state...");
       // Reset wallet state when user logs out
       resetWalletState();
     }
@@ -140,8 +140,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   /**
    * Switch to a different wallet
    */
-  const switchWallet = (walletId: string) => {
-    selectWallet(walletId);
+  const switchWallet = async (walletId: string) => {
+    await selectWallet(walletId);
   };
 
   const openPopup = () => setIsPopupOpen(true);

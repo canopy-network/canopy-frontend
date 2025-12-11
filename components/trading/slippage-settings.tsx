@@ -1,34 +1,53 @@
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
+"use client";
 
-const PRESET_SLIPPAGE = [0.1, 0.5, 1.0]
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
-export default function SlippageSettings({ open, onOpenChange, slippage, onSlippageChange }) {
-  const [customValue, setCustomValue] = useState('')
-  const [isCustom, setIsCustom] = useState(false)
+const PRESET_SLIPPAGE = [0.1, 0.5, 1.0];
 
-  const handlePresetClick = (value) => {
-    setIsCustom(false)
-    setCustomValue('')
-    onSlippageChange(value)
-  }
+interface SlippageSettingsProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  slippage: number;
+  onSlippageChange: (slippage: number) => void;
+}
 
-  const handleCustomChange = (value) => {
-    setCustomValue(value)
-    setIsCustom(true)
-    
+export default function SlippageSettings({
+  open,
+  onOpenChange,
+  slippage,
+  onSlippageChange,
+}: SlippageSettingsProps) {
+  const [customValue, setCustomValue] = useState("");
+  const [isCustom, setIsCustom] = useState(false);
+
+  const handlePresetClick = (value: number) => {
+    setIsCustom(false);
+    setCustomValue("");
+    onSlippageChange(value);
+  };
+
+  const handleCustomChange = (value: string) => {
+    setCustomValue(value);
+    setIsCustom(true);
+
     // Only update if it's a valid number
-    const numValue = parseFloat(value)
+    const numValue = parseFloat(value);
     if (!isNaN(numValue) && numValue >= 0 && numValue <= 50) {
-      onSlippageChange(numValue)
+      onSlippageChange(numValue);
     }
-  }
+  };
 
-  const isPresetSelected = (value) => {
-    return !isCustom && slippage === value
-  }
+  const isPresetSelected = (value: number): boolean => {
+    return !isCustom && slippage === value;
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -42,13 +61,13 @@ export default function SlippageSettings({ open, onOpenChange, slippage, onSlipp
             <p className="text-sm text-muted-foreground mb-3">
               Slippage tolerance
             </p>
-            
+
             {/* Preset buttons */}
             <div className="flex gap-2 mb-3">
               {PRESET_SLIPPAGE.map((value) => (
                 <Button
                   key={value}
-                  variant={isPresetSelected(value) ? 'default' : 'outline'}
+                  variant={isPresetSelected(value) ? "default" : "outline"}
                   size="sm"
                   onClick={() => handlePresetClick(value)}
                   className="flex-1"
@@ -67,13 +86,13 @@ export default function SlippageSettings({ open, onOpenChange, slippage, onSlipp
                   placeholder="Custom"
                   value={customValue}
                   onChange={(e) => {
-                    const value = e.target.value
+                    const value = e.target.value;
                     // Only allow numbers and decimal point
-                    if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                      handleCustomChange(value)
+                    if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                      handleCustomChange(value);
                     }
                   }}
-                  className={isCustom ? 'border-primary' : ''}
+                  className={isCustom ? "border-primary" : ""}
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                   %
@@ -94,12 +113,12 @@ export default function SlippageSettings({ open, onOpenChange, slippage, onSlipp
           {/* Info */}
           <div className="p-3 rounded-lg bg-muted/50">
             <p className="text-xs text-muted-foreground">
-              Your transaction will revert if the price changes unfavorably by more than this percentage.
+              Your transaction will revert if the price changes unfavorably by
+              more than this percentage.
             </p>
           </div>
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
-

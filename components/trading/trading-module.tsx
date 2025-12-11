@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -16,21 +18,40 @@ import TokenSelectionDialog from "@/components/trading/token-selection-dialog";
 import SwapConfirmationDialog from "@/components/trading/swap-confirmation-dialog";
 import TransactionPendingDialog from "@/components/trading/transaction-pending-dialog";
 import tokensData from "@/data/tokens.json";
-import { useLiquidityPoolsStore } from "@/lib/stores/liquidity-pools-store";
+import {
+  useLiquidityPoolsStore,
+  type LiquidityPool,
+} from "@/lib/stores/liquidity-pools-store";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { walletTransactionApi, chainsApi } from "@/lib/api";
 import toast from "react-hot-toast";
+import type {
+  Token,
+  TokenPair,
+  ConfirmationData,
+  ChainData,
+  TradingVariant,
+  TabType,
+  TokenDialogMode,
+} from "@/types/trading";
+
+interface TradingModuleProps {
+  variant?: TradingVariant;
+  chainData?: ChainData | null;
+  defaultTokenPair?: TokenPair | null;
+  defaultTab?: TabType | null;
+  isPreview?: boolean;
+  onOpenWalletDialog?: (() => void) | null;
+  onLiquidityPoolChange?: ((pool: LiquidityPool | null) => void) | null;
+}
+
+interface TabsConfig {
+  tabs: TabType[];
+  defaultTab: TabType;
+}
 
 /**
  * TradingModule - Flexible trading component that adapts based on variant
- *
- * @param {Object} props
- * @param {'trade' | 'chain' | 'liquidity'} props.variant - Module type
- * @param {Object} props.chainData - Chain data (required for 'chain' variant)
- * @param {Object} props.defaultTokenPair - Default token pair { from, to }
- * @param {string} props.defaultTab - Default active tab
- * @param {boolean} props.isPreview - Preview mode flag
- * @param {Function} props.onOpenWalletDialog - Callback to open wallet dialog
  */
 export default function TradingModule({
   variant = "trade",
@@ -40,7 +61,7 @@ export default function TradingModule({
   isPreview = false,
   onOpenWalletDialog = null,
   onLiquidityPoolChange = null,
-}) {
+}: TradingModuleProps) {
   const { available_pools, fetchPools } = useLiquidityPoolsStore();
   const { currentWallet } = useWalletStore();
 
@@ -52,7 +73,7 @@ export default function TradingModule({
   }, [available_pools.length, fetchPools]);
 
   // Determine tabs based on variant
-  const getTabsConfig = () => {
+  const getTabsConfig = (): TabsConfig => {
     switch (variant) {
       case "trade":
         return {
@@ -78,30 +99,37 @@ export default function TradingModule({
   };
 
   const tabsConfig = getTabsConfig();
-  const [activeTab, setActiveTab] = useState(tabsConfig.defaultTab);
+  const [activeTab, setActiveTab] = useState<TabType>(tabsConfig.defaultTab);
   const [showTokenDialog, setShowTokenDialog] = useState(false);
-  const [tokenDialogMode, setTokenDialogMode] = useState(null); // 'from', 'to', 'tokenA', 'tokenB'
+  const [tokenDialogMode, setTokenDialogMode] = useState<TokenDialogMode>(null); // 'from', 'to', 'tokenA', 'tokenB'
   const [showConfirmation, setShowConfirmation] = useState(false);
-  const [confirmationData, setConfirmationData] = useState(null);
+  const [confirmationData, setConfirmationData] =
+    useState<ConfirmationData | null>(null);
   const [showPending, setShowPending] = useState(false);
 
   // Token state for swap/liquidity
-  const [fromToken, setFromToken] = useState(() => {
+  const [fromToken, setFromToken] = useState<Token | null>(() => {
     // For trade variant, always start with no token selected (user must select)
     if (variant === "trade") {
       return null;
     }
     // For chain variant, default to CNPY
     if (variant === "chain") {
-      return tokensData.find((t) => t.symbol === "CNPY");
+      return (
+        (tokensData.find((t) => t.symbol === "CNPY") as Token | undefined) ||
+        null
+      );
     }
     return null;
   });
 
-  const [toToken, setToToken] = useState(() => {
+  const [toToken, setToToken] = useState<Token | null>(() => {
     // For trade variant, default to CNPY as receiving token
     if (variant === "trade") {
-      return tokensData.find((t) => t.symbol === "CNPY");
+      return (
+        (tokensData.find((t) => t.symbol === "CNPY") as Token | undefined) ||
+        null
+      );
     }
     // For chain variant, use the chain's token
     if (variant === "chain" && chainData) {
@@ -111,29 +139,33 @@ export default function TradingModule({
         brandColor: chainData.brandColor,
         currentPrice: chainData.currentPrice,
         ...chainData,
-      };
+      } as Token;
     }
     // Default fallback to CNPY
-    return tokensData.find((t) => t.symbol === "CNPY");
+    return (
+      (tokensData.find((t) => t.symbol === "CNPY") as Token | undefined) || null
+    );
   });
 
-  const [tokenA, setTokenA] = useState(() => {
+  const [tokenA, setTokenA] = useState<Token | null>(() => {
     // For liquidity variant with defaultTokenPair, use the provided tokenA
     if (variant === "liquidity" && defaultTokenPair?.tokenA) {
       return defaultTokenPair.tokenA;
     }
     return null;
   });
-  const [tokenB, setTokenB] = useState(() => {
+  const [tokenB, setTokenB] = useState<Token | null>(() => {
     // For liquidity variant with defaultTokenPair, use the provided tokenB
     if (variant === "liquidity" && defaultTokenPair?.tokenB) {
       return defaultTokenPair.tokenB;
     }
-    return tokensData.find((t) => t.symbol === "CNPY");
+    return (
+      (tokensData.find((t) => t.symbol === "CNPY") as Token | undefined) || null
+    );
   });
 
   // Find the matching pool for liquidity variant
-  const initialPool = useMemo(() => {
+  const initialPool = useMemo<LiquidityPool | null>(() => {
     if (variant === "liquidity" && defaultTokenPair?.tokenA) {
       // tokenA is the non-CNPY token, tokenB is CNPY in the defaultTokenPair
       const tokenSymbol = defaultTokenPair.tokenA.symbol;
@@ -148,27 +180,37 @@ export default function TradingModule({
 
   // Convert tab state
   const [convertAmount, setConvertAmount] = useState(0);
-  const [convertSourceToken, setConvertSourceToken] = useState(null);
+  const [convertSourceToken, setConvertSourceToken] = useState<Token | null>(
+    null
+  );
 
-  const handleSelectToken = (mode) => {
+  const handleSelectToken = (mode: "from" | "to" | "tokenA" | "tokenB") => {
     setTokenDialogMode(mode);
     setShowTokenDialog(true);
   };
 
-  const handleTokenSelected = (token) => {
+  const handleTokenSelected = (token: Token) => {
     switch (tokenDialogMode) {
       case "from":
         setFromToken(token);
         // For trade variant, if a non-CNPY token is selected, ensure toToken is CNPY
         if (variant === "trade" && token.symbol !== "CNPY") {
-          setToToken(tokensData.find((t) => t.symbol === "CNPY"));
+          setToToken(
+            (tokensData.find((t) => t.symbol === "CNPY") as
+              | Token
+              | undefined) || null
+          );
         }
         break;
       case "to":
         setToToken(token);
         // For trade variant, if a non-CNPY token is selected, ensure fromToken is CNPY
         if (variant === "trade" && token.symbol !== "CNPY") {
-          setFromToken(tokensData.find((t) => t.symbol === "CNPY"));
+          setFromToken(
+            (tokensData.find((t) => t.symbol === "CNPY") as
+              | Token
+              | undefined) || null
+          );
         }
         break;
       case "tokenA":
@@ -189,7 +231,19 @@ export default function TradingModule({
     setToToken(temp);
   };
 
-  const handleShowConfirmation = (data) => {
+  const handleShowConfirmation = (data: ConfirmationData) => {
+    // Check if wallet is connected
+    if (!currentWallet) {
+      toast.error("Please connect your wallet first.");
+      return;
+    }
+
+    // Check if wallet is unlocked
+    if (!currentWallet.isUnlocked || !currentWallet.privateKey) {
+      toast.error("Wallet is locked. Please unlock your wallet first.");
+      return;
+    }
+
     setConfirmationData(data);
     setShowConfirmation(true);
   };
@@ -205,6 +259,7 @@ export default function TradingModule({
       return;
     }
 
+    console.log("[currentWallet]", currentWallet);
     // Check if wallet is unlocked
     if (!currentWallet.isUnlocked || !currentWallet.privateKey) {
       toast.error("Wallet is locked. Please unlock your wallet first.");
@@ -258,6 +313,7 @@ export default function TradingModule({
       const { createAndSignTransaction } = await import(
         "@/lib/crypto/transaction"
       );
+
       const signedTx = createAndSignTransaction(
         {
           type: "dexLimitOrder",
@@ -290,7 +346,11 @@ export default function TradingModule({
       }, 2000);
     } catch (error) {
       console.error("Failed to execute swap:", error);
-      toast.error(error.message || "An error occurred while swapping.");
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "An error occurred while swapping.";
+      toast.error(errorMessage);
       setShowPending(false);
     }
   };
@@ -301,7 +361,7 @@ export default function TradingModule({
   };
 
   const renderTabButtons = () => {
-    const getTabIcon = (tab) => {
+    const getTabIcon = (tab: TabType) => {
       switch (tab) {
         case "buy":
           return <ArrowUpRight className="w-4 h-4" />;
@@ -318,7 +378,7 @@ export default function TradingModule({
       }
     };
 
-    const getTabLabel = (tab) => {
+    const getTabLabel = (tab: TabType): string => {
       return tab.charAt(0).toUpperCase() + tab.slice(1);
     };
 
@@ -387,7 +447,7 @@ export default function TradingModule({
             chainData={chainData}
             isPreview={isPreview}
             onSelectToken={handleSelectToken}
-            onOpenWalletDialog={onOpenWalletDialog}
+            onOpenWalletDialog={onOpenWalletDialog || undefined}
             onAmountChange={setConvertAmount}
             onSourceTokenChange={setConvertSourceToken}
           />
@@ -398,7 +458,7 @@ export default function TradingModule({
   };
 
   // Get excluded token for dialog
-  const getExcludedToken = () => {
+  const getExcludedToken = (): string | null => {
     // For trade variant, enforce CNPY pairing
     if (variant === "trade") {
       // If selecting 'from' and 'to' is not CNPY, exclude it

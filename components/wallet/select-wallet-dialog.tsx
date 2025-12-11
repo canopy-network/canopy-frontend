@@ -83,7 +83,7 @@ export function SelectWalletDialog({
 
     // If wallet is already unlocked, select it directly
     if (wallet.isUnlocked) {
-      selectWallet(walletId);
+      await selectWallet(walletId);
       showSuccessToast("Wallet connected!");
       onOpenChange(false);
       onSuccess?.();
@@ -98,7 +98,7 @@ export function SelectWalletDialog({
         setLocalError(null);
 
         await unlockWallet(walletId, storedSeedphrase);
-        selectWallet(walletId);
+        await selectWallet(walletId);
 
         showSuccessToast("Wallet unlocked and connected!");
         onOpenChange(false);
@@ -132,7 +132,7 @@ export function SelectWalletDialog({
       setLocalError(null);
 
       await unlockWallet(selectedWalletId, processedSeedphrase);
-      selectWallet(selectedWalletId);
+      await selectWallet(selectedWalletId);
 
       showSuccessToast("Wallet unlocked and connected!");
       onOpenChange(false);

@@ -28,7 +28,7 @@ import {
 import tokens from "@/data/tokens.json";
 import { useWallet } from "@/components/wallet/wallet-provider";
 
-import TradingModule from "../trading/trading-module";
+import TradingModule from "@/components/trading/trading-module";
 
 // CNPY Logo component
 function CnpyLogo({ size = 32 }: { size?: number }) {

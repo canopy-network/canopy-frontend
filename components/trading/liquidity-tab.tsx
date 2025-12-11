@@ -1,28 +1,50 @@
+"use client";
+
 import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ChevronRight, Zap, Plus, ArrowLeft } from "lucide-react";
-import { useLiquidityPoolsStore } from "@/lib/stores/liquidity-pools-store";
+import {
+  useLiquidityPoolsStore,
+  type LiquidityPool,
+} from "@/lib/stores/liquidity-pools-store";
 import tokensData from "@/data/tokens.json";
 import LiquidityConfirmationDialog from "./liquidity-confirmation-dialog";
 import PoolSelectionDialog from "@/components/trading/pool-selection-dialog";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { walletTransactionApi, chainsApi } from "@/lib/api";
 import toast from "react-hot-toast";
+import type { Token, InputMode } from "@/types/trading";
+import type { UserLiquidityPosition } from "@/types/trading";
 
 // Conversion factor for microunits (1 token = 1,000,000 microunits)
 const MICRO_UNITS = 1_000_000;
+
+interface LiquidityTabProps {
+  isPreview?: boolean;
+  initialPool?: LiquidityPool | null;
+  onPoolChange?: (pool: LiquidityPool | null) => void;
+}
+
+interface DisplayValues {
+  tokenAmount: string;
+  usdAmount: string;
+}
 
 export default function LiquidityTab({
   isPreview = false,
   initialPool = null,
   onPoolChange = null,
-}) {
+}: LiquidityTabProps) {
   const { wallets, currentWallet } = useWalletStore();
   const { available_pools, fetchPools } = useLiquidityPoolsStore();
   const isConnected = wallets.length > 0;
+  const isWalletUnlocked =
+    currentWallet?.isUnlocked && currentWallet?.privateKey;
 
-  const [selectedPool, setSelectedPool] = useState(initialPool);
+  const [selectedPool, setSelectedPool] = useState<LiquidityPool | null>(
+    initialPool
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch pools on mount if not already loaded
@@ -33,19 +55,19 @@ export default function LiquidityTab({
   }, [available_pools.length, fetchPools]);
 
   // Notify parent when pool changes
-  const handlePoolChange = (pool) => {
+  const handlePoolChange = (pool: LiquidityPool | null) => {
     setSelectedPool(pool);
     onPoolChange?.(pool);
   };
   const [amountA, setAmountA] = useState("");
   const [amountB, setAmountB] = useState("");
-  const [inputModeA, setInputModeA] = useState("token");
-  const [inputModeB, setInputModeB] = useState("token");
+  const [inputModeA, setInputModeA] = useState<InputMode>("token");
+  const [inputModeB, setInputModeB] = useState<InputMode>("token");
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showPoolDialog, setShowPoolDialog] = useState(false);
 
   // Get user's position for selected pool (mock data for now)
-  const userPosition = useMemo(() => {
+  const userPosition = useMemo<UserLiquidityPosition | null>(() => {
     // TODO: Implement actual LP position fetching using wallet addresses
     return null;
   }, [isConnected, selectedPool]);
@@ -57,16 +79,20 @@ export default function LiquidityTab({
 
   // Get token data for selected pool
   const tokenA = selectedPool
-    ? tokensData.find((t) => t.symbol === selectedPool.tokenB)
+    ? (tokensData.find((t) => t.symbol === selectedPool.tokenB) as
+        | Token
+        | undefined)
     : null;
   const tokenB = selectedPool
-    ? tokensData.find((t) => t.symbol === selectedPool.tokenA)
+    ? (tokensData.find((t) => t.symbol === selectedPool.tokenA) as
+        | Token
+        | undefined)
     : null;
 
   // Mock wallet balances
-  const getWalletBalance = (token) => {
+  const getWalletBalance = (token: Token | null | undefined): number => {
     if (!token) return 0;
-    const mockBalances = {
+    const mockBalances: Record<string, number> = {
       CNPY: 5000,
       MGC: 1250,
       SOCN: 2500,
@@ -79,7 +105,11 @@ export default function LiquidityTab({
   const balanceB = tokenB ? getWalletBalance(tokenB) : 0;
 
   // Get display values
-  const getDisplayValues = (amount, inputMode, token) => {
+  const getDisplayValues = (
+    amount: string,
+    inputMode: InputMode,
+    token: Token | null | undefined
+  ): DisplayValues => {
     if (!amount || amount === "" || !token) {
       return { tokenAmount: "0", usdAmount: "$0.00" };
     }
@@ -156,19 +186,19 @@ export default function LiquidityTab({
     setInputModeB(inputModeB === "token" ? "usd" : "token");
   };
 
-  const handleAmountAChange = (value) => {
+  const handleAmountAChange = (value: string) => {
     if (value === "" || /^\d*\.?\d*$/.test(value)) {
       setAmountA(value);
     }
   };
 
-  const handleAmountBChange = (value) => {
+  const handleAmountBChange = (value: string) => {
     if (value === "" || /^\d*\.?\d*$/.test(value)) {
       setAmountB(value);
     }
   };
 
-  const handleSelectPool = (pool) => {
+  const handleSelectPool = (pool: LiquidityPool) => {
     handlePoolChange(pool);
     setAmountA("");
     setAmountB("");
@@ -261,7 +291,11 @@ export default function LiquidityTab({
       setShowConfirmation(false);
     } catch (error) {
       console.error("Failed to add liquidity:", error);
-      toast.error(error.message || "An error occurred while adding liquidity.");
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "An error occurred while adding liquidity.";
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -301,7 +335,7 @@ export default function LiquidityTab({
             {topPools.map((pool) => {
               const poolToken = tokensData.find(
                 (t) => t.symbol === pool.tokenB
-              );
+              ) as Token | undefined;
               return (
                 <div
                   key={pool.id}
@@ -498,6 +532,8 @@ export default function LiquidityTab({
               ? "Preview Mode"
               : !isConnected
               ? "Connect Wallet"
+              : !isWalletUnlocked
+              ? "Unlock Wallet"
               : isSubmitting
               ? "Processing..."
               : !amountA && !amountB
@@ -520,6 +556,8 @@ export default function LiquidityTab({
               ? "Preview Mode"
               : !isConnected
               ? "Connect Wallet"
+              : !isWalletUnlocked
+              ? "Unlock Wallet"
               : isSubmitting
               ? "Processing..."
               : !amountA && !amountB
@@ -632,7 +670,7 @@ export default function LiquidityTab({
       )}
 
       {/* Confirmation Dialog */}
-      {showConfirmation && (
+      {showConfirmation && tokenA && tokenB && (
         <LiquidityConfirmationDialog
           open={showConfirmation}
           onClose={() => setShowConfirmation(false)}

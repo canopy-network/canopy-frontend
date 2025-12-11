@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
@@ -6,25 +8,121 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Search, TrendingUp, Clock, Wallet } from "lucide-react";
 import tokensData from "@/data/tokens.json";
 import { chainsApi } from "@/lib/api";
 import { useWalletStore } from "@/lib/stores/wallet-store";
+import type { Token } from "@/types/trading";
+
+interface TokenSelectionDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSelectToken: (token: Token) => void;
+  excludeToken?: string | null;
+}
+
+interface TokenItemProps {
+  token: Token;
+  onSelect: (token: Token) => void;
+  balance?: number;
+}
+
+function TokenItem({ token, onSelect, balance }: TokenItemProps) {
+  const formatBalance = (bal: number | undefined): string | null => {
+    if (!bal) return null;
+    if (bal >= 1000000) return `${(bal / 1000000).toFixed(2)}M`;
+    if (bal >= 1000) return `${(bal / 1000).toFixed(1)}K`;
+    return bal.toLocaleString();
+  };
+
+  return (
+    <button
+      onClick={() => onSelect(token)}
+      className="w-full p-3 rounded-lg hover:bg-muted/50 transition-colors flex items-center justify-between group"
+    >
+      <div className="flex items-center gap-3">
+        {/* Token Avatar */}
+        <div
+          className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: token.brandColor || "#10b981" }}
+        >
+          {token.logo ? (
+            <img
+              src={token.logo}
+              alt={token.symbol}
+              className="w-full h-full rounded-full"
+            />
+          ) : (
+            <span className="text-base font-bold text-white">
+              {token.symbol[0]}
+            </span>
+          )}
+        </div>
+
+        {/* Token Info */}
+        <div className="text-left">
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{token.symbol}</span>
+            {token.isNative && (
+              <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                Native
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground">{token.name}</p>
+        </div>
+      </div>
+
+      {/* Token Price & Balance */}
+      <div className="text-right">
+        {balance && balance > 0 ? (
+          <>
+            <p className="text-sm font-medium">{formatBalance(balance)}</p>
+            <p className="text-xs text-muted-foreground">
+              $
+              {(balance * (token.currentPrice || 0)).toLocaleString(undefined, {
+                maximumFractionDigits: 2,
+              })}
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="text-sm font-medium">
+              $
+              {token.currentPrice?.toFixed(token.currentPrice < 0.01 ? 6 : 4) ||
+                "0.00"}
+            </p>
+            {token.priceChange24h !== undefined && (
+              <p
+                className={`text-xs ${
+                  token.priceChange24h >= 0 ? "text-green-500" : "text-red-500"
+                }`}
+              >
+                {token.priceChange24h >= 0 ? "+" : ""}
+                {token.priceChange24h.toFixed(2)}%
+              </p>
+            )}
+          </>
+        )}
+      </div>
+    </button>
+  );
+}
 
 export default function TokenSelectionDialog({
   open,
   onOpenChange,
   onSelectToken,
   excludeToken = null,
-}) {
+}: TokenSelectionDialogProps) {
   const { wallets } = useWalletStore();
   const isConnected = wallets.length > 0;
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [recentTokens, setRecentTokens] = useState([]);
-  const [allTokens, setAllTokens] = useState([...tokensData]);
+  const [recentTokens, setRecentTokens] = useState<string[]>([]);
+  const [allTokens, setAllTokens] = useState<Token[]>([
+    ...(tokensData as Token[]),
+  ]);
 
   // Load recent tokens from localStorage
   useEffect(() => {
@@ -38,7 +136,7 @@ export default function TokenSelectionDialog({
       try {
         const response = await chainsApi.getChains();
         if (response.data) {
-          const tokens = [...tokensData];
+          const tokens: Token[] = [...(tokensData as Token[])];
 
           // Add chain tokens that aren't already in tokensData
           // Only include C001 (Chain 1) and C002 (Chain 2)
@@ -70,7 +168,7 @@ export default function TokenSelectionDialog({
       } catch (error) {
         console.error("Error fetching chains:", error);
         // Fallback to just tokensData if API fails
-        setAllTokens([...tokensData]);
+        setAllTokens([...(tokensData as Token[])]);
       }
     };
 
@@ -82,7 +180,7 @@ export default function TokenSelectionDialog({
   // Create a map of token symbols to their balances
   // TODO: Implement actual balance fetching using wallet addresses from walletStore
   const tokenBalances = useMemo(() => {
-    const balances = {};
+    const balances: Record<string, number> = {};
     // CNPY is always assumed to have balance for connected users
     if (isConnected) {
       balances["CNPY"] = 5000;
@@ -129,10 +227,13 @@ export default function TokenSelectionDialog({
   // Get recent tokens that are still valid
   const recentTokensList = recentTokens
     .map((symbol) => allTokens.find((t) => t.symbol === symbol))
-    .filter((t) => t && (!excludeToken || t.symbol !== excludeToken))
+    .filter(
+      (t): t is Token =>
+        t !== undefined && (!excludeToken || t.symbol !== excludeToken)
+    )
     .slice(0, 3);
 
-  const handleSelectToken = (token) => {
+  const handleSelectToken = (token: Token) => {
     // Add to recent tokens
     const updated = [
       token.symbol,
@@ -260,87 +361,5 @@ export default function TokenSelectionDialog({
         </div>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function TokenItem({ token, onSelect, balance }) {
-  const formatBalance = (bal) => {
-    if (!bal) return null;
-    if (bal >= 1000000) return `${(bal / 1000000).toFixed(2)}M`;
-    if (bal >= 1000) return `${(bal / 1000).toFixed(1)}K`;
-    return bal.toLocaleString();
-  };
-
-  return (
-    <button
-      onClick={() => onSelect(token)}
-      className="w-full p-3 rounded-lg hover:bg-muted/50 transition-colors flex items-center justify-between group"
-    >
-      <div className="flex items-center gap-3">
-        {/* Token Avatar */}
-        <div
-          className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: token.brandColor || "#10b981" }}
-        >
-          {token.logo ? (
-            <img
-              src={token.logo}
-              alt={token.symbol}
-              className="w-full h-full rounded-full"
-            />
-          ) : (
-            <span className="text-base font-bold text-white">
-              {token.symbol[0]}
-            </span>
-          )}
-        </div>
-
-        {/* Token Info */}
-        <div className="text-left">
-          <div className="flex items-center gap-2">
-            <span className="font-medium">{token.symbol}</span>
-            {token.isNative && (
-              <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
-                Native
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-muted-foreground">{token.name}</p>
-        </div>
-      </div>
-
-      {/* Token Price & Balance */}
-      <div className="text-right">
-        {balance > 0 ? (
-          <>
-            <p className="text-sm font-medium">{formatBalance(balance)}</p>
-            <p className="text-xs text-muted-foreground">
-              $
-              {(balance * token.currentPrice || 0).toLocaleString(undefined, {
-                maximumFractionDigits: 2,
-              })}
-            </p>
-          </>
-        ) : (
-          <>
-            <p className="text-sm font-medium">
-              $
-              {token.currentPrice?.toFixed(token.currentPrice < 0.01 ? 6 : 4) ||
-                "0.00"}
-            </p>
-            {token.priceChange24h !== undefined && (
-              <p
-                className={`text-xs ${
-                  token.priceChange24h >= 0 ? "text-green-500" : "text-red-500"
-                }`}
-              >
-                {token.priceChange24h >= 0 ? "+" : ""}
-                {token.priceChange24h.toFixed(2)}%
-              </p>
-            )}
-          </>
-        )}
-      </div>
-    </button>
   );
 }
