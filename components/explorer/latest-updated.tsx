@@ -4,6 +4,7 @@ import * as React from "react";
 import { Box } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LiveStatusComponent } from "./live-status-component";
+import { EXPLORER_ICON_GLOW } from "@/lib/utils/brand";
 
 interface LatestUpdatedProps extends React.HTMLAttributes<HTMLDivElement> {
   /**
@@ -110,7 +111,7 @@ export function LatestUpdated({
     <div className="flex items-center gap-2 lg:gap-4">
       <LiveStatusComponent className="lg:flex hidden" />
       <div className="flex items-center gap-2 text-muted-foreground whitespace-nowrap text-sm bg-white/[0.05] rounded-lg px-2 lg:px-4 py-2">
-        <Box className="w-4 h-4 lg:block hidden" />
+        <Box className={`w-4 h-4 lg:block hidden ${EXPLORER_ICON_GLOW}`} />
         <LiveStatusComponent className="lg:hidden flex" />
 
         <span className="text-xs lg:text-sm lg:block hidden whitespace-nowrap">

@@ -37,6 +37,8 @@ export {
   getChainsWithRelations,
   getActiveChains,
   getGraduatedChains,
+  getAllChains,
+  getAllGraduatedChains,
   getChainsByCreator,
   getChainsByTemplate,
 } from "./chains";
@@ -125,6 +127,17 @@ export { stakingApi } from "./staking";
 
 // Governance API
 export { governanceApi } from "./governance";
+
+// Validators API
+export {
+  validatorsApi,
+  type ValidatorData,
+  type ValidatorsResponse,
+  type ValidatorsRequest,
+  type ValidatorDetailData,
+  type CrossChainStake,
+  type SlashingHistory,
+} from "./validators";
 
 // ============================================================================
 // CONVENIENCE RE-EXPORTS
