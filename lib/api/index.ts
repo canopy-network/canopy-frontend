@@ -207,3 +207,32 @@ export type {
 
 // AMM API
 export { ammApi } from "./amm";
+export type {
+  OrderBookApiOrder,
+  ChainOrderBook,
+  OrderBookResponse,
+  DisplayOrder,
+} from "@/types/orderbook";
+
+export type { FeeParams } from "@/types/params";
+export { DEFAULT_FEE_PARAMS } from "@/types/params";
+
+export type {
+  AddressBookEntry,
+  AddressBookListResponse,
+  CreateAddressBookEntryRequest,
+  UpdateAddressBookEntryRequest,
+  GetAddressBookParams,
+  SearchAddressBookParams,
+  NetworkType,
+  ContactLabel,
+} from "@/types/address-book";
+
+// Orderbook API
+export { orderbookApi } from "./orderbook";
+
+// Params API (blockchain parameters)
+export { paramsApi } from "./params";
+
+// Address Book API
+export { addressBookApi } from "./address-book";

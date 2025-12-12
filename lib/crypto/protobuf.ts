@@ -555,7 +555,7 @@ export function encodeMessageSubsidy(params: {
  */
 export function encodeMessageCreateOrder(params: {
   chainId: number;              // REQUIRED
-  data: string;                 // REQUIRED - hex string
+  data: string;                 // REQUIRED - hex string (can be empty)
   amountForSale: number;        // REQUIRED
   requestedAmount: number;      // REQUIRED
   sellerReceiveAddress: string; // REQUIRED
@@ -564,12 +564,16 @@ export function encodeMessageCreateOrder(params: {
 }): Uint8Array {
   const messageData: any = {
     ChainId: params.chainId,  // Always include
-    data: hexToBytes(params.data),  // Always include
     AmountForSale: params.amountForSale,
     RequestedAmount: params.requestedAmount,
     SellerReceiveAddress: hexToBytes(params.sellerReceiveAddress),
     SellersSendAddress: hexToBytes(params.sellersSendAddress),
   };
+
+  // Only include data if non-empty (protobuf omits empty byte arrays as default)
+  if (!shouldOmit(params.data)) {
+    messageData.data = hexToBytes(params.data);
+  }
 
   // NEVER include OrderId - backend never sets this field
 
