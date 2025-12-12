@@ -129,7 +129,7 @@ export default function SwapConfirmationDialog({
             <span className="text-sm font-semibold">Pay with</span>
             <div className="flex items-center gap-2">
               <div
-                className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
                 style={{ backgroundColor: fromToken.brandColor || "#10b981" }}
               >
                 {fromToken.logo ? (

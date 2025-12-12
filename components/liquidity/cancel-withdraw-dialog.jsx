@@ -8,7 +8,7 @@ import tokens from '@/data/tokens.json'
 function CnpyLogo({ size = 32 }) {
   return (
     <div 
-      className="rounded-full flex items-center justify-center flex-shrink-0"
+      className="rounded-full flex items-center justify-center shrink-0"
       style={{ 
         width: size, 
         height: size,
@@ -28,7 +28,7 @@ function TokenAvatar({ symbol, color, size = 32 }) {
   
   return (
     <div 
-      className="rounded-full flex items-center justify-center flex-shrink-0"
+      className="rounded-full flex items-center justify-center shrink-0"
       style={{ 
         width: size, 
         height: size,
@@ -94,7 +94,7 @@ export default function CancelWithdrawDialog({ open, onOpenChange, withdrawItem,
             <>
               {/* Warning */}
               <div className="flex items-start gap-3 p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-                <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
                 <div>
                   <p className="text-sm font-medium text-amber-500">Cancel this withdrawal?</p>
                   <p className="text-xs text-amber-500/80 mt-1">

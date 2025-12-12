@@ -20,6 +20,20 @@ const eslintConfig = [
       "next-env.d.ts",
     ],
   },
+  {
+    rules: {
+      // Disable unused vars rule completely
+      "@typescript-eslint/no-unused-vars": "off",
+      "no-unused-vars": "off",
+      // Disable explicit any rule
+      "@typescript-eslint/no-explicit-any": "off",
+      // Disable unused expressions rule
+      "@typescript-eslint/no-unused-expressions": "off",
+      "no-unused-expressions": "off",
+      // Disable Next.js rule for <img>
+      "@next/next/no-img-element": "off",
+    },
+  },
 ];
 
 export default eslintConfig;

@@ -201,7 +201,7 @@ export function Sidebar() {
       {/* Bottom Section */}
       <div
         className={cn(
-          "border-t border-[#2a2a2a] transition-all duration-300 py-4 transition-all duration-300 flex flex-col gap-3 items-center",
+          "border-t border-[#2a2a2a] transition-all duration-300 py-4 flex flex-col gap-3 items-center",
           isCondensed ? "px-5" : "px-4"
         )}
       >
@@ -213,7 +213,7 @@ export function Sidebar() {
               variant="clear"
               className="w-full  py-3 px-2 rounded-xl"
             >
-              <div className="h-6 w-6 min-w-6 rounded bg-gradient-to-br from-[#0a2a12] via-[#103a1b] to-[#164c25] flex items-center justify-center border border-[#36d26a] shadow-[0_0_8px_rgba(54,210,106,0.4)]">
+              <div className="h-6 w-6 min-w-6 rounded bg-linear-to-br from-[#0a2a12] via-[#103a1b] to-[#164c25] flex items-center justify-center border border-[#36d26a] shadow-[0_0_8px_rgba(54,210,106,0.4)]">
                 {user.avatar_url ? (
                   <img
                     src={user.avatar_url}
@@ -248,7 +248,7 @@ export function Sidebar() {
                 onClick={() => setLoginDialogOpen(true)}
                 variant="default"
                 size="icon"
-                className="bg-black/30 text-[#7cff9d] border border-[#36d26a] shadow-[0_0_12px_2px_rgba(124,255,157,0.3)] hover:shadow-[0_0_16px_3px_rgba(124,255,157,0.45)] transition-transform hover:-translate-y-[1px] rounded-full"
+                className="bg-black/30 text-[#7cff9d] border border-[#36d26a] shadow-[0_0_12px_2px_rgba(124,255,157,0.3)] hover:shadow-[0_0_16px_3px_rgba(124,255,157,0.45)] transition-transform hover:-translate-y-px rounded-full"
                 aria-label="Connect Wallet"
               >
                 <img
@@ -262,7 +262,7 @@ export function Sidebar() {
                 onClick={() => setLoginDialogOpen(true)}
                 variant="ghost"
                 size="sm"
-                className="w-full text-sm font-semibold text-[#7cff9d] border border-[#36d26a] bg-black/30 rounded-md shadow-[0_0_14px_rgba(124,255,157,0.4)] hover:shadow-[0_0_18px_rgba(124,255,157,0.55)] transition-transform hover:-translate-y-[1px] gap-2"
+                className="w-full text-sm font-semibold text-[#7cff9d] border border-[#36d26a] bg-black/30 rounded-md shadow-[0_0_14px_rgba(124,255,157,0.4)] hover:shadow-[0_0_18px_rgba(124,255,157,0.55)] transition-transform hover:-translate-y-px gap-2"
               >
                 <img
                   src="/images/ethereum-logo.png"

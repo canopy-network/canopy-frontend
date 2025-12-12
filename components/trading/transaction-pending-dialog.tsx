@@ -176,7 +176,7 @@ export default function TransactionPendingDialog({
               <div className="flex items-center justify-center gap-2 mb-4">
                 {/* From Token */}
                 <div
-                  className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
+                  className="w-12 h-12 rounded-full flex items-center justify-center shrink-0"
                   style={{
                     backgroundColor: fromToken?.brandColor || "#ef4444",
                   }}
@@ -203,7 +203,7 @@ export default function TransactionPendingDialog({
 
                 {/* To Token */}
                 <div
-                  className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
+                  className="w-12 h-12 rounded-full flex items-center justify-center shrink-0"
                   style={{ backgroundColor: toToken?.brandColor || "#10b981" }}
                 >
                   {toToken?.logo ? (

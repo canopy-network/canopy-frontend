@@ -259,13 +259,13 @@ export default function BuySellTab({
               {/* Token Avatar */}
               {mode === "buy" ? (
                 // CNPY Avatar
-                <div className="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                <div className="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center shrink-0">
                   <CnpyLogo className="w-5 h-5 text-white" />
                 </div>
               ) : (
                 // Chain Token Avatar
                 <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                  className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
                   style={{
                     backgroundColor: chainData?.brandColor || "#10b981",
                   }}
@@ -359,7 +359,7 @@ export default function BuySellTab({
               {mode === "buy" ? (
                 // Chain Token Avatar
                 <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                  className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
                   style={{
                     backgroundColor: chainData?.brandColor || "#10b981",
                   }}
@@ -370,7 +370,7 @@ export default function BuySellTab({
                 </div>
               ) : (
                 // CNPY Avatar
-                <div className="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                <div className="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center shrink-0">
                   <CnpyLogo className="w-5 h-5 text-white" />
                 </div>
               )}

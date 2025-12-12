@@ -123,7 +123,7 @@ export function MobileSidebar({
               onClose();
               onLoginClick();
             }}
-            className="w-full gap-2 bg-gradient-to-r from-[#0a2a12] via-[#103a1b] to-[#164c25] hover:from-[#08230e] hover:via-[#0e3216] hover:to-[#133f1d] text-[#7cff9d] font-semibold border border-[#36d26a] shadow-[0_0_12px_2px_rgba(124,255,157,0.2)] hover:shadow-[0_0_16px_3px_rgba(124,255,157,0.35)] transition-transform hover:-translate-y-[1px]"
+            className="w-full gap-2 bg-linear-to-r from-[#0a2a12] via-[#103a1b] to-[#164c25] hover:from-[#08230e] hover:via-[#0e3216] hover:to-[#133f1d] text-[#7cff9d] font-semibold border border-[#36d26a] shadow-[0_0_12px_2px_rgba(124,255,157,0.2)] hover:shadow-[0_0_16px_3px_rgba(124,255,157,0.35)] transition-transform hover:-translate-y-px"
             variant="default"
           >
             <Mail className="h-4 w-4" />

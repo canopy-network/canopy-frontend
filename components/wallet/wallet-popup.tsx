@@ -122,10 +122,10 @@ export function WalletPopup() {
           {currentWallet ? (
             <>
               {/* Header - Fixed */}
-              <div className="p-4 sm:p-6 space-y-3 sm:space-y-4 border-b border-border flex-shrink-0">
+              <div className="p-4 sm:p-6 space-y-3 sm:space-y-4 border-b border-border shrink-0">
                 {/* Wallet Address & Avatar */}
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-[#1dd13a] flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 rounded-full bg-[#1dd13a] flex items-center justify-center shrink-0">
                     <span className="text-lg font-bold text-white">C</span>
                   </div>
                   <div className="flex-1 min-w-0">
@@ -136,7 +136,7 @@ export function WalletPopup() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 hover:bg-muted flex-shrink-0"
+                        className="h-6 w-6 hover:bg-muted shrink-0"
                         onClick={copyAddress}
                       >
                         <Copy className="w-3 h-3" />
@@ -211,7 +211,7 @@ export function WalletPopup() {
               {/* Tabs - Scrollable */}
               <div className="flex-1 overflow-hidden flex flex-col min-h-0">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className=" flex min-h-0">
-                  <TabsList className="w-full justify-start bg-transparent p-0    rounded-none h-auto flex-shrink-0">
+                  <TabsList className="w-full justify-start bg-transparent p-0    rounded-none h-auto shrink-0">
                     <TabsTrigger
                       value="balances"
                       className="py-3  rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent data-[state=active]:text-foreground"
@@ -274,7 +274,7 @@ export function WalletPopup() {
                                 className="w-full flex items-center justify-between py-2 hover:bg-muted/50 rounded-lg px-2 transition-colors cursor-pointer"
                               >
                                 <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
                                     <span className="text-sm font-bold text-primary">
                                       {token.name.slice(0, 1)}
                                     </span>
@@ -316,7 +316,7 @@ export function WalletPopup() {
               </div>
 
               {/* Footer - Fixed */}
-              <div className="p-4 sm:p-5 border-t border-border space-y-2 sm:space-y-3 flex-shrink-0">
+              <div className="p-4 sm:p-5 border-t border-border space-y-2 sm:space-y-3 shrink-0">
                 <Button
                   variant="ghost"
                   className="w-full justify-start gap-3 hover:bg-muted"

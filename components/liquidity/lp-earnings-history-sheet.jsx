@@ -12,7 +12,7 @@ import { useLiquidityPoolsStore } from "@/lib/stores/liquidity-pools-store";
 function CnpyLogo({ size = 32 }) {
   return (
     <div
-      className="rounded-full flex items-center justify-center flex-shrink-0"
+      className="rounded-full flex items-center justify-center shrink-0"
       style={{
         width: size,
         height: size,
@@ -34,7 +34,7 @@ function TokenAvatar({ symbol, color, size = 32 }) {
 
   return (
     <div
-      className="rounded-full flex items-center justify-center flex-shrink-0"
+      className="rounded-full flex items-center justify-center shrink-0"
       style={{
         width: size,
         height: size,

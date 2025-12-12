@@ -288,7 +288,7 @@ export default function ConvertTransactionDialog({
               <div className="flex items-center justify-center gap-3 mb-4">
                 {/* Source Token */}
                 <div
-                  className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 animate-in zoom-in-50 duration-300"
+                  className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 animate-in zoom-in-50 duration-300"
                   style={{ backgroundColor: sourceToken?.color || "#2563eb" }}
                 >
                   <span className="text-lg font-bold text-white">
@@ -304,7 +304,7 @@ export default function ConvertTransactionDialog({
                 </div>
 
                 {/* CNPY Token */}
-                <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0 animate-in zoom-in-50 duration-300 delay-100">
+                <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center shrink-0 animate-in zoom-in-50 duration-300 delay-100">
                   <CnpyLogo className="w-6 h-6 text-white" />
                 </div>
               </div>
@@ -351,7 +351,7 @@ export default function ConvertTransactionDialog({
 
               {/* Done Button */}
               <Button
-                className="w-full h-11 text-base mb-3 bg-gradient-to-b from-green-500 to-green-700 hover:from-green-600 hover:to-green-800"
+                className="w-full h-11 text-base mb-3 bg-linear-to-b from-green-500 to-green-700 hover:from-green-600 hover:to-green-800"
                 size="lg"
                 onClick={onClose}
               >

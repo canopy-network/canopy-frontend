@@ -35,7 +35,7 @@ const MICRO_UNITS = 1_000_000;
 function CnpyLogo({ size = 32 }) {
   return (
     <div
-      className="rounded-full flex items-center justify-center flex-shrink-0"
+      className="rounded-full flex items-center justify-center shrink-0"
       style={{
         width: size,
         height: size,
@@ -57,7 +57,7 @@ function TokenAvatar({ symbol, color, size = 32 }) {
 
   return (
     <div
-      className="rounded-full flex items-center justify-center flex-shrink-0"
+      className="rounded-full flex items-center justify-center shrink-0"
       style={{
         width: size,
         height: size,
@@ -550,7 +550,7 @@ export default function AddLiquidityDialog({
                 </div>
 
                 <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-                  <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                  <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
                   <p className="text-xs text-amber-500">
                     By adding liquidity, you may be exposed to impermanent loss
                     if token prices diverge significantly.

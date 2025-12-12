@@ -9,7 +9,7 @@ import type { UserLiquidityPosition } from "@/types/trading";
 function CnpyLogo({ size = 20 }: { size?: number }) {
   return (
     <div
-      className="rounded-full flex items-center justify-center flex-shrink-0"
+      className="rounded-full flex items-center justify-center shrink-0"
       style={{
         width: size,
         height: size,
@@ -37,7 +37,7 @@ function TokenAvatar({ symbol, color, size = 20 }: TokenAvatarProps) {
 
   return (
     <div
-      className="rounded-full flex items-center justify-center flex-shrink-0"
+      className="rounded-full flex items-center justify-center shrink-0"
       style={{
         width: size,
         height: size,
