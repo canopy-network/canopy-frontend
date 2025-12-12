@@ -1,13 +1,13 @@
 // Force SSR for this page
 export const dynamic = "force-dynamic";
 
-import TradingModule from "@/components/trading/trading-module";
 import { Container } from "@/components/layout/container";
+import { OrderBookDashboard } from "@/components/orderbook/orderbook-dashboard";
 
 export default function OrderBookPage() {
   return (
     <Container>
-      <TradingModule variant="trade" />
+      <OrderBookDashboard />
     </Container>
   );
 }

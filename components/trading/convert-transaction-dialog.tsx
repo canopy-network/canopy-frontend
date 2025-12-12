@@ -126,6 +126,7 @@ function StepIndicator({
   );
 }
 
+type ConversionPair = "USDC-CNPY" | "CNPY-USDC";
 interface ConvertTransactionDialogProps {
   open: boolean;
   onClose: () => void;
@@ -134,6 +135,7 @@ interface ConvertTransactionDialogProps {
   totalCost?: number;
   totalSavings?: number;
   ordersMatched?: number;
+  conversionPair?: ConversionPair;
 }
 
 export default function ConvertTransactionDialog({
@@ -144,6 +146,7 @@ export default function ConvertTransactionDialog({
   totalCost = 0,
   totalSavings = 0,
   ordersMatched = 0,
+  conversionPair,
 }: ConvertTransactionDialogProps) {
   const [isAnimating, setIsAnimating] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);

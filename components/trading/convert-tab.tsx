@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -10,11 +10,16 @@ import {
   ArrowDown,
   Check,
   Zap,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { useWalletStore } from "@/lib/stores/wallet-store";
+import { useAuthStore } from "@/lib/stores/auth-store";
 import BridgeTokenDialog from "@/components/trading/bridge-token-dialog";
 import ConvertTransactionDialog from "@/components/trading/convert-transaction-dialog";
-import orderBookData from "@/data/order-book.json";
+import { orderbookApi } from "@/lib/api";
+import { useChainId } from "wagmi";
+import { USDC_ADDRESSES } from "@/lib/web3/config";
 import type {
   ChainData,
   BridgeToken,
@@ -22,6 +27,27 @@ import type {
   OrderBookOrder,
   OrderSelection,
 } from "@/types/trading";
+import type { OrderBookApiOrder } from "@/types/orderbook";
+
+// Chain IDs for cross-chain swaps:
+// Chain 1: Root chain (CNPY)
+// Chain 3: USDC (oracle)
+const DECIMALS = 1_000_000; // 6 decimals
+
+// USDC Committee ID
+const USDC_COMMITTEE_ID = 3;
+
+// USDC Contract Address on Ethereum Mainnet
+const USDC_CONTRACT_ADDRESS = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
+
+// Fee percentage for instant sells (protocol fee)
+const INSTANT_FEE_PERCENT = 10;
+
+// Direction of conversion
+type ConvertDirection = "buy" | "sell";
+
+// Sell mode: instant (match existing buy orders) or create (create new sell order)
+type SellMode = "instant" | "create";
 
 // CNPY Logo SVG Component
 function CnpyLogo({ className = "w-6 h-6" }: { className?: string }) {
@@ -77,7 +103,6 @@ interface ChainBadgeProps {
 function ChainBadge({ chain, size = "sm" }: ChainBadgeProps) {
   const chainConfig: Record<string, { color: string; label: string }> = {
     ethereum: { color: "#627EEA", label: "ETH" },
-    solana: { color: "#9945FF", label: "SOL" },
   };
   const config = chainConfig[chain] || chainConfig.ethereum;
   const sizeClass =
@@ -212,20 +237,52 @@ interface ConvertTabProps {
 interface ButtonState {
   disabled: boolean;
   text: string;
-  variant: "connect" | "disabled" | "error" | "convert";
+  variant: "connect" | "disabled" | "error" | "convert" | "sell";
 }
 
+type ConversionPair = "USDC-CNPY" | "CNPY-USDC";
+
 export default function ConvertTab({
-  chainData,
   isPreview = false,
-  onSelectToken,
   onOpenWalletDialog,
   onAmountChange,
   onSourceTokenChange,
-  orderBookSelection,
 }: ConvertTabProps) {
-  const { wallets } = useWalletStore();
+  const { wallets, currentWallet, createOrder, balance } = useWalletStore();
+  const { user } = useAuthStore();
   const isConnected = wallets.length > 0;
+  const ethAddress = user?.wallet_address; // Ethereum address from SIWE sign-in
+
+  const [conversionPair, setConversionPair] = useState<ConversionPair | null>(
+    null
+  );
+
+  // Get chain ID for USDC contract address lookup
+  const chainId = useChainId();
+  const usdcAddress = chainId ? USDC_ADDRESSES[chainId] : undefined;
+
+  // Get actual CNPY balance from wallet store
+  // CNPY is on chain 1, look for token with chainId === 1 or symbol "C001"
+  // Use liquid/available balance (not total, which includes staked/delegated)
+  const cnpyBalance = useMemo(() => {
+    if (!balance?.tokens) return 0;
+    // Find CNPY token (chain 1) - it could be "C001" or have chainId === 1
+    const cnpyToken = balance.tokens.find(
+      (token) => token.chainId === 1 || token.symbol === "C001"
+    );
+    if (!cnpyToken) return 0;
+    // Use liquid/available balance if available, otherwise fall back to total balance
+    const liquidBalance = cnpyToken.distribution?.liquid;
+    const balanceStr = liquidBalance || cnpyToken.balance;
+    // Parse balance string to number (balance is already in standard units, not micro)
+    const balanceNum = parseFloat(balanceStr);
+    return isNaN(balanceNum) ? 0 : balanceNum;
+  }, [balance]);
+
+  // Direction state: "buy" = USDC→CNPY, "sell" = CNPY→USDC
+  const [direction, setDirection] = useState<ConvertDirection>("buy");
+  const [sellMode, setSellMode] = useState<SellMode>("instant");
+  const [sellPrice, setSellPrice] = useState(""); // Custom price for "create" mode
 
   const [showBridgeDialog, setShowBridgeDialog] = useState(false);
   const [sourceToken, setSourceToken] = useState<BridgeToken | null>(null);
@@ -237,18 +294,103 @@ export default function ConvertTab({
   const [isShaking, setIsShaking] = useState(false);
   const [showTransactionDialog, setShowTransactionDialog] = useState(false);
 
+  // Order submission state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
+
+  // Real orderbook data
+  const [realOrders, setRealOrders] = useState<OrderBookApiOrder[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+
   const [connectedWallets, setConnectedWallets] = useState<ConnectedWallets>({
     ethereum: {
-      connected: true,
-      address: "0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199",
+      connected: !!ethAddress,
+      address: ethAddress || null,
       balances: { USDC: 1500.5, USDT: 850.25 },
     },
-    solana: {
-      connected: false,
-      address: null,
-      balances: { USDC: 0, USDT: 0 },
-    },
   });
+
+  // Calculate USDC receive amount for sell mode
+  const sellCalculation = useMemo(() => {
+    const cnpyAmount = parseFloat(amount) || 0;
+    if (cnpyAmount <= 0)
+      return { usdcReceive: 0, fee: 0, pricePerCnpy: 0, gross: 0 };
+
+    if (sellMode === "instant") {
+      // Instant mode: fixed price with fee
+      const pricePerCnpy = 2.0; // Mock price - in real app would come from market
+      const gross = cnpyAmount * pricePerCnpy;
+      const fee = (gross * INSTANT_FEE_PERCENT) / 100;
+      const usdcReceive = gross - fee;
+      return { usdcReceive, fee, pricePerCnpy, gross };
+    } else {
+      // Create order mode: user sets the price
+      const pricePerCnpy = parseFloat(sellPrice) || 0;
+      const usdcReceive = cnpyAmount * pricePerCnpy;
+      return { usdcReceive, fee: 0, pricePerCnpy, gross: usdcReceive };
+    }
+  }, [amount, sellMode, sellPrice]);
+
+  // Fetch real orders from the orderbook API (USDC only)
+  const fetchOrders = useCallback(async () => {
+    setIsLoadingOrders(true);
+    try {
+      // Fetch orders for USDC committee
+      const response = await orderbookApi.getOrderBook({
+        chainId: USDC_COMMITTEE_ID,
+      });
+      const orderBooks = response.data || [];
+      const allOrders = orderBooks.flatMap((book) => book.orders || []);
+      // Sort by price ascending (best price first for buyers)
+      allOrders.sort((a, b) => {
+        const priceA = a.requestedAmount / a.amountForSale;
+        const priceB = b.requestedAmount / b.amountForSale;
+        return priceA - priceB;
+      });
+      setRealOrders(allOrders);
+    } catch (err) {
+      console.error("Failed to fetch orderbook:", err);
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
+  // Fetch balance when wallet is available
+  useEffect(() => {
+    if (currentWallet) {
+      const { fetchBalance } = useWalletStore.getState();
+      fetchBalance(currentWallet.id);
+    }
+  }, [currentWallet]);
+
+  // Update connected wallets when ethAddress changes
+  useEffect(() => {
+    if (ethAddress) {
+      setConnectedWallets((prev) => ({
+        ...prev,
+        ethereum: {
+          ...prev.ethereum,
+          connected: true,
+          address: ethAddress,
+        },
+      }));
+    }
+  }, [ethAddress]);
+
+  useEffect(() => {
+    if (sourceToken) {
+      if (direction === "buy") {
+        setConversionPair(`${sourceToken.symbol}-CNPY` as ConversionPair);
+      } else {
+        setConversionPair(`CNPY-${sourceToken.symbol}` as ConversionPair);
+      }
+    }
+  }, [sourceToken, direction]);
 
   const handleConnectWallet = async (chainId: string) => {
     await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -256,10 +398,7 @@ export default function ConvertTab({
       ...prev,
       [chainId]: {
         connected: true,
-        address:
-          chainId === "solana"
-            ? "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU"
-            : "0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199",
+        address: "0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199",
         balances: { USDC: 2100.0, USDT: 500.75 },
       },
     }));
@@ -268,19 +407,40 @@ export default function ConvertTab({
   const handleTokenSelected = (token: BridgeToken) => {
     setSourceToken(token);
     setAmount("");
+    setSubmitError(null);
+    setSubmitSuccess(null);
     onSourceTokenChange?.(token);
     onAmountChange?.(0);
   };
 
-  // Calculate order selection locally
+  // Handle swapping direction (buy <-> sell)
+  const handleSwapDirection = () => {
+    setDirection((prev) => (prev === "buy" ? "sell" : "buy"));
+    setAmount("");
+    setSubmitError(null);
+    setSubmitSuccess(null);
+    setSellPrice("");
+  };
+
+  // Transform real API orders to the OrderBookOrder format for display
   const availableOrders = useMemo(() => {
-    const sellOrders = (orderBookData as { sellOrders: OrderBookOrder[] })
-      .sellOrders;
-    if (!sourceToken) return sellOrders;
-    return sellOrders.filter(
-      (order) => order.token === sourceToken.symbol || !sourceToken.symbol
-    );
-  }, [sourceToken]);
+    return realOrders.map((order) => {
+      const cnpyAmount = order.amountForSale / DECIMALS;
+      const usdcAmount = order.requestedAmount / DECIMALS;
+      const price = usdcAmount / cnpyAmount;
+      // Calculate discount compared to $1 per CNPY
+      const discount = Math.max(0, (1 - price) * 100);
+      return {
+        id: order.id,
+        amount: cnpyAmount,
+        price,
+        token: "USDC", // These are USDC orders from committee 3
+        discount: Math.round(discount * 10) / 10,
+        // Keep reference to original order
+        _original: order,
+      } as OrderBookOrder & { _original: OrderBookApiOrder };
+    });
+  }, [realOrders]);
 
   const selection = useMemo(
     () =>
@@ -307,7 +467,9 @@ export default function ConvertTab({
   }, [amount, onAmountChange]);
 
   const handleUseMax = () => {
-    if (sourceToken) {
+    if (direction === "sell") {
+      setAmount(cnpyBalance.toString());
+    } else if (sourceToken) {
       setAmount(sourceToken.balance.toString());
     }
   };
@@ -315,6 +477,49 @@ export default function ConvertTab({
   const getButtonState = (): ButtonState => {
     if (!isConnected)
       return { disabled: false, text: "Connect Wallet", variant: "connect" };
+    if (!currentWallet)
+      return {
+        disabled: true,
+        text: "Connect Canopy Wallet",
+        variant: "disabled",
+      };
+    if (!currentWallet.isUnlocked)
+      return {
+        disabled: true,
+        text: "Unlock Canopy Wallet",
+        variant: "disabled",
+      };
+    if (!ethAddress)
+      return {
+        disabled: true,
+        text: "Sign in with Ethereum",
+        variant: "disabled",
+      };
+
+    // Sell mode validations
+    if (direction === "sell") {
+      if (!amount || parseFloat(amount) <= 0)
+        return { disabled: true, text: "Enter amount", variant: "disabled" };
+      if (parseFloat(amount) > cnpyBalance)
+        return {
+          disabled: true,
+          text: "Insufficient CNPY balance",
+          variant: "error",
+        };
+      if (sellMode === "create" && (!sellPrice || parseFloat(sellPrice) <= 0))
+        return { disabled: true, text: "Enter price", variant: "disabled" };
+      if (isSubmitting)
+        return { disabled: true, text: "Processing...", variant: "disabled" };
+
+      const cnpyAmount = parseFloat(amount) || 0;
+      return {
+        disabled: false,
+        text: `Sell ${cnpyAmount.toLocaleString()} CNPY`,
+        variant: "sell",
+      };
+    }
+
+    // Buy mode validations (existing logic)
     if (!sourceToken)
       return { disabled: true, text: "Select token", variant: "disabled" };
     if (!amount || parseFloat(amount) <= 0)
@@ -327,6 +532,8 @@ export default function ConvertTab({
         text: "No orders available",
         variant: "disabled",
       };
+    if (isSubmitting)
+      return { disabled: true, text: "Processing...", variant: "disabled" };
     return {
       disabled: false,
       text: `Convert $${selection.totalCost.toFixed(2)}`,
@@ -334,7 +541,419 @@ export default function ConvertTab({
     };
   };
 
+  // Handle the actual order creation
+  // Buy: USDC → CNPY (filling existing sell orders)
+  // Sell: CNPY → USDC (creating a sell order)
+  const handleConvert = async () => {
+    setSubmitError(null);
+    setSubmitSuccess(null);
+
+    // Validation
+    if (!currentWallet) {
+      setSubmitError("Please connect a Canopy wallet first");
+      return;
+    }
+
+    if (!currentWallet.isUnlocked) {
+      setSubmitError("Please unlock your Canopy wallet first");
+      return;
+    }
+
+    if (!ethAddress) {
+      setSubmitError("Please sign in with Ethereum (SIWE)");
+      return;
+    }
+
+    if (!usdcAddress) {
+      setSubmitError("USDC not supported on this network");
+      return;
+    }
+
+    if (!amount || parseFloat(amount) <= 0) {
+      setSubmitError("Please enter an amount");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      let DATA_ADDRESS;
+
+      if (conversionPair === "CNPY-USDC") {
+        DATA_ADDRESS = USDC_CONTRACT_ADDRESS;
+      } else if (conversionPair === "USDC-CNPY") {
+        DATA_ADDRESS = ethAddress;
+      }
+
+      if (!DATA_ADDRESS) {
+        setSubmitError("Unable to determine data address for conversion");
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (direction === "sell") {
+        // SELL CNPY for USDC
+        // Creates a sell order in the orderbook
+        const cnpyAmount = parseFloat(amount);
+
+        if (cnpyAmount > cnpyBalance) {
+          setSubmitError("Insufficient CNPY balance");
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Determine USDC amount based on mode
+        let usdcAmount: number;
+        if (sellMode === "instant") {
+          // Instant: use market price with fee already calculated
+          usdcAmount = sellCalculation.usdcReceive;
+        } else {
+          // Create order: user-specified price
+          const price = parseFloat(sellPrice);
+          if (!price || price <= 0) {
+            setSubmitError("Please enter a valid price");
+            setIsSubmitting(false);
+            return;
+          }
+          usdcAmount = cnpyAmount * price;
+        }
+
+        // Convert to micro units
+        const amountForSale = Math.round(cnpyAmount * DECIMALS);
+        const requestedAmount = Math.round(usdcAmount * DECIMALS);
+
+        // Create sell order:
+        // - amountForSale: CNPY being sold (from Canopy wallet)
+        // - requestedAmount: USDC to receive (to Ethereum wallet)
+        // - sellerReceiveAddress: Ethereum address (receives USDC)
+        // - sellersSendAddress: Canopy address (sends CNPY)
+        // - data: USDC contract address
+
+        const txHash = await createOrder(
+          USDC_COMMITTEE_ID, // Committee ID 3 for USDC
+          amountForSale, // CNPY amount in micro units
+          requestedAmount, // USDC amount in micro units
+          ethAddress, // sellerReceiveAddress: Ethereum address to receive USDC
+          DATA_ADDRESS // data: USDC contract address
+        );
+
+        setSubmitSuccess(
+          `Sell order created! TX: ${txHash.slice(
+            0,
+            16
+          )}... | Selling ${cnpyAmount.toLocaleString()} CNPY for $${usdcAmount.toFixed(
+            2
+          )} USDC`
+        );
+      } else {
+        // BUY CNPY with USDC
+        if (!sourceToken) {
+          setSubmitError("Please select a token");
+          setIsSubmitting(false);
+          return;
+        }
+
+        if (selection.selectedOrders.length === 0) {
+          setSubmitError("No orders available to fill");
+          setIsSubmitting(false);
+          return;
+        }
+
+        const totalCnpyToReceive = Math.round(
+          selection.cnpyReceived * DECIMALS
+        );
+        const totalUsdcToSpend = Math.round(selection.totalCost * DECIMALS);
+
+        // Buy CNPY with USDC
+        const txHash = await createOrder(
+          USDC_COMMITTEE_ID, // Committee ID 3 for USDC
+          totalCnpyToReceive, // CNPY amount to receive
+          totalUsdcToSpend, // USDC amount to pay
+          currentWallet.address, // Canopy address to receive CNPY
+          DATA_ADDRESS // data: USDC contract address
+        );
+
+        setSubmitSuccess(
+          `Order created! TX: ${txHash.slice(
+            0,
+            16
+          )}... | Buying ${selection.cnpyReceived.toLocaleString()} CNPY with USDC`
+        );
+      }
+
+      // Reset form
+      setAmount("");
+      setSellPrice("");
+
+      // Refresh orders after delay
+      setTimeout(() => {
+        fetchOrders();
+      }, 2000);
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error ? err.message : "Failed to create order"
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const buttonState = getButtonState();
+
+  // Render SELL mode UI
+  if (direction === "sell") {
+    return (
+      <>
+        {/* Input Token Card - CNPY */}
+        <div className="px-4">
+          <Card className="bg-muted/30 p-4 space-y-3">
+            {/* CNPY Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                  <CnpyLogo className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <p className="text-base font-semibold">CNPY</p>
+                  <p className="text-sm text-muted-foreground">
+                    {cnpyBalance.toLocaleString()} CNPY
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={handleUseMax}
+              >
+                Use max
+              </Button>
+            </div>
+
+            {/* Amount Input - Centered */}
+            <div className="flex items-center justify-center">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={amount}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                    setAmount(value);
+                    if (
+                      parseFloat(value) > cnpyBalance &&
+                      parseFloat(amount) <= cnpyBalance
+                    ) {
+                      setIsShaking(true);
+                      setTimeout(() => setIsShaking(false), 400);
+                    }
+                  }
+                }}
+                placeholder="0"
+                className={`text-4xl font-bold bg-transparent border-0 outline-none p-0 h-auto text-center w-full placeholder:text-muted-foreground ${
+                  isShaking ? "animate-shake" : ""
+                }`}
+              />
+            </div>
+
+            {/* Price Info */}
+            {amount && parseFloat(amount) > 0 && (
+              <div className="text-center text-sm text-muted-foreground">
+                $
+                {(parseFloat(amount) * sellCalculation.pricePerCnpy).toFixed(2)}{" "}
+                • ${sellCalculation.pricePerCnpy.toFixed(2)}/CNPY
+              </div>
+            )}
+          </Card>
+        </div>
+
+        {/* Arrow Divider - Clickable to swap direction */}
+        <div className="relative flex justify-center">
+          <Button
+            variant="outline"
+            size="icon"
+            className="rounded-full h-8 w-8 bg-background border-2 hover:bg-muted cursor-pointer"
+            onClick={handleSwapDirection}
+          >
+            <ArrowDown className="w-4 h-4" />
+          </Button>
+        </div>
+
+        {/* Output Token Card - USDC */}
+        <div className="px-4">
+          <Card className="bg-muted/30 p-4 space-y-4">
+            {/* USDC Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="w-9 h-9 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
+                    $
+                  </div>
+                  <ChainBadge chain="ethereum" />
+                </div>
+                <div className="text-left">
+                  <div className="flex items-center gap-2">
+                    <p className="text-base font-semibold">USDC</p>
+                    <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">
+                      Ethereum
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {connectedWallets.ethereum.balances.USDC.toLocaleString()}{" "}
+                    USDC
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-base font-semibold">
+                  ${sellCalculation.usdcReceive.toFixed(2)}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  @${sellCalculation.pricePerCnpy.toFixed(3)}/CNPY
+                </p>
+              </div>
+            </div>
+
+            {/* Sell Mode Toggle: Instant vs Create Order */}
+            <div className="flex gap-2 p-1 bg-muted/50 rounded-lg">
+              <button
+                onClick={() => setSellMode("instant")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-all ${
+                  sellMode === "instant"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Zap className="w-4 h-4" />
+                Instant
+              </button>
+              <button
+                onClick={() => setSellMode("create")}
+                className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all ${
+                  sellMode === "create"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Create Order
+              </button>
+            </div>
+
+            {/* Mode-specific content */}
+            {sellMode === "instant" ? (
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <div className="text-red-400">
+                  -${sellCalculation.fee.toFixed(2)}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="text-green-500 text-sm">
+                  +$
+                  {(
+                    (parseFloat(amount) || 0) * (parseFloat(sellPrice) || 0) -
+                    sellCalculation.gross
+                  ).toFixed(2)}
+                </div>
+              </div>
+            )}
+
+            {/* You receive section */}
+            <div className="border-t border-border pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">You receive</p>
+                  <p className="text-xl font-bold">
+                    ${sellCalculation.usdcReceive.toFixed(2)} USDC
+                  </p>
+                  {sellMode === "instant" && (
+                    <p className="text-sm text-muted-foreground">
+                      Fee: {INSTANT_FEE_PERCENT}% ($
+                      {sellCalculation.fee.toFixed(2)})
+                    </p>
+                  )}
+                </div>
+                <ChevronDown className="w-5 h-5 text-muted-foreground" />
+              </div>
+            </div>
+
+            {/* Custom price input for "Create Order" mode */}
+            {sellMode === "create" && (
+              <div className="space-y-2 border-t border-border pt-4">
+                <label className="text-sm text-muted-foreground">
+                  Your price per CNPY (USDC)
+                </label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={sellPrice}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                      setSellPrice(value);
+                    }
+                  }}
+                  placeholder="2.00"
+                  className="w-full text-lg font-medium bg-muted/30 border border-border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-green-500/50"
+                />
+              </div>
+            )}
+          </Card>
+        </div>
+
+        {/* Action Button */}
+        <div className="px-4 pt-4 pb-3">
+          {/* Error/Success Messages */}
+          {submitError && (
+            <div className="flex items-center gap-2 p-3 mb-3 bg-red-500/10 text-red-500 rounded-md text-sm">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              {submitError}
+            </div>
+          )}
+          {submitSuccess && (
+            <div className="p-3 mb-3 bg-green-500/10 text-green-500 rounded-md text-sm">
+              {submitSuccess}
+            </div>
+          )}
+
+          <Button
+            className="w-full h-11 bg-gradient-to-b from-green-500 to-green-700 hover:from-green-600 hover:to-green-800 text-white"
+            size="lg"
+            disabled={buttonState.disabled || isPreview}
+            onClick={handleConvert}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Processing...
+              </>
+            ) : isPreview ? (
+              "Preview Mode"
+            ) : (
+              buttonState.text
+            )}
+          </Button>
+        </div>
+
+        {/* Exchange Rate Info */}
+        {amount && parseFloat(amount) > 0 && (
+          <div className="px-4 pb-4">
+            <div className="flex items-center justify-center text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Zap className="w-3.5 h-3.5" />
+                <span>
+                  {parseFloat(amount).toLocaleString()} CNPY → $
+                  {sellCalculation.usdcReceive.toFixed(2)} USDC
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  // Render BUY mode UI (existing)
 
   return (
     <>
@@ -457,7 +1076,7 @@ export default function ConvertTab({
                 <div>
                   <p className="text-base font-semibold">Select token</p>
                   <p className="text-sm text-muted-foreground">
-                    Choose USDC or USDT to convert
+                    Choose USDC to convert
                   </p>
                 </div>
               </div>
@@ -467,13 +1086,13 @@ export default function ConvertTab({
         )}
       </div>
 
-      {/* Arrow Divider */}
+      {/* Arrow Divider - Clickable to swap direction */}
       <div className="relative flex justify-center">
         <Button
           variant="outline"
           size="icon"
-          className="rounded-full h-8 w-8 bg-background border-2"
-          disabled
+          className="rounded-full h-8 w-8 bg-background border-2 hover:bg-muted cursor-pointer"
+          onClick={handleSwapDirection}
         >
           <ArrowDown className="w-4 h-4" />
         </Button>
@@ -562,26 +1181,39 @@ export default function ConvertTab({
               {/* Order List */}
               {showOrders && (
                 <div className="space-y-1.5 max-h-[160px] overflow-y-auto">
-                  {displayOrders.slice(0, 6).map((order, index) => {
-                    const selectedOrder = selection.selectedOrders.find(
-                      (o) => o.id === order.id
-                    );
-                    const isSelected = selectedOrderIds.has(order.id);
-                    // Calculate what % of the total budget this order's cost represents
-                    const orderCost = order.amount * order.price;
-                    const budgetAmount = parseFloat(amount) || 0;
-                    const percentOfBudget =
-                      budgetAmount > 0 ? (orderCost / budgetAmount) * 100 : 0;
-                    return (
-                      <OrderRow
-                        key={order.id}
-                        order={selectedOrder || order}
-                        isSelected={isSelected}
-                        index={index}
-                        percentOfBudget={percentOfBudget}
-                      />
-                    );
-                  })}
+                  {isLoadingOrders ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                      <span className="ml-2 text-sm text-muted-foreground">
+                        Loading orders...
+                      </span>
+                    </div>
+                  ) : displayOrders.length === 0 ? (
+                    <p className="text-center text-xs text-muted-foreground py-3">
+                      No sell orders available
+                    </p>
+                  ) : (
+                    displayOrders.slice(0, 6).map((order, index) => {
+                      const selectedOrder = selection.selectedOrders.find(
+                        (o) => o.id === order.id
+                      );
+                      const isSelected = selectedOrderIds.has(order.id);
+                      // Calculate what % of the total budget this order's cost represents
+                      const orderCost = order.amount * order.price;
+                      const budgetAmount = parseFloat(amount) || 0;
+                      const percentOfBudget =
+                        budgetAmount > 0 ? (orderCost / budgetAmount) * 100 : 0;
+                      return (
+                        <OrderRow
+                          key={order.id}
+                          order={selectedOrder || order}
+                          isSelected={isSelected}
+                          index={index}
+                          percentOfBudget={percentOfBudget}
+                        />
+                      );
+                    })
+                  )}
                 </div>
               )}
 
@@ -598,6 +1230,19 @@ export default function ConvertTab({
 
       {/* Action Button */}
       <div className="px-4 pt-4 pb-3">
+        {/* Error/Success Messages */}
+        {submitError && (
+          <div className="flex items-center gap-2 p-3 mb-3 bg-red-500/10 text-red-500 rounded-md text-sm">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            {submitError}
+          </div>
+        )}
+        {submitSuccess && (
+          <div className="p-3 mb-3 bg-green-500/10 text-green-500 rounded-md text-sm">
+            {submitSuccess}
+          </div>
+        )}
+
         <Button
           className={`w-full h-11 ${
             buttonState.variant === "convert"
@@ -614,11 +1259,20 @@ export default function ConvertTab({
             if (buttonState.variant === "connect" && onOpenWalletDialog) {
               onOpenWalletDialog();
             } else if (buttonState.variant === "convert") {
-              setShowTransactionDialog(true);
+              handleConvert();
             }
           }}
         >
-          {isPreview ? "Preview Mode" : buttonState.text}
+          {isSubmitting ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Processing...
+            </>
+          ) : isPreview ? (
+            "Preview Mode"
+          ) : (
+            buttonState.text
+          )}
         </Button>
       </div>
 
@@ -660,6 +1314,7 @@ export default function ConvertTab({
           totalCost={selection.totalCost}
           totalSavings={selection.totalSavings}
           ordersMatched={selection.selectedOrders.length}
+          conversionPair={conversionPair as ConversionPair}
         />
       )}
     </>

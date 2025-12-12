@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Check, Wallet, ChevronRight } from "lucide-react";
+import { Wallet, ChevronRight } from "lucide-react";
 import type { BridgeToken, ConnectedWallets } from "@/types/trading";
 
 // Chain configuration
@@ -20,12 +20,6 @@ const chains = [
     color: "#627EEA",
     icon: "E",
   },
-  {
-    id: "solana",
-    name: "Solana",
-    color: "#9945FF",
-    icon: "S",
-  },
 ];
 
 // Supported stablecoins
@@ -35,12 +29,6 @@ const stablecoins = [
     name: "USD Coin",
     color: "#2775CA",
     icon: "$",
-  },
-  {
-    symbol: "USDT",
-    name: "Tether",
-    color: "#26A17B",
-    icon: "T",
   },
 ];
 
@@ -65,14 +53,6 @@ const mockWalletState: ConnectedWallets = {
     balances: {
       USDC: 1500.5,
       USDT: 850.25,
-    },
-  },
-  solana: {
-    connected: false,
-    address: null,
-    balances: {
-      USDC: 0,
-      USDT: 0,
     },
   },
 };
@@ -101,7 +81,9 @@ export default function BridgeTokenDialog({
   };
 
   const handleSelectToken = (chainId: string, tokenSymbol: string) => {
-    const wallet = connectedWallets[chainId];
+    // Only ethereum is supported
+    if (chainId !== "ethereum") return;
+    const wallet = connectedWallets.ethereum;
     if (!wallet?.connected) return;
 
     const token = stablecoins.find((s) => s.symbol === tokenSymbol);
@@ -135,7 +117,9 @@ export default function BridgeTokenDialog({
 
         <div className="px-6 pb-6 space-y-4">
           {chains.map((chain) => {
-            const wallet = connectedWallets[chain.id];
+            // Only ethereum is supported
+            const wallet =
+              chain.id === "ethereum" ? connectedWallets?.ethereum : undefined;
             const isConnected = wallet?.connected;
             const isConnecting = connectingChain === chain.id;
 
@@ -248,8 +232,7 @@ export default function BridgeTokenDialog({
           {/* Info Note */}
           <div className="pt-2 border-t">
             <p className="text-xs text-muted-foreground text-center">
-              Bridge USDC or USDT from Ethereum or Solana to receive CNPY on
-              Canopy Network
+              Bridge USDC from Ethereum to receive CNPY on Canopy Network
             </p>
           </div>
         </div>

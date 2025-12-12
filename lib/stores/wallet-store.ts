@@ -1123,18 +1123,19 @@ export const useWalletStore = create<WalletState>()(
           // Prepare addresses:
           // - sellerReceiveAddress: Ethereum address where seller receives USDC (no 0x prefix)
           // - sellersSendAddress: Canopy address where seller's CNPY is escrowed from
-          // - data: USDC contract address (no 0x prefix) - committee uses this to watch for payments
+          // - data: Contract address or Ethereum address (no 0x prefix) - committee uses this to watch for payments
           const ethAddressNoPrefix = sellerEthAddress.startsWith("0x")
             ? sellerEthAddress.slice(2)
             : sellerEthAddress;
-          const usdcAddressNoPrefix = usdcContractAddress.startsWith("0x")
+          // Strip 0x prefix from data field (hexToBytes expects hex without prefix)
+          const dataAddressNoPrefix = usdcContractAddress.startsWith("0x")
             ? usdcContractAddress.slice(2)
             : usdcContractAddress;
 
           // Create order message
           const msg = createOrderMessage(
             committeeId, // Committee ID in message
-            usdcAddressNoPrefix, // data field - USDC contract address
+            dataAddressNoPrefix, // data field - Contract/Ethereum address without 0x prefix
             amountForSale,
             requestedAmount,
             ethAddressNoPrefix, // sellerReceiveAddress - Ethereum address
