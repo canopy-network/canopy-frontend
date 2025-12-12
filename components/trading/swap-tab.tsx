@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Plus, ChevronRight, ArrowDown, Zap, Settings } from "lucide-react";
 import { useWalletStore } from "@/lib/stores/wallet-store";
+import { fromMicroUnits, formatTokenAmount } from "@/lib/utils/denomination";
+import toast from "react-hot-toast";
 import SlippageSettings from "./slippage-settings";
 import type { Token, InputMode, ConfirmationData } from "@/types/trading";
 
@@ -30,16 +32,64 @@ export default function SwapTab({
   onSwapTokens,
   onShowConfirmation,
 }: SwapTabProps) {
-  const { wallets, currentWallet } = useWalletStore();
+  const { wallets, currentWallet, balance, fetchBalance } = useWalletStore();
   const isConnected = wallets.length > 0;
 
-  console.log("currentWallet", currentWallet);
+  // Fetch balance when wallet changes
+  useEffect(() => {
+    if (currentWallet) {
+      fetchBalance(currentWallet.id);
+    }
+  }, [currentWallet, fetchBalance]);
+
   const isWalletUnlocked =
     currentWallet?.isUnlocked && currentWallet?.privateKey;
   const [amount, setAmount] = useState("");
   const [slippage, setSlippage] = useState(1.0); // Default 1% slippage
   const [showSlippageSettings, setShowSlippageSettings] = useState(false);
   const [inputMode, setInputMode] = useState<InputMode>("token"); // 'token' or 'usd'
+
+  // Get wallet balance for fromToken
+  const fromTokenBalance = useMemo(() => {
+    if (!fromToken || !balance) return 0;
+
+    // For CNPY, check total balance or look for CNPY/C001 token
+    if (fromToken.symbol === "CNPY") {
+      const cnpyToken = balance.tokens?.find((t) => t.chainId === 1);
+      if (cnpyToken) {
+        const availableBalance =
+          cnpyToken.distribution?.liquid || cnpyToken.balance;
+        const balanceNum = parseFloat(availableBalance) || 0;
+        // If balance is > 1 million, it's likely in micro units
+        if (balanceNum > 1_000_000) {
+          return parseFloat(fromMicroUnits(availableBalance));
+        }
+        return balanceNum;
+      }
+      const totalBalance = parseFloat(balance.total) || 0;
+      if (totalBalance > 1_000_000) {
+        return parseFloat(fromMicroUnits(balance.total));
+      }
+      return totalBalance;
+    }
+
+    // For other tokens, look in tokens array
+    const tokenBalance = balance.tokens?.find(
+      (t) => t.symbol === fromToken.symbol
+    );
+    if (tokenBalance) {
+      const availableBalance =
+        tokenBalance.distribution?.liquid || tokenBalance.balance;
+      const balanceNum = parseFloat(availableBalance) || 0;
+      // If balance is > 1 million, it's likely in micro units
+      if (balanceNum > 1_000_000) {
+        return parseFloat(fromMicroUnits(availableBalance));
+      }
+      return balanceNum;
+    }
+
+    return 0;
+  }, [fromToken, balance]);
 
   // Calculate the token amount and USD value based on input mode
   const getInputValues = (): InputValues => {
@@ -54,17 +104,31 @@ export default function SwapTab({
       // User is inputting token amount, calculate USD
       const usdValue = inputAmount * fromPrice;
       return {
-        tokenAmount: amount,
-        usdAmount: `$${usdValue.toFixed(2)}`,
+        tokenAmount: parseFloat(
+          formatTokenAmount(inputAmount.toFixed(6))
+        ).toLocaleString(undefined, {
+          maximumFractionDigits: 6,
+          minimumFractionDigits: 0,
+        }),
+        usdAmount: `$${usdValue.toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`,
       };
     } else {
       // User is inputting USD amount, calculate tokens
       const tokenValue = fromPrice > 0 ? inputAmount / fromPrice : 0;
       return {
-        tokenAmount: tokenValue.toLocaleString("en-US", {
+        tokenAmount: parseFloat(
+          formatTokenAmount(tokenValue.toFixed(6))
+        ).toLocaleString(undefined, {
           maximumFractionDigits: 6,
+          minimumFractionDigits: 0,
         }),
-        usdAmount: `$${inputAmount.toFixed(2)}`,
+        usdAmount: `$${inputAmount.toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`,
       };
     }
   };
@@ -100,11 +164,20 @@ export default function SwapTab({
     const usdValue = tokenAmount * fromPrice;
     const tokensReceived = usdValue / toPrice;
 
+    // Format with commas
+    const formattedTokens = parseFloat(
+      formatTokenAmount(tokensReceived.toFixed(6))
+    ).toLocaleString(undefined, {
+      maximumFractionDigits: 6,
+      minimumFractionDigits: 0,
+    });
+
     return {
-      tokens: tokensReceived.toLocaleString("en-US", {
-        maximumFractionDigits: 6,
-      }),
-      usd: `$${usdValue.toFixed(2)}`,
+      tokens: formattedTokens,
+      usd: `$${usdValue.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`,
     };
   };
 
@@ -135,8 +208,62 @@ export default function SwapTab({
   };
 
   const handleUseMax = () => {
-    // TODO: Set to max balance
-    setAmount("100");
+    if (fromTokenBalance > 0) {
+      setInputMode("token");
+      setAmount(fromTokenBalance.toString());
+    } else {
+      toast.error(`No ${fromToken?.symbol || "token"} balance available.`);
+    }
+  };
+
+  const handleAmountChange = (value: string) => {
+    // Remove commas for parsing
+    const cleanValue = value.replace(/,/g, "");
+    // Only allow numbers and decimal point
+    if (cleanValue === "" || /^\d*\.?\d*$/.test(cleanValue)) {
+      const numValue = parseFloat(cleanValue) || 0;
+      // Validate against available balance
+      if (inputMode === "token" && numValue > fromTokenBalance) {
+        toast.error(
+          `Insufficient ${
+            fromToken?.symbol || "token"
+          } balance. You have ${parseFloat(
+            formatTokenAmount(fromTokenBalance.toFixed(6))
+          ).toLocaleString(undefined, {
+            maximumFractionDigits: 6,
+            minimumFractionDigits: 0,
+          })} available.`
+        );
+        return;
+      }
+      setAmount(cleanValue);
+    }
+  };
+
+  // Format the amount for display in the input
+  const getFormattedAmount = (): string => {
+    if (!amount || amount === "") return "";
+    const numValue = parseFloat(amount);
+    if (isNaN(numValue)) return amount;
+
+    // Format with commas
+    if (inputMode === "token") {
+      return parseFloat(formatTokenAmount(numValue.toFixed(6))).toLocaleString(
+        undefined,
+        {
+          maximumFractionDigits: 6,
+          minimumFractionDigits: 0,
+          useGrouping: true,
+        }
+      );
+    } else {
+      // For USD mode, format as currency
+      return numValue.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+        useGrouping: true,
+      });
+    }
   };
 
   const handleSwapDirection = () => {
@@ -147,14 +274,30 @@ export default function SwapTab({
   };
 
   const handleContinue = () => {
-    if (isConnected && fromToken && toToken && amount && onShowConfirmation) {
+    if (!isConnected || !fromToken || !toToken || !amount) return;
+
+    // Validate balance
+    const tokenAmount = getTokenAmountForConversion();
+    if (tokenAmount > fromTokenBalance) {
+      toast.error(
+        `Insufficient ${fromToken.symbol} balance. You have ${parseFloat(
+          formatTokenAmount(fromTokenBalance.toFixed(6))
+        ).toLocaleString(undefined, {
+          maximumFractionDigits: 6,
+          minimumFractionDigits: 0,
+        })} available.`
+      );
+      return;
+    }
+
+    if (onShowConfirmation) {
       // Always pass the token amount, not USD
-      const tokenAmount =
+      const tokenAmountStr =
         inputMode === "token" ? amount : inputValues.tokenAmount;
       onShowConfirmation({
         fromToken,
         toToken,
-        fromAmount: tokenAmount,
+        fromAmount: tokenAmountStr,
         toAmount: conversion.tokens,
       });
     }
@@ -165,7 +308,11 @@ export default function SwapTab({
       {/* Input Token Card */}
       <div className="px-4">
         {fromToken ? (
-          <Card className="bg-muted/30 p-4 space-y-3">
+          <Card
+            className={`bg-muted/30 p-4 space-y-3 ${
+              fromTokenBalance === 0 ? "opacity-80" : ""
+            }`}
+          >
             {/* Token Header */}
             <div className="flex items-center justify-between">
               <button
@@ -197,7 +344,14 @@ export default function SwapTab({
                     <ChevronRight className="w-4 h-4 text-muted-foreground" />
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    0 {fromToken.symbol}
+                    Balance:{" "}
+                    {parseFloat(
+                      formatTokenAmount(fromTokenBalance.toFixed(6))
+                    ).toLocaleString(undefined, {
+                      maximumFractionDigits: 6,
+                      minimumFractionDigits: 0,
+                    })}{" "}
+                    {fromToken.symbol}
                   </p>
                 </div>
               </button>
@@ -206,6 +360,7 @@ export default function SwapTab({
                 size="sm"
                 className="h-7 text-xs"
                 onClick={handleUseMax}
+                disabled={fromTokenBalance === 0}
               >
                 Use max
               </Button>
@@ -222,16 +377,11 @@ export default function SwapTab({
                 <input
                   type="text"
                   inputMode="decimal"
-                  value={amount}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    // Only allow numbers and decimal point
-                    if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                      setAmount(value);
-                    }
-                  }}
+                  value={getFormattedAmount()}
+                  onChange={(e) => handleAmountChange(e.target.value)}
                   placeholder="0"
-                  className="text-4xl font-bold bg-transparent border-0 outline-none p-0 h-auto text-center w-full placeholder:text-muted-foreground"
+                  disabled={fromTokenBalance === 0}
+                  className="text-4xl font-bold bg-transparent border-0 outline-none p-0 h-auto text-center w-full placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
@@ -240,7 +390,8 @@ export default function SwapTab({
             <div className="flex items-center justify-center gap-2">
               <button
                 onClick={toggleInputMode}
-                className="text-base text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
+                disabled={fromTokenBalance === 0}
+                className="text-base text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {inputMode === "token" ? (
                   // Show USD value when in token mode

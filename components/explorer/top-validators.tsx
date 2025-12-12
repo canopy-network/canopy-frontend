@@ -240,7 +240,10 @@ export function TopValidators({ validators }: TopValidatorsProps) {
           </TableHeader>
           <TableBody>
             {validators.map((validator, index) => (
-              <TableRow key={validator.address} appearance="plain">
+              <TableRow
+                key={`${validator.address}-${index}`}
+                appearance="plain"
+              >
                 <TableCell className="pl-0 lg:pl-4">
                   <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/5 font-medium">
                     {index + 1}
