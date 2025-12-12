@@ -8,13 +8,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Search, TrendingUp, Clock, ChevronRight, Wallet } from "lucide-react";
+import { Search, TrendingUp, ChevronRight } from "lucide-react";
 import {
   useLiquidityPoolsStore,
   type LiquidityPool,
 } from "@/lib/stores/liquidity-pools-store";
 import tokensData from "@/data/tokens.json";
-import { useWalletStore } from "@/lib/stores/wallet-store";
 import type { Token } from "@/types/trading";
 
 interface PoolSelectionDialogProps {
@@ -101,18 +100,9 @@ export default function PoolSelectionDialog({
   onOpenChange,
   onSelectPool,
 }: PoolSelectionDialogProps) {
-  const { wallets } = useWalletStore();
   const { available_pools, fetchPools } = useLiquidityPoolsStore();
-  const isConnected = wallets.length > 0;
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [recentPools, setRecentPools] = useState<string[]>([]);
-
-  // Get user's LP positions (mock data for now)
-  // TODO: Implement actual LP position fetching using wallet addresses
-  const userLpPositions = useMemo(() => {
-    return [];
-  }, [isConnected]);
 
   // Fetch pools when dialog opens if not already loaded
   useEffect(() => {
@@ -121,22 +111,10 @@ export default function PoolSelectionDialog({
     }
   }, [open, available_pools.length, fetchPools]);
 
-  // Load recent pools from localStorage
-  useEffect(() => {
-    const recent = JSON.parse(localStorage.getItem("recentPools") || "[]");
-    setRecentPools(recent);
-  }, [open]);
-
   // Get all pools sorted by APY
   const allPools = useMemo(() => {
     return [...available_pools].sort((a, b) => b.apr - a.apr);
   }, [available_pools]);
-
-  // Get pools where user has positions
-  const userPoolsList = useMemo(() => {
-    const userPoolIds = userLpPositions.map((pos) => pos.poolId);
-    return allPools.filter((pool) => userPoolIds.includes(pool.id));
-  }, [allPools, userLpPositions]);
 
   // Filter pools based on search
   const filteredPools = useMemo(() => {
@@ -156,21 +134,7 @@ export default function PoolSelectionDialog({
     });
   }, [allPools, searchQuery]);
 
-  // Get recent pools that are still valid
-  const recentPoolsList = recentPools
-    .map((id) => allPools.find((p) => p.id === id))
-    .filter((p): p is LiquidityPool => p !== undefined)
-    .slice(0, 3);
-
   const handleSelectPool = (pool: LiquidityPool) => {
-    // Add to recent pools
-    const updated = [
-      pool.id,
-      ...recentPools.filter((id) => id !== pool.id),
-    ].slice(0, 5);
-    localStorage.setItem("recentPools", JSON.stringify(updated));
-    setRecentPools(updated);
-
     onSelectPool(pool);
     onOpenChange(false);
     setSearchQuery("");
@@ -199,51 +163,7 @@ export default function PoolSelectionDialog({
 
         {/* Pool List */}
         <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-4">
-          {/* Your Positions - Pools where user has staked */}
-          {!searchQuery && userPoolsList.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground px-2">
-                <Wallet className="w-3 h-3" />
-                <span>Your Positions</span>
-              </div>
-              <div className="space-y-1">
-                {userPoolsList.map((pool) => {
-                  const position = userLpPositions.find(
-                    (pos) => pos.poolId === pool.id
-                  );
-                  return (
-                    <PoolItem
-                      key={pool.id}
-                      pool={pool}
-                      onSelect={handleSelectPool}
-                      positionValue={position?.valueUSD}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Recent Pools */}
-          {!searchQuery && recentPoolsList.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground px-2">
-                <Clock className="w-3 h-3" />
-                <span>Recent</span>
-              </div>
-              <div className="space-y-1">
-                {recentPoolsList.map((pool) => (
-                  <PoolItem
-                    key={pool.id}
-                    pool={pool}
-                    onSelect={handleSelectPool}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* All Pools */}
+          {/* All Available Pools */}
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground px-2">
               <TrendingUp className="w-3 h-3" />

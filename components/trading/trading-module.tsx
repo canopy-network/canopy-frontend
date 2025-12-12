@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -18,10 +18,6 @@ import TokenSelectionDialog from "@/components/trading/token-selection-dialog";
 import SwapConfirmationDialog from "@/components/trading/swap-confirmation-dialog";
 import TransactionPendingDialog from "@/components/trading/transaction-pending-dialog";
 import tokensData from "@/data/tokens.json";
-import {
-  useLiquidityPoolsStore,
-  type LiquidityPool,
-} from "@/lib/stores/liquidity-pools-store";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { walletTransactionApi, chainsApi } from "@/lib/api";
 import toast from "react-hot-toast";
@@ -42,7 +38,6 @@ interface TradingModuleProps {
   defaultTab?: TabType | null;
   isPreview?: boolean;
   onOpenWalletDialog?: (() => void) | null;
-  onLiquidityPoolChange?: ((pool: LiquidityPool | null) => void) | null;
 }
 
 interface TabsConfig {
@@ -60,17 +55,8 @@ export default function TradingModule({
   defaultTab = null,
   isPreview = false,
   onOpenWalletDialog = null,
-  onLiquidityPoolChange = null,
 }: TradingModuleProps) {
-  const { available_pools, fetchPools } = useLiquidityPoolsStore();
   const { currentWallet } = useWalletStore();
-
-  // Fetch pools on mount if not already loaded
-  useEffect(() => {
-    if (available_pools.length === 0) {
-      fetchPools();
-    }
-  }, [available_pools.length, fetchPools]);
 
   // Determine tabs based on variant
   const getTabsConfig = (): TabsConfig => {
@@ -163,20 +149,6 @@ export default function TradingModule({
       (tokensData.find((t) => t.symbol === "CNPY") as Token | undefined) || null
     );
   });
-
-  // Find the matching pool for liquidity variant
-  const initialPool = useMemo<LiquidityPool | null>(() => {
-    if (variant === "liquidity" && defaultTokenPair?.tokenA) {
-      // tokenA is the non-CNPY token, tokenB is CNPY in the defaultTokenPair
-      const tokenSymbol = defaultTokenPair.tokenA.symbol;
-      return (
-        available_pools.find(
-          (pool) => pool.tokenB === tokenSymbol && pool.tokenA === "CNPY"
-        ) || null
-      );
-    }
-    return null;
-  }, [variant, defaultTokenPair, available_pools]);
 
   // Convert tab state
   const [convertAmount, setConvertAmount] = useState(0);
@@ -434,13 +406,7 @@ export default function TradingModule({
           />
         );
       case "liquidity":
-        return (
-          <LiquidityTab
-            isPreview={isPreview}
-            initialPool={initialPool}
-            onPoolChange={onLiquidityPoolChange}
-          />
-        );
+        return <LiquidityTab isPreview={isPreview} />;
       case "convert":
         return (
           <ConvertTab
