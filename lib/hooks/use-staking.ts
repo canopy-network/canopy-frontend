@@ -1,267 +1,173 @@
-/**
- * useStaking Hook
- *
- * Custom hook for managing staking data with React Query.
- * Provides staking positions, rewards, and unstaking queue.
- *
- * @author Canopy Development Team
- * @version 1.0.0
- * @since 2025-11-28
- */
+"use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useMemo } from "react";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { stakingApi } from "@/lib/api";
-import type {
-  StakingPositionsRequest,
-  StakingPositionsResponse,
-  StakingRewardsRequest,
-  StakingRewardsResponse,
-  UnstakingQueueRequest,
-  UnstakingQueueResponse,
-} from "@/types/api";
+import type { StakingPosition } from "@/types/api";
 
-/**
- * Query key factory for staking queries
- */
-export const stakingKeys = {
-  all: ["staking"] as const,
-  positions: (params?: StakingPositionsRequest) =>
-    [...stakingKeys.all, "positions", params] as const,
-  rewards: (params?: StakingRewardsRequest) =>
-    [...stakingKeys.all, "rewards", params] as const,
-  unstaking: (params?: UnstakingQueueRequest) =>
-    [...stakingKeys.all, "unstaking", params] as const,
-};
+type PositionStatus = "active" | "paused" | "unstaking";
+type UnstakingStatus = "unstaking" | "ready";
 
-/**
- * Hook to get staking positions
- *
- * @param params - Query parameters for filtering positions
- * @param options - React Query options
- * @returns Staking positions query result
- */
-export function useStakingPositions(
-  params?: StakingPositionsRequest,
-  options?: {
-    enabled?: boolean;
-    refetchInterval?: number;
-  }
-) {
-  return useQuery({
-    queryKey: stakingKeys.positions(params),
-    queryFn: () => stakingApi.getPositions(params),
-    enabled: options?.enabled !== false,
-    refetchInterval: options?.refetchInterval ?? 30000, // Refresh every 30 seconds
-    staleTime: 15000, // Consider data stale after 15 seconds
-  });
-}
-
-/**
- * Hook to get staking rewards
- *
- * @param params - Query parameters for filtering rewards
- * @param options - React Query options
- * @returns Staking rewards query result
- */
-export function useStakingRewards(
-  params?: StakingRewardsRequest,
-  options?: {
-    enabled?: boolean;
-    refetchInterval?: number;
-  }
-) {
-  return useQuery({
-    queryKey: stakingKeys.rewards(params),
-    queryFn: () => stakingApi.getRewards(params),
-    enabled: options?.enabled !== false,
-    refetchInterval: options?.refetchInterval ?? 30000,
-    staleTime: 15000,
-  });
-}
-
-/**
- * Hook to get unstaking queue
- *
- * @param params - Query parameters for filtering unstaking entries
- * @param options - React Query options
- * @returns Unstaking queue query result
- */
-export function useUnstakingQueue(
-  params?: UnstakingQueueRequest,
-  options?: {
-    enabled?: boolean;
-    refetchInterval?: number;
-  }
-) {
-  return useQuery({
-    queryKey: stakingKeys.unstaking(params),
-    queryFn: () => stakingApi.getUnstakingQueue(params),
-    enabled: options?.enabled !== false,
-    refetchInterval: options?.refetchInterval ?? 10000, // Refresh every 10 seconds for countdown
-    staleTime: 5000,
-  });
-}
-
-/**
- * Combined staking hook with all data
- *
- * @param options - Configuration options
- * @returns Combined staking data
- */
-export function useStaking(options?: {
-  enabled?: boolean;
-  address?: string;
-  chainIds?: string;
-  status?: "active" | "paused" | "unstaking";
-  refetchInterval?: number;
-}) {
-  const params: StakingPositionsRequest = {
-    address: options?.address,
-    chain_ids: options?.chainIds,
-    status: options?.status,
-  };
-
-  const positions = useStakingPositions(params, {
-    enabled: options?.enabled,
-    refetchInterval: options?.refetchInterval,
-  });
-
-  const rewards = useStakingRewards(
-    { address: options?.address, chain_ids: options?.chainIds },
-    {
-      enabled: options?.enabled,
-      refetchInterval: options?.refetchInterval,
+// Helper to group positions by staking chain
+export function groupPositionsByStake(positions: StakingPosition[]) {
+  // Group by address + chain_id where the stake was made
+  const grouped = positions.reduce((acc, position) => {
+    const key = `${position.address}-${position.chain_id}`;
+    if (!acc[key]) {
+      acc[key] = position;
     }
-  );
+    return acc;
+  }, {} as Record<string, StakingPosition>);
 
-  const unstaking = useUnstakingQueue(
-    { address: options?.address, chain_ids: options?.chainIds },
-    {
-      enabled: options?.enabled,
-      refetchInterval: options?.refetchInterval ?? 10000,
-    }
-  );
-
-  return {
-    // Positions data
-    positions: positions.data?.positions ?? [],
-    positionsMetadata: positions.data?.metadata,
-    isLoadingPositions: positions.isLoading,
-    positionsError: positions.error,
-
-    // Rewards data
-    rewards: rewards.data?.rewards ?? [],
-    totalRewards: rewards.data?.total_rewards,
-    totalRewardsCNPY: rewards.data?.total_cnpy,
-    rewardsMetadata: rewards.data?.metadata,
-    isLoadingRewards: rewards.isLoading,
-    rewardsError: rewards.error,
-
-    // Unstaking data
-    unstakingQueue: unstaking.data?.queue ?? [],
-    unstakingMetadata: unstaking.data?.metadata,
-    isLoadingUnstaking: unstaking.isLoading,
-    unstakingError: unstaking.error,
-
-    // Combined states
-    isLoading: positions.isLoading || rewards.isLoading || unstaking.isLoading,
-    isError: positions.isError || rewards.isError || unstaking.isError,
-    error: positions.error || rewards.error || unstaking.error,
-
-    // Refetch functions
-    refetchPositions: positions.refetch,
-    refetchRewards: rewards.refetch,
-    refetchUnstaking: unstaking.refetch,
-    refetchAll: async () => {
-      await Promise.all([
-        positions.refetch(),
-        rewards.refetch(),
-        unstaking.refetch(),
-      ]);
-    },
-  };
+  return Object.values(grouped);
 }
 
-/**
- * Helper hook to get active staking positions only
- *
- * @param address - Optional wallet address filter
- * @param chainIds - Optional chain IDs filter
- * @returns Active staking positions
- */
-export function useActiveStakes(address?: string, chainIds?: string) {
-  const { positions, isLoadingPositions } = useStaking({
-    address,
-    status: "active",
-    chainIds,
+// Helper to check if position has multi-chain committees
+export function hasMultiChainCommittees(position: StakingPosition): boolean {
+  return (position.committees?.length ?? 0) > 1;
+}
+
+export function useStaking(address?: string) {
+  // State for filtering positions
+  const [positionStatus, setPositionStatus] = useState<PositionStatus | undefined>(undefined);
+
+  // State for filtering unstaking queue
+  const [unstakingStatus, setUnstakingStatus] = useState<UnstakingStatus | undefined>(undefined);
+
+  // Single query for positions with dynamic status filter
+  const positionsQuery = useInfiniteQuery({
+    queryKey: ["staking", "positions", address, positionStatus],
+    queryFn: ({ pageParam }) =>
+      stakingApi.getPositions({
+        address,
+        status: positionStatus,
+        limit: 20,
+        offset: pageParam
+      }),
+    enabled: !!address,
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) =>
+      lastPage.metadata.has_more
+        ? lastPage.metadata.offset + lastPage.metadata.limit
+        : undefined,
+    staleTime: 30000,
+    refetchInterval: 60000,
   });
 
-  return {
-    activeStakes: positions,
-    isLoading: isLoadingPositions,
-  };
-}
-
-/**
- * Helper hook to get total staked amount
- *
- * @param address - Optional wallet address filter
- * @param chainIds - Optional chain IDs filter
- * @returns Total staked amount across all positions
- */
-export function useTotalStaked(address?: string, chainIds?: string) {
-  const { positions, isLoadingPositions } = useStaking({
-    address,
-    status: "active",
-    chainIds,
+  // Query for rewards
+  const rewardsQuery = useQuery({
+    queryKey: ["staking", "rewards", address],
+    queryFn: () =>
+      stakingApi.getRewards({
+        address,
+        limit: 100
+      }),
+    enabled: !!address,
+    staleTime: 30000,
+    refetchInterval: 60000,
   });
 
-  const totalStaked = positions.reduce((sum, position) => {
-    const amount = parseFloat(position.staked_amount) || 0;
-    return sum + amount;
-  }, 0);
+  // Single query for unstaking queue with dynamic status filter
+  const unstakingQuery = useQuery({
+    queryKey: ["staking", "unstaking", address, unstakingStatus],
+    queryFn: () =>
+      stakingApi.getUnstakingQueue({
+        address,
+        status: unstakingStatus,
+        limit: 100
+      }),
+    enabled: !!address,
+    staleTime: 30000,
+    refetchInterval: 60000,
+  });
+
+  // Flatten positions from all pages
+  const allPositions = useMemo(() => {
+    return positionsQuery.data?.pages.flatMap(page => page.positions) ?? [];
+  }, [positionsQuery.data]);
+
+  // Group positions by staking chain to avoid duplicates
+  const positions = useMemo(() => {
+    return groupPositionsByStake(allPositions);
+  }, [allPositions]);
+
+  // Get metadata from first page
+  const metadata = useMemo(() => {
+    return positionsQuery.data?.pages[0]?.metadata;
+  }, [positionsQuery.data]);
+
+  // Calculate total staked across all positions
+  const totalStaked = useMemo(() => {
+    return positions.reduce((sum, position) => {
+      return sum + parseFloat(position.staked_amount || "0");
+    }, 0);
+  }, [positions]);
+
+  // Get total rewards from API response (in CNPY)
+  const totalRewardsEarned = useMemo(() => {
+    return positions.reduce((sum, position) => {
+      return sum + parseFloat(position.total_rewards || "0");
+    }, 0);
+  }, [positions]);
+
+  // Calculate total claimable rewards from rewards API
+  const totalClaimableRewards = useMemo(() => {
+    return rewardsQuery.data?.rewards.reduce((sum, reward) => {
+      return sum + parseFloat(reward.claimable_rewards || "0");
+    }, 0) ?? 0;
+  }, [rewardsQuery.data]);
+
+  // Get unstaking queue entries
+  const unstakingQueue = unstakingQuery.data?.queue ?? [];
+
+  // Calculate total amount in unstaking
+  const totalUnstaking = useMemo(() => {
+    return unstakingQueue.reduce((sum, entry) => {
+      return sum + parseFloat(entry.unstaking_amount || "0");
+    }, 0);
+  }, [unstakingQueue]);
 
   return {
-    totalStaked: totalStaked.toString(),
-    totalStakedCNPY: (totalStaked / 1_000_000).toFixed(2), // Convert uCNPY to CNPY
-    isLoading: isLoadingPositions,
-  };
-}
+    // Positions
+    positions,
+    allPositions,
+    positionsQuery,
+    positionStatus,
+    setPositionStatus,
 
-/**
- * Helper hook to get claimable rewards
- *
- * @param address - Optional wallet address filter
- * @param chainIds - Optional chain IDs filter
- * @returns Total claimable rewards
- */
-export function useClaimableRewards(address?: string, chainIds?: string) {
-  const { rewards, isLoadingRewards } = useStaking({ address, chainIds });
+    // Rewards
+    rewards: rewardsQuery.data?.rewards ?? [],
+    rewardsQuery,
+    totalRewardsEarned,
+    totalClaimableRewards,
 
-  const totalClaimable = rewards.reduce((sum, reward) => {
-    const amount = parseFloat(reward.claimable_rewards) || 0;
-    return sum + amount;
-  }, 0);
+    // Unstaking
+    unstakingQueue,
+    unstakingQuery,
+    unstakingStatus,
+    setUnstakingStatus,
+    totalUnstaking,
 
-  return {
-    totalClaimable: totalClaimable.toString(),
-    totalClaimableCNPY: (totalClaimable / 1_000_000).toFixed(2),
-    rewardsByChain: rewards,
-    isLoading: isLoadingRewards,
-  };
-}
+    // Totals
+    totalStaked,
 
-/**
- * Helper hook to check if unstaking is in progress
- *
- * @returns Whether any unstaking is in progress
- */
-export function useHasUnstaking() {
-  const { unstakingQueue, isLoadingUnstaking } = useStaking();
+    // Metadata
+    metadata,
+    chainStats: metadata?.chain_stats ?? [],
 
-  return {
-    hasUnstaking: unstakingQueue.length > 0,
-    unstakingCount: unstakingQueue.length,
-    isLoading: isLoadingUnstaking,
+    // Counts from backend metadata
+    totalPositions: metadata?.total ?? 0,
+
+    // Loading states
+    isLoading: positionsQuery.isLoading || rewardsQuery.isLoading || unstakingQuery.isLoading,
+    isError: positionsQuery.isError || rewardsQuery.isError || unstakingQuery.isError,
+
+    // Infinite scroll
+    hasNextPage: positionsQuery.hasNextPage,
+    fetchNextPage: positionsQuery.fetchNextPage,
+    isFetchingNextPage: positionsQuery.isFetchingNextPage,
+
+    // Helper functions
+    hasMultiChainCommittees,
   };
 }

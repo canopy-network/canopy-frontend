@@ -657,7 +657,7 @@ export const useWalletStore = create<WalletState>()(
             chainId: account.chain_id,
             distribution: {
               liquid: account.available_balance, // Raw value
-              staked: account.staked_balance, // Raw value
+              staked: account.staked_balance + account.delegated_balance, // Raw value
               delegated: account.delegated_balance, // Raw value
             },
           }));

@@ -323,11 +323,12 @@ export interface StakingPosition {
   address: string;
   public_key: string;
   chain_id: number;
+  chain_symbol: string;
   chain_name?: string;
   staked_amount: string;
   staked_cnpy: string;
   status: 'active' | 'paused' | 'unstaking';
-  committees?: number[];
+  committees: Committee[];
   delegate: boolean;
   compound: boolean;
   output_address?: string;
@@ -337,6 +338,11 @@ export interface StakingPosition {
   unstaking_height?: number;
   max_paused_height?: number;
   updated_at: string;
+}
+
+export interface Committee {
+  chain_id: number;
+  chain_name: string
 }
 
 export interface ChainStats {

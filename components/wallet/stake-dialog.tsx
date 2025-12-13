@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,21 +19,33 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { X, ArrowLeft, Check, Info, Wallet, Loader2, AlertCircle, Copy } from "lucide-react";
 import { useWalletStore } from "@/lib/stores/wallet-store";
-import { portfolioApi, chainsApi, walletTransactionApi } from "@/lib/api";
+import { portfolioApi, chainsApi, walletTransactionApi, stakingApi } from "@/lib/api";
 import { generateChainColor } from "@/lib/utils/chain-ui-helpers";
 import type { Chain } from "@/types/chains";
 import type { LocalWallet } from "@/types/wallet";
 import { toast } from "sonner";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { formatBalanceWithCommas, fromMicroUnits, withCommas } from "@/lib/utils/denomination";
+import { CommitteeMultiSelect } from "@/components/wallet/committee-multi-select";
+import {
+    buildCommitteeOptions,
+    buildStakeTx,
+    estimateStakeFee,
+    mergeCommittees,
+    normalizeChainId,
+} from "@/lib/staking/staking-utils";
 
 interface StakeDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     selectedChain?: Chain | null;
+    initialChainId?: number;
+    initialCommittees?: number[]; // Committee chain IDs from the position
+    initialStakedAmount?: number; // Current staked amount (for updates, to prevent decrementing)
+    mode?: "create" | "edit";
+    disallowChainIds?: number[]; // Chains that already have an open stake (hide for create)
 }
 
 interface ChainWithBalance {
@@ -56,19 +68,38 @@ export function StakeDialog({
     open,
     onOpenChange,
     selectedChain,
+    initialChainId,
+    initialCommittees = [],
+    initialStakedAmount = 0,
+    mode,
+    disallowChainIds = [],
 }: StakeDialogProps) {
     const { currentWallet, wallets } = useWalletStore();
+    const derivedMode: "create" | "edit" =
+        mode || (initialStakedAmount > 0 || (initialCommittees?.length ?? 0) > 0 ? "edit" : "create");
+    const headingLabel = derivedMode === "edit" ? "Edit Stake" : "Stake";
+    const successHeading = derivedMode === "edit" ? "Stake Updated" : "Staking Successful!";
+    const normalizedInitialCommittees = useMemo(
+        () => Array.from(new Set(initialCommittees || [])),
+        [JSON.stringify(initialCommittees || [])]
+    );
     const [step, setStep] = useState<StakeStep>(1);
     const [amount, setAmount] = useState("");
     const [source, setSource] = useState("wallet");
     const [autoCompound, setAutoCompound] = useState(true);
     const [internalSelectedChain, setInternalSelectedChain] = useState<Chain | null>(null);
-    const [committeesInput, setCommitteesInput] = useState<number[]>([]);
-    const [showCommittees, setShowCommittees] = useState(false);
-    const [committeesQuery, setCommitteesQuery] = useState("");
+    const [committeesInput, setCommitteesInput] = useState<number[]>(normalizedInitialCommittees);
+    const [committeeChains, setCommitteeChains] = useState<Chain[]>([]);
+    const [committeePage, setCommitteePage] = useState(1);
+    const [committeeHasMore, setCommitteeHasMore] = useState(true);
+    const [committeeQuery, setCommitteeQuery] = useState("");
+    const [committeeLoading, setCommitteeLoading] = useState(false);
     const [chainsWithBalance, setChainsWithBalance] = useState<ChainWithBalance[]>([]);
+    const [allChains, setAllChains] = useState<Chain[]>([]); // All available chains for committee selection
+    const [showCommittees, setShowCommittees] = useState(normalizedInitialCommittees.length > 0);
     const [walletsWithBalance, setWalletsWithBalance] = useState<WalletWithBalance[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [takenChainIds, setTakenChainIds] = useState<number[]>([]);
 
     // Transaction states (aligned with send-transaction-dialog)
     const [isSending, setIsSending] = useState(false);
@@ -81,6 +112,8 @@ export function StakeDialog({
     const [feeError, setFeeError] = useState<string | null>(null);
 
     const activeChain = selectedChain || internalSelectedChain;
+    const chainSelectionLocked = Boolean(selectedChain || initialChainId);
+    const activeChainId = activeChain ? normalizeChainId(activeChain) : 0;
 
     // Fetch chains and balances
     useEffect(() => {
@@ -91,11 +124,10 @@ export function StakeDialog({
             try {
                 // Fetch chains
                 const chainsResponse = await chainsApi.getChains({
-                    status: "virtual_active",
+                    status: "graduated",
                     limit: 100,
                 });
                 const fetchedChains = chainsResponse.data || [];
-
 
                 // Get all wallet addresses
                 const walletAddresses = wallets.map(w => w.address);
@@ -279,11 +311,30 @@ export function StakeDialog({
                 // Combine both sources
                 const chainsData = [...chainsFromApi, ...chainsFromPortfolio];
 
+                // Store ALL chains (including synthetic) for committee selection
+                const uniqueChainsMap = new Map<string, Chain>();
+                [...fetchedChains, ...chainsFromPortfolio.map((c) => c.chain)].forEach((chain) => {
+                    const key = chain.chain_id ?? chain.id;
+                    uniqueChainsMap.set(String(key), chain);
+                });
+                setAllChains(Array.from(uniqueChainsMap.values()));
+
                 setChainsWithBalance(chainsData);
 
                 // Set initial selected chain if provided
                 if (selectedChain) {
                     setInternalSelectedChain(selectedChain);
+                } else if (initialChainId) {
+                    const matched = chainsData.find((entry) => {
+                        const numericChainId =
+                            (entry.chain.chain_id && entry.chain.chain_id.match(/\d+/))
+                                ? parseInt(entry.chain.chain_id.match(/\d+/)![0])
+                                : parseInt(entry.chain.id);
+                        return numericChainId === initialChainId;
+                    });
+                    if (matched) {
+                        setInternalSelectedChain(matched.chain);
+                    }
                 }
             } catch (error) {
                 console.error("Failed to fetch staking data:", error);
@@ -294,9 +345,9 @@ export function StakeDialog({
         };
 
         fetchData();
-    }, [open, selectedChain, wallets]);
+    }, [open, selectedChain, wallets, initialChainId]);
 
-    // Reset state when dialog closes
+    // Reset state when dialog closes or initialCommittees change
     useEffect(() => {
         if (!open) {
             setTimeout(() => {
@@ -304,9 +355,12 @@ export function StakeDialog({
                 setAmount("");
                 setSource("wallet");
                 setAutoCompound(true);
-                setCommitteesInput([]);
-                setShowCommittees(false);
-                setCommitteesQuery("");
+                setCommitteesInput(normalizedInitialCommittees);
+                setShowCommittees(normalizedInitialCommittees.length > 0);
+                setCommitteeQuery("");
+                setCommitteePage(1);
+                setCommitteeChains([]);
+                setCommitteeHasMore(true);
                 setTxHash(null);
                 setError(null);
                 setIsSending(false);
@@ -317,8 +371,14 @@ export function StakeDialog({
                     setInternalSelectedChain(null);
                 }
             }, 300);
+        } else {
+            // When dialog opens, set initial committees
+            setCommitteesInput(normalizedInitialCommittees);
+            setShowCommittees(normalizedInitialCommittees.length > 0);
+            setCommitteeQuery("");
+            setCommitteePage(1);
         }
-    }, [open, selectedChain]);
+    }, [open, selectedChain, initialChainId, normalizedInitialCommittees]);
 
     // Fetch wallet balances for the selected chain
     useEffect(() => {
@@ -392,14 +452,9 @@ export function StakeDialog({
     }, [activeChain, open, wallets]);
 
     const handleChainSelect = (chainId: string) => {
-        // Find chain by chain_id or by id (if chain_id is null)
+        const targetId = normalizeChainId(chainId);
         const chainData = chainsWithBalance.find(
-            (c) => {
-                if (c.chain.chain_id === chainId) return true;
-                if (chainId.startsWith("chain-") && chainId === `chain-${c.chain.id}`) return true;
-                if (String(c.chain.id) === chainId) return true;
-                return false;
-            }
+            (c) => normalizeChainId(c.chain) === targetId
         );
         if (chainData) {
             setInternalSelectedChain(chainData.chain);
@@ -409,7 +464,7 @@ export function StakeDialog({
     };
 
     const chainData = activeChain
-        ? chainsWithBalance.find((c) => c.chain.id === activeChain.id)
+        ? chainsWithBalance.find((c) => normalizeChainId(c.chain) === activeChainId)
         : null;
 
     // Get selected wallet balance
@@ -442,29 +497,14 @@ export function StakeDialog({
         setFeeError(null);
 
         try {
-            // Get chain ID (numeric)
-            let chainIdNum = 1; // Default
-            if (activeChain.chain_id) {
-                const match = activeChain.chain_id.match(/\d+/);
-                if (match) {
-                    chainIdNum = parseInt(match[0]);
-                }
-            } else {
-                const idMatch = activeChain.id.toString().match(/\d+/);
-                if (idMatch) {
-                    chainIdNum = parseInt(idMatch[0]);
-                }
-            }
-
-            const feeResponse = await walletTransactionApi.estimateFee({
-                transaction_type: "stake",
-                from_address: currentWallet.address,
-                to_address: currentWallet.address, // For stake, to_address is same as from
+            const chainIdNum = activeChainId || 1;
+            const estimated = await estimateStakeFee({
+                fromAddress: currentWallet.address,
                 amount: amountNum.toString(),
-                chain_id: chainIdNum,
+                chainId: chainIdNum,
             });
 
-            setEstimatedFee(feeResponse.estimated_fee);
+            setEstimatedFee(estimated);
             setIsEstimatingFee(false);
             setStep(2);
         } catch (err) {
@@ -488,62 +528,23 @@ export function StakeDialog({
         setError(null);
 
         try {
-            // Get chain ID (numeric)
-            let chainIdNum = 1; // Default
-            if (activeChain.chain_id) {
-                const match = activeChain.chain_id.match(/\d+/);
-                if (match) {
-                    chainIdNum = parseInt(match[0]);
-                }
-            } else {
-                const idMatch = activeChain.id.toString().match(/\d+/);
-                if (idMatch) {
-                    chainIdNum = parseInt(idMatch[0]);
-                }
-            }
-
-            // Get current height
-            const heightResponse = await chainsApi.getChainHeight(String(chainIdNum));
-            const currentHeight = heightResponse.data.height;
+            const chainIdNum = activeChainId || 1;
 
             // Convert amount to micro units
             const { toMicroUnits } = await import("@/lib/utils/denomination");
             const amountInMicro = parseInt(toMicroUnits(amountNum.toString()));
 
-            // Create stake message
-            const { createStakeMessage } = await import("@/lib/crypto/transaction");
-            const committees = isCnpyChain
-                ? Array.from(new Set([chainIdNum, ...committeesInput].filter((n) => !isNaN(n) && n > 0)))
-                : [chainIdNum];
+            const committees = mergeCommittees(chainIdNum, committeesInput, true);
 
-            const stakeMsg = createStakeMessage(
-                currentWallet.public_key,
-                amountInMicro,
+            const signedTx = await buildStakeTx({
+                mode: derivedMode,
+                wallet: currentWallet,
+                chainId: chainIdNum,
+                amountMicro: amountInMicro,
                 committees,
-                "", // netAddress - MUST be empty for delegation (passive staking)
-                currentWallet.address, // outputAddress - rewards go to wallet
-                true, // delegate - true for passive staking
-                autoCompound // compound - use user's autocompound preference
-                // signer parameter is optional, defaults to empty string
-            );
-
-            // Create and sign transaction
-            const { createAndSignTransaction } = await import("@/lib/crypto/transaction");
-            const { CurveType } = await import("@/lib/crypto/types");
-            const signedTx = createAndSignTransaction(
-                {
-                    type: 'stake',
-                    msg: stakeMsg,
-                    fee: Number(estimatedFee) || 1000,
-                    memo: " ", // CRITICAL: Always empty string, never undefined/null
-                    networkID: 1,
-                    chainID: chainIdNum,
-                    height: currentHeight,
-                },
-                currentWallet.privateKey,
-                currentWallet.public_key,
-                currentWallet.curveType as any
-            );
+                autoCompound,
+                fee: Number(estimatedFee) || 0,
+            });
 
             // Submit transaction
             const response = await walletTransactionApi.sendRawTransaction(signedTx);
@@ -617,15 +618,147 @@ export function StakeDialog({
         return chain.token_symbol || `C${chain.chain_id?.padStart(3, "0") || "000"}`;
     };
 
-    const isCnpyChain =
-        (activeChain?.token_symbol || "").toUpperCase() === "CNPY" ||
-        activeChain?.chain_id === "1" ||
-        activeChain?.chain_id === "0";
+    const dedupeChains = (chains: Chain[]): Chain[] => {
+        const map = new Map<string, Chain>();
+        chains.forEach((c) => {
+            const key = String(c.chain_id ?? c.id);
+            if (!map.has(key)) {
+                map.set(key, c);
+            }
+        });
+        return Array.from(map.values());
+    };
+
+    const committeeOptions = useMemo(
+        () => buildCommitteeOptions(allChains, activeChainId),
+        [allChains, activeChainId]
+    );
+    const committeeOptionsFiltered = useMemo(
+        () => committeeOptions.filter((opt) => opt.chainId !== activeChainId),
+        [committeeOptions, activeChainId]
+    );
+
+    const combinedDisallow = useMemo(() => {
+        const set = new Set<number>();
+        disallowChainIds.forEach((id) => set.add(id));
+        takenChainIds.forEach((id) => set.add(id));
+        return set;
+    }, [disallowChainIds, takenChainIds]);
+
+    useEffect(() => {
+        if (!open || derivedMode === "edit" || !currentWallet?.address) return;
+        let cancelled = false;
+        (async () => {
+            try {
+                const posRes = await stakingApi.getPositions({
+                    address: currentWallet.address,
+                    limit: 100,
+                });
+                const positions = (posRes as any)?.positions || posRes?.data?.positions || [];
+                const activeIds = positions
+                    .filter((p: any) => p?.status !== "unstaking")
+                    .map((p: any) => Number(p.chain_id))
+                    .filter((n: number) => !Number.isNaN(n) && n > 0);
+                if (!cancelled) {
+                    setTakenChainIds(Array.from(new Set(activeIds)));
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    console.error("Failed to fetch positions for disallow list", err);
+                    setTakenChainIds([]);
+                }
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [open, derivedMode, currentWallet?.address]);
+
+    // Fetch committees list via chains API with pagination + search
+    useEffect(() => {
+        if (!open) return;
+        let cancelled = false;
+        const limit = 30;
+        const fetchPage = async () => {
+            setCommitteeLoading(true);
+            try {
+                const res = await chainsApi.getChains({
+                    status: "virtual_active",
+                    filter: committeeQuery || undefined,
+                    page: 1,
+                    limit,
+                });
+                const data = Array.isArray(res) ? res : res?.data || [];
+                const unique = dedupeChains(data);
+                if (cancelled) return;
+                setCommitteeChains(unique);
+                setAllChains(unique);
+                const hasMore = data.length === limit;
+                setCommitteeHasMore(hasMore);
+                setCommitteePage(hasMore ? 2 : 1);
+            } catch (err) {
+                if (!cancelled) {
+                    console.error("Failed to fetch committee chains", err);
+                    setCommitteeChains([]);
+                    setAllChains([]);
+                    setCommitteeHasMore(false);
+                }
+            } finally {
+                if (!cancelled) {
+                    setCommitteeLoading(false);
+                }
+            }
+        };
+        fetchPage();
+        return () => {
+            cancelled = true;
+        };
+    }, [open, committeeQuery]);
+
+    const loadMoreCommittees = useCallback(() => {
+        if (!open || committeeLoading || !committeeHasMore) return;
+        const limit = 30;
+        const nextPage = committeePage;
+        setCommitteeLoading(true);
+        chainsApi
+            .getChains({
+                status: "virtual_active",
+                filter: committeeQuery || undefined,
+                page: nextPage,
+                limit,
+            })
+            .then((res) => {
+                const data = Array.isArray(res) ? res : res?.data || [];
+                setCommitteeChains((prev) => dedupeChains([...prev, ...data]));
+                setAllChains((prev) => dedupeChains([...prev, ...data]));
+                const hasMore = data.length === limit;
+                setCommitteeHasMore(hasMore);
+                setCommitteePage(hasMore ? nextPage + 1 : nextPage);
+            })
+            .catch((err) => {
+                console.error("Failed to load more committee chains", err);
+                setCommitteeHasMore(false);
+            })
+            .finally(() => {
+                setCommitteeLoading(false);
+            });
+    }, [open, committeeLoading, committeeHasMore, committeePage, committeeQuery]);
+
+    // Ensure active chain is not in the editable committees list (especially in edit mode)
+    useEffect(() => {
+        if (!activeChainId) return;
+        setCommitteesInput((prev) => prev.filter((id) => id !== activeChainId));
+    }, [activeChainId, derivedMode]);
+
+    // Don't render until we have basic data or we're on step 2+
+    if (!open) {
+        return null;
+    }
 
     return (
         <TooltipProvider>
             <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="sm:max-w-[500px] p-0" showCloseButton={false}>
+                <DialogContent className="sm:max-w-[500px] max-h-[90vh] p-0 flex flex-col" showCloseButton={false}>
                     {/* Step 1: Select Chain and Amount */}
                     {step === 1 && (
                         <>
@@ -633,7 +766,7 @@ export function StakeDialog({
                                 <DialogTitle>Stake - Select Chain and Amount</DialogTitle>
                             </VisuallyHidden>
                             {/* Header */}
-                            <div className="relative px-6 py-3 border-b">
+                            <div className="relative px-6 py-3 border-b flex-shrink-0">
                                 <Button
                                     variant="ghost"
                                     size="icon"
@@ -643,13 +776,13 @@ export function StakeDialog({
                                     <X className="w-5 h-5" />
                                 </Button>
                                 <div className="space-y-1">
-                                    <h2 className="text-xl font-bold">Stake</h2>
+                                    <h2 className="text-xl font-bold">{headingLabel}</h2>
                                 </div>
                             </div>
 
-                            <div className="px-6 pb-6 space-y-6">
-                                {/* Chain Selection */}
-                                {!selectedChain && (
+                            <div className="px-6 pt-6 space-y-6 overflow-y-auto flex-1">
+                                {/* Chain Selection - Only show if chain is NOT locked */}
+                                {!chainSelectionLocked && !activeChain && (
                                     <div className="space-y-2">
                                         <Label className="block text-sm font-medium">
                                             Select Chain
@@ -661,37 +794,12 @@ export function StakeDialog({
                                                     : ""
                                             }
                                             onValueChange={handleChainSelect}
-                                            disabled={isLoading || !!activeChain}
+                                            disabled={isLoading}
                                         >
                                             <SelectTrigger className="h-auto py-6 w-full [&>span]:line-clamp-none [&>span]:block">
-                                                <SelectValue placeholder="Choose a chain to stake">
-                                                    {activeChain && chainData ? (
-                                                        <div className="flex items-center gap-3">
-                                                            <div
-                                                                className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-                                                                style={{
-                                                                    backgroundColor: getChainColor(
-                                                                        activeChain
-                                                                    ),
-                                                                }}
-                                                            >
-                                                                <span className="text-[10px] font-bold text-white leading-tight px-0.5">
-                                                                    {getChainInitial(activeChain)}
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex flex-col items-start">
-                                                                <span className="font-medium text-sm">
-                                                                    {activeChain.chain_name}
-                                                                </span>
-                                                                <span className="text-xs text-muted-foreground">
-                                                                    {getChainSymbol(activeChain)}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    ) : undefined}
-                                                </SelectValue>
+                                                <SelectValue placeholder="Choose a chain to stake" />
                                             </SelectTrigger>
-                                            <SelectContent>
+                                            <SelectContent className="max-h-[300px]">
                                                 {isLoading ? (
                                                     <div className="px-3 py-6 text-center text-sm text-muted-foreground">
                                                         Loading chains...
@@ -700,61 +808,81 @@ export function StakeDialog({
                                                     <div className="px-3 py-6 text-center text-sm text-muted-foreground">
                                                         No chains available
                                                     </div>
-                                                ) : (
-                                                    chainsWithBalance
-                                                        .map((chainData) => {
-                                                            // Use chain_id if available, otherwise use chain.id as value
-                                                            // chain.id is always a string, so it's safe to use
-                                                            const chainIdValue = chainData.chain.chain_id
-                                                                ? chainData.chain.chain_id
-                                                                : `chain-${chainData.chain.id}`;
-                                                            return (
-                                                                <SelectItem
-                                                                    key={chainData.chain.id}
-                                                                    value={chainIdValue}
-                                                                    className="h-auto py-3"
-                                                                >
-                                                                    <div className="flex items-center gap-3">
-                                                                        <div
-                                                                            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-                                                                            style={{
-                                                                                backgroundColor: getChainColor(
-                                                                                    chainData.chain
-                                                                                ),
-                                                                            }}
-                                                                        >
-                                                                            <span className="text-[10px] font-bold text-white leading-tight px-0.5">
-                                                                                {getChainInitial(chainData.chain)}
-                                                                            </span>
-                                                                        </div>
-                                                                        <div className="flex flex-col items-start gap-1">
-                                                                            <span className="font-medium">
-                                                                                {chainData.chain.chain_name}
-                                                                            </span>
-                                                                            <span className="text-xs text-muted-foreground">
-                                                                                {getChainSymbol(chainData.chain)}
-                                                                                {chainData.balance > 0 && (
-                                                                                    <> - Balance: {formatBalanceWithCommas(chainData.balance)}</>
-                                                                                )}
-                                                                            </span>
-                                                                        </div>
-                                                                    </div>
-                                                                </SelectItem>
-                                                            );
-                                                        })
+                    ) : (
+                    chainsWithBalance
+                        .filter((chainData) => {
+                            if (derivedMode === "edit") return true;
+                            const chainIdNum = normalizeChainId(chainData.chain);
+                            return !combinedDisallow.has(chainIdNum);
+                        })
+                        .map((chainData) => {
+                            const chainIdValue = chainData.chain.chain_id
+                                ? chainData.chain.chain_id
+                                : `chain-${chainData.chain.id}`;
+                            return (
+                                <SelectItem
+                                    key={chainData.chain.id}
+                                    value={chainIdValue}
+                                    className="h-auto py-3"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div
+                                            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                                            style={{
+                                                backgroundColor: getChainColor(
+                                                    chainData.chain
+                                                ),
+                                            }}
+                                        >
+                                            <span className="text-[10px] font-bold text-white leading-tight px-0.5">
+                                                {getChainInitial(chainData.chain)}
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-col items-start gap-1">
+                                            <span className="font-medium">
+                                                {chainData.chain.chain_name}
+                                            </span>
+                                            <span className="text-xs text-muted-foreground">
+                                                {getChainSymbol(chainData.chain)}
+                                                {chainData.balance > 0 && (
+                                                    <> - Balance: {formatBalanceWithCommas(chainData.balance)}</>
                                                 )}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </SelectItem>
+                            );
+                        })
+                )}
                                             </SelectContent>
                                         </Select>
-                                        {activeChain && (
-                                            <p className="text-xs text-muted-foreground">
-                                                Chain selection is locked for this flow. Close and reopen to choose a different chain.
-                                            </p>
-                                        )}
                                     </div>
                                 )}
 
-                                {/* Chain Display (when chain is pre-selected) */}
-                                {selectedChain && activeChain && chainData && (
+                                {/* Loading State - Show when chain is locked but data is still loading */}
+                                {chainSelectionLocked && isLoading && (
+                                    <div className="p-4 mt-2 bg-muted/30 rounded-lg border">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-muted animate-pulse" />
+                                                <div className="space-y-2">
+                                                    <div className="h-4 w-24 bg-muted animate-pulse rounded" />
+                                                    <div className="h-3 w-16 bg-muted animate-pulse rounded" />
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="h-8 w-16 bg-muted animate-pulse rounded mb-1" />
+                                                <div className="h-3 w-12 bg-muted animate-pulse rounded" />
+                                            </div>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground mt-2">
+                                            Loading chain information...
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/* Chain Display (when chain is set/locked and data is loaded) */}
+                                {activeChain && chainData && (
                                     <div className="p-4 mt-2 bg-muted/30 rounded-lg border">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
@@ -819,7 +947,7 @@ export function StakeDialog({
                                         <div className="space-y-2">
                                             <div className="flex items-center justify-between">
                                                 <Label className="block text-sm font-medium">
-                                                    Amount
+                                                    Amount {initialStakedAmount > 0 && "(add more)"}
                                                 </Label>
                                                 <Button
                                                     variant="ghost"
@@ -846,101 +974,80 @@ export function StakeDialog({
                                                             setAmount(value);
                                                         }
                                                     }}
-                                                    className="pr-16 text-lg h-11"
+                                                    className="pr-16 text-lg h-11 z-10"
                                                 />
                                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                                                     {getChainSymbol(activeChain)}
                                                 </span>
                                             </div>
+                                            {initialStakedAmount > 0 && amountNum > 0 && amountNum < initialStakedAmount && (
+                                                <p className="text-sm text-red-500 flex items-center gap-1">
+                                                    <AlertCircle className="w-4 h-4" />
+                                                    Cannot decrease stake. Minimum: {withCommas(initialStakedAmount)}
+                                                </p>
+                                            )}
+                                            {initialStakedAmount > 0 && (
+                                                <p className="text-xs text-muted-foreground">
+                                                    Currently staked: {withCommas(initialStakedAmount)} {getChainSymbol(activeChain)}
+                                                </p>
+                                            )}
                                             <p className="text-sm text-muted-foreground">
                                                 approx. ${withCommas(amountUSD)} USD
                                             </p>
                                         </div>
 
-                                        {isCnpyChain && (
+                                        {allChains.length > 0 && (
                                             <div className="space-y-3 pt-4 border-t">
-                                                <div className="flex items-center justify-between">
+                                                <div className="flex items-center justify-between gap-2">
                                                     <div className="space-y-0.5">
                                                         <p className="text-sm font-medium">
-                                                            Delegate to baby chains (optional)
+                                                            Delegate to other chains (optional)
                                                         </p>
                                                         <p className="text-xs text-muted-foreground">
-                                                            Add chain IDs to earn native rewards alongside CNPY.
+                                                            Select additional chains to earn native rewards.
                                                         </p>
                                                     </div>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-8"
-                                                        onClick={() => setShowCommittees((prev) => !prev)}
-                                                    >
-                                                        {showCommittees ? "Hide" : "Add chains"}
-                                                    </Button>
+                                                    <div className="flex items-center gap-2">
+                                                        {committeesInput.length > 0 && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-8"
+                                                                onClick={() => setCommitteesInput([])}
+                                                            >
+                                                                Clear
+                                                            </Button>
+                                                        )}
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-8"
+                                                            onClick={() => setShowCommittees((prev) => !prev)}
+                                                        >
+                                                            {showCommittees ? "Hide" : "Add"}
+                                                        </Button>
+                                                    </div>
                                                 </div>
                                                 {showCommittees && (
-                                                    <div className="space-y-2">
-                                                        <Command>
-                                                            <CommandInput
-                                                                placeholder="Search chains"
-                                                                value={committeesQuery}
-                                                                onValueChange={setCommitteesQuery}
-                                                            />
-                                                            <CommandList>
-                                                                <CommandEmpty>No chains found.</CommandEmpty>
-                                                                <CommandGroup>
-                                                                    {chainsWithBalance
-                                                                        .map((chain) => {
-                                                                            const chainIdValue = chain.chain.chain_id
-                                                                                ? parseInt(chain.chain.chain_id.match(/\d+/)?.[0] || "0")
-                                                                                : parseInt(chain.chain.id);
-                                                                            if (isNaN(chainIdValue)) return null;
-                                                                            const term = committeesQuery.toLowerCase();
-                                                                            if (
-                                                                                term &&
-                                                                                !(
-                                                                                    chain.chain.chain_name?.toLowerCase().includes(term) ||
-                                                                                    chain.chain.token_symbol?.toLowerCase().includes(term)
-                                                                                )
-                                                                            ) {
-                                                                                return null;
-                                                                            }
-                                                                            const isSelected = committeesInput.includes(chainIdValue);
-                                                                            const isMain =
-                                                                                chainIdValue === 1 ||
-                                                                                chain.chain.token_symbol?.toUpperCase() === "CNPY";
-                                                                            return (
-                                                                                <CommandItem
-                                                                                    key={chainIdValue}
-                                                                                    onSelect={() => {
-                                                                                        if (isMain) return;
-                                                                                        setCommitteesInput((prev) =>
-                                                                                            prev.includes(chainIdValue)
-                                                                                                ? prev.filter((id) => id !== chainIdValue)
-                                                                                                : [...prev, chainIdValue]
-                                                                                        );
-                                                                                    }}
-                                                                                >
-                                                                                    <span className="mr-2 text-xs w-10 text-muted-foreground">
-                                                                                        {chainIdValue}
-                                                                                    </span>
-                                                                                    <span className="flex-1 text-sm">
-                                                                                        {chain.chain.chain_name || chain.chain.token_symbol}
-                                                                                    </span>
-                                                                                    {isMain ? (
-                                                                                        <span className="text-xs text-muted-foreground">Main</span>
-                                                                                    ) : isSelected ? (
-                                                                                        <span className="text-xs text-primary">Selected</span>
-                                                                                    ) : null}
-                                                                                </CommandItem>
-                                                                            );
-                                                                        })}
-                                                                </CommandGroup>
-                                                            </CommandList>
-                                                        </Command>
+                                                    <>
+                                                        <CommitteeMultiSelect
+                                                            options={committeeOptionsFiltered}
+                                                            value={committeesInput}
+                                                            onChange={setCommitteesInput}
+                                                            onClear={() => setCommitteesInput([])}
+                                                            query={committeeQuery}
+                                                            onQueryChange={(v) => {
+                                                                setCommitteeQuery(v);
+                                                                setCommitteePage(1);
+                                                            }}
+                                                            onLoadMore={loadMoreCommittees}
+                                                            hasMore={committeeHasMore}
+                                                            loading={committeeLoading}
+                                                        />
                                                         <p className="text-xs text-muted-foreground">
-                                                            Staking is multichain: CNPY stays locked once, rewards flow from all selected chains.
+                                                            Staking is multichain: tokens stay locked once, rewards flow from all selected chains.
                                                         </p>
-                                                    </div>
+                                                    </>
                                                 )}
                                             </div>
                                         )}
@@ -1026,8 +1133,10 @@ export function StakeDialog({
                                         </div>
                                     </div>
                                 )}
+                            </div>
 
-                                {/* Continue Button */}
+                            {/* Continue Button - Fixed at bottom */}
+                            <div className="px-6 pb-6 pt-4 border-t flex-shrink-0 bg-background">
                                 <Button
                                     className="w-full h-12"
                                     onClick={handleContinueFromStep1}
@@ -1036,6 +1145,7 @@ export function StakeDialog({
                                         !amountNum ||
                                         amountNum <= 0 ||
                                         amountNum > availableBalance ||
+                                        (initialStakedAmount > 0 && amountNum < initialStakedAmount) ||
                                         isEstimatingFee
                                     }
                                 >
@@ -1058,7 +1168,7 @@ export function StakeDialog({
                             <VisuallyHidden>
                                 <DialogTitle>Stake - Review & Confirm</DialogTitle>
                             </VisuallyHidden>
-                            <div className="relative p-6 pb-4">
+                            <div className="relative p-6 pb-4 flex-shrink-0">
                                 <Button
                                     variant="ghost"
                                     size="icon"
@@ -1080,7 +1190,7 @@ export function StakeDialog({
                                 </h2>
                             </div>
 
-                            <div className="px-6 pb-6 space-y-6">
+                            <div className="px-6 pb-6 space-y-6 overflow-y-auto flex-1">
                                 {/* Summary */}
                                 <div className="space-y-4">
                                     <h3 className="font-semibold">Summary</h3>
@@ -1151,7 +1261,7 @@ export function StakeDialog({
                                                         <p className="text-sm font-medium text-muted-foreground">Estimating...</p>
                                                     </div>
                                                 ) : estimatedFee ? (
-                                                    <p className="text-sm font-medium">{fromMicroUnits(estimatedFee, 6)} CNPY</p>
+                                                    <p className="text-sm font-medium">{fromMicroUnits(estimatedFee, 6)} {getChainSymbol(activeChain)}</p>
                                                 ) : (
                                                     <p className="text-sm font-medium text-red-500">Fee estimation failed</p>
                                                 )}
@@ -1191,24 +1301,24 @@ export function StakeDialog({
                                         </p>
                                     </div>
                                 </div>
+                            </div>
 
-                                {/* Buttons */}
-                                <div className="space-y-3">
-                                    <Button
-                                        className="w-full h-12"
-                                        onClick={handleConfirmStake}
-                                        disabled={!currentWallet?.isUnlocked || !estimatedFee}
-                                    >
-                                        Confirm & Stake
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        className="w-full"
-                                        onClick={handleBack}
-                                    >
-                                        Cancel
-                                    </Button>
-                                </div>
+                            {/* Buttons - Fixed at bottom */}
+                            <div className="px-6 pb-6 pt-4 border-t flex-shrink-0 bg-background space-y-3">
+                                <Button
+                                    className="w-full h-12"
+                                    onClick={handleConfirmStake}
+                                    disabled={!currentWallet?.isUnlocked || !estimatedFee}
+                                >
+                                    {derivedMode === "edit" ? "Confirm & Update" : "Confirm & Stake"}
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    className="w-full"
+                                    onClick={handleBack}
+                                >
+                                    Cancel
+                                </Button>
                             </div>
                         </>
                     )}
@@ -1219,7 +1329,7 @@ export function StakeDialog({
                             <VisuallyHidden>
                                 <DialogTitle>Stake - Transaction Status</DialogTitle>
                             </VisuallyHidden>
-                            <div className="relative p-6 pb-4">
+                            <div className="relative p-6 pb-4 flex-shrink-0">
                                 {!isSending && (
                                     <Button
                                         variant="ghost"
@@ -1232,7 +1342,7 @@ export function StakeDialog({
                                 )}
                             </div>
 
-                            <div className="px-6 pb-6 space-y-6">
+                            <div className="px-6 pb-6 space-y-6 overflow-y-auto flex-1">
                                 {/* Sending State */}
                                 {isSending && (
                                     <div className="flex flex-col items-center space-y-4 pb-8">
@@ -1253,7 +1363,7 @@ export function StakeDialog({
                                             <div className="w-16 h-16 rounded-full border-2 border-green-500 flex items-center justify-center">
                                                 <Check className="w-8 h-8 text-green-500" />
                                             </div>
-                                            <h2 className="text-2xl font-bold">Staking Successful!</h2>
+                                            <h2 className="text-2xl font-bold">{successHeading}</h2>
                                             <p className="text-center text-muted-foreground">
                                                 Your{" "}
                                                 <span className="font-semibold text-foreground">
@@ -1337,6 +1447,3 @@ export function StakeDialog({
         </TooltipProvider>
     );
 }
-
-
-

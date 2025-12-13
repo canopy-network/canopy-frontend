@@ -102,7 +102,7 @@ export const transactionsApi = {
 
   /**
    * Estimate transaction fee
-   * POST /api/v1/wallet/transactions/estimate-fee
+   * GET /api/v1/wallet/transactions/estimate-fee
    *
    * @param data - Transaction details for fee estimation
    * @returns Estimated fee amount
@@ -110,9 +110,27 @@ export const transactionsApi = {
   estimateFee: async (
     data: EstimateFeeRequest
   ): Promise<EstimateFeeResponse> => {
-    const response = await apiClient.post<EstimateFeeResponse>(
+    const params: Record<string, any> = {
+      transaction_type: data.transaction_type,
+    };
+
+    // Add optional parameters
+    if (data.from_address) {
+      params.from_address = data.from_address;
+    }
+    if (data.to_address) {
+      params.to_address = data.to_address;
+    }
+    if (data.amount) {
+      params.amount = data.amount;
+    }
+    if (data.chain_id) {
+      params.chain_id = data.chain_id;
+    }
+
+    const response = await apiClient.get<EstimateFeeResponse>(
       "/api/v1/wallet/transactions/estimate-fee",
-      data
+      params
     );
     return response.data;
   },

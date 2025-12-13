@@ -23,6 +23,7 @@ import { AssetsTab } from "@/components/wallet/assets-tab";
 import { ActivityTab } from "@/components/wallet/activity-tab";
 import { StakingTab } from "@/components/wallet/staking-tab";
 import { GovernanceTab } from "@/components/wallet/governance-tab";
+import { useStaking } from "@/lib/hooks/use-staking";
 import {
   Copy,
   Send,
@@ -47,6 +48,7 @@ function WalletContent() {
     fetchTransactions,
     fetchPortfolioOverview,
   } = useWalletStore();
+  const { positions } = useStaking(currentWallet?.address);
 
   const [showSendDialog, setShowSendDialog] = useState(false);
   const [showReceiveDialog, setShowReceiveDialog] = useState(false);
@@ -99,6 +101,9 @@ function WalletContent() {
 
   const displayUSDValue = `$${totalUSDValue.toFixed(2)}`;
   const displayTransactions = transactions.length > 0 ? transactions : [];
+  const disallowChainIds = positions
+    .filter((p) => p.status !== "unstaking")
+    .map((p) => p.chain_id);
 
   if (!isAuthenticated) {
     return (
@@ -302,13 +307,13 @@ function WalletContent() {
                     <span className="text-xs">Swap</span>
                   </Button>
                   <Button
-                    variant="outline"
-                    className="h-auto py-4 flex-col gap-2"
-                    onClick={() => setShowStakeDialog(true)}
-                  >
-                    <Coins className="h-5 w-5" />
-                    <span className="text-xs">Stake</span>
-                  </Button>
+        variant="outline"
+        className="h-auto py-4 flex-col gap-2"
+        onClick={() => setShowStakeDialog(true)}
+      >
+        <Coins className="h-5 w-5" />
+        <span className="text-xs">Stake</span>
+      </Button>
                 </div>
               </CardContent>
             </Card>
@@ -396,6 +401,7 @@ function WalletContent() {
       <StakeDialog
         open={showStakeDialog}
         onOpenChange={setShowStakeDialog}
+        disallowChainIds={disallowChainIds}
       />
     </div>
   );

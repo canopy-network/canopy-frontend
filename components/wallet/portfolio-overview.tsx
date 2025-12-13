@@ -89,7 +89,45 @@ export function PortfolioOverview({ addresses }: PortfolioOverviewProps) {
     return value.toFixed(2);
   };
 
-  const totalValue = formatCNPY(overview.total_value_cnpy);
+  const accountTotals = overview.accounts.reduce(
+    (acc, account) => {
+      const liquid = parseFloat(account.balance ?? account.available_balance ?? "0");
+      const staked = parseFloat(account.staked_balance ?? "0");
+      const delegated = parseFloat(account.delegated_balance ?? "0");
+      const chainId = account.chain_id;
+      const chainKey = Number(chainId);
+
+      const totalForAccount = liquid + staked + delegated;
+      acc.total += totalForAccount;
+      acc.staked += staked + delegated;
+      acc.liquid += liquid;
+
+      if (!acc.byChain.has(chainKey)) {
+        acc.byChain.set(chainKey, {
+          chain_id: chainId,
+          chain_name: account.chain_name || `Chain ${chainId}`,
+          token_symbol: account.token_symbol,
+          total: 0,
+          staked: 0,
+          liquid: 0,
+        });
+      }
+      const chainEntry = acc.byChain.get(chainKey)!;
+      chainEntry.total += totalForAccount;
+      chainEntry.staked += staked + delegated;
+      chainEntry.liquid += liquid;
+
+      return acc;
+    },
+    {
+      total: 0,
+      staked: 0,
+      liquid: 0,
+      byChain: new Map<number, { chain_id: number; chain_name: string; token_symbol: string; total: number; staked: number; liquid: number }>(),
+    }
+  );
+
+  const totalValue = formatCNPY(accountTotals.total);
   const pnlValue = formatCNPY(performance.total_pnl_cnpy);
   const pnlPercentage = performance.total_pnl_percentage || 0;
   const isPositivePnL = parseFloat(performance.total_pnl_cnpy) >= 0;
@@ -152,28 +190,28 @@ export function PortfolioOverview({ addresses }: PortfolioOverviewProps) {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <div className="text-sm font-medium">
-                  {formatCNPY(overview.allocation.by_type.staked.value_cnpy)} CNPY
+                  {formatCNPY(accountTotals.staked)} CNPY
                 </div>
                 <div className="text-sm font-medium">
-                  {formatCNPY(overview.allocation.by_type.liquid.value_cnpy)} CNPY
+                  {formatCNPY(accountTotals.liquid)} CNPY
                 </div>
               </div>
               <div className="h-2 bg-muted rounded-full overflow-hidden flex">
                 <div
                   className="bg-primary"
-                  style={{ width: `${overview.allocation.by_type.staked.percentage}%` }}
+                  style={{ width: `${accountTotals.total ? (accountTotals.staked / accountTotals.total) * 100 : 0}%` }}
                 />
                 <div
                   className="bg-blue-500"
-                  style={{ width: `${overview.allocation.by_type.liquid.percentage}%` }}
+                  style={{ width: `${accountTotals.total ? (accountTotals.liquid / accountTotals.total) * 100 : 0}%` }}
                 />
               </div>
               <div className="flex items-center justify-between mt-1">
                 <div className="text-xs text-muted-foreground">
-                  {formatPercentage(overview.allocation.by_type.staked.percentage)}% Staked
+                  {formatPercentage(accountTotals.total ? (accountTotals.staked / accountTotals.total) * 100 : 0)}% Staked
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {formatPercentage(overview.allocation.by_type.liquid.percentage)}% Liquid
+                  {formatPercentage(accountTotals.total ? (accountTotals.liquid / accountTotals.total) * 100 : 0)}% Liquid
                 </div>
               </div>
             </div>
@@ -187,10 +225,9 @@ export function PortfolioOverview({ addresses }: PortfolioOverviewProps) {
           <CardTitle className="text-base">Portfolio Distribution</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {overview.allocation.by_chain.map((chain) => {
-            // Get all accounts for this chain
+          {Array.from(accountTotals.byChain.values()).map((chain) => {
             const chainAccounts = overview.accounts.filter(acc => acc.chain_id === chain.chain_id);
-            const stakedAmount = chainAccounts.reduce((sum, acc) => sum + parseFloat(acc.staked_balance), 0);
+            const chainPercentage = accountTotals.total ? (chain.total / accountTotals.total) * 100 : 0;
 
             return (
               <div key={chain.chain_id} className="space-y-2">
@@ -207,7 +244,7 @@ export function PortfolioOverview({ addresses }: PortfolioOverviewProps) {
                       <div className="font-semibold">{chain.chain_name}</div>
                       <div className="text-xs text-muted-foreground">
                         {chainAccounts.length} {chainAccounts.length === 1 ? 'account' : 'accounts'}
-                        {stakedAmount > 0 && ` · ${formatCNPY(stakedAmount)} staked`}
+                        {chain.staked > 0 && ` · ${formatCNPY(chain.staked)} staked`}
                       </div>
                     </div>
                   </div>
@@ -215,10 +252,10 @@ export function PortfolioOverview({ addresses }: PortfolioOverviewProps) {
                   <div className="flex items-center gap-3">
                     <div className="text-right">
                       <div className="font-semibold">
-                        {formatCNPY(chain.total_value_cnpy)} CNPY
+                        {formatCNPY(chain.total)} CNPY
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {formatPercentage(chain.percentage)}% of portfolio
+                        {formatPercentage(chainPercentage)}% of portfolio
                       </div>
                     </div>
                     <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
@@ -227,7 +264,7 @@ export function PortfolioOverview({ addresses }: PortfolioOverviewProps) {
                           "h-full rounded-full",
                           chain.chain_id === 1 ? "bg-primary" : "bg-blue-500"
                         )}
-                        style={{ width: `${chain.percentage}%` }}
+                        style={{ width: `${chainPercentage}%` }}
                       />
                     </div>
                   </div>
@@ -248,9 +285,9 @@ export function PortfolioOverview({ addresses }: PortfolioOverviewProps) {
                           <span className="font-medium">
                             {formatCNPY(account.balance)} {account.token_symbol}
                           </span>
-                          {parseFloat(account.staked_balance) > 0 && (
+                          {parseFloat(account.staked_balance) + parseFloat(account.delegated_balance)> 0 && (
                             <span className="text-xs text-muted-foreground ml-2">
-                              ({formatCNPY(account.staked_balance)} staked)
+                              ({formatCNPY(parseFloat(account.staked_balance) + parseFloat(account.delegated_balance))} staked)
                             </span>
                           )}
                         </div>

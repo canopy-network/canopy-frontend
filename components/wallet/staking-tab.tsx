@@ -29,15 +29,13 @@ import {
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { useMockStaking } from "@/lib/hooks/use-mock-staking";
-import type { MockStake, MockUnstakingItem } from "@/lib/mockdata/staking";
-import { EarningsHistorySheet } from "./earnings-history-sheet";
-import { formatBalance } from "@/lib/utils/wallet-helpers";
-import { UnstakeDialog } from "./unstake-dialog";
-import { CancelUnstakeDialog } from "./cancel-unstake-dialog";
+import { useStaking } from "@/lib/hooks/use-staking";
+import {formatBalance, formatTimeRemaining} from "@/lib/utils/wallet-helpers";
+
 import { UnstakingDetailSheet } from "./unstaking-detail-sheet";
-import { EarnRewardsDialog } from "./earn-rewards-dialog";
-import { ManageCnpyStakeDialog } from "./manage-cnpy-stake-dialog";
+import {fromMicroUnits} from "@/lib/utils/denomination";
+import {StakeDialog} from "@/components/wallet/stake-dialog";
+import { UnstakeDialog } from "@/components/wallet/unstake-dialog";
 
 interface StakingTabProps {
   addresses: string[];
@@ -56,125 +54,185 @@ function formatUsd(value: number) {
   return `$${currencyFormatter.format(value)}`;
 }
 
-const MAIN_CHAIN_ID = 0; // Mock main chain id for CNPY
+const MAIN_CHAIN_ID = 1; // Real main chain ID for CNPY
+
+/**
+ * Transform backend StakingPosition to display format
+ */
+interface DisplayStake {
+  id: string;
+  chainId: number;
+  symbol: string;
+  chain: string;
+  amount: number; // native amount (converted)
+  nativeAmount: number;
+  cnpyAmount: number;
+  apy: number;
+  rewards: number; // in CNPY
+  rewardsUSD?: number;
+  color: string;
+  restakeRewards: boolean;
+  committees?: Array<{
+    chainId: number;
+    chainName: string;
+  }>;
+  status: "active" | "paused" | "unstaking";
+}
+
+/**
+ * Transform backend UnstakingEntry to display format
+ */
+interface DisplayUnstaking {
+  id: string;
+  chainId: number;
+  chain: string;
+  symbol: string;
+  nativeAmount: number;
+  cnpyAmount: number;
+  daysRemaining: number;
+  hoursRemaining: number;
+  status: "active" | "paused" | "unstaking";
+  availableAt: number;
+  timeRemainingLabel: string;
+}
+
+// TODO: Get from chains API or config
+const CHAIN_COLORS: Record<number, string> = {
+  1: "#1dd13a", // CNPY
+  2: "#8b5cf6", // GAME
+  3: "#06b6d4", // SOCL
+  5: "#f59e0b", // STRM
+  6: "#ec4899", // DFIM
+};
+
+const getStatusColor = (status: DisplayStake["status"]) => {
+  switch (status) {
+    case "unstaking":
+      return "text-red-500";
+    case "active":
+      return "text-green-500";
+    case "paused":
+      return "text-yellow-500";
+    default:
+      return "text-gray-500";
+  }
+};
+
+const getStatusLabel = (status: DisplayStake["status"]) => {
+  switch (status) {
+    case "active":
+      return "Active";
+    case "paused":
+      return "Paused";
+    case "unstaking":
+      return "Unstaking";
+    default:
+      return status;
+  }
+};
 
 export function StakingTab({ addresses }: StakingTabProps) {
   const hasWallet = addresses.length > 0;
+  const address = hasWallet ? addresses[0] : undefined;
+
+  // Fetch real data from backend
   const {
-    data,
+    positions,
+    rewards,
+    unstakingQueue,
+    totalRewardsEarned,
     isLoading,
-    totalInterestEarned,
-    unstakingCount,
-  } = useMockStaking(hasWallet ? addresses[0] : undefined, { enabled: hasWallet });
+    isError,
+  } = useStaking(address);
 
   const [sortBy, setSortBy] = useState<SortField>("apy");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
-  const [canceledUnstakeIds, setCanceledUnstakeIds] = useState<
-    Array<string | number>
-  >([]);
-  const [newUnstakingItems, setNewUnstakingItems] = useState<
-    MockUnstakingItem[]
-  >([]);
-  const [selectedStake, setSelectedStake] = useState<MockStake | null>(null);
-  const [selectedUnstaking, setSelectedUnstaking] = useState<
-    MockUnstakingItem | null
-  >(null);
-  const [showStakeDialog, setShowStakeDialog] = useState(false);
-  const [showManageCnpyDialog, setShowManageCnpyDialog] = useState(false);
+  const [selectedStake, setSelectedStake] = useState<DisplayStake | null>(null);
+  const [showManageDialog, setShowManageDialog] = useState(false);
+  const [selectedUnstake, setSelectedUnstake] = useState<DisplayStake | null>(null);
   const [showUnstakeDialog, setShowUnstakeDialog] = useState(false);
-  const [showHistorySheet, setShowHistorySheet] = useState(false);
-  const [stakeOverrides, setStakeOverrides] = useState<
-    Record<
-      number,
-      {
-        amount: number;
-        rewards?: number;
-        rewardsUSD?: number;
-        restakeRewards?: boolean;
-        committees?: number[];
-      }
-    >
-  >({});
+  const [selectedUnstaking, setSelectedUnstaking] = useState<DisplayUnstaking | null>(null);
   const [showUnstakingDetail, setShowUnstakingDetail] = useState(false);
-  const [showCancelDialog, setShowCancelDialog] = useState(false);
 
-  const stakes = data.stakes ?? [];
-  const assets = data.assets ?? [];
-  const baseUnstaking = data.unstaking ?? [];
-  const allUnstaking = [...baseUnstaking, ...newUnstakingItems];
-  const visibleUnstaking = allUnstaking.filter(
-    (item) => !canceledUnstakeIds.includes(item.id)
-  );
-  const displayStakes = useMemo(() => {
-    return stakes.map((stake) => {
-      const override = stakeOverrides[stake.id];
-      if (!override) return stake;
+  // Transform backend positions to display format
+  const displayStakes = useMemo<DisplayStake[]>(() => {
+    return positions.map((pos) => {
+      // Convert amounts from uCNPY to CNPY
+      const nativeAmount = fromMicroUnits(pos.staked_amount || "0");
+      const cnpyAmount = fromMicroUnits(pos.staked_cnpy || "0");
+      const rewardsCNPY = pos.total_rewards
+        ? fromMicroUnits(pos.total_rewards)
+        : 0;
 
-      // Build updated committees when override exists
-      let committees = stake.committees ?? [];
-      if (override.committees) {
-        const pool = [
-          ...(stake.committees ?? []),
-          ...(stake.availableChains ?? []),
-          {
-            chainId: stake.chainId,
-            chain: stake.chain,
-            symbol: stake.symbol,
-            color: stake.color,
-          } as any,
-        ];
-        committees = override.committees
-          .map((id) => pool.find((c) => c.chainId === id))
-          .filter(Boolean) as any[];
-      }
 
       return {
-        ...stake,
-        amount: override.amount,
-        rewards: override.rewards ?? stake.rewards,
-        rewardsUSD: override.rewardsUSD ?? stake.rewardsUSD,
-        restakeRewards:
-          override.restakeRewards !== undefined
-            ? override.restakeRewards
-            : stake.restakeRewards,
-        committees,
+        id: `${pos.chain_id}-${pos.address}`,
+        chainId: pos.chain_id,
+        symbol: pos.chain_symbol,
+        chain: pos.chain_name || `Chain ${pos.chain_id}`,
+        amount: nativeAmount,
+        nativeAmount,
+        cnpyAmount,
+        apy: 8.5, // TODO: Get APY from rewards/positions data
+        rewards: rewardsCNPY,
+        rewardsUSD: undefined, // TODO: Calculate USD value
+        color: CHAIN_COLORS[pos.chain_id] || "#1dd13a",
+        restakeRewards: pos.compound,
+        committees: pos.committees.map((committee) => ({
+          chainId: committee.chain_id,
+          chainName: committee.chain_name
+        })),
+        status: pos.status,
       };
     });
-  }, [stakeOverrides, stakes]);
+  }, [positions]);
 
-  const activeCount = useMemo(
-    () => displayStakes.filter((stake) => stake.amount > 0).length,
-    [displayStakes]
-  );
+  // Transform unstaking queue to display format
+  const displayUnstaking = useMemo<DisplayUnstaking[]>(() => {
+    return unstakingQueue.map((entry) => {
+      const completionTimestamp = entry.estimated_completion
+        ? Date.parse(entry.estimated_completion)
+        : NaN;
+      const availableAt = Number.isNaN(completionTimestamp)
+        ? Date.now() + Math.max(entry.blocks_remaining, 0) * 1000
+        : completionTimestamp;
 
-  const earningsForSheet = useMemo(() => {
-    const normalizeDate = (label: string) => {
-      const lower = label.toLowerCase();
-      if (lower === "today") return new Date();
-      if (lower === "yesterday")
-        return new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const parsed = new Date(label);
-      return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
-    };
+      const remainingMs = Math.max(availableAt - Date.now(), 0);
+      const daysRemaining = Math.floor(remainingMs / 86400000);
+      const hoursRemaining = Math.floor((remainingMs % 86400000) / 3600000);
 
-    let counter = 0;
-    return (data.earningsHistory ?? []).flatMap((day) => {
-      const dayDate = normalizeDate(day.date).toISOString();
-      return day.transactions.map((tx, idx) => {
-        const chainAsset = assets.find((a) => a.chainId === tx.chainId);
-        return {
-          id: counter++,
-          date: dayDate,
-          chain: chainAsset?.name ?? tx.symbol,
-          symbol: tx.symbol,
-          amount: tx.amount,
-          usdValue: tx.amountUSD,
-          color: chainAsset?.color ?? "#1f2937",
-        };
-      });
+      const nativeAmount = fromMicroUnits(entry.unstaking_amount);
+      const cnpyAmount = fromMicroUnits(
+        entry.unstaking_cnpy !== undefined ? entry.unstaking_cnpy : entry.unstaking_amount
+      );
+
+      return {
+        id: `${entry.chain_id}-${entry.address}`,
+        chainId: entry.chain_id,
+        chain: entry.chain_name || `Chain ${entry.chain_id}`,
+        symbol: "CNPY",
+        nativeAmount,
+        cnpyAmount,
+        daysRemaining,
+        hoursRemaining,
+        status: entry.status,
+        availableAt,
+        timeRemainingLabel:
+          entry.status === "ready"
+            ? "Ready to withdraw"
+            : entry.time_remaining ||
+              formatTimeRemaining(
+                Math.max(entry.blocks_remaining, Math.ceil(remainingMs / 1000))
+              ),
+      };
     });
-  }, [assets, data.earningsHistory]);
+  }, [unstakingQueue]);
+
+  // Convert total rewards from micro units to display value
+  const totalInterestEarned = useMemo(() => {
+    return fromMicroUnits(totalRewardsEarned.toString());
+  }, [totalRewardsEarned]);
 
   const handleSort = (column: SortField) => {
     if (sortBy === column) {
@@ -188,10 +246,9 @@ export function StakingTab({ addresses }: StakingTabProps) {
   const sortedStakes = useMemo(() => {
     const copy = [...displayStakes];
     copy.sort((a, b) => {
-      if (a.isCnpy) return -1;
-      if (b.isCnpy) return 1;
 
-      const getValue = (stake: MockStake) => {
+
+      const getValue = (stake: DisplayStake) => {
         if (sortBy === "apy") return stake.apy;
         if (sortBy === "amount") return stake.amount;
         return stake.rewardsUSD ?? stake.rewards ?? 0;
@@ -205,36 +262,17 @@ export function StakingTab({ addresses }: StakingTabProps) {
 
   const filteredStakes = useMemo(() => {
     if (activeFilter === "active") {
-      return sortedStakes.filter((stake) => stake.amount > 0);
+      return sortedStakes.filter((stake) => stake.amount > 0 && stake.status === "active");
     }
     return sortedStakes;
   }, [activeFilter, sortedStakes]);
 
-  const handleStakeClick = (stake: MockStake) => {
-    setSelectedStake(stake);
-    if (stake.isCnpy) {
-      setShowManageCnpyDialog(true);
-    } else {
-      setShowStakeDialog(true);
-    }
-  };
+  const activeCount = useMemo(
+    () => displayStakes.filter((stake) => stake.amount > 0 && stake.status === "active").length,
+    [displayStakes]
+  );
 
-  const handleUnstakeClick = (stake: MockStake) => {
-    setSelectedStake(stake);
-    setShowUnstakeDialog(true);
-  };
-
-  const handleViewUnstakingDetails = (item: MockUnstakingItem) => {
-    setSelectedUnstaking(item);
-    setShowUnstakingDetail(true);
-  };
-
-  const handleCancelUnstake = (item: MockUnstakingItem) => {
-    setSelectedUnstaking(item);
-    setShowCancelDialog(true);
-  };
-
-  const renderRestakeBadge = (stake: MockStake) => {
+  const renderRestakeBadge = (stake: DisplayStake) => {
     if (stake.amount <= 0) return null;
 
     return stake.restakeRewards ? (
@@ -270,32 +308,14 @@ export function StakingTab({ addresses }: StakingTabProps) {
     );
   };
 
-  const renderActionButtons = (stake: MockStake) => {
-    const isActive = stake.amount > 0;
+  const renderActionButtons = (stake: DisplayStake) => {
+    const isActive = stake.amount > 0 && stake.status === "active";
+    const isUnstaking = stake.status === "unstaking";
 
-    if (stake.isCnpy) {
-      return (
-        <div className="flex flex-col items-end gap-1">
-          {isActive && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 text-xs w-[110px]"
-              onClick={() => handleUnstakeClick(stake)}
-            >
-              Unstake (7d)
-            </Button>
-          )}
-          <Button
-            size="sm"
-            className="h-7 text-xs w-[110px]"
-            onClick={() => handleStakeClick(stake)}
-          >
-            Manage Chains
-          </Button>
-        </div>
-      );
+    if (isUnstaking) {
+      return ( <></>);
     }
+
 
     if (isActive) {
       return (
@@ -303,18 +323,24 @@ export function StakingTab({ addresses }: StakingTabProps) {
           <Button
             size="sm"
             className="h-7 text-xs w-[78px]"
-            onClick={() => handleStakeClick(stake)}
+            onClick={() => {
+              setSelectedStake(stake);
+              setShowManageDialog(true);
+            }}
           >
             Add More
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7 text-xs w-[78px]"
-            onClick={() => handleUnstakeClick(stake)}
-          >
-            Unstake
-          </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs w-[78px]"
+          onClick={() => {
+              setSelectedUnstake(stake);
+              setShowUnstakeDialog(true);
+          }}
+        >
+          Unstake
+        </Button>
         </div>
       );
     }
@@ -323,11 +349,19 @@ export function StakingTab({ addresses }: StakingTabProps) {
       <Button
         size="sm"
         className="h-7 text-xs w-[78px]"
-        onClick={() => handleStakeClick(stake)}
+        onClick={() => {
+          toast.info("Stake functionality coming soon");
+          // TODO: Implement stake
+        }}
       >
         Stake
       </Button>
     );
+  };
+
+  const handleViewUnstakingDetails = (item: DisplayUnstaking) => {
+    setSelectedUnstaking(item);
+    setShowUnstakingDetail(true);
   };
 
   if (!hasWallet) {
@@ -358,50 +392,56 @@ export function StakingTab({ addresses }: StakingTabProps) {
     );
   }
 
+  if (isError) {
+    return (
+      <Card>
+        <CardContent className="text-center py-12">
+          <AlertCircle className="h-12 w-12 mx-auto mb-4 text-destructive" />
+          <p className="text-sm font-medium text-destructive">
+            Failed to load staking data
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Please try again later
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <TooltipProvider>
       <div className="space-y-6">
+        {/* Total Interest Earned Card */}
         <Card className="p-1">
           <div className="flex items-center justify-between px-4 py-3">
             <div className="space-y-1">
-              <p className="text-lg font-bold">Total interest earned to date</p>
+              <p className="text-lg font-bold">Total rewards earned</p>
               <div className="flex items-baseline gap-2">
                 <h3 className="text-3xl font-bold">
-                  {formatUsd(totalInterestEarned)}
+                  {formatBalance(totalInterestEarned, 2)} CNPY
                 </h3>
-                <span className="text-sm text-muted-foreground">USD</span>
               </div>
 
               <p className="text-sm text-muted-foreground mt-4 max-w-md">
-                Earn up to 8.05% APY on your crypto. Rewards are automatically
-                transferred.
+                Earn rewards on your crypto by staking. Rewards are automatically
+                transferred based on your settings.
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help inline-block ml-1.5 align-middle" />
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs">
                     <p>
-                      Annual Percentage Yield (APY) varies by asset and network
+                      Annual Percentage Yield (APY) varies by chain and network
                       conditions.
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Rewards are automatically transferred based on your
-                      preference (restake or to balance).
                     </p>
                   </TooltipContent>
                 </Tooltip>
               </p>
             </div>
-            <Button
-              variant="outline"
-              className="h-10"
-              onClick={() => setShowHistorySheet(true)}
-            >
-              View Reward History
-            </Button>
           </div>
         </Card>
 
+        {/* Filter Tabs */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setActiveFilter("all")}
@@ -448,11 +488,12 @@ export function StakingTab({ addresses }: StakingTabProps) {
                   : "bg-foreground/10"
               }`}
             >
-              {visibleUnstaking.length || unstakingCount}
+              {displayUnstaking.length}
             </span>
           </button>
         </div>
 
+        {/* Stakes Table */}
         {activeFilter !== "queue" && (
           <Card>
             <Table>
@@ -494,9 +535,7 @@ export function StakingTab({ addresses }: StakingTabProps) {
               <TableBody>
                 {filteredStakes.length > 0 ? (
                   filteredStakes.map((stake) => {
-                    const asset = assets.find((a) => a.chainId === stake.chainId);
-                    const stakedValueUSD = (stake.amount || 0) * (asset?.price || 0);
-                    const isActive = stake.amount > 0;
+                    const isActive = stake.amount > 0 && stake.status === "active";
 
                     return (
                       <TableRow key={stake.id}>
@@ -515,9 +554,18 @@ export function StakingTab({ addresses }: StakingTabProps) {
                               <div className="text-sm text-muted-foreground">
                                 {stake.symbol}
                               </div>
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                <Badge
+                                  variant="secondary"
+                                  className={`text-[11px] font-medium ${getStatusColor(
+                                    stake.status
+                                  )}`}
+                                >
+                                  {getStatusLabel(stake.status)}
+                                </Badge>
+                              </div>
                               {renderRestakeBadge(stake)}
-                              {stake.isCnpy &&
-                                stake.committees &&
+                              { stake.committees &&
                                 stake.committees.length > 0 && (
                                   <div className="flex items-center gap-1 mt-1.5">
                                     <Layers className="w-3 h-3 text-muted-foreground" />
@@ -527,20 +575,15 @@ export function StakingTab({ addresses }: StakingTabProps) {
                                           <TooltipTrigger asChild>
                                             <div
                                               className="w-5 h-5 rounded-full flex items-center justify-center border-2 border-background"
-                                              style={{ backgroundColor: committee.color }}
+                                              style={{ backgroundColor: CHAIN_COLORS[committee.chainId] || "#1f2937" }}
                                             >
                                               <span className="text-[8px] font-bold text-white">
-                                                {committee.symbol.slice(0, 1)}
+                                                {committee.chainId}
                                               </span>
                                             </div>
                                           </TooltipTrigger>
                                           <TooltipContent>
-                                            <p>Staking for {committee.chain}</p>
-                                            {committee.rewards !== undefined && (
-                                              <p className="text-xs text-muted-foreground">
-                                                Earned: {committee.rewards} {committee.symbol}
-                                              </p>
-                                            )}
+                                            <p>Staking for {committee.chainName || `Chain ${committee.chainId}`}</p>
                                           </TooltipContent>
                                         </Tooltip>
                                       ))}
@@ -562,19 +605,18 @@ export function StakingTab({ addresses }: StakingTabProps) {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {isActive ? (
-                            <>
-                              <div className="font-medium">
-                                {stake.amount} {stake.symbol}
+                          {stake.amount > 0 ? (
+                            <div className="space-y-1">
+                              <div className="font-medium flex items-center gap-2">
+                                {formatBalance(stake.nativeAmount, 2)} {stake.symbol}
+
                               </div>
-                              <div className="text-sm text-muted-foreground">
-                                {formatUsd(stakedValueUSD)} USD
+                              <div className="text-xs text-muted-foreground">
+                                {formatBalance(stake.cnpyAmount, 2)} CNPY
                               </div>
-                            </>
-                          ) : (
-                            <div className="text-sm text-muted-foreground">
-                              Not staked
                             </div>
+                          ) : (
+                            <div className="text-sm text-muted-foreground">Not staked</div>
                           )}
                         </TableCell>
                         <TableCell>
@@ -584,10 +626,7 @@ export function StakingTab({ addresses }: StakingTabProps) {
                           {stake.rewards && stake.rewards > 0 ? (
                             <div>
                               <div className="font-medium">
-                                {stake.rewards} {stake.symbol}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {stake.rewardsUSD ? formatUsd(stake.rewardsUSD) + " USD" : ""}
+                                {formatBalance(stake.rewards, 2)} {stake.symbol}
                               </div>
                             </div>
                           ) : (
@@ -628,6 +667,7 @@ export function StakingTab({ addresses }: StakingTabProps) {
           </Card>
         )}
 
+        {/* Unstaking Queue */}
         {activeFilter === "queue" && (
           <Card>
             <Table>
@@ -642,64 +682,66 @@ export function StakingTab({ addresses }: StakingTabProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visibleUnstaking.length > 0 ? (
-                  visibleUnstaking.map((item) => {
-                    const stake = stakes.find((s) => s.chainId === item.chainId);
-                    return (
-                      <TableRow key={item.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <div
-                              className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                              style={{ backgroundColor: stake?.color || "#1f2937" }}
-                            >
-                              <span className="text-sm font-bold text-white">
-                                {item.symbol.slice(0, 2)}
-                              </span>
+                {displayUnstaking.length > 0 ? (
+                  displayUnstaking.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                            style={{
+                              backgroundColor:
+                                CHAIN_COLORS[item.chainId] || "#1f2937",
+                            }}
+                          >
+                            <span className="text-sm font-bold text-white">
+                              {item.symbol.slice(0, 2)}
+                            </span>
                           </div>
                           <div>
-                            <div className="font-semibold">
-                              {stake?.chain || item.symbol}
-                            </div>
-                              <Badge variant="secondary" className="mt-1">
-                                Pending
-                              </Badge>
-                            </div>
+                            <div className="font-semibold">{item.chain}</div>
+                            <div className="text-sm text-muted-foreground">{item.symbol}</div>
+                            <Badge
+                              variant="secondary"
+                              className={`mt-1 ${getStatusColor(item.status)}`}
+                            >
+                              {getStatusLabel(item.status)}
+                            </Badge>
                           </div>
-                        </TableCell>
-                        <TableCell>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
                           <div className="font-medium">
-                            {item.amount} {item.symbol}
+                            {formatBalance(item.nativeAmount, 2)} {item.symbol}
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            {item.daysRemaining} days, {item.hoursRemaining} hours
+                          <div className="text-xs text-muted-foreground">
+                            {formatBalance(item.cnpyAmount, 2)} CNPY
                           </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-9"
-                              onClick={() => handleViewUnstakingDetails(item)}
-                            >
-                              View Details
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-9"
-                              onClick={() => handleCancelUnstake(item)}
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          {item.status === "ready"
+                            ? "Ready to withdraw"
+                            : `${item.daysRemaining} days, ${item.hoursRemaining} hours`}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {item.timeRemainingLabel}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-9"
+                          onClick={() => handleViewUnstakingDetails(item)}
+                        >
+                          View Details
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
                 ) : (
                   <TableRow>
                     <TableCell colSpan={4} className="text-center py-12">
@@ -725,193 +767,70 @@ export function StakingTab({ addresses }: StakingTabProps) {
         )}
       </div>
 
-      <EarnRewardsDialog
-        open={showStakeDialog}
-        onOpenChange={setShowStakeDialog}
-        stake={
-          selectedStake
-            ? {
-                ...selectedStake,
-                amount:
-                  stakeOverrides[selectedStake.id]?.amount ?? selectedStake.amount,
-                price:
-                  assets.find((a) => a.chainId === selectedStake.chainId)?.price ??
-                  0,
-                balance:
-                  assets.find((a) => a.chainId === selectedStake.chainId)?.balance ??
-                  0,
-              }
-            : null
-        }
-        onConfirm={(amountToAdd, autoCompound) => {
-          if (!selectedStake) return;
-          const currentAmount =
-            stakeOverrides[selectedStake.id]?.amount ?? selectedStake.amount;
-          setStakeOverrides((prev) => ({
-            ...prev,
-            [selectedStake.id]: {
-              ...prev[selectedStake.id],
-              amount: currentAmount + amountToAdd,
-              rewards: prev[selectedStake.id]?.rewards,
-              rewardsUSD: prev[selectedStake.id]?.rewardsUSD,
-              restakeRewards: autoCompound,
-            },
-          }));
-          setSelectedStake((prev) =>
-            prev ? { ...prev, restakeRewards: autoCompound } : prev
-          );
-          toast.success(`Added ${formatBalance(amountToAdd, 2)} ${selectedStake.symbol}`);
-        }}
-      />
-
-      <ManageCnpyStakeDialog
-        open={showManageCnpyDialog}
-        onOpenChange={setShowManageCnpyDialog}
-        stake={
-          selectedStake?.isCnpy
-            ? {
-                ...selectedStake,
-                amount:
-                  stakeOverrides[selectedStake.id]?.amount ?? selectedStake.amount,
-                balance:
-                  assets.find((a) => a.chainId === selectedStake.chainId)?.balance ??
-                  0,
-                price:
-                  assets.find((a) => a.chainId === selectedStake.chainId)?.price ??
-                  0,
-              }
-            : null
-        }
-        onConfirm={({ amountToAdd, committees, autoCompound }) => {
-          if (!selectedStake) return;
-          const currentAmount =
-            stakeOverrides[selectedStake.id]?.amount ?? selectedStake.amount;
-          setStakeOverrides((prev) => ({
-            ...prev,
-            [selectedStake.id]: {
-              ...prev[selectedStake.id],
-              amount: currentAmount + amountToAdd,
-              committees,
-              restakeRewards: autoCompound,
-            },
-          }));
-          toast.success(
-            `Updated CNPY stake (chains: ${committees.length}, +${formatBalance(
-              amountToAdd,
-              2
-            )} CNPY)`
-          );
-        }}
-      />
-
-      <UnstakeDialog
-        open={showUnstakeDialog}
-        onOpenChange={setShowUnstakeDialog}
-        stake={
-          selectedStake
-            ? {
-                id: selectedStake.id,
-                chain: selectedStake.chain,
-                symbol: selectedStake.symbol,
-                amount:
-                  stakeOverrides[selectedStake.id]?.amount ?? selectedStake.amount,
-                price:
-                  assets.find((a) => a.chainId === selectedStake.chainId)?.price ??
-                  0.1,
-                color: selectedStake.color,
-                apy: selectedStake.apy,
-              }
-            : undefined
-        }
-        onUnstakeSuccess={(stake, amount) => {
-          setStakeOverrides((prev) => ({
-            ...prev,
-            [stake.id]: {
-              ...prev[stake.id],
-              amount: Math.max(0, stake.amount - amount),
-            },
-          }));
-          const newEntry: MockUnstakingItem = {
-            id: `unstake-${Date.now()}`,
-            chainId: selectedStake?.chainId ?? selectedStake?.id ?? stake.id,
-            symbol: stake.symbol,
-            amount,
-            daysRemaining: 7,
-            hoursRemaining: 0,
-          };
-          setNewUnstakingItems((prev) => [...prev, newEntry]);
-          toast.success(
-            `Unstake of ${formatBalance(amount, 2)} ${stake.symbol} started (mock)`
-          );
-        }}
-      />
-
-      <EarningsHistorySheet
-        open={showHistorySheet}
-        onOpenChange={setShowHistorySheet}
-        earnings={earningsForSheet}
-      />
-
       <UnstakingDetailSheet
         open={showUnstakingDetail}
-        onOpenChange={setShowUnstakingDetail}
+        onOpenChange={(open) => {
+          setShowUnstakingDetail(open);
+          if (!open) {
+            setSelectedUnstaking(null);
+          }
+        }}
         unstakingItem={
           selectedUnstaking
-            ? (() => {
-                const stake = displayStakes.find(
-                  (s) => s.chainId === selectedUnstaking.chainId
-                );
-                const availableAt =
-                  Date.now() +
-                  (selectedUnstaking.daysRemaining * 24 +
-                    selectedUnstaking.hoursRemaining) *
-                    60 *
-                    60 *
-                    1000;
-                return {
-                  id: Number(selectedUnstaking.id) || 0,
-                  chain: stake?.chain || selectedUnstaking.symbol,
-                  symbol: selectedUnstaking.symbol,
-                  amount: selectedUnstaking.amount,
-                  availableAt,
-                  color: stake?.color || "#1f2937",
-                };
-              })()
+            ? {
+                id: Number(selectedUnstaking.id) || 0,
+                chain: selectedUnstaking.chain,
+                symbol: selectedUnstaking.symbol,
+                amount: selectedUnstaking.nativeAmount,
+                availableAt: selectedUnstaking.availableAt,
+                color: CHAIN_COLORS[selectedUnstaking.chainId] || "#1f2937",
+              }
             : undefined
         }
         onCancelUnstake={() => {
-          if (!selectedUnstaking) return;
-          setCanceledUnstakeIds((prev) => [...prev, selectedUnstaking.id]);
-          setShowUnstakingDetail(false);
-          toast.success(
-            `Unstake canceled for ${selectedUnstaking.symbol} (mock)`
-          );
+          toast.info("Cancel unstake coming soon");
         }}
       />
-
-      <CancelUnstakeDialog
-        open={showCancelDialog}
-        onOpenChange={setShowCancelDialog}
-        unstakingItem={
-          selectedUnstaking
-            ? {
-                chain:
-                  displayStakes.find(
-                    (stake) => stake.chainId === selectedUnstaking.chainId
-                  )?.chain || selectedUnstaking.symbol,
-                symbol: selectedUnstaking.symbol,
-                amount: selectedUnstaking.amount,
-              }
-            : undefined
-        }
-        onConfirm={() => {
-          if (!selectedUnstaking) return;
-          setCanceledUnstakeIds((prev) => [...prev, selectedUnstaking.id]);
-          setShowCancelDialog(false);
-          toast.success(
-            `Unstake canceled for ${selectedUnstaking.symbol} (mock)`
-          );
+      <UnstakeDialog
+        open={showUnstakeDialog}
+        onOpenChange={(open) => {
+          setShowUnstakeDialog(open);
+          if (!open) {
+            setSelectedUnstake(null);
+          }
         }}
+        position={
+          selectedUnstake
+            ? ({
+                chain_id: selectedUnstake.chainId,
+                chain_name: selectedUnstake.chain,
+                chain_symbol: selectedUnstake.symbol,
+                staked_amount: selectedUnstake.nativeAmount.toString(),
+                staked_cnpy: selectedUnstake.cnpyAmount.toString(),
+                status: selectedUnstake.status,
+                compound: selectedUnstake.restakeRewards,
+                committees: selectedUnstake.committees?.map((c) => ({
+                  chain_id: c.chainId,
+                  chain_name: c.chainName,
+                })) || [],
+              } as any)
+            : null
+        }
+        onUnstakeSuccess={() => {
+          toast.success("Unstake submitted");
+        }}
+      />
+      {/* Manage Stake Dialog */}
+      <StakeDialog
+        open={showManageDialog}
+        onOpenChange={setShowManageDialog}
+        initialChainId={selectedStake?.chainId}
+        initialCommittees={selectedStake?.committees?.map((committee) => committee.chainId) || []}
+        initialStakedAmount={Number(selectedStake?.amount)}
+        disallowChainIds={displayStakes
+          .filter((s) => s.status !== "unstaking") // allow chains only in unstaking to be restaked
+          .map((s) => s.chainId)}
+
       />
     </TooltipProvider>
   );
