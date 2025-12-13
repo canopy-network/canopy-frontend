@@ -28,6 +28,11 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { validatorsApi, type ValidatorData } from "@/lib/api/validators";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const ROWS_PER_PAGE = 20;
 
@@ -80,7 +85,6 @@ type ValidatorStatus = "Online" | "Offline" | "Jailed";
 
 type TransformedValidator = {
   id: string;
-  name: string;
   chain: {
     id: string;
     name: string;
@@ -93,8 +97,7 @@ type TransformedValidator = {
   commission: string;
   uptime: number;
   status: ValidatorStatus;
-  blocks: number;
-  apr: number;
+  apy: number;
   rewards: number;
   committees: number[];
   rank: number;
@@ -110,7 +113,7 @@ type TransformedValidator = {
 
 const statusAccent: Record<ValidatorStatus, string> = {
   Online:
-    "border-[#36d26a] bg-[#36d26a]/10 text-[#7cff9d] shadow-[0_0_14px_rgba(124,255,157,0.35)]",
+    "border-[#00a63d] bg-[#00a63d]/10 text-[#00a63d] shadow-[0_0_14px_rgba(0,166,61,0.35)]",
   Offline: "border-gray-500/40 bg-gray-500/10 text-gray-300",
   Jailed:
     "border-red-500/60 bg-red-500/10 text-red-300 shadow-[0_0_12px_rgba(239,68,68,0.3)]",
@@ -126,10 +129,16 @@ export function ValidatorsExplorer({
   const [validators, setValidators] = useState<TransformedValidator[]>([]);
   const [isLoadingValidators, setIsLoadingValidators] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [chainFilterId, setChainFilterId] = useState<string | null>(null);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const router = useRouter();
 
   const chainContextId = chainContext?.id ?? null;
   const chainContextName = chainContext?.name ?? null;
+
+  useEffect(() => {
+    setChainFilterId(chainContextId);
+  }, [chainContextId]);
 
   // Fetch validators from API
   useEffect(() => {
@@ -152,6 +161,8 @@ export function ValidatorsExplorer({
             );
             const votingPower = parseFloat(validator.voting_power);
             const committees = validator.committees || [validator.chain_id];
+            const apy = validator.apy ?? 0;
+            const uptime = Number(validator.uptime ?? 0);
 
             // Map API status to display status
             let statusDisplay: ValidatorStatus = "Online";
@@ -161,34 +172,11 @@ export function ValidatorsExplorer({
               statusDisplay = "Jailed";
             }
 
-            // ===== Calculated Data (API doesn't provide these) =====
-            // Calculate APR based on voting power
-            const apr = Math.min(12, 6 + votingPower * 0.05); // 6-12% range
-
             // Calculate estimated rewards
-            const rewards = stakedCnpy * (apr / 100);
-
-            // Generate validator name from address
-            const name = `${validator.address.substring(
-              0,
-              8
-            )}...${validator.address.substring(validator.address.length - 6)}`;
-
-            // Calculated: blocks count, uptime
-            const blocks =
-              validator.status === "active"
-                ? Math.floor(Math.random() * 50000 + 10000)
-                : 0;
-            const uptime =
-              validator.status === "active"
-                ? 99.9
-                : validator.status === "unstaking"
-                ? 85.0
-                : 0;
+            const rewards = stakedCnpy * (apy / 100);
 
             return {
               id: `${validator.chain_id}-${validator.address}`,
-              name,
               chain: {
                 id: validator.chain_id.toString(),
                 name: validator.chain_name,
@@ -204,8 +192,7 @@ export function ValidatorsExplorer({
               commission: validator.delegate ? "10%" : "5%",
               uptime,
               status: statusDisplay,
-              blocks,
-              apr,
+              apy,
               rewards,
               committees,
               rank: index + 1,
@@ -236,14 +223,21 @@ export function ValidatorsExplorer({
 
   const validatorSource = validators;
 
-  const chainFilterId = chainContextId;
-  const displayChainName = chainContextName ?? "All Chains";
+  const chainFilterLabel = useMemo(() => {
+    if (!chainFilterId) return "All Chains";
+    const match = validators.find((v) => v.chain.id === chainFilterId);
+    return match?.chain.name ?? "All Chains";
+  }, [chainFilterId, validators]);
 
   const filteredValidators = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     return validatorSource.filter((validator) => {
       const matchesQuery = query
-        ? [validator.chain.name, validator.name, validator.status]
+        ? [
+            validator.chain.name,
+            validator.address,
+            validator.status,
+          ]
             .join(" ")
             .toLowerCase()
             .includes(query)
@@ -295,6 +289,12 @@ export function ValidatorsExplorer({
     return `${stake.toFixed(0)} CNPY`;
   };
 
+  const formatAddress = (address: string) => {
+    if (!address) return "";
+    if (address.length <= 12) return address;
+    return `${address.slice(0, 6)}...${address.slice(-3)}`;
+  };
+
   return (
     <Container type="boxed" className="space-y-6 px-6 lg:px-10 mt-6">
       <div
@@ -311,13 +311,54 @@ export function ValidatorsExplorer({
         />
 
         <div className="flex flex-wrap items-center gap-3">
-          <Button
-            variant="outline"
-            className=" border-white/15 bg-white/5 text-white hover:bg-white/10"
-          >
-            <Filter className="size-4" />
-            Filter
-          </Button>
+          <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className=" border-white/15 bg-white/5 text-white hover:bg-white/10"
+              >
+                <Filter className="size-4" />
+                {chainFilterLabel}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-0">
+              <div className="flex flex-col">
+                <button
+                  type="button"
+                  className={cn(
+                    "px-4 py-2 text-sm text-left hover:bg-muted",
+                    !chainFilterId && "bg-muted/50 font-semibold"
+                  )}
+                  onClick={() => {
+                    setChainFilterId(null);
+                    setIsFilterOpen(false);
+                  }}
+                >
+                  All Chains
+                </button>
+                {Array.from(
+                  new Map(
+                    validators.map((v) => [v.chain.id, v.chain.name])
+                  ).entries()
+                ).map(([id, name]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={cn(
+                      "px-4 py-2 text-sm text-left hover:bg-muted",
+                      chainFilterId === id && "bg-muted/50 font-semibold"
+                    )}
+                    onClick={() => {
+                      setChainFilterId(id);
+                      setIsFilterOpen(false);
+                    }}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
 
           <Button
             variant="outline"
@@ -384,7 +425,10 @@ export function ValidatorsExplorer({
             <TableHeader className="">
               <TableRow className="bg-transparent hover:bg-transparent">
                 <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Validator Name
+                  Chain
+                </TableHead>
+                <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Address
                 </TableHead>
                 <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">
                   Status
@@ -393,13 +437,10 @@ export function ValidatorsExplorer({
                   Stake
                 </TableHead>
                 <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Blocks
-                </TableHead>
-                <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">
                   Uptime
                 </TableHead>
                 <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">
-                  APR
+                  APY
                 </TableHead>
                 <TableHead className="text-right text-xs uppercase tracking-wide text-muted-foreground">
                   Rewards
@@ -432,16 +473,15 @@ export function ValidatorsExplorer({
               ) : (
                 paginatedValidators.map((validator) => (
                   <TableRow key={validator.id} appearance="plain">
-                    <TableCell>
+                  <TableCell className="text-sm text-white/80">
+                    {validator.chain.name}
+                  </TableCell>
+
+                    <TableCell className="text-sm text-white/80 font-mono">
                       <Link href={`/validators/${validator.address}`}>
-                        <div className="flex flex-col gap-1">
-                          <span className="text-xs font-medium text-white/60">
-                            {validator.chain.name}
-                          </span>
-                          <span className="inline-flex items-center rounded-md border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-white/80 hover:bg-white/10 transition-colors cursor-pointer w-fit">
-                            {validator.name}
-                          </span>
-                        </div>
+                        <span className="inline-flex items-center rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-white/70 hover:bg-white/10 transition-colors">
+                          {formatAddress(validator.address)}
+                        </span>
                       </Link>
                     </TableCell>
 
@@ -462,24 +502,19 @@ export function ValidatorsExplorer({
                     </TableCell>
 
                     <TableCell className="text-sm text-white/80">
-                      {validator.blocks.toLocaleString()}
-                    </TableCell>
-
-                    <TableCell className="text-sm text-white/80">
                       {validator.uptime.toFixed(1)}%
                     </TableCell>
 
                     <TableCell className="text-sm text-white/80">
-                      {validator.apr.toFixed(1)}%
+                      {validator.apy.toFixed(2)}%
                     </TableCell>
 
                     <TableCell className="text-right">
-                      <span className="font-semibold text-sm text-[#7cff9d]">
+                      <span className="font-semibold text-sm text-[#00a63d]">
                         {validator.rewards.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
-                        })}{" "}
-                        CNPY
+                        })}
                       </span>
                     </TableCell>
                   </TableRow>

@@ -167,7 +167,7 @@ export function RecentBlocks({
                         data-column="1"
                         className="flex items-center gap-4 flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
                       >
-                        <div className="flex items-center justify-center w-10 h-10 bg-black/30 border border-[#36d26a] rounded-lg flex-shrink-0 px-0 shadow-[0_0_14px_rgba(124,255,157,0.3)]">
+                        <div className="flex items-center justify-center w-10 h-10 bg-black/30 border border-[#00a63d] rounded-lg flex-shrink-0 px-0 shadow-[0_0_14px_rgba(0,166,61,0.3)]">
                           <Box className={`w-5 h-5 ${EXPLORER_ICON_GLOW}`} />
                         </div>
                         <div className="min-w-0 flex-1">

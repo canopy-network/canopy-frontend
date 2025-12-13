@@ -12,7 +12,7 @@ const progressVariants = cva(
     variants: {
       variant: {
         default: "bg-secondary",
-        green: "bg-green-900/30",
+        green: "bg-[#00a63d]/15 shadow-[0_0_12px_rgba(0,166,61,0.25)]",
       },
     },
     defaultVariants: {
@@ -25,7 +25,7 @@ const indicatorVariants = cva("h-full w-full flex-1 transition-all", {
   variants: {
     variant: {
       default: "bg-primary",
-      green: "bg-green-500",
+      green: "bg-[#00a63d]",
     },
   },
   defaultVariants: {

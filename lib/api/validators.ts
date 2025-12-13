@@ -20,6 +20,8 @@ export interface ValidatorData {
   delegate: boolean;
   compound: boolean;
   voting_power: string; // Percentage (e.g., "100.00")
+  apy?: number; // Annual percentage yield from backend
+  uptime?: number;
   committees: number[] | null;
   updated_at: string; // ISO 8601 timestamp
 }
@@ -33,6 +35,8 @@ export interface CrossChainStake {
   status: "active" | "unstaking" | "paused";
   committees: number[] | null;
   updated_at: string;
+  apy?: number;
+  unstaking_blocks?: number;
 }
 
 /**
@@ -52,6 +56,9 @@ export interface ValidatorDetailData {
   public_key: string;
   net_address: string; // TCP address
   staked_amount: number; // In micro units
+  apy?: number;
+  uptime?: number;
+  voting_power?: string;
   output: string; // Output address
   committees: number[] | null;
   status: "active" | "unstaking" | "paused";

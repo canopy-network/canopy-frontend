@@ -406,7 +406,7 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
                   </TableCell>
 
                   <TableCell className="text-right">
-                    <span className="font-semibold text-sm text-[#7cff9d]">
+                    <span className="font-semibold text-sm text-[#00a63d]">
                       {parseFloat(tx.amount).toLocaleString(undefined, {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,

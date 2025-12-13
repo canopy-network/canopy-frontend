@@ -209,7 +209,7 @@ export function TrendingChains({ chains }: TrendingChainsProps) {
                         <span
                           className={`px-1 mx-2 -top-0.5 relative py-0.5 rounded-md text-sm font-medium w-fit ${
                             chain.change_24h >= 0
-                              ? "border border-[#36d26a] bg-[#36d26a]/10 text-[#7cff9d]"
+                              ? "border border-[#00a63d] bg-[#00a63d]/10 text-[#00a63d]"
                               : "bg-red-500/10 text-red-500"
                           }`}
                         >

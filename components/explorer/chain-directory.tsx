@@ -230,7 +230,7 @@ export function ChainDirectory({ chains, title = "All Chains" }: ChainDirectoryP
                   <TableCell>
                     <Badge
                       variant="outline"
-                      className="capitalize border-[#36d26a] bg-[#36d26a]/10 text-[#7cff9d] shadow-[0_0_14px_rgba(124,255,157,0.35)]"
+                      className="capitalize border-[#00a63d] bg-[#00a63d]/10 text-[#00a63d] shadow-[0_0_14px_rgba(0,166,61,0.35)]"
                     >
                       {chain.status.replace("_", " ")}
                     </Badge>

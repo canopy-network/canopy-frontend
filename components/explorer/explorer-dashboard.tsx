@@ -26,14 +26,17 @@ import { validatorsApi, type ValidatorData } from "@/lib/api/validators";
 interface Validator {
   name: string;
   address: string;
-  stake: string;
-  apr: string;
+  stake?: string;
+  apr?: string;
+  apy?: number;
+  votingPower?: number;
   uptime: number;
   uptimeTrend?: number[]; // Array of uptime values for sparkline (7 or 30 data points)
   healthScore?: number; // Performance score 0-100
   status?: "healthy" | "warning" | "at_risk"; // Health status
   statusMessage?: string; // Tooltip message
   chains?: string[]; // Array of chain names the validator is staking for
+  originalStatus?: string;
 }
 
 // Helper functions for randomization
@@ -457,35 +460,38 @@ export function ExplorerDashboard({ overviewData }: ExplorerDashboardProps) {
         (validator: ValidatorData) => {
           // Parse voting power
           const votingPower = parseFloat(validator.voting_power);
+          const apy = validator.apy ?? 0;
+          const uptime = Number(validator.uptime ?? 0);
 
-          // Calculate APR based on voting power (mock calculation for now)
-          const apr = (votingPower * 0.12).toFixed(1); // ~12% base APR scaled by voting power
+          const shortAddress = `${validator.address.slice(
+            0,
+            6
+          )}...${validator.address.slice(-6)}`;
 
-          const uptime =
-            validator.status === "active"
-              ? (95 + votingPower / 20).toFixed(2)
-              : "0.00";
+          // Map backend status to UI status badge
+          const statusMap: Record<
+            ValidatorData["status"],
+            "healthy" | "warning" | "at_risk"
+          > = {
+            active: "healthy",
+            unstaking: "warning",
+            paused: "at_risk",
+          };
 
-          // Generate health score based on status and voting power
-          let healthScore = 0;
-          let status: "healthy" | "warning" | "at_risk" = "at_risk";
+          const status = statusMap[validator.status] ?? "at_risk";
 
-          if (validator.status === "active") {
-            healthScore = Math.min(100, 80 + votingPower / 5);
-            if (healthScore >= 95) {
-              status = "healthy";
-            } else if (healthScore >= 60) {
-              status = "warning";
-            }
-          }
+          // Derive a basic health score influenced by voting power
+          // Use backend status directly; omit custom scoring to avoid random numbers
+          const healthScore = undefined;
 
           return {
-            name: validator.chain_name,
+            name: shortAddress,
             address: validator.address,
-            stake: validator.staked_cnpy,
-            apr: `${apr}%`,
-            uptime: parseFloat(uptime),
+            apy,
+            votingPower,
+            uptime,
             status,
+            originalStatus: validator.status,
             healthScore: Math.round(healthScore),
             commissionRate: validator.delegate ? 10 : 5,
             chains: validator.committees

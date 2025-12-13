@@ -8,10 +8,10 @@ export function LiveStatusComponent({ className }: { className?: string }) {
       )}
     >
       <div className="relative flex items-center justify-center">
-        <div className="absolute w-1.5 h-1.5 bg-red-500 rounded-full animate-ping"></div>
-        <div className="relative w-1.5 h-1.5 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div>
+        <div className="absolute w-1.5 h-1.5 bg-[#00a63d] rounded-full animate-ping"></div>
+        <div className="relative w-1.5 h-1.5 bg-[#00a63d] rounded-full shadow-[0_0_8px_rgba(0,166,61,0.8)]"></div>
       </div>
-      <span className="hidden md:inline-block text-red-500">Live</span>
+      <span className="hidden md:inline-block text-[#00a63d]">Live</span>
     </span>
   );
 }
