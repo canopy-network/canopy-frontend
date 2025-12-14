@@ -32,6 +32,7 @@ import { Send, Download, Coins, Repeat, Wallet, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Container } from "@/components/layout/container";
+import OrderBookTab from "@/components/orderbook/orders-tab";
 
 function WalletContent() {
   const router = useRouter();
@@ -49,7 +50,7 @@ function WalletContent() {
   } = useWalletStore();
 
   const [showQuickActionsSheet, setShowQuickActionsSheet] = useState(false);
-  const [activeTab, setActiveTab] = useState("assets");
+  const [activeTab, setActiveTab] = useState("orders");
 
   // Fetch data when wallet changes
   useEffect(() => {
@@ -135,8 +136,8 @@ function WalletContent() {
   }
 
   return (
-    <Container type="boxed" className="flex flex-row">
-      <div className="flex flex-col gap-6">
+    <Container type="boxed-small" className="flex flex-row gap-6">
+      <div className="flex flex-col gap-6 w-full">
         {/* Main Content */}
         <WalletHeader />
 
@@ -149,6 +150,9 @@ function WalletContent() {
             className="w-full"
           >
             <TabsList variant="wallet">
+              <TabsTrigger value="orders" variant="wallet">
+                Order Book
+              </TabsTrigger>
               <TabsTrigger value="assets" variant="wallet">
                 Assets
               </TabsTrigger>
@@ -162,6 +166,11 @@ function WalletContent() {
                 Governance
               </TabsTrigger>
             </TabsList>
+
+            {/* Assets Tab */}
+            <TabsContent value="orders" className="mt-4 sm:mt-6">
+              <OrderBookTab />
+            </TabsContent>
 
             {/* Assets Tab */}
             <TabsContent value="assets" className="mt-4 sm:mt-6">
