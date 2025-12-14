@@ -11,6 +11,7 @@ import { RecentBlocks } from "./recent-blocks";
 import { TrendingChains, type ChainSummary } from "./trending-chains";
 import { Chain } from "@/types/chains";
 import { ExplorerSearchBar } from "./explorer-search-bar";
+import { ActiveChainsTable } from "./active-chains-table";
 import {
   getExplorerTransactions,
   type Transaction,
@@ -559,12 +560,14 @@ export function ExplorerDashboard({ overviewData }: ExplorerDashboardProps) {
 
         <TrendingChains chains={trendingChains} />
 
-        {/* Bottom Grid: New Launches, Top Validators, Recent Transactions */}
-
+        {/* Bottom Grid: New Launches, Top Validators */}
         <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6 lg:mb-8 ">
           <NewLaunches chains={newChains} />
           <TopValidators validators={topValidators} />
         </div>
+
+        {/* Active Chains Table */}
+        <ActiveChainsTable chains={newChains} />
 
         <RecentBlocks
           blocks={recentBlocks}
