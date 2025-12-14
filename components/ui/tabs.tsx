@@ -14,6 +14,8 @@ const tabsListVariants = cva("inline-flex items-center justify-center", {
         "bg-transparent text-foreground h-auto w-full gap-2 scrollbar-hide",
       outline:
         "bg-transparent text-foreground h-auto w-full gap-2 scrollbar-hide",
+      wallet:
+        "bg-transparent text-foreground h-auto w-full justify-start p-0 border-b border-gray-600/50 rounded-none overflow-x-auto scrollbar-hide",
     },
   },
   defaultVariants: {
@@ -38,6 +40,8 @@ const tabsTriggerVariants = cva(
 
         outline:
           "text-zinc-400 font-inter text-sm font-medium leading-none  tracking-normal data-[state=active]:text-white data-[state=active]:bg-transparent  bg-muted  border border-transparent data-[state=active]:border-green-500 data-[state=active]:text-green-500 data-[state=active]:bg-muted rounded-lg ",
+        wallet:
+          "text-gray-400 font-normal px-4 py-3 pb-3 border-b-[3px] border-transparent data-[state=active]:text-white data-[state=active]:font-semibold data-[state=active]:border-white rounded-none bg-transparent hover:text-gray-300 transition-colors -mb-[1px]",
       },
     },
     defaultVariants: {

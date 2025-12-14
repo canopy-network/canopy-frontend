@@ -96,6 +96,11 @@ export interface WalletState {
   // Fee parameters (cached from blockchain)
   feeParams: FeeParams | null;
 
+  // Dialog state
+  showSendDialog: boolean;
+  showReceiveDialog: boolean;
+  showStakeDialog: boolean;
+
   // Actions - Wallet Management
   fetchWallets: () => Promise<void>;
   selectWallet: (walletId: string) => Promise<void>;
@@ -137,6 +142,14 @@ export interface WalletState {
   clearError: () => void;
   resetWalletState: () => void;
   migrateWalletCurveTypes: () => void; // Migrate existing wallets to include curve type
+
+  // Actions - Dialog Management
+  openSendDialog: () => void;
+  closeSendDialog: () => void;
+  openReceiveDialog: () => void;
+  closeReceiveDialog: () => void;
+  openStakeDialog: () => void;
+  closeStakeDialog: () => void;
 }
 
 // Custom storage for Zustand
@@ -285,6 +298,9 @@ export const useWalletStore = create<WalletState>()(
       multiChainBalance: null,
       availableAssets: [],
       feeParams: null,
+      showSendDialog: false,
+      showReceiveDialog: false,
+      showStakeDialog: false,
 
       // Fetch all wallets for the current user
       // Uses only exportWallets endpoint which contains all necessary data
@@ -1277,10 +1293,21 @@ export const useWalletStore = create<WalletState>()(
           portfolioOverview: null,
           multiChainBalance: null,
           feeParams: null,
+          showSendDialog: false,
+          showReceiveDialog: false,
+          showStakeDialog: false,
         });
 
         console.log("🔄 Wallet state reset and password session cleared");
       },
+
+      // Dialog Management Actions
+      openSendDialog: () => set({ showSendDialog: true }),
+      closeSendDialog: () => set({ showSendDialog: false }),
+      openReceiveDialog: () => set({ showReceiveDialog: true }),
+      closeReceiveDialog: () => set({ showReceiveDialog: false }),
+      openStakeDialog: () => set({ showStakeDialog: true }),
+      closeStakeDialog: () => set({ showStakeDialog: false }),
     })),
     {
       name: "canopy-wallet-storage",

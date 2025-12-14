@@ -15,6 +15,7 @@ import { Toaster as HotToaster } from "react-hot-toast";
 import "./globals.css";
 import { Header } from "@/components/layout/header";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { WalletDialogs } from "@/components/wallet/wallet-dialogs";
 // Force dynamic rendering for the entire app
 export const dynamic = "force-dynamic";
 
@@ -55,6 +56,7 @@ export default function RootLayout({
                       </main>
                     </div>
                     <WalletPopup />
+                    <WalletDialogs />
                     <Toaster
                       position="top-center"
                       theme="dark"
