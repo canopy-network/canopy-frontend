@@ -11,7 +11,6 @@ import { RecentBlocks } from "./recent-blocks";
 import { TrendingChains, type ChainSummary } from "./trending-chains";
 import { Chain } from "@/types/chains";
 import { ExplorerSearchBar } from "./explorer-search-bar";
-import { ActiveChainsTable } from "./active-chains-table";
 import {
   getExplorerTransactions,
   type Transaction,
@@ -68,9 +67,8 @@ const randomChainName = () => {
     "Bridge",
     "Hub",
   ];
-  return `${prefixes[randomBetween(0, prefixes.length - 1)]} ${
-    suffixes[randomBetween(0, suffixes.length - 1)]
-  }`;
+  return `${prefixes[randomBetween(0, prefixes.length - 1)]} ${suffixes[randomBetween(0, suffixes.length - 1)]
+    }`;
 };
 
 const randomTokenSymbol = () => {
@@ -174,9 +172,8 @@ const formatOverviewMetrics = (data: ExplorerOverview | null) => {
       id: "active_chains",
       label: "Active Chains",
       value: data.active_chains.toLocaleString(),
-      delta: `${data.active_chains_change >= 0 ? "+" : ""}${
-        data.active_chains_change
-      } this week`,
+      delta: `${data.active_chains_change >= 0 ? "+" : ""}${data.active_chains_change
+        } this week`,
     },
     {
       id: "validators",
@@ -430,15 +427,15 @@ export function ExplorerDashboard({ overviewData }: ExplorerDashboardProps) {
       }
 
       const withGraduation = graduatedChains
-        .filter((chain) => chain.graduation_time)
+        .filter((chain: { graduation_time: any; }) => chain.graduation_time)
         .sort(
-          (a, b) =>
+          (a: { graduation_time: any; }, b: { graduation_time: any; }) =>
             new Date(b.graduation_time || 0).getTime() -
             new Date(a.graduation_time || 0).getTime()
         );
 
       const withoutGraduation = graduatedChains.filter(
-        (chain) => !chain.graduation_time
+        (chain: { graduation_time: any; }) => !chain.graduation_time
       );
 
       const ordered = [...withGraduation, ...withoutGraduation];
@@ -493,7 +490,7 @@ export function ExplorerDashboard({ overviewData }: ExplorerDashboardProps) {
             uptime,
             status,
             originalStatus: validator.status,
-            healthScore: Math.round(healthScore),
+            healthScore: Math.round(healthScore ?? 0),
             commissionRate: validator.delegate ? 10 : 5,
             chains: validator.committees
               ? validator.committees.map((id) => `Chain ${id}`)
@@ -565,9 +562,6 @@ export function ExplorerDashboard({ overviewData }: ExplorerDashboardProps) {
           <NewLaunches chains={newChains} />
           <TopValidators validators={topValidators} />
         </div>
-
-        {/* Active Chains Table */}
-        <ActiveChainsTable chains={newChains} />
 
         <RecentBlocks
           blocks={recentBlocks}

@@ -11,8 +11,10 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Copy, Download, ExternalLink, Heart, Share2 } from "lucide-react";
+import { Copy, Download, ExternalLink, Heart, Share2, TrendingUp } from "lucide-react";
+import Link from "next/link";
 import { canopyIconSvg, getCanopyAccent } from "@/lib/utils/brand";
+import { toast } from "sonner";
 import type { Chain } from "@/types/chains";
 
 interface ChainDetailModalProps {
@@ -57,15 +59,46 @@ export function ChainDetailModal({
 }: ChainDetailModalProps) {
   const [activeTab, setActiveTab] = useState("overview");
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
+  const rpcUrl = `https://rpc.${chain.chain_name.toLowerCase().replace(/\s+/g, "")}.network`;
+  const snapshotUrl = "https://snapshots.cosmoshub.io/latest.tar.lz4";
+  const genesisUrl = `https://github.com/canopy-network/${chain.chain_name.toLowerCase().replace(/\s+/g, "-")}/genesis.json`;
+  const githubUrl = `https://github.com/canopy-network/${chain.chain_name.toLowerCase().replace(/\s+/g, "-")}`;
+
+  const seeds = [
+    "90703d453dfa70af3c85f3605e6cc8222d01d68d439ee5a9ade10be631572b330e1793206c8d417d9693be1d5af417fe@tcp://cnpy.network",
+    "b338f09135994130bee5da939513241b5d01ba5e73c409ed5ecea597b86a8b9c05fd27fb5e47a7296350fbae6262a484@tcp://cnpynetwork.com",
+    "9353441f5319ca7b9ee2f8bd764a8c75e3b6b7b13a18b0c4e5252bc0b1232861318b3063255238edc1fb96f08fa2157a@tcp://canopy.seed1.node1.eu.nodefleet.net",
+    "a3d591f2e602fd18df7c94abf02f6d342939570b169886bb355e6879cd7b9dda8c5d825f7895336d4e29750e65fc65df@tcp://canopy.seed1.node1.us.nodefleet.net"
+  ];
+
+  const seedsArray = `[
+    "${seeds.join('",\n    "')}"
+
+  ],`;
+
+  const networkLinksArray = `[
+    "${rpcUrl}",
+    "${snapshotUrl}",
+    "${genesisUrl}",
+    "${githubUrl}",
+    ${seeds.map((seed) => `"${seed}"`).join(",\n    ")}
+  ]`;
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Copied to clipboard");
+    } catch (error) {
+      console.error("Failed to copy to clipboard", error);
+      toast.error("Failed to copy to clipboard");
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <DialogHeader className="border-b border-border pb-4">
+        <DialogHeader className="border-b border-border pb-4 mb-0">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-4">
               <div
@@ -109,6 +142,11 @@ export function ChainDetailModal({
             </div>
 
             <div className="flex items-center gap-2">
+              <Button variant="ghost" size="icon" asChild>
+                <Link href={`/chains/${chain.chain_id ?? chain.id}/`}>
+                  <TrendingUp className="w-4 h-4" />
+                </Link>
+              </Button>
               <Button variant="ghost" size="icon">
                 <Share2 className="w-4 h-4" />
               </Button>
@@ -120,8 +158,8 @@ export function ChainDetailModal({
         </DialogHeader>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-          <TabsList variant="outline" className="w-full justify-start border-b">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList variant="outline" className="w-full justify-start border-b pb-2">
             <TabsTrigger variant="outline" value="overview">
               Overview
             </TabsTrigger>
@@ -135,7 +173,7 @@ export function ChainDetailModal({
               Code
             </TabsTrigger>
             <TabsTrigger variant="outline" value="network">
-              Network
+              Metadata
             </TabsTrigger>
           </TabsList>
 
@@ -333,7 +371,7 @@ export function ChainDetailModal({
                       </Badge>
                     )}
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <div className="text-xs text-muted-foreground mb-1">Wallet Address</div>
@@ -648,20 +686,28 @@ export function ChainDetailModal({
 
           {/* Network Tab */}
           <TabsContent value="network" className="space-y-6 mt-6">
-            <Card className="p-6 ">
+            <Card className="p-6 relative">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 absolute top-4 right-4"
+                onClick={() => copyToClipboard(networkLinksArray)}
+              >
+                <Copy className="w-4 h-4" />
+              </Button>
               {/* Public RPC */}
               <div >
                 <div className="text-sm text-muted-foreground mb-2">Public RPC</div>
                 <div className="flex items-center gap-2 border border-muted rounded-xl p-1.5">
                   <code className="flex-1 text-sm">
-                    https://rpc.{chain.chain_name.toLowerCase().replace(/\s+/g, '')}.network
+                    {rpcUrl}
                   </code>
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8"
                     onClick={() =>
-                      copyToClipboard(`https://rpc.${chain.chain_name.toLowerCase().replace(/\s+/g, '')}.network`)
+                      copyToClipboard(rpcUrl)
                     }
                   >
                     <Copy className="w-4 h-4" />
@@ -674,14 +720,14 @@ export function ChainDetailModal({
                 <div className="text-sm text-muted-foreground mb-2">Snapshot URL</div>
                 <div className="flex items-center gap-2 border border-muted rounded-xl p-1.5  ">
                   <code className="flex-1 text-sm">
-                    https://snapshots.cosmoshub.io/latest.tar.lz4
+                    {snapshotUrl}
                   </code>
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8"
                     onClick={() =>
-                      copyToClipboard("https://snapshots.cosmoshub.io/latest.tar.lz4")
+                      copyToClipboard(snapshotUrl)
                     }
                   >
                     <Copy className="w-4 h-4" />
@@ -694,10 +740,10 @@ export function ChainDetailModal({
                 <div className="text-sm text-muted-foreground mb-2">Genesis.json</div>
                 <div className="flex items-center gap-2 border border-muted rounded-xl p-1.5">
                   <code className="flex-1 text-sm">
-                    https://snapshots.cosmoshub.io/latest.tar.lz4
+                    {genesisUrl}
                   </code>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <Download className="w-4 h-4" />
+                  <Button onClick={() => copyToClipboard(genesisUrl)} variant="ghost" size="icon" className="h-8 w-8">
+                    <Copy className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
@@ -707,9 +753,9 @@ export function ChainDetailModal({
                 <div className="text-sm text-muted-foreground mb-2">Github Repo</div>
                 <div className="flex items-center gap-2 border border-muted rounded-xl p-1.5">
                   <code className="flex-1 text-sm">
-                    https://github.com/org/{chain.chain_name.toLowerCase().replace(/\s+/g, '-')}
+                    {githubUrl}
                   </code>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Button onClick={() => window.open(githubUrl, '_blank')} variant="ghost" size="icon" className="h-8 w-8">
                     <ExternalLink className="w-4 h-4" />
                   </Button>
                 </div>
@@ -717,26 +763,34 @@ export function ChainDetailModal({
 
               {/* Seeds List */}
               <div>
-                <div className="text-sm text-muted-foreground mb-2">Seeds List</div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm text-muted-foreground">Seeds List</div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => copyToClipboard(seedsArray)}
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
                 <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
+                  {seeds.map((seed, i) => (
                     <div
                       key={i}
                       className="flex items-center justify-between border border-muted rounded-xl p-1.5 px-4 py-3"
                     >
                       <div className="flex items-center gap-3">
-                        <span className="text-sm font-medium">Seed {i}</span>
-                        <code className="text-xs text-muted-foreground">
-                          seed{i}.{chain.chain_name.toLowerCase().replace(/\s+/g, '')}.network:26656
+                        <span className="text-sm font-medium">Seed {i + 1}</span>
+                        <code className="text-xs text-muted-foreground break-all truncate md:max-w-[600px] max-w-[300px]">
+                          {seed}
                         </code>
                       </div>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8"
-                        onClick={() =>
-                          copyToClipboard(`seed${i}.${chain.chain_name.toLowerCase().replace(/\s+/g, '')}.network:26656`)
-                        }
+                        className="h-8 w-8 shrink-0"
+                        onClick={() => copyToClipboard(seed)}
                       >
                         <Copy className="w-4 h-4" />
                       </Button>

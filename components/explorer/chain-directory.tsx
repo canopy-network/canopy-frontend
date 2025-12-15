@@ -27,6 +27,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { ChainDetailModal } from "./chain-detail-modal";
 
 interface ChainDirectoryProps {
   chains: Chain[];
@@ -80,7 +81,14 @@ const buildPaginationRange = (
 export function ChainDirectory({ chains, title = "All Chains" }: ChainDirectoryProps) {
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedChain, setSelectedChain] = useState<Chain | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const pageSize = 10;
+
+  const handleRowClick = (chain: Chain) => {
+    setSelectedChain(chain);
+    setIsModalOpen(true);
+  };
 
   const filtered = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -95,6 +103,14 @@ export function ChainDirectory({ chains, title = "All Chains" }: ChainDirectoryP
   }, [chains, searchQuery]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+
+  const prevPage = () => {
+    setPage((prev) => Math.max(1, prev - 1));
+  };
+
+  const nextPage = () => {
+    setPage((prev) => Math.min(totalPages, prev + 1));
+  };
   const paginationItems = useMemo(
     () => buildPaginationRange(page, totalPages),
     [page, totalPages]
@@ -125,12 +141,12 @@ export function ChainDirectory({ chains, title = "All Chains" }: ChainDirectoryP
         chain.token_symbol,
         chain.status,
         chain.virtual_pool?.market_cap_usd ??
-          (chain as any)?.graduated_pool?.market_cap_usd ??
-          "",
+        (chain as any)?.graduated_pool?.market_cap_usd ??
+        "",
         (chain as any)?.liquidity?.volume_24h_usd ?? "",
         (chain as any)?.holders?.total_holders ??
-          (chain as any)?.holders?.total ??
-          "",
+        (chain as any)?.holders?.total ??
+        "",
       ]),
     ];
     const csv = rows.map((r) => r.join(",")).join("\n");
@@ -183,30 +199,35 @@ export function ChainDirectory({ chains, title = "All Chains" }: ChainDirectoryP
         </div>
       </div>
 
-      <Card className="p-4 border-primary/10 bg-gradient-to-br from-background via-background/70 to-primary/5">
+      <Card padding="explorer" className="gap-2 lg:gap-6">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Token</TableHead>
-              <TableHead>Market Cap</TableHead>
-              <TableHead>Volume 24h</TableHead>
-              <TableHead>Holders</TableHead>
-              <TableHead className="text-right">Action</TableHead>
+            <TableRow appearance="plain">
+              <TableHead className="pl-0 lg:pl-4">Name</TableHead>
+              <TableHead className="pl-0 lg:pl-4">Status</TableHead>
+              <TableHead className="pl-0 lg:pl-4">Token</TableHead>
+              <TableHead className="pl-0 lg:pl-4">Market Cap</TableHead>
+              <TableHead className="pl-0 lg:pl-4">Volume 24h</TableHead>
+              <TableHead className="pl-0 lg:pl-4">Holders</TableHead>
+              <TableHead className="pl-0 lg:pl-4 text-right">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginated.length === 0 ? (
-              <TableRow>
+              <TableRow appearance="plain">
                 <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
                   No chains found.
                 </TableCell>
               </TableRow>
             ) : (
               paginated.map((chain) => (
-                <TableRow key={chain.id} className="hover:bg-primary/5 transition-colors">
-                  <TableCell className="font-medium">
+                <TableRow
+                  key={chain.id}
+                  appearance="plain"
+                  className="hover:bg-primary/5 transition-colors cursor-pointer"
+                  onClick={() => handleRowClick(chain)}
+                >
+                  <TableCell className="pl-0 lg:pl-4 font-medium">
                     <div className="flex items-center gap-3">
                       <span
                         className="inline-flex items-center justify-center align-middle w-8 h-8"
@@ -215,19 +236,16 @@ export function ChainDirectory({ chains, title = "All Chains" }: ChainDirectoryP
                         }}
                       />
                       <div className="flex flex-col">
-                        <Link
-                          href={`/chains/${chain.chain_id ?? chain.id}`}
-                          className="hover:text-primary transition-colors"
-                        >
+                        <span className="hover:text-primary transition-colors">
                           {chain.chain_name}
-                        </Link>
+                        </span>
                         <span className="text-xs text-muted-foreground">
                           {chain.token_name}
                         </span>
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="pl-0 lg:pl-4">
                     <Badge
                       variant="outline"
                       className="capitalize border-[#00a63d] bg-[#00a63d]/10 text-[#00a63d] shadow-[0_0_14px_rgba(0,166,61,0.35)]"
@@ -235,19 +253,19 @@ export function ChainDirectory({ chains, title = "All Chains" }: ChainDirectoryP
                       {chain.status.replace("_", " ")}
                     </Badge>
                   </TableCell>
-                  <TableCell>${chain.token_symbol}</TableCell>
-                  <TableCell>
+                  <TableCell className="pl-0 lg:pl-4">${chain.token_symbol}</TableCell>
+                  <TableCell className="pl-0 lg:pl-4">
                     {formatMarketCap(
                       chain.virtual_pool?.market_cap_usd ??
-                        (chain as any)?.graduated_pool?.market_cap_usd
+                      (chain as any)?.graduated_pool?.market_cap_usd
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="pl-0 lg:pl-4">
                     {formatMarketCap(
                       (chain as any)?.liquidity?.volume_24h_usd as number
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="pl-0 lg:pl-4">
                     <div className="flex items-center gap-2">
                       <div className="flex -space-x-2">
                         <span
@@ -273,11 +291,17 @@ export function ChainDirectory({ chains, title = "All Chains" }: ChainDirectoryP
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-right">
-                    <Button asChild size="sm" variant="ghost" className="gap-1">
-                      <Link href={`/chains/${chain.chain_id ?? chain.id}`}>
-                        View
-                      </Link>
+                  <TableCell className="pl-0 lg:pl-4 text-right">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="gap-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRowClick(chain);
+                      }}
+                    >
+                      View
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -340,6 +364,15 @@ export function ChainDirectory({ chains, title = "All Chains" }: ChainDirectoryP
           </Pagination>
         </div>
       </Card>
+
+      {/* Modal */}
+      {selectedChain && (
+        <ChainDetailModal
+          chain={selectedChain}
+          open={isModalOpen}
+          onOpenChange={setIsModalOpen}
+        />
+      )}
     </Container>
   );
 }
