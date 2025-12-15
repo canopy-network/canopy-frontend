@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -236,29 +236,16 @@ export default function OrdersTab() {
   const usdcAddress = chainId ? USDC_ADDRESSES[chainId] : undefined;
 
   // Lock order hook for non-owned orders
-  // Note: We need to create a new hook instance when orderToLock changes
-  // For now, we'll use a single instance and update it via state
-  const [lockOrderState, setLockOrderState] = useState<{
-    order: OrderBookApiOrder | null;
-    buyerCanopyAddress: string;
-  }>({
-    order: null,
-    buyerCanopyAddress: currentWallet?.address || "",
-  });
-
-  // Update buyerCanopyAddress when wallet changes
-  useEffect(() => {
-    if (currentWallet?.address) {
-      setLockOrderState((prev) => ({
-        ...prev,
-        buyerCanopyAddress: currentWallet.address,
-      }));
-    }
-  }, [currentWallet?.address]);
+  // Only create hook when we have an order to lock
+  const [currentLockingOrderId, setCurrentLockingOrderId] = useState<
+    string | null
+  >(null);
+  const isLockingRef = useRef(false); // Prevent multiple simultaneous lock attempts
+  const hasSentLockRef = useRef<string | null>(null); // Track which order we've already sent lock for
 
   const lockOrder = useLockOrder({
-    order: lockOrderState.order,
-    buyerCanopyAddress: lockOrderState.buyerCanopyAddress,
+    order: orderToLock, // Only set when user clicks lock
+    buyerCanopyAddress: currentWallet?.address || "",
   });
 
   // Fetch all orders from API (both owned and non-owned)
@@ -386,6 +373,16 @@ export default function OrdersTab() {
 
   // Handle lock order for non-owned orders
   const handleLockOrder = async (order: SellOrder) => {
+    // Prevent multiple simultaneous lock attempts using ref
+    if (
+      isLockingRef.current ||
+      currentLockingOrderId ||
+      lockOrder.isPending ||
+      lockOrder.isConfirming
+    ) {
+      return;
+    }
+
     if (!currentWallet) {
       toast.error("Please connect a Canopy wallet to lock orders");
       return;
@@ -422,52 +419,100 @@ export default function OrdersTab() {
       return;
     }
 
-    // Update lock order state to trigger the hook
-    setLockOrderState({
-      order: rawOrder,
-      buyerCanopyAddress: currentWallet.address,
-    });
+    // Set the ref to prevent multiple calls
+    isLockingRef.current = true;
+
+    // Mark as currently locking this specific order
+    setCurrentLockingOrderId(order.id);
+
+    // Set the order to lock - this will update the hook
     setOrderToLock(rawOrder);
   };
 
-  // Trigger lock order when state is updated
+  // Trigger lock order when orderToLock is set (only for the specific order)
   useEffect(() => {
-    if (lockOrderState.order && lockOrderState.buyerCanopyAddress) {
-      // Small delay to ensure hook is ready
-      const timer = setTimeout(() => {
-        lockOrder.sendLockOrder();
-      }, 100);
-      return () => clearTimeout(timer);
+    // Only proceed if we have an order to lock, we're not already locking, and we haven't sent this order yet
+    if (
+      orderToLock &&
+      currentLockingOrderId &&
+      orderToLock.id === currentLockingOrderId &&
+      isLockingRef.current &&
+      hasSentLockRef.current !== orderToLock.id &&
+      !lockOrder.isPending &&
+      !lockOrder.isConfirming
+    ) {
+      // Mark that we've sent the lock for this order
+      hasSentLockRef.current = orderToLock.id;
+
+      // Send the lock order
+      lockOrder.sendLockOrder().catch((err) => {
+        console.error("Failed to send lock order", err);
+        isLockingRef.current = false;
+        hasSentLockRef.current = null;
+        setCurrentLockingOrderId(null);
+        setOrderToLock(null);
+      });
     }
-  }, [lockOrderState.order, lockOrderState.buyerCanopyAddress, lockOrder]);
+    // We intentionally only depend on specific properties to prevent infinite loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    orderToLock?.id,
+    currentLockingOrderId,
+    lockOrder.isPending,
+    lockOrder.isConfirming,
+  ]);
 
   // Handle lock order success
   useEffect(() => {
-    if (lockOrder.isSuccess && orderToLock) {
+    if (
+      lockOrder.isSuccess &&
+      orderToLock &&
+      currentLockingOrderId &&
+      orderToLock.id === currentLockingOrderId
+    ) {
       toast.success(`Order locked! TX: ${lockOrder.txHash?.slice(0, 16)}...`);
+      isLockingRef.current = false;
+      hasSentLockRef.current = null;
       setOrderToLock(null);
-      setLockOrderState({ order: null, buyerCanopyAddress: "" });
+      setCurrentLockingOrderId(null);
       lockOrder.reset();
       // Refresh orders after a delay to allow blockchain to process
       setTimeout(() => fetchUserOrders(), 3000);
     }
+    // We intentionally only depend on specific properties to prevent infinite loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     lockOrder.isSuccess,
     lockOrder.txHash,
-    orderToLock,
-    lockOrder,
+    orderToLock?.id,
+    currentLockingOrderId,
     fetchUserOrders,
   ]);
 
   // Handle lock order error
   useEffect(() => {
-    if (lockOrder.isError && lockOrder.error && orderToLock) {
+    if (
+      lockOrder.isError &&
+      lockOrder.error &&
+      orderToLock &&
+      currentLockingOrderId &&
+      orderToLock.id === currentLockingOrderId
+    ) {
       toast.error(lockOrder.error.message || "Failed to lock order");
+      isLockingRef.current = false;
+      hasSentLockRef.current = null;
       setOrderToLock(null);
-      setLockOrderState({ order: null, buyerCanopyAddress: "" });
+      setCurrentLockingOrderId(null);
       lockOrder.reset();
     }
-  }, [lockOrder.isError, lockOrder.error, orderToLock, lockOrder]);
+    // We intentionally only depend on specific properties to prevent infinite loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    lockOrder.isError,
+    lockOrder.error?.message,
+    orderToLock?.id,
+    currentLockingOrderId,
+  ]);
 
   const handleCancel = async (order: SellOrder) => {
     if (!currentWallet) {
@@ -810,10 +855,12 @@ export default function OrdersTab() {
                         !usdcAddress ||
                         isOrderReadyForClose(order.id) ||
                         lockOrder.isPending ||
-                        lockOrder.isConfirming
+                        lockOrder.isConfirming ||
+                        currentLockingOrderId !== null
                       }
                     >
-                      {lockOrder.isPending || lockOrder.isConfirming ? (
+                      {(lockOrder.isPending || lockOrder.isConfirming) &&
+                      currentLockingOrderId === order.id ? (
                         <>
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                           Locking...
