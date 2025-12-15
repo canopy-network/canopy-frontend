@@ -1104,7 +1104,7 @@ export default function ConvertTab({
           {/* CNPY Header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+              <div className="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center shrink-0">
                 <CnpyLogo className="w-5 h-5 text-white" />
               </div>
               <div className="text-left">
@@ -1246,9 +1246,9 @@ export default function ConvertTab({
         <Button
           className={`w-full h-11 ${
             buttonState.variant === "convert"
-              ? "bg-gradient-to-b from-green-500 to-green-700 hover:from-green-600 hover:to-green-800 text-white"
+              ? "bg-linear-to-b from-green-500 to-green-700 hover:from-green-600 hover:to-green-800 text-white"
               : buttonState.variant === "connect"
-              ? "bg-gradient-to-b from-cyan-500 to-cyan-700 hover:from-cyan-600 hover:to-cyan-800 text-white"
+              ? "bg-linear-to-b from-cyan-500 to-cyan-700 hover:from-cyan-600 hover:to-cyan-800 text-white"
               : buttonState.variant === "error"
               ? "bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/15"
               : ""

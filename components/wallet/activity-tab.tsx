@@ -625,7 +625,7 @@ export function ActivityTab({
                     <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
                       <div
                         className={cn(
-                          "w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center flex-shrink-0 font-semibold",
+                          "w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center shrink-0 font-semibold",
                           getChainColor(tx)
                         )}
                       >

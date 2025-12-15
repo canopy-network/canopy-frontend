@@ -405,7 +405,7 @@ export function StakingTab({ addresses }: StakingTabProps) {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setActiveFilter("all")}
-            className={`h-9 px-4 rounded-full text-sm font-medium transition-colors flex-shrink-0 ${
+            className={`h-9 px-4 rounded-full text-sm font-medium transition-colors shrink-0 ${
               activeFilter === "all"
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -415,7 +415,7 @@ export function StakingTab({ addresses }: StakingTabProps) {
           </button>
           <button
             onClick={() => setActiveFilter("active")}
-            className={`h-9 px-4 rounded-full text-sm font-medium transition-colors flex items-center gap-2 flex-shrink-0 ${
+            className={`h-9 px-4 rounded-full text-sm font-medium transition-colors flex items-center gap-2 shrink-0 ${
               activeFilter === "active"
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -434,7 +434,7 @@ export function StakingTab({ addresses }: StakingTabProps) {
           </button>
           <button
             onClick={() => setActiveFilter("queue")}
-            className={`h-9 px-4 rounded-full text-sm font-medium transition-colors flex items-center gap-2 flex-shrink-0 ${
+            className={`h-9 px-4 rounded-full text-sm font-medium transition-colors flex items-center gap-2 shrink-0 ${
               activeFilter === "queue"
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -465,7 +465,7 @@ export function StakingTab({ addresses }: StakingTabProps) {
                   >
                     <div className="flex items-center gap-2">
                       Staked Amount
-                      <ArrowUpDown className="w-4 h-4 flex-shrink-0" />
+                      <ArrowUpDown className="w-4 h-4 shrink-0" />
                     </div>
                   </TableHead>
                   <TableHead
@@ -474,7 +474,7 @@ export function StakingTab({ addresses }: StakingTabProps) {
                   >
                     <div className="flex items-center gap-2">
                       APY
-                      <ArrowUpDown className="w-4 h-4 flex-shrink-0" />
+                      <ArrowUpDown className="w-4 h-4 shrink-0" />
                     </div>
                   </TableHead>
                   <TableHead
@@ -483,7 +483,7 @@ export function StakingTab({ addresses }: StakingTabProps) {
                   >
                     <div className="flex items-center gap-2">
                       Rewards Earned
-                      <ArrowUpDown className="w-4 h-4 flex-shrink-0" />
+                      <ArrowUpDown className="w-4 h-4 shrink-0" />
                     </div>
                   </TableHead>
                   <TableHead className="text-right whitespace-nowrap">
@@ -503,7 +503,7 @@ export function StakingTab({ addresses }: StakingTabProps) {
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <div
-                              className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                              className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
                               style={{ backgroundColor: stake.color }}
                             >
                               <span className="text-sm font-bold text-white">
@@ -650,7 +650,7 @@ export function StakingTab({ addresses }: StakingTabProps) {
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <div
-                              className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                              className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
                               style={{ backgroundColor: stake?.color || "#1f2937" }}
                             >
                               <span className="text-sm font-bold text-white">

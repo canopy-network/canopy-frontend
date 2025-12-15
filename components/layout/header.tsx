@@ -255,8 +255,8 @@ export function Header() {
       const formattedAddress =
         address.length > 11
           ? `${address.substring(0, 6)}...${address.substring(
-              address.length - 5
-            )}`
+            address.length - 5
+          )}`
           : address;
 
       breadcrumbArray.push({
@@ -276,7 +276,7 @@ export function Header() {
 
     if (config) {
       breadcrumbArray.push({
-        label: config.label,
+        label: config.label || "",
         href: segments.length === 1 ? undefined : config.href,
         isLast: segments.length === 1,
       });
@@ -361,29 +361,30 @@ export function Header() {
     }
   }, [pathname, breadcrumbs, current_explorer_selected_chain]);
 
-  // Early return for launchpad pages - after all hooks
-  if (pathname.includes("/launchpad")) {
+  // Early return for launchpad and orderbook pages - after all hooks
+  // Orderbook has its own header matching the wireframe design
+  if (pathname.includes("/launchpad") || pathname.includes("/orderbook")) {
     return null;
   }
 
   // Chain search filter
   const filteredChains = searchQuery.trim()
     ? chains
-        .filter((chain) =>
-          chain.chain_name.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-        .slice(0, 10)
+      .filter((chain) =>
+        chain.chain_name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+      .slice(0, 10)
     : [];
 
   // Mobile chain search filter
   const mobileFilteredChains = mobileSearchQuery.trim()
     ? chains
-        .filter((chain) =>
-          chain.chain_name
-            .toLowerCase()
-            .includes(mobileSearchQuery.toLowerCase())
-        )
-        .slice(0, 10)
+      .filter((chain) =>
+        chain.chain_name
+          .toLowerCase()
+          .includes(mobileSearchQuery.toLowerCase())
+      )
+      .slice(0, 10)
     : [];
 
   const handleChainSelect = (chainId: string) => {
@@ -551,7 +552,7 @@ export function Header() {
                             {isSearchOpen && (
                               <div
                                 ref={searchRef}
-                                className="absolute top-full left-0 mt-2 w-[480px] bg-[#1a1a1a] border border-white/[0.1] rounded-lg shadow-xl z-50"
+                                className="absolute top-full left-0 mt-2 w-[480px] bg-[#1a1a1a] border border-white/10 rounded-lg shadow-xl z-50"
                               >
                                 <div className="p-4">
                                   <Input
@@ -561,7 +562,7 @@ export function Header() {
                                     onChange={(e) =>
                                       setSearchQuery(e.target.value)
                                     }
-                                    className="bg-[#2a2a2a] border-white/[0.1] text-white placeholder:text-white/50"
+                                    className="bg-[#2a2a2a] border-white/10 text-white placeholder:text-white/50"
                                     autoFocus
                                   />
                                 </div>
@@ -574,9 +575,9 @@ export function Header() {
                                         onClick={() =>
                                           handleChainSelect(chain.id)
                                         }
-                                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.05] transition-colors text-left"
+                                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors text-left"
                                       >
-                                        <div className="w-10 h-10 rounded-full bg-white/[0.1] flex items-center justify-center flex-shrink-0">
+                                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0">
                                           <span className="text-white text-sm font-medium">
                                             {chain.chain_name
                                               .charAt(0)
@@ -603,7 +604,7 @@ export function Header() {
                                 </div>
 
                                 {filteredChains.length > 0 && (
-                                  <div className="border-t border-white/[0.1] p-3">
+                                  <div className="border-t border-white/10 p-3">
                                     <Link
                                       href="/"
                                       className="text-white/50 hover:text-white text-sm transition-colors"
@@ -629,7 +630,7 @@ export function Header() {
                               >
                                 {
                                   chainStatusesLabels[
-                                    currentChain?.status as ChainStatus
+                                  currentChain?.status as ChainStatus
                                   ]
                                 }
                               </Badge>
@@ -639,7 +640,7 @@ export function Header() {
                           <BreadcrumbLink asChild>
                             <Link
                               href={crumb.href || "#"}
-                              className="text-white/[0.5] hover:text-white"
+                              className="text-white/50 hover:text-white"
                             >
                               {crumb.label}
                             </Link>
@@ -703,9 +704,9 @@ export function Header() {
                 <button
                   key={chain.id}
                   onClick={() => handleMobileChainSelect(chain.id)}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.05] transition-colors text-left rounded-lg"
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors text-left rounded-lg"
                 >
-                  <div className="w-10 h-10 rounded-full bg-white/[0.1] flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0">
                     <span className="text-white text-sm font-medium">
                       {chain.chain_name.charAt(0).toUpperCase()}
                     </span>

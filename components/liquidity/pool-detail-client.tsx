@@ -34,7 +34,7 @@ import TradingModule from "@/components/trading/trading-module";
 function CnpyLogo({ size = 32 }: { size?: number }) {
   return (
     <div
-      className="rounded-full flex items-center justify-center flex-shrink-0"
+      className="rounded-full flex items-center justify-center shrink-0"
       style={{
         width: size,
         height: size,
@@ -64,7 +64,7 @@ function TokenAvatar({
 
   return (
     <div
-      className="rounded-full flex items-center justify-center flex-shrink-0"
+      className="rounded-full flex items-center justify-center shrink-0"
       style={{
         width: size,
         height: size,

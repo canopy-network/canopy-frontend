@@ -219,7 +219,7 @@ export function SelectWalletDialog({
                               {wallet.wallet_name || "Unnamed Wallet"}
                             </p>
                             {currentWallet?.id === wallet.id && (
-                              <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                              <Check className="h-4 w-4 text-primary shrink-0" />
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground font-mono truncate">
@@ -257,7 +257,7 @@ export function SelectWalletDialog({
 
               {localError && (
                 <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 flex gap-2">
-                  <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
+                  <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
                   <p className="text-sm text-destructive">{localError}</p>
                 </div>
               )}
@@ -330,7 +330,7 @@ export function SelectWalletDialog({
 
               {localError && (
                 <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 flex gap-2">
-                  <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
+                  <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
                   <p className="text-sm text-destructive">{localError}</p>
                 </div>
               )}

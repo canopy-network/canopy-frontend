@@ -122,7 +122,7 @@ export function EarnRewardsDialog({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                        className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
                         style={{ backgroundColor: stake.color }}
                       >
                         <span className="text-sm font-bold text-white">
@@ -157,7 +157,7 @@ export function EarnRewardsDialog({
                 <div className="space-y-2">
                   <Label className="block text-sm font-medium">Source</Label>
                   <div className="flex items-center gap-3 h-auto py-3 px-3 border rounded-md bg-background">
-                    <div className="w-8 h-8 bg-muted rounded-md flex items-center justify-center flex-shrink-0">
+                    <div className="w-8 h-8 bg-muted rounded-md flex items-center justify-center shrink-0">
                       <Wallet className="w-4 h-4" />
                     </div>
                     <div className="flex flex-col items-start">
@@ -285,7 +285,7 @@ export function EarnRewardsDialog({
                 <div className="p-4 bg-muted/30 rounded-lg border space-y-2">
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                      className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
                       style={{ backgroundColor: stake.color }}
                     >
                       <span className="text-sm font-bold text-white">

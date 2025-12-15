@@ -71,7 +71,7 @@ export function WalletConnectButton({
         className="bg-transparent text-white hover:bg-white/5 w-full h-auto py-3 px-2 border border-[#36d26a] rounded-md shadow-[0_0_14px_rgba(124,255,157,0.35)]"
       >
         <div className={`flex ${contentAlignment} gap-2 w-full`}>
-          <div className="flex-shrink-0 h-8 w-8 rounded bg-gradient-to-br from-[#0a2a12] via-[#103a1b] to-[#164c25] border border-[#36d26a] shadow-[0_0_12px_rgba(124,255,157,0.45)] flex items-center justify-center">
+          <div className="shrink-0 h-8 w-8 rounded bg-linear-to-br from-[#0a2a12] via-[#103a1b] to-[#164c25] border border-[#36d26a] shadow-[0_0_12px_rgba(124,255,157,0.45)] flex items-center justify-center">
             <img
               src="/images/canopy-icon.svg"
               alt="Canopy"
@@ -83,7 +83,7 @@ export function WalletConnectButton({
               <span className="font-mono text-sm text-white truncate">
                 {formatAddress(currentWallet.address)}
               </span>
-              <ChevronDown className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+              <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
             </div>
             {!hideBalance && (
               <div className="text-lg font-semibold text-[#7cff9d] truncate">

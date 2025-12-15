@@ -102,7 +102,7 @@ export function UnstakeDialog({
           {/* Warning */}
           <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
             <div className="flex gap-3">
-              <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="w-5 h-5 text-yellow-500 shrink-0 mt-0.5" />
               <div className="space-y-1">
                 <p className="font-medium text-sm">7-Day Unstaking Period</p>
                 <p className="text-sm text-muted-foreground">

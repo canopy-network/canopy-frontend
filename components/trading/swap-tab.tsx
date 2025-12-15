@@ -321,7 +321,7 @@ export default function SwapTab({
               >
                 {/* Token Avatar */}
                 <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                  className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
                   style={{ backgroundColor: fromToken.brandColor || "#10b981" }}
                 >
                   {fromToken.logo ? (
@@ -453,7 +453,7 @@ export default function SwapTab({
               >
                 {/* Token Avatar */}
                 <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                  className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
                   style={{ backgroundColor: toToken.brandColor || "#10b981" }}
                 >
                   {toToken.logo ? (

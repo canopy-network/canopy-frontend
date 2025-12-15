@@ -141,7 +141,7 @@ export function WalletLinkingSection() {
           // Wallet is already linked
           <div className="space-y-4">
             <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
-              <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
+              <Check className="h-5 w-5 text-green-500 shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-muted-foreground">Connected Wallet</p>
                 <div className="flex items-center gap-2">

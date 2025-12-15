@@ -10,6 +10,7 @@ node_modules
 .next
 .idea
 .claude
+keyfile().json
 # Playwright
 /test-results/
 /playwright-report/

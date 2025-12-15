@@ -149,7 +149,7 @@ export function ManageCnpyStakeDialog({
               <div className="px-6 pb-6 space-y-6">
                 <div className="p-4 bg-muted/30 rounded-lg border flex items-center gap-3">
                   <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                    className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
                     style={{ backgroundColor: stake.color }}
                   >
                     <span className="text-sm font-bold text-white">
@@ -222,7 +222,7 @@ export function ManageCnpyStakeDialog({
                             disabled={isMain}
                           />
                           <div
-                            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
                             style={{ backgroundColor: chain.color }}
                           >
                             <span className="text-sm font-bold text-white">

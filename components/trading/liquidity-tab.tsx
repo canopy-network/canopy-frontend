@@ -537,7 +537,7 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                  className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
                   style={{ backgroundColor: tokenA?.brandColor || "#10b981" }}
                 >
                   <span className="text-base font-bold text-white">
@@ -601,7 +601,7 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                  className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
                   style={{ backgroundColor: tokenB?.brandColor || "#1dd13a" }}
                 >
                   <span className="text-base font-bold text-white">
