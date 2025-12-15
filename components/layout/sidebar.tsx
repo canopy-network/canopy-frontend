@@ -44,7 +44,6 @@ export function Sidebar() {
     }
     const isSmallScreen = window.innerWidth <= WINDOW_BREAKPOINTS.XL;
 
-    console.log("isSmallScreen", isSmallScreen);
     setIsCompact(isSmallScreen);
   };
 

@@ -12,7 +12,12 @@
  */
 
 import { create } from "zustand";
-import { persist, createJSONStorage, StateStorage } from "zustand/middleware";
+import {
+  persist,
+  createJSONStorage,
+  StateStorage,
+  devtools,
+} from "zustand/middleware";
 import {
   LocalWallet,
   UpdateWalletRequest,
@@ -26,7 +31,10 @@ import {
   portfolioApi,
   walletTransactionApi,
   chainsApi,
+  paramsApi,
 } from "@/lib/api";
+import type { FeeParams } from "@/types/params";
+import { DEFAULT_FEE_PARAMS } from "@/types/params";
 import type {
   SendTransactionRequest,
   TransactionHistoryRequest,
@@ -56,6 +64,7 @@ function generateChainSymbol(chainId: number): string {
 }
 import {
   createSendMessage,
+  createOrderMessage,
   createAndSignTransaction,
   validateTransactionParams,
 } from "@/lib/crypto/transaction";
@@ -84,6 +93,17 @@ export interface WalletState {
     balance: string;
   }[];
 
+  // Fee parameters (cached from blockchain)
+  feeParams: FeeParams | null;
+
+  // Dialog state
+  showSendDialog: boolean;
+  showReceiveDialog: boolean;
+  showStakeDialog: boolean;
+
+  // Fee parameters (cached from blockchain)
+  feeParams: FeeParams | null;
+
   // Actions - Wallet Management
   fetchWallets: () => Promise<void>;
   selectWallet: (walletId: string) => Promise<void>;
@@ -105,14 +125,40 @@ export interface WalletState {
   fetchPortfolioOverview: (addresses?: string[]) => Promise<void>;
   fetchMultiChainBalance: (addresses?: string[]) => Promise<void>;
 
+  // Actions - Fee Parameters
+  fetchFeeParams: () => Promise<FeeParams>;
+
   // Actions - Send Transactions
   sendTransaction: (request: SendTransactionRequest) => Promise<string>;
   estimateFee: (request: EstimateFeeRequest) => Promise<string>;
+
+  // Actions - Cross-Chain Swap Orders (MessageCreateOrder)
+  createOrder: (
+    committeeId: number, // Committee responsible for counter-asset swap
+    amountForSale: number,
+    requestedAmount: number,
+    sellerEthAddress: string, // Ethereum address to receive USDC
+    usdcContractAddress: string // USDC contract address (with 0x prefix)
+  ) => Promise<string>;
+
+  // Actions - Delete Order (MessageDeleteOrder)
+  deleteOrder: (
+    orderId: string, // Order ID to delete
+    committeeId: number // Committee ID for the order
+  ) => Promise<string>;
 
   // Actions - Utilities
   clearError: () => void;
   resetWalletState: () => void;
   migrateWalletCurveTypes: () => void; // Migrate existing wallets to include curve type
+
+  // Actions - Dialog Management
+  openSendDialog: () => void;
+  closeSendDialog: () => void;
+  openReceiveDialog: () => void;
+  closeReceiveDialog: () => void;
+  openStakeDialog: () => void;
+  closeStakeDialog: () => void;
 }
 
 // Custom storage for Zustand
@@ -247,10 +293,9 @@ function clearPasswordSession(): void {
   console.log("🔒 Password session cleared");
 }
 
-const MIN_DEFAULT_FEE = 1000;
 export const useWalletStore = create<WalletState>()(
-  persist(
-    (set, get) => ({
+  devtools(
+    persist((set, get) => ({
       // Initial state
       wallets: [],
       currentWallet: null,
@@ -261,6 +306,10 @@ export const useWalletStore = create<WalletState>()(
       portfolioOverview: null,
       multiChainBalance: null,
       availableAssets: [],
+      feeParams: null,
+      showSendDialog: false,
+      showReceiveDialog: false,
+      showStakeDialog: false,
 
       // Fetch all wallets for the current user
       // Uses only exportWallets endpoint which contains all necessary data
@@ -317,16 +366,21 @@ export const useWalletStore = create<WalletState>()(
 
           set({ wallets, isLoading: false });
 
-          // 🔓 Auto-unlock all wallets if password session exists
-          const cachedPassword = getCachedPassword();
-          if (cachedPassword) {
-            console.log(
-              "🔐 Password session found, auto-unlocking all wallets..."
-            );
-            // Unlock all wallets with cached password
+          // 🔓 Auto-unlock all wallets silently using password session or master seedphrase
+          let unlockPassword = getCachedPassword();
+          if (!unlockPassword) {
+            // Fallback to master seedphrase (stored when creating wallet)
+            const masterSeedphrase = retrieveMasterSeedphrase();
+            if (masterSeedphrase) {
+              unlockPassword = masterSeedphrase.replace(/\s+/g, "");
+            }
+          }
+
+          if (unlockPassword) {
+            console.log("🔐 Auto-unlocking all wallets...");
             for (const wallet of wallets) {
               try {
-                await get().unlockWallet(wallet.id, cachedPassword);
+                await get().unlockWallet(wallet.id, unlockPassword);
               } catch (error) {
                 console.warn(
                   `⚠️ Failed to auto-unlock wallet ${wallet.id}:`,
@@ -376,15 +430,22 @@ export const useWalletStore = create<WalletState>()(
         const wallet = wallets.find((w) => w.id === walletId);
 
         if (wallet) {
-          // If wallet is not unlocked, try to auto-unlock with password session
+          // If wallet is not unlocked, try to auto-unlock silently
           if (!wallet.isUnlocked || !wallet.privateKey) {
-            const cachedPassword = getCachedPassword();
-            if (cachedPassword) {
+            let unlockPassword = getCachedPassword();
+            if (!unlockPassword) {
+              const masterSeedphrase = retrieveMasterSeedphrase();
+              if (masterSeedphrase) {
+                unlockPassword = masterSeedphrase.replace(/\s+/g, "");
+              }
+            }
+
+            if (unlockPassword) {
               try {
                 console.log(
                   `🔓 Auto-unlocking wallet ${walletId} on selection...`
                 );
-                await get().unlockWallet(walletId, cachedPassword);
+                await get().unlockWallet(walletId, unlockPassword);
                 // Get the updated wallet after unlock
                 const updatedWallets = get().wallets;
                 const updatedWallet = updatedWallets.find(
@@ -400,11 +461,11 @@ export const useWalletStore = create<WalletState>()(
                   `⚠️ Failed to auto-unlock wallet ${walletId} on selection:`,
                   error
                 );
-                // Still set the wallet even if unlock fails (user can unlock manually later)
+                // Still set the wallet even if unlock fails
                 set({ currentWallet: wallet });
               }
             } else {
-              // No password session, just set the wallet
+              // No password available, just set the wallet
               set({ currentWallet: wallet });
             }
           } else {
@@ -887,6 +948,28 @@ export const useWalletStore = create<WalletState>()(
         }
       },
 
+      // Fetch fee parameters from blockchain
+      // Returns cached params if available, otherwise fetches from API
+      fetchFeeParams: async (): Promise<FeeParams> => {
+        // Return cached params if available
+        const { feeParams } = get();
+        if (feeParams) {
+          return feeParams;
+        }
+
+        try {
+          const response = await paramsApi.getFeeParams();
+          const params = response.data as FeeParams;
+          set({ feeParams: params });
+          console.log("✅ Fee params fetched:", params);
+          return params;
+        } catch (error) {
+          console.error("Failed to fetch fee params, using defaults:", error);
+          // Return defaults but don't cache them (so we retry next time)
+          return DEFAULT_FEE_PARAMS;
+        }
+      },
+
       // Send a transaction using send-raw endpoint with locally signed transaction
       sendTransaction: async (
         request: SendTransactionRequest
@@ -926,6 +1009,10 @@ export const useWalletStore = create<WalletState>()(
           const chainId = request.chain_id || 1;
           const currentHeight = await chainsApi.getChainHeight(String(chainId));
 
+          // Fetch fee params if not provided
+          const feeParams = await get().fetchFeeParams();
+          const fee = request.fee ?? feeParams.sendFee;
+
           // Create send message
           const msg = createSendMessage(
             wallet.address, // From address
@@ -937,7 +1024,7 @@ export const useWalletStore = create<WalletState>()(
           const txParams = {
             type: "send",
             msg,
-            fee: request.fee ?? MIN_DEFAULT_FEE,
+            fee,
             memo: request.memo,
             networkID: request.network_id || 1,
             chainID: chainId,
@@ -1006,6 +1093,220 @@ export const useWalletStore = create<WalletState>()(
           return fromMicroUnits(response.estimated_fee);
         } catch (error) {
           console.error("Failed to estimate fee:", error);
+          throw error;
+        }
+      },
+
+      // Create a cross-chain swap order using send-raw endpoint (MessageCreateOrder)
+      // NOTE: This is NOT for DEX v2 limit orders. For DEX, use dexLimitOrder transaction type.
+      createOrder: async (
+        committeeId: number, // Committee responsible for counter-asset swap
+        amountForSale: number,
+        requestedAmount: number,
+        sellerEthAddress: string, // Ethereum address to receive USDC
+        usdcContractAddress: string // USDC contract address (with 0x prefix)
+      ): Promise<string> => {
+        try {
+          set({ isLoading: true, error: null });
+
+          // Get current wallet
+          const { currentWallet } = get();
+
+          if (!currentWallet) {
+            throw new Error(
+              "No wallet selected. Please select a wallet first."
+            );
+          }
+
+          if (!currentWallet.privateKey || !currentWallet.isUnlocked) {
+            throw new Error(
+              "Wallet is locked. Please unlock the wallet first."
+            );
+          }
+
+          if (!currentWallet.curveType) {
+            throw new Error(
+              "Wallet curve type not detected. Please refresh your wallets."
+            );
+          }
+
+          if (!sellerEthAddress) {
+            throw new Error(
+              "Ethereum address required. Please connect your Ethereum wallet."
+            );
+          }
+
+          // Get current blockchain height (always use chain 1 for the main chain)
+          const BLOCKCHAIN_CHAIN_ID = 1;
+          const currentHeight = await chainsApi.getChainHeight(
+            String(BLOCKCHAIN_CHAIN_ID)
+          );
+
+          // Fetch fee params for createOrder transaction
+          const feeParams = await get().fetchFeeParams();
+
+          // Prepare addresses:
+          // - sellerReceiveAddress: Ethereum address where seller receives USDC (no 0x prefix)
+          // - sellersSendAddress: Canopy address where seller's CNPY is escrowed from
+          // - data: USDC contract address (no 0x prefix) - committee uses this to watch for payments
+          const ethAddressNoPrefix = sellerEthAddress.startsWith("0x")
+            ? sellerEthAddress.slice(2)
+            : sellerEthAddress;
+          const usdcAddressNoPrefix = usdcContractAddress.startsWith("0x")
+            ? usdcContractAddress.slice(2)
+            : usdcContractAddress;
+
+          // Create order message
+          const msg = createOrderMessage(
+            committeeId, // Committee ID in message
+            usdcAddressNoPrefix, // data field - USDC contract address
+            amountForSale,
+            requestedAmount,
+            ethAddressNoPrefix, // sellerReceiveAddress - Ethereum address
+            currentWallet.address // sellersSendAddress - Canopy address
+          );
+
+          // Build transaction parameters
+          // chainID in txParams is the blockchain chain ID (1), not the committee
+          const txParams = {
+            type: "createOrder",
+            msg,
+            fee: feeParams.createOrderFee, // Dynamic fee from blockchain params
+            memo: "",
+            networkID: 1,
+            chainID: BLOCKCHAIN_CHAIN_ID, // Blockchain chain ID = 1
+            height: currentHeight.data.height,
+          };
+
+          try {
+            validateTransactionParams(txParams);
+          } catch (validationError) {
+            console.error("❌ Transaction validation failed:", validationError);
+            throw validationError;
+          }
+
+          // Create and sign the transaction
+          console.log("🔐 Signing createOrder transaction with protobuf...");
+          const signedTx = createAndSignTransaction(
+            txParams,
+            currentWallet.privateKey,
+            currentWallet.public_key,
+            currentWallet.curveType as CurveType
+          );
+
+          console.log(
+            "✅ Order transaction signed locally with",
+            currentWallet.curveType
+          );
+          console.log("📤 Submitting raw transaction to backend...");
+
+          // Submit the raw transaction to the backend
+          const response = await walletTransactionApi.sendRawTransaction(
+            signedTx
+          );
+
+          console.log("✅ Order created:", response.transaction_hash);
+
+          set({ isLoading: false });
+          return response.transaction_hash;
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : "Failed to create order";
+          console.error("❌ Failed to create order:", error);
+          set({ error: errorMessage, isLoading: false });
+          throw error;
+        }
+      },
+
+      // Delete a cross-chain swap order using send-raw endpoint (MessageDeleteOrder)
+      deleteOrder: async (
+        orderId: string, // Order ID to delete
+        committeeId: number // Committee ID for the order
+      ): Promise<string> => {
+        try {
+          set({ isLoading: true, error: null });
+
+          // Get current wallet
+          const { currentWallet } = get();
+
+          if (!currentWallet) {
+            throw new Error(
+              "No wallet selected. Please select a wallet first."
+            );
+          }
+
+          if (!currentWallet.privateKey || !currentWallet.isUnlocked) {
+            throw new Error(
+              "Wallet is locked. Please unlock the wallet first."
+            );
+          }
+
+          if (!currentWallet.curveType) {
+            throw new Error(
+              "Wallet curve type not detected. Please refresh your wallets."
+            );
+          }
+
+          // Get current blockchain height (always use chain 1 for the main chain)
+          const BLOCKCHAIN_CHAIN_ID = 1;
+          const currentHeight = await chainsApi.getChainHeight(
+            String(BLOCKCHAIN_CHAIN_ID)
+          );
+
+          // Fetch fee params for deleteOrder transaction
+          const feeParams = await get().fetchFeeParams();
+
+          // Build transaction parameters
+          // chainID in txParams is the blockchain chain ID (1), not the committee
+          const txParams = {
+            type: "deleteOrder",
+            msg: {
+              orderId: orderId, // Order ID (hex string)
+              chainId: committeeId, // Committee ID
+            },
+            fee: feeParams.deleteOrderFee, // Use deleteOrderFee from blockchain params
+            memo: "",
+            networkID: 1,
+            chainID: BLOCKCHAIN_CHAIN_ID, // Blockchain chain ID = 1
+            height: currentHeight.data.height,
+          };
+
+          try {
+            validateTransactionParams(txParams);
+          } catch (validationError) {
+            console.error("❌ Transaction validation failed:", validationError);
+            throw validationError;
+          }
+
+          // Create and sign the transaction
+          console.log("🔐 Signing deleteOrder transaction with protobuf...");
+          const signedTx = createAndSignTransaction(
+            txParams,
+            currentWallet.privateKey,
+            currentWallet.public_key,
+            currentWallet.curveType as CurveType
+          );
+
+          console.log(
+            "✅ Delete order transaction signed locally with",
+            currentWallet.curveType
+          );
+          console.log("📤 Submitting raw transaction to backend...");
+
+          // Submit the raw transaction to the backendClos
+          const response = await walletTransactionApi.sendRawTransaction(
+            signedTx
+          );
+
+          console.log("✅ Order deleted:", response.transaction_hash);
+
+          set({ isLoading: false });
+          return response.transaction_hash;
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : "Failed to delete order";
+          console.error("❌ Failed to delete order:", error);
+          set({ error: errorMessage, isLoading: false });
           throw error;
         }
       },
@@ -1092,11 +1393,23 @@ export const useWalletStore = create<WalletState>()(
           transactions: [],
           portfolioOverview: null,
           multiChainBalance: null,
+          feeParams: null,
+          showSendDialog: false,
+          showReceiveDialog: false,
+          showStakeDialog: false,
         });
 
         console.log("🔄 Wallet state reset and password session cleared");
       },
-    }),
+
+      // Dialog Management Actions
+      openSendDialog: () => set({ showSendDialog: true }),
+      closeSendDialog: () => set({ showSendDialog: false }),
+      openReceiveDialog: () => set({ showReceiveDialog: true }),
+      closeReceiveDialog: () => set({ showReceiveDialog: false }),
+      openStakeDialog: () => set({ showStakeDialog: true }),
+      closeStakeDialog: () => set({ showStakeDialog: false }),
+    })),
     {
       name: "canopy-wallet-storage",
       storage: createJSONStorage(() => zustandStorage),

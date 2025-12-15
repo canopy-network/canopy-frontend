@@ -130,8 +130,7 @@ export interface ConnectedWallet {
  */
 export interface ConnectedWallets {
   ethereum: ConnectedWallet;
-  solana: ConnectedWallet;
-  [key: string]: ConnectedWallet;
+  solana?: ConnectedWallet;
 }
 
 /**

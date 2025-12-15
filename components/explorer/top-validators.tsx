@@ -11,6 +11,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { canopyIconSvg, getCanopyAccent } from "@/lib/utils/brand";
+import { cn } from "@/lib/utils";
 
 interface Validator {
   name: string;
@@ -19,8 +29,6 @@ interface Validator {
   apr: string;
   uptime: number;
   uptimeTrend?: number[]; // Array of uptime values for sparkline (7 or 30 data points)
-  commissionRate?: number; // Commission rate percentage
-  commissionChange?: number; // Change in commission rate (positive = increased, negative = decreased)
   healthScore?: number; // Performance score 0-100
   status?: "healthy" | "warning" | "at_risk"; // Health status
   statusMessage?: string; // Tooltip message
@@ -51,27 +59,6 @@ function UptimeTrend({ data, color }: { data: number[]; color: string }) {
   );
 }
 
-// Commission rate with change indicator
-function CommissionRate({ rate, change }: { rate: number; change?: number }) {
-  const hasChange = change !== undefined && change !== 0;
-  const isIncrease = change && change > 0;
-
-  return (
-    <div className="inline-flex items-center gap-1">
-      <span className="font-medium">{rate.toFixed(1)}%</span>
-      {hasChange && (
-        <span className={isIncrease ? "text-red-500" : "text-green-500"}>
-          {isIncrease ? (
-            <TrendingUp className="w-3 h-3" />
-          ) : (
-            <TrendingDown className="w-3 h-3" />
-          )}
-        </span>
-      )}
-    </div>
-  );
-}
-
 // Radial progress ring component
 function RadialProgress({
   score,
@@ -96,13 +83,13 @@ function RadialProgress({
   const effectiveStatus = status || getStatusFromScore(score);
 
   const getColor = (status: "healthy" | "warning" | "at_risk") => {
-    if (status === "healthy") return "text-green-500";
+    if (status === "healthy") return "text-[#7cff9d]";
     if (status === "warning") return "text-yellow-500";
     return "text-red-500";
   };
 
   const getStrokeColor = (status: "healthy" | "warning" | "at_risk") => {
-    if (status === "healthy") return "stroke-green-500";
+    if (status === "healthy") return "stroke-[#36d26a]";
     if (status === "warning") return "stroke-yellow-500";
     return "stroke-red-500";
   };
@@ -159,7 +146,7 @@ function HealthBadge({
 }) {
   const statusConfig = {
     healthy: {
-      color: "bg-green-500",
+      color: "bg-[#36d26a]",
       label: "Healthy",
       defaultMessage: "Healthy — no missed blocks in the last 24h",
     },
@@ -217,17 +204,19 @@ function HealthBadge({
 export function TopValidators({ validators }: TopValidatorsProps) {
   // Determine uptime color based on percentage
   const getUptimeColor = (uptime: number) => {
-    if (uptime >= 99) return "bg-green-500/10 text-green-500";
+    if (uptime >= 99)
+      return "bg-[#36d26a]/10 text-[#7cff9d] border border-[#36d26a]/50";
     if (uptime >= 97) return "bg-yellow-500/10 text-yellow-500";
     return "bg-red-500/10 text-red-500";
   };
 
   // Get text color for sparkline
   const getUptimeTextColor = (uptime: number) => {
-    if (uptime >= 99) return "text-green-500";
+    if (uptime >= 99) return "text-[#7cff9d]";
     if (uptime >= 97) return "text-yellow-500";
     return "text-red-500";
   };
+
   return (
     <div className="card-like p-4">
       <div className="flex items-center justify-between leading-none mb-4 lg:pl-3">
@@ -237,66 +226,71 @@ export function TopValidators({ validators }: TopValidatorsProps) {
         <LatestUpdated timeAgo="44 secs ago" />
       </div>
 
-      <div className="space-y-3 w-full overflow-x-auto no-scrollbar">
-        {validators.map((validator, index) => (
-          <div
-            key={validator.address}
-            className="rounded-xl w-[620px] lg:w-full  px-4 py-3 lg:py-4 bg-background hover:bg-background/75 transition-colors cursor-pointer"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted font-medium">
-                  {index + 1}
-                </div>
-                <div className="flex  flex-col">
-                  <h4 className="text-base font-medium capitalize whitespace-nowrap text-ellipsis overflow-hidden">
-                    {validator.name}
-                  </h4>
-
-                  {validator.chains && validator.chains.length > 0 && (
-                    <div className="inline-flex items-center gap-2 text-xs text-muted-foreground whitespace-nowrap text-ellipsis overflow-hidden">
-                      <span className="font-medium">{validator.chains[0]}</span>
-                      {validator.chains.length > 1 && (
-                        <span className="px-1.5 py-0.5 bg-muted rounded-lg text-xs font-medium">
-                          +{validator.chains.length - 1}
-                        </span>
+      <div className="overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow appearance="plain">
+              <TableHead className="pl-0 lg:pl-4">Rank</TableHead>
+              <TableHead className="pl-0 lg:pl-4">Validator</TableHead>
+              <TableHead className="pl-0 lg:pl-4">Stake</TableHead>
+              <TableHead className="pl-0 lg:pl-4">APR</TableHead>
+              <TableHead className="pl-0 lg:pl-4">Uptime</TableHead>
+              <TableHead className="pl-0 lg:pl-4 text-right">Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {validators.map((validator, index) => (
+              <TableRow
+                key={`${validator.address}-${index}`}
+                appearance="plain"
+              >
+                <TableCell className="pl-0 lg:pl-4">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/5 font-medium">
+                    {index + 1}
+                  </div>
+                </TableCell>
+                <TableCell className="pl-0 lg:pl-4">
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <span
+                        className="w-10 h-10 inline-flex items-center justify-center border-2 border-background rounded-full bg-muted"
+                        dangerouslySetInnerHTML={{
+                          __html: canopyIconSvg(
+                            getCanopyAccent(validator.name)
+                          ),
+                        }}
+                      />
+                      {validator.status && (
+                        <div
+                          className={cn(
+                            "absolute -inset-1 rounded-full border-2 animate-pulse opacity-60",
+                            validator.status === "healthy"
+                              ? "border-[#36d26a]"
+                              : validator.status === "warning"
+                              ? "border-yellow-400/70"
+                              : "border-red-500/70"
+                          )}
+                        />
                       )}
                     </div>
-                  )}
-                </div>
-              </div>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{validator.name}</span>
+                      <span className="text-xs text-muted-foreground font-mono truncate max-w-[220px]">
+                        {validator.address}
+                      </span>
+                    </div>
+                  </div>
+                </TableCell>
 
-              <div className="flex items-center gap-6">
-                <div className="text-right">
-                  <div className="font-medium whitespace-nowrap text-ellipsis overflow-hidden">
-                    {validator.stake}
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    Stake
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="font-medium whitespace-nowrap text-ellipsis overflow-hidden">
-                    {validator.apr}
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1">APR</div>
-                </div>
-                {validator.commissionRate !== undefined && (
-                  <div className="text-right">
-                    <div className="font-medium whitespace-nowrap text-ellipsis overflow-hidden">
-                      <CommissionRate
-                        rate={validator.commissionRate}
-                        change={validator.commissionChange}
-                      />
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      Commission
-                    </div>
-                  </div>
-                )}
-                <div className="text-right">
+                <TableCell className="pl-0 lg:pl-4">
+                  <div className="font-medium">{validator.stake}</div>
+                </TableCell>
+                <TableCell className="pl-0 lg:pl-4">
+                  <div className="font-medium">{validator.apr}</div>
+                </TableCell>
+                <TableCell className="pl-0 lg:pl-4">
                   <span
-                    className={`inline-flex items-center justify-end gap-1 px-1 rounded-md font-medium ${getUptimeColor(
+                    className={`inline-flex items-center justify-end gap-1 px-2 py-1 rounded-md font-medium ${getUptimeColor(
                       validator.uptime
                     )}`}
                   >
@@ -308,37 +302,33 @@ export function TopValidators({ validators }: TopValidatorsProps) {
                       />
                     )}
                   </span>
-                  <div
-                    className={`rounded-md text-xs font-medium w-fit mt-1 ml-auto  text-muted-foreground`}
-                  >
-                    Uptime (Last 7d)
-                  </div>
-                </div>
+                </TableCell>
+                <TableCell className="pl-0 lg:pl-4 text-right">
+                  {validator.status && (
+                    <HealthBadge
+                      status={validator.status}
+                      message={validator.statusMessage}
+                      score={validator.healthScore}
+                    />
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
 
-                {/* Health/Status Indicator */}
-                {validator.status && (
-                  <HealthBadge
-                    status={validator.status}
-                    message={validator.statusMessage}
-                    score={validator.healthScore}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-        <Link href="/validators">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground hover:text-foreground gap-1"
-          >
-            View All Validators
-            <ArrowUpRight className="w-4 h-4" />
-          </Button>
-        </Link>
+        <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+          <Link href="/validators">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground gap-1"
+            >
+              View All Validators
+              <ArrowUpRight className="w-4 h-4" />
+            </Button>
+          </Link>
+        </div>
       </div>
     </div>
   );

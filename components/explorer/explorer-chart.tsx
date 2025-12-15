@@ -48,8 +48,8 @@ const defaultChartData = {
 };
 
 const chartMetricConfig = {
-  tvl: { label: "TVL (Overtime)", color: "#b4f5c5" },
-  volume: { label: "Volume", color: "#7dd3fc" },
+  tvl: { label: "TVL (Overtime)", color: "#7cff9d" },
+  volume: { label: "Volume", color: "#7cff9d" },
 };
 
 export function ExplorerChart({ historicData }: ExplorerChartProps) {
@@ -72,7 +72,7 @@ export function ExplorerChart({ historicData }: ExplorerChartProps) {
                 onClick={() => setChartMetric(metric)}
                 className={`rounded-full px-5 py-2 text-sm font-semibold transition-all ${
                   active
-                    ? "bg-emerald-500/10 text-white border border-emerald-400/50 shadow-[0_8px_30px_rgba(16,185,129,0.3)]"
+                    ? "bg-[#36d26a]/10 text-white border border-[#36d26a] shadow-[0_8px_30px_rgba(124,255,157,0.35)]"
                     : "bg-[#111] text-gray-400 hover:text-white"
                 }`}
               >

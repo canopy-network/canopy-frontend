@@ -68,6 +68,35 @@ export interface ExplorerTransactionsResponse {
 }
 
 /**
+ * Explorer trending chains item
+ */
+export interface ExplorerTrendingChain {
+  rank: number;
+  chain_id: number;
+  chain_name: string;
+  market_cap: number;
+  tvl: number;
+  volume_24h: number;
+  validators: number;
+  holders: number;
+  risk?: string | null;
+  liquidity?: number | null;
+  change_24h?: number | null;
+}
+
+/**
+ * Explorer trending chains response
+ */
+export interface ExplorerTrendingChainsResponse {
+  data: ExplorerTrendingChain[];
+  pagination?: {
+    limit?: number;
+    next_cursor?: number | null;
+    total?: number;
+  };
+}
+
+/**
  * Query parameters for getting transactions
  */
 export interface GetExplorerTransactionsParams {
@@ -218,6 +247,18 @@ export const explorerApi = {
     apiClient.get<ExplorerOverviewResponse>("/api/v1/explorer/overview"),
 
   /**
+   * Get trending chains
+   *
+   * @param params - Query parameters for pagination/filtering
+   * @returns Promise resolving to trending chains data
+   */
+  getTrendingChains: (params?: { limit?: number }) =>
+    apiClient.get<ExplorerTrendingChainsResponse>(
+      "/api/v1/explorer/trending",
+      params
+    ),
+
+  /**
    * Get comprehensive address information
    *
    * @param address - Address to lookup (40-character hex string)
@@ -290,8 +331,6 @@ export async function getExplorerBlocks(
   params?: GetExplorerBlocksParams
 ): Promise<Block[]> {
   const response = await explorerApi.getBlocks(params);
-  console.log("[getExplorerBlocks] response", response);
-  console.log("[getExplorerBlocks] response.data", response.data);
 
   const data: Block[] = response.data as unknown as Block[];
   return data || [];
@@ -312,6 +351,46 @@ export async function getExplorerBlock(
     chain_id: chainId,
   });
   return response.data as Block;
+}
+
+/**
+ * Get trending chains (convenience function)
+ *
+ * @param params - Query parameters for pagination/filtering
+ * @returns Promise resolving to trending chains array
+ */
+export async function getExplorerTrendingChains(
+  params?: { limit?: number }
+): Promise<ExplorerTrendingChain[]> {
+  try {
+    const response = await explorerApi.getTrendingChains(params);
+    const payload = response?.data;
+
+    if (Array.isArray(payload)) {
+      return payload as ExplorerTrendingChain[];
+    }
+
+    if (
+      payload &&
+      typeof payload === "object" &&
+      Array.isArray((payload as ExplorerTrendingChainsResponse).data)
+    ) {
+      return (payload as ExplorerTrendingChainsResponse).data;
+    }
+
+    if (
+      payload &&
+      typeof payload === "object" &&
+      Array.isArray((payload as any).data)
+    ) {
+      return (payload as any).data as ExplorerTrendingChain[];
+    }
+
+    return [];
+  } catch (error) {
+    console.error("[getExplorerTrendingChains] Error fetching trending:", error);
+    return [];
+  }
 }
 
 // ============================================================================

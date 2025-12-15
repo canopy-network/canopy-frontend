@@ -69,7 +69,6 @@ export default function OrderBookPage() {
           <TradingModule
             variant="trade"
             defaultTab="swap"
-            onLiquidityPoolChange={handleLiquidityPoolChange}
           />
 
           {/* Selected Pool Position */}

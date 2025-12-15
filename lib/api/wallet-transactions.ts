@@ -45,7 +45,7 @@ export const walletTransactionApi = {
 
   /**
    * Estimate transaction fee
-   * POST /api/v1/wallet/transactions/estimate-fee
+   * GET /api/v1/wallet/transactions/estimate-fee
    *
    * @param data - Fee estimation request
    * @returns Estimated fee information
@@ -53,9 +53,16 @@ export const walletTransactionApi = {
   estimateFee: async (
     data: EstimateFeeRequest
   ): Promise<EstimateFeeResponse> => {
-    const response = await apiClient.post<EstimateFeeResponse>(
+    const params: Record<string, string | number | undefined> = {
+      transaction_type: data.transaction_type,
+      from_address: data.from_address,
+      to_address: data.to_address,
+      amount: data.amount,
+      chain_id: data.chain_id,
+    };
+    const response = await apiClient.get<EstimateFeeResponse>(
       "/api/v1/wallet/transactions/estimate-fee",
-      data
+      params
     );
     return response.data;
   },
@@ -70,34 +77,16 @@ export const walletTransactionApi = {
   getTransactionHistory: async (
     data: TransactionHistoryRequest
   ): Promise<TransactionHistoryResponse> => {
-    const params: Record<string, any> = {};
-
-    // Convert TransactionHistoryRequest to query parameters
-    if (data.addresses && data.addresses.length > 0) {
-      params.addresses = data.addresses.join(',');
-    }
-    if (data.chain_ids && data.chain_ids.length > 0) {
-      params.chain_ids = data.chain_ids.join(',');
-    }
-    if (data.transaction_types && data.transaction_types.length > 0) {
-      params.transaction_types = data.transaction_types.join(',');
-    }
-    if (data.start_date) {
-      params.start_date = data.start_date;
-    }
-    if (data.end_date) {
-      params.end_date = data.end_date;
-    }
-    if (data.page) {
-      params.page = data.page;
-    }
-    if (data.limit) {
-      params.limit = data.limit;
-    }
-    if (data.sort) {
-      params.sort = data.sort;
-    }
-
+    const params: Record<string, string | number | undefined> = {
+      addresses: data.addresses?.join(","),
+      chain_ids: data.chain_ids?.join(","),
+      transaction_types: data.transaction_types?.join(","),
+      start_date: data.start_date,
+      end_date: data.end_date,
+      page: data.page,
+      limit: data.limit,
+      sort: data.sort,
+    };
     const response = await apiClient.get<TransactionHistoryResponse>(
       "/api/v1/wallet/transactions/history",
       params
@@ -138,10 +127,10 @@ export const walletTransactionApi = {
     chainId?: string
   ): Promise<{ status: string; transaction_hash: string }> => {
     const params = chainId ? { chain_id: chainId } : undefined;
-    const response = await apiClient.get<{ status: string; transaction_hash: string }>(
-      `/api/v1/wallet/transactions/${hash}/status`,
-      params
-    );
+    const response = await apiClient.get<{
+      status: string;
+      transaction_hash: string;
+    }>(`/api/v1/wallet/transactions/${hash}/status`, params);
     return response.data;
   },
 
@@ -155,16 +144,10 @@ export const walletTransactionApi = {
   getPendingTransactions: async (
     data: PendingTransactionsRequest
   ): Promise<PendingTransactionsResponse> => {
-    const params: Record<string, any> = {};
-
-    // Convert PendingTransactionsRequest to query parameters
-    if (data.addresses && data.addresses.length > 0) {
-      params.addresses = data.addresses.join(',');
-    }
-    if (data.chain_ids && data.chain_ids.length > 0) {
-      params.chain_ids = data.chain_ids.join(',');
-    }
-
+    const params: Record<string, string | undefined> = {
+      addresses: data.addresses?.join(","),
+      chain_ids: data.chain_ids?.join(","),
+    };
     const response = await apiClient.get<PendingTransactionsResponse>(
       "/api/v1/wallet/transactions/pending",
       params
@@ -184,16 +167,10 @@ export const walletTransactionApi = {
     data: BatchStatusRequest,
     chainId?: string
   ): Promise<BatchStatusResponse> => {
-    const params: Record<string, any> = {};
-
-    // Convert BatchStatusRequest to query parameters
-    if (data.transaction_hashes && data.transaction_hashes.length > 0) {
-      params.hashes = data.transaction_hashes.join(',');
-    }
-    if (chainId) {
-      params.chain_id = chainId;
-    }
-
+    const params: Record<string, string | undefined> = {
+      hashes: data.transaction_hashes?.join(","),
+      chain_id: chainId,
+    };
     const response = await apiClient.get<BatchStatusResponse>(
       "/api/v1/wallet/transactions/batch-status",
       params
@@ -239,11 +216,18 @@ export async function waitForTransactionCompletion(
 ): Promise<string> {
   for (let i = 0; i < maxAttempts; i++) {
     try {
-      const statusResponse = await walletTransactionApi.getTransactionStatus(hash, chainId);
+      const statusResponse = await walletTransactionApi.getTransactionStatus(
+        hash,
+        chainId
+      );
       const status = statusResponse.status.toLowerCase();
 
       // Check if transaction is in final state
-      if (status === "completed" || status === "success" || status === "confirmed") {
+      if (
+        status === "completed" ||
+        status === "success" ||
+        status === "confirmed"
+      ) {
         return "completed";
       }
       if (status === "failed" || status === "error") {
@@ -253,7 +237,10 @@ export async function waitForTransactionCompletion(
       // Wait before next attempt
       await new Promise((resolve) => setTimeout(resolve, intervalMs));
     } catch (error) {
-      console.error(`Failed to check transaction status (attempt ${i + 1}):`, error);
+      console.error(
+        `Failed to check transaction status (attempt ${i + 1}):`,
+        error
+      );
 
       // Continue polling even on error (transaction might be pending in mempool)
       if (i < maxAttempts - 1) {

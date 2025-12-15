@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ChevronRight, Zap, Plus, ArrowLeft } from "lucide-react";
+import { ArrowLeft, Zap, ChevronRight, Plus } from "lucide-react";
 import {
   useLiquidityPoolsStore,
   type LiquidityPool,
@@ -14,6 +14,8 @@ import PoolSelectionDialog from "@/components/trading/pool-selection-dialog";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { walletTransactionApi, chainsApi } from "@/lib/api";
 import toast from "react-hot-toast";
+import { CurveType } from "@/lib/crypto/types";
+import { fromMicroUnits, formatTokenAmount } from "@/lib/utils/denomination";
 import type { Token, InputMode } from "@/types/trading";
 import type { UserLiquidityPosition } from "@/types/trading";
 
@@ -22,8 +24,6 @@ const MICRO_UNITS = 1_000_000;
 
 interface LiquidityTabProps {
   isPreview?: boolean;
-  initialPool?: LiquidityPool | null;
-  onPoolChange?: (pool: LiquidityPool | null) => void;
 }
 
 interface DisplayValues {
@@ -31,21 +31,17 @@ interface DisplayValues {
   usdAmount: string;
 }
 
-export default function LiquidityTab({
-  isPreview = false,
-  initialPool = null,
-  onPoolChange = null,
-}: LiquidityTabProps) {
-  const { wallets, currentWallet } = useWalletStore();
+export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
+  const { wallets, currentWallet, balance, fetchBalance } = useWalletStore();
   const { available_pools, fetchPools } = useLiquidityPoolsStore();
   const isConnected = wallets.length > 0;
-  const isWalletUnlocked =
-    currentWallet?.isUnlocked && currentWallet?.privateKey;
 
-  const [selectedPool, setSelectedPool] = useState<LiquidityPool | null>(
-    initialPool
-  );
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // Fetch balance when wallet changes
+  useEffect(() => {
+    if (currentWallet) {
+      fetchBalance(currentWallet.id);
+    }
+  }, [currentWallet, fetchBalance]);
 
   // Fetch pools on mount if not already loaded
   useEffect(() => {
@@ -54,23 +50,38 @@ export default function LiquidityTab({
     }
   }, [available_pools.length, fetchPools]);
 
-  // Notify parent when pool changes
-  const handlePoolChange = (pool: LiquidityPool | null) => {
-    setSelectedPool(pool);
-    onPoolChange?.(pool);
-  };
+  // Find and use only the DEFI pool (pool-7)
+  const defiPool = useMemo<LiquidityPool | null>(() => {
+    return (
+      available_pools.find(
+        (pool) => pool.id === "pool-7" && pool.tokenB === "DEFI"
+      ) || null
+    );
+  }, [available_pools]);
+
+  const [selectedPool, setSelectedPool] = useState<LiquidityPool | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [amountA, setAmountA] = useState("");
   const [amountB, setAmountB] = useState("");
   const [inputModeA, setInputModeA] = useState<InputMode>("token");
   const [inputModeB, setInputModeB] = useState<InputMode>("token");
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showPoolDialog, setShowPoolDialog] = useState(false);
+  const hasInitializedPool = useRef(false);
+
+  // Set initial pool to DEFI only once when pools are first loaded
+  useEffect(() => {
+    if (defiPool && !hasInitializedPool.current && available_pools.length > 0) {
+      setSelectedPool(defiPool);
+      hasInitializedPool.current = true;
+    }
+  }, [defiPool, available_pools.length]);
 
   // Get user's position for selected pool (mock data for now)
   const userPosition = useMemo<UserLiquidityPosition | null>(() => {
     // TODO: Implement actual LP position fetching using wallet addresses
     return null;
-  }, [isConnected, selectedPool]);
+  }, []);
 
   // Sort pools by APY descending for suggestions
   const topPools = useMemo(() => {
@@ -89,20 +100,76 @@ export default function LiquidityTab({
         | undefined)
     : null;
 
-  // Mock wallet balances
-  const getWalletBalance = (token: Token | null | undefined): number => {
-    if (!token) return 0;
-    const mockBalances: Record<string, number> = {
-      CNPY: 5000,
-      MGC: 1250,
-      SOCN: 2500,
-      OENS: 1000,
-    };
-    return mockBalances[token.symbol] || 100;
-  };
+  // Get real wallet balances from store
+  const balanceA = useMemo(() => {
+    if (!tokenA || !balance) return 0;
 
-  const balanceA = tokenA ? getWalletBalance(tokenA) : 0;
-  const balanceB = tokenB ? getWalletBalance(tokenB) : 0;
+    // For other tokens, look in tokens array
+    const tokenBalance = balance.tokens?.find(
+      (t) => t.symbol === tokenA.symbol
+    );
+    if (tokenBalance) {
+      const availableBalance =
+        tokenBalance.distribution?.liquid || tokenBalance.balance;
+      // Convert from micro units to standard units if needed
+      // Check if the value is likely in micro units (very large number)
+      const balanceNum = parseFloat(availableBalance) || 0;
+      // If balance is > 1 million, it's likely in micro units
+      if (balanceNum > 1_000_000) {
+        return parseFloat(fromMicroUnits(availableBalance));
+      }
+      return balanceNum;
+    }
+
+    return 0;
+  }, [tokenA, balance]);
+
+  const balanceB = useMemo(() => {
+    if (!tokenB || !balance) return 0;
+
+    // For CNPY, check total balance or look for CNPY/C001 token
+    if (tokenB.symbol === "CNPY") {
+      // First try to find CNPY in tokens array (might be C001 for root chain)
+      const cnpyToken = balance.tokens?.find((t) => t.chainId === 1);
+      if (cnpyToken) {
+        // Use liquid balance (available) if available, otherwise total balance
+        const availableBalance =
+          cnpyToken.distribution?.liquid || cnpyToken.balance;
+        // Convert from micro units to standard units if needed
+        const balanceNum = parseFloat(availableBalance) || 0;
+        // If balance is > 1 million, it's likely in micro units
+        if (balanceNum > 1_000_000) {
+          return parseFloat(fromMicroUnits(availableBalance));
+        }
+        return balanceNum;
+      }
+      // Fallback to total balance (which is CNPY)
+      const totalBalance = parseFloat(balance.total) || 0;
+      // If balance is > 1 million, it's likely in micro units
+      if (totalBalance > 1_000_000) {
+        return parseFloat(fromMicroUnits(balance.total));
+      }
+      return totalBalance;
+    }
+
+    // For other tokens, look in tokens array
+    const tokenBalance = balance.tokens?.find(
+      (t) => t.symbol === tokenB.symbol
+    );
+    if (tokenBalance) {
+      const availableBalance =
+        tokenBalance.distribution?.liquid || tokenBalance.balance;
+      // Convert from micro units to standard units if needed
+      const balanceNum = parseFloat(availableBalance) || 0;
+      // If balance is > 1 million, it's likely in micro units
+      if (balanceNum > 1_000_000) {
+        return parseFloat(fromMicroUnits(availableBalance));
+      }
+      return balanceNum;
+    }
+
+    return 0;
+  }, [tokenB, balance]);
 
   // Get display values
   const getDisplayValues = (
@@ -188,34 +255,76 @@ export default function LiquidityTab({
 
   const handleAmountAChange = (value: string) => {
     if (value === "" || /^\d*\.?\d*$/.test(value)) {
+      const numValue = parseFloat(value) || 0;
+      // Validate against available balance
+      if (numValue > balanceA) {
+        toast.error(
+          `Insufficient ${
+            tokenA?.symbol || "token"
+          } balance. You have ${balanceA.toLocaleString()} available.`
+        );
+        return;
+      }
       setAmountA(value);
     }
   };
 
   const handleAmountBChange = (value: string) => {
     if (value === "" || /^\d*\.?\d*$/.test(value)) {
+      const numValue = parseFloat(value) || 0;
+      // Validate against available balance
+      if (numValue > balanceB) {
+        toast.error(
+          `Insufficient ${
+            tokenB?.symbol || "CNPY"
+          } balance. You have ${balanceB.toLocaleString()} available.`
+        );
+        return;
+      }
       setAmountB(value);
     }
   };
 
   const handleSelectPool = (pool: LiquidityPool) => {
-    handlePoolChange(pool);
+    setSelectedPool(pool);
     setAmountA("");
     setAmountB("");
   };
 
   const handleBack = () => {
-    handlePoolChange(null);
+    // Go back to pool selection
+    setSelectedPool(null);
     setAmountA("");
     setAmountB("");
   };
 
   const handleConfirmAddLiquidity = async () => {
-    // Use amountA since that's the CNPY amount (tokenB in pool data)
-    const amountANum = parseFloat(amountA);
+    // Parse both amounts
+    const amountANum = parseFloat(amountA) || 0;
+    const amountBNum = parseFloat(amountB) || 0;
 
-    if (!amountANum || amountANum <= 0) {
+    // Validate that at least one amount is provided
+    if ((!amountANum || amountANum <= 0) && (!amountBNum || amountBNum <= 0)) {
       toast.error("Please enter a valid amount.");
+      return;
+    }
+
+    // Validate balances - check if amounts exceed available balances
+    if (amountANum > 0 && amountANum > balanceA) {
+      toast.error(
+        `Insufficient ${
+          tokenA?.symbol || "token"
+        } balance. You have ${balanceA.toLocaleString()} available.`
+      );
+      return;
+    }
+
+    if (amountBNum > 0 && amountBNum > balanceB) {
+      toast.error(
+        `Insufficient ${
+          tokenB?.symbol || "CNPY"
+        } balance. You have ${balanceB.toLocaleString()} available.`
+      );
       return;
     }
 
@@ -225,17 +334,28 @@ export default function LiquidityTab({
       return;
     }
 
-    // Check if wallet is unlocked
-    if (!currentWallet.isUnlocked || !currentWallet.privateKey) {
-      toast.error("Wallet is locked. Please unlock your wallet first.");
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
-      // Convert amount to microunits (base units)
-      const amountInMicroUnits = Math.floor(amountANum * MICRO_UNITS);
+      // Calculate CNPY amount (amountB) - use directly if provided, otherwise calculate from amountA based on pool ratio
+      let cnpyAmount = amountBNum;
+      if (cnpyAmount <= 0 && amountANum > 0 && selectedPool) {
+        // Calculate CNPY amount from DEFI amount based on pool ratio
+        // Pool ratio: tokenAReserve / tokenBReserve = DEFI / CNPY
+        // So: CNPY = DEFI / (tokenAReserve / tokenBReserve)
+        const poolRatio =
+          selectedPool.tokenAReserve / selectedPool.tokenBReserve;
+        cnpyAmount = amountANum / poolRatio;
+      }
+
+      if (cnpyAmount <= 0) {
+        toast.error("Please enter a valid amount.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Convert CNPY amount to microunits (base units)
+      const amountInMicroUnits = Math.floor(cnpyAmount * MICRO_UNITS);
 
       // Pool chain ID - hardcoded to chain 2 (DeFi Hub) for now
       const poolChainId = 2;
@@ -263,6 +383,15 @@ export default function LiquidityTab({
       const { createAndSignTransaction } = await import(
         "@/lib/crypto/transaction"
       );
+
+      // Validate wallet is unlocked
+      if (!currentWallet.privateKey || !currentWallet.isUnlocked) {
+        toast.error("Wallet is locked. Please unlock your wallet first.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      console.log("[currentWallet]", currentWallet);
       const signedTx = createAndSignTransaction(
         {
           type: "dexLiquidityDeposit",
@@ -274,8 +403,8 @@ export default function LiquidityTab({
           height: currentHeight,
         },
         currentWallet.privateKey,
-        currentWallet.public_key,
-        currentWallet.curveType
+        currentWallet.public_key || "",
+        (currentWallet.curveType || "ed25519") as CurveType
       );
 
       // Submit transaction
@@ -301,7 +430,7 @@ export default function LiquidityTab({
     }
   };
 
-  // Pool Selector View
+  // Pool Selector View - Show when no pool is selected
   if (!selectedPool) {
     return (
       <>
@@ -402,7 +531,9 @@ export default function LiquidityTab({
       <div className="space-y-3">
         {/* Token A (non-CNPY token) */}
         <div className="px-4">
-          <Card className="bg-muted/30 p-4">
+          <Card
+            className={`bg-muted/30 p-4 ${balanceA === 0 ? "opacity-80" : ""}`}
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div
@@ -417,9 +548,16 @@ export default function LiquidityTab({
                   <p className="text-base font-semibold">{tokenA?.symbol}</p>
                   <button
                     onClick={handleMaxA}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    disabled={balanceA === 0}
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Balance: {balanceA.toLocaleString()}
+                    Balance:{" "}
+                    {parseFloat(
+                      formatTokenAmount(balanceA.toFixed(6))
+                    ).toLocaleString(undefined, {
+                      maximumFractionDigits: 6,
+                      minimumFractionDigits: 0,
+                    })}
                   </button>
                 </div>
               </div>
@@ -436,12 +574,14 @@ export default function LiquidityTab({
                     value={amountA}
                     onChange={(e) => handleAmountAChange(e.target.value)}
                     placeholder="0"
-                    className="text-base font-semibold bg-transparent border-0 outline-none p-0 h-auto text-right w-20 placeholder:text-muted-foreground"
+                    disabled={balanceA === 0}
+                    className="text-base font-semibold bg-transparent border-0 outline-none p-0 h-auto text-right w-20 placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                 </div>
                 <button
                   onClick={toggleInputModeA}
-                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  disabled={balanceA === 0}
+                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {inputModeA === "token"
                     ? displayValuesA.usdAmount
@@ -455,7 +595,9 @@ export default function LiquidityTab({
 
         {/* Token B (CNPY) */}
         <div className="px-4">
-          <Card className="bg-muted/30 p-4">
+          <Card
+            className={`bg-muted/30 p-4 ${balanceB === 0 ? "opacity-80" : ""}`}
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div
@@ -470,9 +612,16 @@ export default function LiquidityTab({
                   <p className="text-base font-semibold">{tokenB?.symbol}</p>
                   <button
                     onClick={handleMaxB}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    disabled={balanceB === 0}
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Balance: {balanceB.toLocaleString()}
+                    Balance:{" "}
+                    {parseFloat(
+                      formatTokenAmount(balanceB.toFixed(6))
+                    ).toLocaleString(undefined, {
+                      maximumFractionDigits: 6,
+                      minimumFractionDigits: 0,
+                    })}
                   </button>
                 </div>
               </div>
@@ -489,12 +638,14 @@ export default function LiquidityTab({
                     value={amountB}
                     onChange={(e) => handleAmountBChange(e.target.value)}
                     placeholder="0"
-                    className="text-base font-semibold bg-transparent border-0 outline-none p-0 h-auto text-right w-20 placeholder:text-muted-foreground"
+                    disabled={balanceB === 0}
+                    className="text-base font-semibold bg-transparent border-0 outline-none p-0 h-auto text-right w-20 placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                 </div>
                 <button
                   onClick={toggleInputModeB}
-                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  disabled={balanceB === 0}
+                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {inputModeB === "token"
                     ? displayValuesB.usdAmount
@@ -532,8 +683,6 @@ export default function LiquidityTab({
               ? "Preview Mode"
               : !isConnected
               ? "Connect Wallet"
-              : !isWalletUnlocked
-              ? "Unlock Wallet"
               : isSubmitting
               ? "Processing..."
               : !amountA && !amountB
@@ -556,8 +705,6 @@ export default function LiquidityTab({
               ? "Preview Mode"
               : !isConnected
               ? "Connect Wallet"
-              : !isWalletUnlocked
-              ? "Unlock Wallet"
               : isSubmitting
               ? "Processing..."
               : !amountA && !amountB

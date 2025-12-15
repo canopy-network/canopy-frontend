@@ -57,7 +57,6 @@ export function createAndSignTransaction(
 
   const signBytes = getSignBytesProtobuf(unsignedTx);
 
-
   const signatureHex = signMessage(signBytes, privateKeyHex, curveType);
 
   // Create signature structure
@@ -206,16 +205,19 @@ export function createEditStakeMessage(
 }
 
 /**
- * Creates a CreateOrder transaction message (DEX)
+ * Creates a CreateOrder transaction message (cross-chain atomic swaps)
+ *
+ * NOTE: This is for cross-chain atomic swap orders, NOT for DEX v2 limit orders.
+ * For DEX v2 limit orders, use createDexLimitOrderMessage() instead.
  *
  * Mirrors fsm.NewCreateOrderTx() from canopy/fsm/transaction.go:366-375
  *
- * @param chainId - Chain ID for the order
- * @param data - Additional order data
- * @param amountForSale - Amount selling
- * @param requestedAmount - Amount requesting
- * @param sellerReceiveAddress - Address to receive payment
- * @param sellersSendAddress - Address sending tokens
+ * @param committeeId - Committee ID responsible for the counter-asset swap
+ * @param data - Additional order data (hex string, can be empty)
+ * @param amountForSale - Amount selling (in micro units)
+ * @param requestedAmount - Amount requesting (in micro units)
+ * @param sellerReceiveAddress - Address to receive payment (hex)
+ * @param sellersSendAddress - Address sending tokens (hex)
  * @returns MessageCreateOrder payload
  */
 export function createOrderMessage(
@@ -226,6 +228,8 @@ export function createOrderMessage(
   sellerReceiveAddress: string,
   sellersSendAddress: string
 ): TransactionMessage {
+  // NOTE: Do NOT include orderId - it's auto-populated by the backend
+  // from the first 20 bytes of the transaction hash
   return {
     chainId,
     data,

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/table";
 
 import { Transaction } from "@/lib/api/explorer";
+import { EXPLORER_ICON_GLOW } from "@/lib/utils/brand";
 
 const formatAddress = (value: string, prefix = 6, suffix = 6) =>
   `${value.slice(0, prefix)}...${value.slice(-suffix)}`;
@@ -108,7 +109,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
                 </TableCell>
 
                 <TableCell className="w-40 px-0">
-                  <TableArrow className="text-white" />
+                  <TableArrow className={EXPLORER_ICON_GLOW} />
                 </TableCell>
 
                 <TableCell className="text-xs text-white">
@@ -121,7 +122,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
 
                 <TableCell className="text-right">
                   {tx.amount != null ? (
-                    <span className="text-emerald-400 font-semibold text-sm">
+                    <span className="font-semibold text-sm text-[#7cff9d]">
                       {tx.amount.toLocaleString(undefined, {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
@@ -144,7 +145,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
               className="text-muted-foreground hover:text-foreground gap-1"
             >
               View All Transactions
-              <ArrowUpRight className="w-4 h-4" />
+              <ArrowUpRight className={`w-4 h-4 ${EXPLORER_ICON_GLOW}`} />
             </Button>
           </Link>
         </div>
