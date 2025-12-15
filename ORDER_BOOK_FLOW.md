@@ -1,40 +1,40 @@
-# Order Book Flow - Flujo del Order Book
+# Order Book Flow
 
-Este documento describe el flujo completo del sistema de Order Book para intercambiar CNPY por otras monedas (USDC, USDT, etc.).
+This document describes the complete flow of the Order Book system for exchanging CNPY for other currencies (USDC, USDT, etc.).
 
-## Resumen del Flujo del Order Book
+## Order Book Flow Summary
 
-### 1. Sell Order (Vendedor)
+### 1. Sell Order (Seller)
 
-- Usuario con CNPY crea una orden de venta.
-- Define: cantidad de CNPY a vender y cantidad de USDC/USDT a recibir.
-- Se envía a través del RPC de Canopy a `/v1/tx` usando `MessageCreateOrder`.
-- Los CNPY se bloquean en escrow hasta que alguien compre.
+- User with CNPY creates a sell order.
+- Defines: amount of CNPY to sell and amount of USDC/USDT to receive.
+- Sent through Canopy RPC to `/v1/tx` using `MessageCreateOrder`.
+- CNPY is locked in escrow until someone buys.
 
-### 2. Buy Order (Comprador) — 2 Pasos
+### 2. Buy Order (Buyer) — 2 Steps
 
-#### Paso 1: Lock Order
+#### Step 1: Lock Order
 
-- El comprador hace un **self-send de 0 tokens** en la blockchain de Ethereum (USDC/USDT).
-- Debe incrustar un JSON en la transacción que indique que es un "lock order".
-- El JSON debe contener la información del `LockOrder`:
+- The buyer performs a **self-send of 0 tokens** on the Ethereum blockchain (USDC/USDT).
+- Must embed a JSON in the transaction indicating it's a "lock order".
+- The JSON must contain the `LockOrder` information:
 
 ```json
 {
   "orderID": "...",
   "chainID": 123,
-  "buyerReceiveAddress": "...", // Dirección Canopy donde recibirá CNPY
-  "buyerSendAddress": "...",     // Dirección Ethereum desde donde enviará USDC/USDT
+  "buyerReceiveAddress": "...", // Canopy address where CNPY will be received
+  "buyerSendAddress": "...",     // Ethereum address from where USDC/USDT will be sent
   "buyerChainDeadline": 123456   // Block height deadline
 }
 ```
 
-- Cuando el chain confirma, agrega campos a la orden (buyer address).
+- When the chain confirms, it adds fields to the order (buyer address).
 
-#### Paso 2: Buy Order (Close Order)
+#### Step 2: Buy Order (Close Order)
 
-- El comprador envía los tokens (USDC/USDT) a la dirección del seller (indicada por el RPC).
-- Debe incrustar un JSON en la transacción que indique que es un "close order":
+- The buyer sends the tokens (USDC/USDT) to the seller's address (indicated by the RPC).
+- Must embed a JSON in the transaction indicating it's a "close order":
 
 ```json
 {
@@ -44,37 +44,37 @@ Este documento describe el flujo completo del sistema de Order Book para interca
 }
 ```
 
-- El oracle de CNPY detecta el JSON y completa el swap.
+- The CNPY oracle detects the JSON and completes the swap.
 
-## Detalles Técnicos
+## Technical Details
 
 ### Sell Order Implementation
 
 - **Endpoint**: `/v1/tx` (Canopy RPC)
 - **Message Type**: `MessageCreateOrder`
-- **Campos requeridos**:
-  - `chainId`: ID del committee responsable del counter asset (USDC/USDT)
-  - `data`: Campo genérico para funcionalidad específica del swap
-  - `amountForSale`: Cantidad de uCNPY a vender (en escrow)
-  - `requestedAmount`: Cantidad del counter asset que el comprador debe enviar
-  - `sellerReceiveAddress`: Dirección donde el seller recibirá el counter asset
-  - `sellersSendAddress`: Dirección Canopy desde donde el seller está vendiendo
+- **Required fields**:
+  - `chainId`: ID of the committee responsible for the counter asset (USDC/USDT)
+  - `data`: Generic field for swap-specific functionality
+  - `amountForSale`: Amount of uCNPY to sell (in escrow)
+  - `requestedAmount`: Amount of counter asset the buyer must send
+  - `sellerReceiveAddress`: Address where the seller will receive the counter asset
+  - `sellersSendAddress`: Canopy address from where the seller is selling
 
 ### Lock Order Implementation
 
-- **Blockchain**: Ethereum (o la blockchain del counter asset)
-- **Tipo de transacción**: Self-send de 0 tokens
-- **Datos incrustados**: JSON con información del `LockOrder`
-- **Propósito**: Expresar intención de compra y "reclamar" la orden
+- **Blockchain**: Ethereum (or the counter asset blockchain)
+- **Transaction type**: Self-send of 0 tokens
+- **Embedded data**: JSON with `LockOrder` information
+- **Purpose**: Express purchase intent and "claim" the order
 
 ### Close Order Implementation
 
-- **Blockchain**: Ethereum (o la blockchain del counter asset)
-- **Tipo de transacción**: Envío de tokens al seller
-- **Datos incrustados**: JSON con información del `CloseOrder`
-- **Propósito**: Completar el swap y transferir los CNPY del escrow al comprador
+- **Blockchain**: Ethereum (or the counter asset blockchain)
+- **Transaction type**: Token transfer to seller
+- **Embedded data**: JSON with `CloseOrder` information
+- **Purpose**: Complete the swap and transfer CNPY from escrow to the buyer
 
-## Estructuras de Datos
+## Data Structures
 
 ### LockOrder (certificate.proto)
 
@@ -112,7 +112,7 @@ message MessageCreateOrder {
 }
 ```
 
-## Flujo Visual
+## Visual Flow
 
 ```
 ┌─────────────┐
@@ -159,22 +159,21 @@ message MessageCreateOrder {
 └─────────────────┘
 ```
 
-## Notas Importantes
+## Important Notes
 
-1. **Oracle Detection**: El oracle de CNPY monitorea las transacciones en las blockchains de counter assets (Ethereum, etc.) buscando los JSONs incrustados que indican lock orders y close orders.
+1. **Oracle Detection**: The CNPY oracle monitors transactions on counter asset blockchains (Ethereum, etc.) looking for embedded JSONs that indicate lock orders and close orders.
 
-2. **Deadline**: El `buyerChainDeadline` es crítico. Si el comprador no envía los tokens antes del deadline, la orden se "un-claims" y vuelve a estar disponible.
+2. **Deadline**: The `buyerChainDeadline` is critical. If the buyer doesn't send the tokens before the deadline, the order is "un-claimed" and becomes available again.
 
-3. **Self-send**: El lock order requiere un self-send de 0 tokens, lo que permite incrustar datos sin transferir valor real.
+3. **Self-send**: The lock order requires a self-send of 0 tokens, which allows embedding data without transferring real value.
 
-4. **Escrow**: Los CNPY quedan bloqueados en escrow desde que se crea la orden hasta que se completa el swap o se cancela.
+4. **Escrow**: CNPY remains locked in escrow from when the order is created until the swap is completed or cancelled.
 
-5. **Multi-order Selection**: El comprador puede seleccionar múltiples órdenes para comprar en una sola transacción.
+5. **Multi-order Selection**: The buyer can select multiple orders to purchase in a single transaction.
 
-## Referencias
+## References
 
-- `public/proto/message.proto`: Definición de `MessageCreateOrder`
-- `public/proto/certificate.proto`: Definición de `LockOrder` y `CloseOrder`
-- `lib/crypto/protobuf.ts`: Función `encodeMessageCreateOrder`
-- `lib/crypto/transaction.ts`: Función `createOrderMessage`
-
+- `public/proto/message.proto`: Definition of `MessageCreateOrder`
+- `public/proto/certificate.proto`: Definition of `LockOrder` and `CloseOrder`
+- `lib/crypto/protobuf.ts`: `encodeMessageCreateOrder` function
+- `lib/crypto/transaction.ts`: `createOrderMessage` function
