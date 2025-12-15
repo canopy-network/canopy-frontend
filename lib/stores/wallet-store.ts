@@ -101,6 +101,9 @@ export interface WalletState {
   showReceiveDialog: boolean;
   showStakeDialog: boolean;
 
+  // Fee parameters (cached from blockchain)
+  feeParams: FeeParams | null;
+
   // Actions - Wallet Management
   fetchWallets: () => Promise<void>;
   selectWallet: (walletId: string) => Promise<void>;
@@ -136,6 +139,12 @@ export interface WalletState {
     requestedAmount: number,
     sellerEthAddress: string, // Ethereum address to receive USDC
     usdcContractAddress: string // USDC contract address (with 0x prefix)
+  ) => Promise<string>;
+
+  // Actions - Delete Order (MessageDeleteOrder)
+  deleteOrder: (
+    orderId: string, // Order ID to delete
+    committeeId: number // Committee ID for the order
   ) => Promise<string>;
 
   // Actions - Utilities
@@ -1139,19 +1148,18 @@ export const useWalletStore = create<WalletState>()(
           // Prepare addresses:
           // - sellerReceiveAddress: Ethereum address where seller receives USDC (no 0x prefix)
           // - sellersSendAddress: Canopy address where seller's CNPY is escrowed from
-          // - data: Contract address or Ethereum address (no 0x prefix) - committee uses this to watch for payments
+          // - data: USDC contract address (no 0x prefix) - committee uses this to watch for payments
           const ethAddressNoPrefix = sellerEthAddress.startsWith("0x")
             ? sellerEthAddress.slice(2)
             : sellerEthAddress;
-          // Strip 0x prefix from data field (hexToBytes expects hex without prefix)
-          const dataAddressNoPrefix = usdcContractAddress.startsWith("0x")
+          const usdcAddressNoPrefix = usdcContractAddress.startsWith("0x")
             ? usdcContractAddress.slice(2)
             : usdcContractAddress;
 
           // Create order message
           const msg = createOrderMessage(
             committeeId, // Committee ID in message
-            dataAddressNoPrefix, // data field - Contract/Ethereum address without 0x prefix
+            usdcAddressNoPrefix, // data field - USDC contract address
             amountForSale,
             requestedAmount,
             ethAddressNoPrefix, // sellerReceiveAddress - Ethereum address
@@ -1205,6 +1213,99 @@ export const useWalletStore = create<WalletState>()(
           const errorMessage =
             error instanceof Error ? error.message : "Failed to create order";
           console.error("❌ Failed to create order:", error);
+          set({ error: errorMessage, isLoading: false });
+          throw error;
+        }
+      },
+
+      // Delete a cross-chain swap order using send-raw endpoint (MessageDeleteOrder)
+      deleteOrder: async (
+        orderId: string, // Order ID to delete
+        committeeId: number // Committee ID for the order
+      ): Promise<string> => {
+        try {
+          set({ isLoading: true, error: null });
+
+          // Get current wallet
+          const { currentWallet } = get();
+
+          if (!currentWallet) {
+            throw new Error(
+              "No wallet selected. Please select a wallet first."
+            );
+          }
+
+          if (!currentWallet.privateKey || !currentWallet.isUnlocked) {
+            throw new Error(
+              "Wallet is locked. Please unlock the wallet first."
+            );
+          }
+
+          if (!currentWallet.curveType) {
+            throw new Error(
+              "Wallet curve type not detected. Please refresh your wallets."
+            );
+          }
+
+          // Get current blockchain height (always use chain 1 for the main chain)
+          const BLOCKCHAIN_CHAIN_ID = 1;
+          const currentHeight = await chainsApi.getChainHeight(
+            String(BLOCKCHAIN_CHAIN_ID)
+          );
+
+          // Fetch fee params for deleteOrder transaction
+          const feeParams = await get().fetchFeeParams();
+
+          // Build transaction parameters
+          // chainID in txParams is the blockchain chain ID (1), not the committee
+          const txParams = {
+            type: "deleteOrder",
+            msg: {
+              orderId: orderId, // Order ID (hex string)
+              chainId: committeeId, // Committee ID
+            },
+            fee: feeParams.deleteOrderFee, // Use deleteOrderFee from blockchain params
+            memo: "",
+            networkID: 1,
+            chainID: BLOCKCHAIN_CHAIN_ID, // Blockchain chain ID = 1
+            height: currentHeight.data.height,
+          };
+
+          try {
+            validateTransactionParams(txParams);
+          } catch (validationError) {
+            console.error("❌ Transaction validation failed:", validationError);
+            throw validationError;
+          }
+
+          // Create and sign the transaction
+          console.log("🔐 Signing deleteOrder transaction with protobuf...");
+          const signedTx = createAndSignTransaction(
+            txParams,
+            currentWallet.privateKey,
+            currentWallet.public_key,
+            currentWallet.curveType as CurveType
+          );
+
+          console.log(
+            "✅ Delete order transaction signed locally with",
+            currentWallet.curveType
+          );
+          console.log("📤 Submitting raw transaction to backend...");
+
+          // Submit the raw transaction to the backendClos
+          const response = await walletTransactionApi.sendRawTransaction(
+            signedTx
+          );
+
+          console.log("✅ Order deleted:", response.transaction_hash);
+
+          set({ isLoading: false });
+          return response.transaction_hash;
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : "Failed to delete order";
+          console.error("❌ Failed to delete order:", error);
           set({ error: errorMessage, isLoading: false });
           throw error;
         }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,7 +14,23 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Edit2, X, Clock, CheckCircle, XCircle, Filter } from "lucide-react";
+import {
+  Edit2,
+  X,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Filter,
+  Loader2,
+} from "lucide-react";
+import { orderbookApi } from "@/lib/api";
+import { useWalletStore } from "@/lib/stores/wallet-store";
+import type { OrderBookApiOrder } from "@/types/orderbook";
+import { isOrderLocked } from "@/types/orderbook";
+import { useLockOrder } from "@/lib/hooks/use-lock-order";
+import { useAccount, useChainId } from "wagmi";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { USDC_ADDRESSES } from "@/lib/web3/config";
 
 type OrderStatus = "active" | "filled" | "cancelled";
 
@@ -29,9 +45,102 @@ interface SellOrder {
   status: OrderStatus;
   feeAmount: number;
   fee: number; // Decimal, e.g., 0.01 for 1%
+  // If true, user is selling USDC for CNPY (reverse direction)
+  isSellingUsdcForCnpy?: boolean;
+  // Amount being sold (USDC if isSellingUsdcForCnpy is true, CNPY otherwise)
+  amountSelling?: number;
+  // Committee ID for the order (needed for deletion)
+  committeeId: number;
+  // Seller's Canopy address (sellersSendAddress) - used to verify ownership
+  sellerAddress: string;
 }
 
 type FilterType = "all" | OrderStatus;
+
+const DECIMALS = 1_000_000; // 6 decimals
+const ORDER_COMMITTEE_ID = 3; // Committee responsible for counter-asset swaps
+
+// USDC address on Ethereum Mainnet (normalized for comparison)
+const USDC_ETHEREUM_ADDRESS = "a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
+
+// Helper to normalize addresses for comparison
+function normalizeAddress(address: string): string {
+  if (!address) return "";
+  // Remove 0x prefix if present and convert to lowercase
+  return address.replace(/^0x/i, "").toLowerCase();
+}
+
+// Transform API order to SellOrder format
+function transformApiOrderToSellOrder(order: OrderBookApiOrder): SellOrder {
+  // Normalize the data field to check if it's USDC
+  const normalizedData = normalizeAddress(order.data || "");
+  const isSellingUsdcForCnpy = normalizedData === USDC_ETHEREUM_ADDRESS;
+
+  let cnpyAmount: number;
+  let expectedReceive: number;
+  let pricePerCnpy: number;
+  let destinationToken: string;
+  let amountSelling: number;
+
+  if (isSellingUsdcForCnpy) {
+    // Selling USDC for CNPY
+    // amountForSale = USDC amount
+    // requestedAmount = CNPY amount
+    const usdcAmount = order.amountForSale / DECIMALS;
+    cnpyAmount = order.requestedAmount / DECIMALS;
+    expectedReceive = cnpyAmount; // User receives CNPY
+    pricePerCnpy = order.amountForSale / order.requestedAmount; // USDC per CNPY
+    destinationToken = "CNPY";
+    amountSelling = usdcAmount; // USDC being sold
+  } else {
+    // Selling CNPY for USDC (default case)
+    // amountForSale = CNPY amount
+    // requestedAmount = USDC amount
+    cnpyAmount = order.amountForSale / DECIMALS;
+    const totalUsdc = order.requestedAmount / DECIMALS;
+    expectedReceive = totalUsdc; // User receives USDC
+    pricePerCnpy = order.requestedAmount / order.amountForSale; // USDC per CNPY
+    destinationToken = "USDC";
+    amountSelling = cnpyAmount; // CNPY being sold
+  }
+
+  // Determine status based on close order state
+  // If order is locked (has buyerReceiveAddress), it means a buyer has locked it
+  // The order is considered "filled" when it has been closed (payment sent)
+  // For now, we'll mark locked orders as "active" and track close order status separately
+  // In a real implementation, you'd check if the close order transaction has been confirmed
+  const orderIsLocked = isOrderLocked(order);
+  const status: OrderStatus = orderIsLocked ? "filled" : "active";
+
+  // Hardcode fee (2% for now)
+  const feePercent = 0.02;
+  const feeAmount = expectedReceive * feePercent;
+
+  // Hardcode date (using current time for now)
+  const createdAt = new Date().toISOString();
+
+  // Map committee ID to chain name
+  // Committee 3 is typically USDC on Ethereum
+  const destinationChain =
+    order.committee === 3 ? "ethereum" : `chain-${order.committee}`;
+
+  return {
+    id: order.id,
+    cnpyAmount,
+    expectedReceive,
+    destinationToken,
+    pricePerCnpy,
+    destinationChain,
+    createdAt,
+    status,
+    feeAmount,
+    fee: feePercent,
+    isSellingUsdcForCnpy,
+    amountSelling,
+    committeeId: order.committee,
+    sellerAddress: order.sellersSendAddress, // Store seller address for ownership verification
+  };
+}
 
 // Placeholder orders for demonstration
 const PLACEHOLDER_ORDERS: SellOrder[] = [
@@ -46,6 +155,10 @@ const PLACEHOLDER_ORDERS: SellOrder[] = [
     status: "active",
     feeAmount: 20.0,
     fee: 0.02,
+    isSellingUsdcForCnpy: false,
+    amountSelling: 1000,
+    committeeId: 3,
+    sellerAddress: "", // Placeholder - will be set when wallet is connected
   },
   {
     id: "order-placeholder-2",
@@ -58,6 +171,10 @@ const PLACEHOLDER_ORDERS: SellOrder[] = [
     status: "active",
     feeAmount: 75.0,
     fee: 0.03,
+    isSellingUsdcForCnpy: false,
+    amountSelling: 2500,
+    committeeId: 3,
+    sellerAddress: "", // Placeholder - will be set when wallet is connected
   },
   {
     id: "order-placeholder-3",
@@ -70,6 +187,10 @@ const PLACEHOLDER_ORDERS: SellOrder[] = [
     status: "filled",
     feeAmount: 10.0,
     fee: 0.02,
+    isSellingUsdcForCnpy: false,
+    amountSelling: 500,
+    committeeId: 3,
+    sellerAddress: "", // Placeholder - will be set when wallet is connected
   },
   {
     id: "order-placeholder-4",
@@ -82,55 +203,319 @@ const PLACEHOLDER_ORDERS: SellOrder[] = [
     status: "cancelled",
     feeAmount: 15.0,
     fee: 0.02,
+    isSellingUsdcForCnpy: false,
+    amountSelling: 750,
+    committeeId: 3,
+    sellerAddress: "", // Placeholder - will be set when wallet is connected
   },
 ];
 
 export default function OrdersTab() {
   const [orders, setOrders] = useState<SellOrder[]>([]);
+  const [rawOrders, setRawOrders] = useState<OrderBookApiOrder[]>([]); // Store raw orders for close order tracking
   const [filter, setFilter] = useState<FilterType>("all");
   const [orderToCancel, setOrderToCancel] = useState<SellOrder | null>(null);
+  const [orderToLock, setOrderToLock] = useState<OrderBookApiOrder | null>(
+    null
+  );
   const [showPlaceholders, setShowPlaceholders] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
 
+  const {
+    currentWallet,
+    deleteOrder,
+    isLoading: walletLoading,
+  } = useWalletStore();
+
+  // Ethereum wallet (wagmi)
+  const { address: ethAddress, isConnected: isEthConnected } = useAccount();
+  const chainId = useChainId();
+  const { openConnectModal } = useConnectModal();
+  const usdcAddress = chainId ? USDC_ADDRESSES[chainId] : undefined;
+
+  // Lock order hook for non-owned orders
+  // Note: We need to create a new hook instance when orderToLock changes
+  // For now, we'll use a single instance and update it via state
+  const [lockOrderState, setLockOrderState] = useState<{
+    order: OrderBookApiOrder | null;
+    buyerCanopyAddress: string;
+  }>({
+    order: null,
+    buyerCanopyAddress: currentWallet?.address || "",
+  });
+
+  // Update buyerCanopyAddress when wallet changes
   useEffect(() => {
-    // Load orders from localStorage
-    try {
-      if (typeof window !== "undefined") {
-        const stored = localStorage.getItem("userSellOrders");
-        const loadedOrders = stored ? (JSON.parse(stored) as SellOrder[]) : [];
+    if (currentWallet?.address) {
+      setLockOrderState((prev) => ({
+        ...prev,
+        buyerCanopyAddress: currentWallet.address,
+      }));
+    }
+  }, [currentWallet?.address]);
 
-        if (loadedOrders.length > 0) {
-          setOrders(loadedOrders);
+  const lockOrder = useLockOrder({
+    order: lockOrderState.order,
+    buyerCanopyAddress: lockOrderState.buyerCanopyAddress,
+  });
+
+  // Fetch all orders from API (both owned and non-owned)
+  const fetchUserOrders = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await orderbookApi.getOrderBook({
+        chainId: ORDER_COMMITTEE_ID,
+      });
+
+      // response.data is an array of ChainOrderBook
+      const orderBooks = response.data || [];
+      // Flatten all raw orders from all chains
+      const allRawOrders = orderBooks.flatMap((book) => book.orders || []);
+
+      // Store all raw orders for close order tracking and ownership checks
+      setRawOrders(allRawOrders);
+
+      // Transform all API orders to SellOrder format
+      const transformedOrders = allRawOrders.map(transformApiOrderToSellOrder);
+
+      // Load cancelled orders from localStorage and merge (for user's orders)
+      if (currentWallet?.address) {
+        // Load cancelled orders from localStorage and merge
+        try {
+          if (typeof window !== "undefined") {
+            const stored = localStorage.getItem("userSellOrders");
+            if (stored) {
+              const storedOrders = JSON.parse(stored) as SellOrder[];
+              const cancelledOrders = storedOrders.filter(
+                (o) => o.status === "cancelled"
+              );
+
+              // Merge cancelled orders that aren't in the API response
+              const cancelledIds = new Set(transformedOrders.map((o) => o.id));
+              const additionalCancelled = cancelledOrders.filter(
+                (o) => !cancelledIds.has(o.id)
+              );
+
+              setOrders([...transformedOrders, ...additionalCancelled]);
+            } else {
+              setOrders(transformedOrders);
+            }
+          } else {
+            setOrders(transformedOrders);
+          }
+        } catch (e) {
+          console.error("Failed to load cancelled orders from localStorage", e);
+          setOrders(transformedOrders);
+        }
+
+        setShowPlaceholders(false);
+      } else {
+        // No wallet connected, show all orders
+        if (transformedOrders.length > 0) {
+          setOrders(transformedOrders);
           setShowPlaceholders(false);
         } else {
-          // Show placeholder data when no real orders exist
           setOrders(PLACEHOLDER_ORDERS);
           setShowPlaceholders(true);
         }
       }
-    } catch (e) {
-      console.error("Failed to load orders", e);
-      setOrders(PLACEHOLDER_ORDERS);
-      setShowPlaceholders(true);
+    } catch (err) {
+      console.error("Failed to fetch orders from API", err);
+      setError(err instanceof Error ? err.message : "Failed to fetch orders");
+
+      // Fallback to localStorage if API fails
+      try {
+        if (typeof window !== "undefined") {
+          const stored = localStorage.getItem("userSellOrders");
+          const storedOrders = stored
+            ? (JSON.parse(stored) as SellOrder[])
+            : [];
+
+          if (storedOrders.length > 0) {
+            setOrders(storedOrders);
+            setShowPlaceholders(false);
+          } else {
+            setOrders(PLACEHOLDER_ORDERS);
+            setShowPlaceholders(true);
+          }
+        } else {
+          setOrders(PLACEHOLDER_ORDERS);
+          setShowPlaceholders(true);
+        }
+      } catch (e) {
+        console.error("Failed to load orders from localStorage", e);
+        setOrders(PLACEHOLDER_ORDERS);
+        setShowPlaceholders(true);
+      }
+    } finally {
+      setIsLoading(false);
     }
-  }, []);
+  }, [currentWallet]);
+
+  useEffect(() => {
+    fetchUserOrders();
+  }, [fetchUserOrders]);
 
   const filteredOrders = orders.filter((order) => {
     if (filter === "all") return true;
     return order.status === filter;
   });
 
-  const handleCancel = (order: SellOrder) => {
-    const updatedOrders = orders.map((o) =>
-      o.id === order.id ? { ...o, status: "cancelled" as OrderStatus } : o
-    );
-    setOrders(updatedOrders);
+  // Helper to get raw order data for close order tracking
+  const getRawOrder = (orderId: string): OrderBookApiOrder | undefined => {
+    return rawOrders.find((o) => o.id === orderId);
+  };
+
+  // Helper to check if order is locked (ready for close order)
+  const isOrderReadyForClose = (orderId: string): boolean => {
+    const rawOrder = getRawOrder(orderId);
+    return rawOrder ? isOrderLocked(rawOrder) : false;
+  };
+
+  // Helper to check if current user is the owner of an order
+  const isOrderOwner = (order: SellOrder): boolean => {
+    if (!currentWallet?.address) return false;
+    const normalizedWalletAddress = normalizeAddress(currentWallet.address);
+    const normalizedOrderSellerAddress = normalizeAddress(order.sellerAddress);
+    return normalizedWalletAddress === normalizedOrderSellerAddress;
+  };
+
+  // Handle lock order for non-owned orders
+  const handleLockOrder = async (order: SellOrder) => {
+    if (!currentWallet) {
+      toast.error("Please connect a Canopy wallet to lock orders");
+      return;
+    }
+
+    if (!currentWallet.isUnlocked) {
+      toast.error("Please unlock your Canopy wallet to lock orders");
+      return;
+    }
+
+    if (!isEthConnected || !ethAddress) {
+      toast.error("Please connect your Ethereum wallet to lock orders");
+      openConnectModal?.();
+      return;
+    }
+
+    if (!usdcAddress) {
+      toast.error(
+        "USDC not supported on this network. Please switch to Ethereum Mainnet."
+      );
+      return;
+    }
+
+    // Get the raw order data
+    const rawOrder = getRawOrder(order.id);
+    if (!rawOrder) {
+      toast.error("Order not found");
+      return;
+    }
+
+    // Check if order is already locked
+    if (isOrderLocked(rawOrder)) {
+      toast.error("This order is already locked");
+      return;
+    }
+
+    // Update lock order state to trigger the hook
+    setLockOrderState({
+      order: rawOrder,
+      buyerCanopyAddress: currentWallet.address,
+    });
+    setOrderToLock(rawOrder);
+  };
+
+  // Trigger lock order when state is updated
+  useEffect(() => {
+    if (lockOrderState.order && lockOrderState.buyerCanopyAddress) {
+      // Small delay to ensure hook is ready
+      const timer = setTimeout(() => {
+        lockOrder.sendLockOrder();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [lockOrderState.order, lockOrderState.buyerCanopyAddress, lockOrder]);
+
+  // Handle lock order success
+  useEffect(() => {
+    if (lockOrder.isSuccess && orderToLock) {
+      toast.success(`Order locked! TX: ${lockOrder.txHash?.slice(0, 16)}...`);
+      setOrderToLock(null);
+      setLockOrderState({ order: null, buyerCanopyAddress: "" });
+      lockOrder.reset();
+      // Refresh orders after a delay to allow blockchain to process
+      setTimeout(() => fetchUserOrders(), 3000);
+    }
+  }, [
+    lockOrder.isSuccess,
+    lockOrder.txHash,
+    orderToLock,
+    lockOrder,
+    fetchUserOrders,
+  ]);
+
+  // Handle lock order error
+  useEffect(() => {
+    if (lockOrder.isError && lockOrder.error && orderToLock) {
+      toast.error(lockOrder.error.message || "Failed to lock order");
+      setOrderToLock(null);
+      setLockOrderState({ order: null, buyerCanopyAddress: "" });
+      lockOrder.reset();
+    }
+  }, [lockOrder.isError, lockOrder.error, orderToLock, lockOrder]);
+
+  const handleCancel = async (order: SellOrder) => {
+    if (!currentWallet) {
+      toast.error("Please connect a wallet to cancel orders");
+      return;
+    }
+
+    if (!currentWallet.isUnlocked) {
+      toast.error("Please unlock your wallet to cancel orders");
+      return;
+    }
+
+    // Verify ownership: only the order owner can cancel
+    const normalizedWalletAddress = normalizeAddress(currentWallet.address);
+    const normalizedOrderSellerAddress = normalizeAddress(order.sellerAddress);
+
+    if (normalizedWalletAddress !== normalizedOrderSellerAddress) {
+      toast.error("You can only cancel your own orders");
+      return;
+    }
+
+    setIsCancelling(true);
     try {
+      // Call deleteOrder to send the transaction on Canopy chain
+      const txHash = await deleteOrder(order.id, order.committeeId);
+
+      toast.success(`Order cancelled! TX: ${txHash.slice(0, 16)}...`);
+
+      // Update local state
+      const updatedOrders = orders.map((o) =>
+        o.id === order.id ? { ...o, status: "cancelled" as OrderStatus } : o
+      );
+      setOrders(updatedOrders);
+
+      // Save to localStorage
       if (typeof window !== "undefined" && !showPlaceholders) {
         localStorage.setItem("userSellOrders", JSON.stringify(updatedOrders));
       }
-      toast.success("Order cancelled");
+
+      // Refresh orders after a delay to allow blockchain to process
+      setTimeout(() => fetchUserOrders(), 3000);
     } catch (e) {
-      console.error("Failed to update orders", e);
+      console.error("Failed to cancel order", e);
+      const errorMessage =
+        e instanceof Error ? e.message : "Failed to cancel order";
+      toast.error(errorMessage);
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -166,6 +551,45 @@ export default function OrdersTab() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <Card className="p-8">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto">
+            <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Loading orders...</h3>
+            <p className="text-sm text-muted-foreground">
+              Fetching your orders from the orderbook
+            </p>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  if (error && orders.length === 0) {
+    return (
+      <Card className="p-8">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto">
+            <XCircle className="w-8 h-8 text-red-500" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold mb-2">
+              Failed to load orders
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">{error}</p>
+            <Button onClick={fetchUserOrders} variant="outline">
+              Retry
+            </Button>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
   if (orders.length === 0) {
     return (
       <Card className="p-8">
@@ -176,7 +600,9 @@ export default function OrdersTab() {
           <div>
             <h3 className="text-lg font-semibold mb-2">No orders yet</h3>
             <p className="text-sm text-muted-foreground">
-              Create a sell order in the Convert tab to see it here
+              {!currentWallet
+                ? "Connect a wallet to see your orders"
+                : "Create a sell order in the Convert tab to see it here"}
             </p>
           </div>
         </div>
@@ -191,9 +617,24 @@ export default function OrdersTab() {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Clock className="w-4 h-4" />
             <span>
-              Showing placeholder data. Create your first order to see real data
-              here.
+              {!currentWallet
+                ? "Connect a wallet to see your orders"
+                : "Showing placeholder data. Create your first order to see real data here."}
             </span>
+          </div>
+        </Card>
+      )}
+
+      {error && orders.length > 0 && (
+        <Card className="p-4 bg-yellow-500/10 border-yellow-500/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-yellow-600">
+              <Clock className="w-4 h-4" />
+              <span>Some orders may not be up to date. {error}</span>
+            </div>
+            <Button onClick={fetchUserOrders} variant="outline" size="sm">
+              Refresh
+            </Button>
           </div>
         </Card>
       )}
@@ -233,14 +674,28 @@ export default function OrdersTab() {
                   {getStatusIcon(order.status)}
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-base font-semibold">
-                        {order.cnpyAmount.toLocaleString()} CNPY
-                      </span>
-                      <span className="text-muted-foreground">→</span>
-                      <span className="text-base font-medium">
-                        ${order.expectedReceive.toFixed(2)}{" "}
-                        {order.destinationToken}
-                      </span>
+                      {order.isSellingUsdcForCnpy ? (
+                        <>
+                          <span className="text-base font-semibold">
+                            ${order.amountSelling?.toFixed(2) || "0.00"} USDC
+                          </span>
+                          <span className="text-muted-foreground">→</span>
+                          <span className="text-base font-medium">
+                            {order.expectedReceive.toLocaleString()} CNPY
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-base font-semibold">
+                            {order.cnpyAmount.toLocaleString()} CNPY
+                          </span>
+                          <span className="text-muted-foreground">→</span>
+                          <span className="text-base font-medium">
+                            ${order.expectedReceive.toFixed(2)}{" "}
+                            {order.destinationToken}
+                          </span>
+                        </>
+                      )}
                     </div>
                     <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                       <span>Price: ${order.pricePerCnpy.toFixed(3)}/CNPY</span>
@@ -256,6 +711,14 @@ export default function OrdersTab() {
                           minute: "2-digit",
                         })}
                       </span>
+                      {isOrderReadyForClose(order.id) && (
+                        <>
+                          <span className="w-1 h-1 rounded-full bg-muted-foreground" />
+                          <span className="text-yellow-500 font-medium">
+                            Locked - Awaiting payment
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                   <span
@@ -294,25 +757,75 @@ export default function OrdersTab() {
               {/* Actions */}
               {order.status === "active" && (
                 <div className="flex items-center gap-2 ml-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleEdit(order)}
-                    disabled={showPlaceholders}
-                  >
-                    <Edit2 className="w-4 h-4 mr-2" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                    onClick={() => setOrderToCancel(order)}
-                    disabled={showPlaceholders}
-                  >
-                    <X className="w-4 h-4 mr-2" />
-                    Cancel
-                  </Button>
+                  {isOrderOwner(order) ? (
+                    // Owner actions: Edit and Cancel
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(order)}
+                        disabled={showPlaceholders}
+                      >
+                        <Edit2 className="w-4 h-4 mr-2" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                        onClick={() => setOrderToCancel(order)}
+                        disabled={
+                          showPlaceholders ||
+                          isCancelling ||
+                          walletLoading ||
+                          !currentWallet ||
+                          normalizeAddress(currentWallet?.address || "") !==
+                            normalizeAddress(order.sellerAddress)
+                        }
+                      >
+                        {isCancelling || walletLoading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Cancelling...
+                          </>
+                        ) : (
+                          <>
+                            <X className="w-4 h-4 mr-2" />
+                            Cancel
+                          </>
+                        )}
+                      </Button>
+                    </>
+                  ) : (
+                    // Non-owner actions: Lock Order (Buy)
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="bg-green-500 hover:bg-green-600"
+                      onClick={() => handleLockOrder(order)}
+                      disabled={
+                        !currentWallet ||
+                        !currentWallet.isUnlocked ||
+                        !isEthConnected ||
+                        !usdcAddress ||
+                        isOrderReadyForClose(order.id) ||
+                        lockOrder.isPending ||
+                        lockOrder.isConfirming
+                      }
+                    >
+                      {lockOrder.isPending || lockOrder.isConfirming ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Locking...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          Lock Order
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -330,8 +843,10 @@ export default function OrdersTab() {
             <AlertDialogTitle>Cancel Order</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to cancel this order for{" "}
-              {orderToCancel?.cnpyAmount.toLocaleString()} CNPY? This action
-              cannot be undone.
+              {orderToCancel?.isSellingUsdcForCnpy
+                ? `$${orderToCancel.amountSelling?.toFixed(2) || "0.00"} USDC`
+                : `${orderToCancel?.cnpyAmount.toLocaleString()} CNPY`}
+              ? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

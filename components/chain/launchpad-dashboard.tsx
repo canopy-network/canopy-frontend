@@ -17,7 +17,7 @@ import { SmallProjectCard } from "./small-project-card";
 import { RecentsProjectsCarousel } from "./recents-projects-carousel";
 import { SortDropdown } from "./sort-dropdown";
 import { HomePageSkeleton } from "@/components/skeletons";
-import { Chain, Accolade } from "@/types/chains";
+import { Chain } from "@/types/chains";
 import {
   getMarketCap,
   filterAccoladesByCategory,
@@ -63,10 +63,6 @@ export function LaunchpadDashboard() {
   const [favoriteChains, setFavoriteChains] = useState<Chain[]>([]);
   const [loadingFavorites, setLoadingFavorites] = useState(false);
   const [localActiveTab, setLocalActiveTab] = useState("all");
-  const [accoladesData, setAccoladesData] = useState<
-    Record<string, Accolade[]>
-  >({});
-  const fetchedChainIdsRef = useRef<Set<string>>(new Set());
   const [priceHistoryData, setPriceHistoryData] = useState<
     Record<string, Array<{ value: number; time: number }>>
   >({});
@@ -253,54 +249,6 @@ export function LaunchpadDashboard() {
     }
   }, [filteredChains, sortOption, localActiveTab, favoriteChains]);
 
-  // Fetch accolades for sorted chains (batch fetch with limit to avoid performance issues)
-  useEffect(() => {
-    const fetchAccolades = async () => {
-      // Only fetch for first 20 chains to avoid too many requests
-      const chainsToFetch = sortedChains.slice(0, 20);
-      const chainIdsToFetch = chainsToFetch
-        .map((c) => c.id)
-        .filter((id) => !fetchedChainIdsRef.current.has(id)); // Only fetch if not already fetched
-
-      if (chainIdsToFetch.length === 0) return;
-
-      // Mark as fetching
-      chainIdsToFetch.forEach((id) => fetchedChainIdsRef.current.add(id));
-
-      // Fetch in batches of 5 to avoid overwhelming the API
-      const batchSize = 5;
-      for (let i = 0; i < chainIdsToFetch.length; i += batchSize) {
-        const batch = chainIdsToFetch.slice(i, i + batchSize);
-        const promises = batch.map(async (chainId) => {
-          try {
-            const response = await chainsApi.getAccolades(chainId);
-            if (response.data) {
-              const filteredAccolades = filterAccoladesByCategory(
-                response.data
-              );
-              return { chainId, accolades: filteredAccolades };
-            }
-          } catch (error) {
-            console.error(`Failed to fetch accolades for ${chainId}:`, error);
-          }
-          return { chainId, accolades: [] };
-        });
-
-        const results = await Promise.all(promises);
-        setAccoladesData((prev) => {
-          const updated = { ...prev };
-          results.forEach(({ chainId, accolades }) => {
-            updated[chainId] = accolades;
-          });
-          return updated;
-        });
-      }
-    };
-
-    fetchAccolades();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortedChains.map((c) => c.id).join(",")]); // Only re-run if chain IDs change
-
   // Handle buy button click
   const handleBuyClick = (project: Chain) => {
     console.log("Buy clicked for project:", project.chain_name);
@@ -316,6 +264,7 @@ export function LaunchpadDashboard() {
         try {
           // First, get the list of favorite chain IDs
           const result = await listUserFavorites(user.id, "like");
+          x;
           if (result.success && result.chains && result.chains.length > 0) {
             const chainIds = result.chains.map((c) => c.chain_id);
 
@@ -324,7 +273,7 @@ export function LaunchpadDashboard() {
               try {
                 const response = await chainsApi.getChain(chainId, {
                   include:
-                    "creator,template,assets,virtual_pool,graduated_pool,graduation_progress",
+                    "creator,template,assets,virtual_pool,graduated_pool,graduation_progress,accolades",
                 });
                 return response.data;
               } catch (error) {
@@ -710,15 +659,20 @@ export function LaunchpadDashboard() {
               }
             >
               {sortedChains &&
-                sortedChains.map((project) => (
-                  <SmallProjectCard
-                    key={project.id}
-                    project={project}
-                    href={`/chains/${project.id}`}
-                    viewMode={viewMode}
-                    accolades={accoladesData[project.id] || []}
-                  />
-                ))}
+                sortedChains.map((project) => {
+                  const chainAccolades = (project as any).accolades || [];
+                  const filteredAccolades =
+                    filterAccoladesByCategory(chainAccolades);
+                  return (
+                    <SmallProjectCard
+                      key={project.id}
+                      project={project}
+                      href={`/chains/${project.id}`}
+                      viewMode={viewMode}
+                      accolades={filteredAccolades}
+                    />
+                  );
+                })}
             </div>
 
             {/* Empty State */}
@@ -752,14 +706,20 @@ export function LaunchpadDashboard() {
             }
           >
             {sortedChains &&
-              sortedChains.map((project) => (
-                <SmallProjectCard
-                  key={project.id}
-                  project={project}
-                  href={`/chains/${project.id}`}
-                  viewMode={viewMode}
-                />
-              ))}
+              sortedChains.map((project) => {
+                const chainAccolades = (project as any).accolades || [];
+                const filteredAccolades =
+                  filterAccoladesByCategory(chainAccolades);
+                return (
+                  <SmallProjectCard
+                    key={project.id}
+                    project={project}
+                    href={`/chains/${project.id}`}
+                    viewMode={viewMode}
+                    accolades={filteredAccolades}
+                  />
+                );
+              })}
             {sortedChains.length === 0 && (
               <div className="text-center py-12 w-full col-span-4">
                 <p className="text-gray-400 text-lg">No new projects</p>
@@ -776,14 +736,20 @@ export function LaunchpadDashboard() {
             }
           >
             {sortedChains &&
-              sortedChains.map((project) => (
-                <SmallProjectCard
-                  key={project.id}
-                  project={project}
-                  href={`/chains/${project.id}`}
-                  viewMode={viewMode}
-                />
-              ))}
+              sortedChains.map((project) => {
+                const chainAccolades = (project as any).accolades || [];
+                const filteredAccolades =
+                  filterAccoladesByCategory(chainAccolades);
+                return (
+                  <SmallProjectCard
+                    key={project.id}
+                    project={project}
+                    href={`/chains/${project.id}`}
+                    viewMode={viewMode}
+                    accolades={filteredAccolades}
+                  />
+                );
+              })}
             {sortedChains.length === 0 && (
               <div className="text-center py-12 w-full col-span-4 ">
                 <p className="text-gray-400 text-lg">No trending projects</p>
@@ -800,14 +766,20 @@ export function LaunchpadDashboard() {
             }
           >
             {sortedChains &&
-              sortedChains.map((project) => (
-                <SmallProjectCard
-                  key={project.id}
-                  project={project}
-                  href={`/chains/${project.id}`}
-                  viewMode={viewMode}
-                />
-              ))}
+              sortedChains.map((project) => {
+                const chainAccolades = (project as any).accolades || [];
+                const filteredAccolades =
+                  filterAccoladesByCategory(chainAccolades);
+                return (
+                  <SmallProjectCard
+                    key={project.id}
+                    project={project}
+                    href={`/chains/${project.id}`}
+                    viewMode={viewMode}
+                    accolades={filteredAccolades}
+                  />
+                );
+              })}
             {sortedChains.length === 0 && (
               <div className="text-center py-12 w-full col-span-4">
                 <p className="text-gray-400 text-lg">No graduated projects</p>
@@ -859,14 +831,20 @@ export function LaunchpadDashboard() {
               </div>
             ) : (
               sortedChains &&
-              sortedChains.map((project) => (
-                <SmallProjectCard
-                  key={project.id}
-                  project={project}
-                  href={`/chains/${project.id}`}
-                  viewMode={viewMode}
-                />
-              ))
+              sortedChains.map((project) => {
+                const chainAccolades = (project as any).accolades || [];
+                const filteredAccolades =
+                  filterAccoladesByCategory(chainAccolades);
+                return (
+                  <SmallProjectCard
+                    key={project.id}
+                    project={project}
+                    href={`/chains/${project.id}`}
+                    viewMode={viewMode}
+                    accolades={filteredAccolades}
+                  />
+                );
+              })
             )}
           </TabsContent>
         </Tabs>

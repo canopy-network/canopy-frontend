@@ -2,19 +2,25 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpDown, TrendingUp, Loader2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  ArrowUpDown,
+  TrendingUp,
+  Loader2,
+  AlertCircle,
+  Wallet,
+} from "lucide-react";
 import { orderbookApi } from "@/lib/api";
+import { useWalletStore } from "@/lib/stores/wallet-store";
 import { BuyOrderDialog } from "./buy-order-dialog";
-import ConvertTab from "@/components/trading/convert-tab";
+import { useAccount, useChainId } from "wagmi";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { USDC_ADDRESSES } from "@/lib/web3/config";
 import type { OrderBookApiOrder, DisplayOrder } from "@/types/orderbook";
-import type { BridgeToken } from "@/types/trading";
-
-// Chain IDs for cross-chain swaps:
-// Chain 1: Root chain (CNPY)
-// Chain 2: USDT
-// Chain 3: USDC (oracle)
-// Pools: 1 <-> 2 (CNPY/USDT), 1 <-> 3 (CNPY/USDC)
 
 const DECIMALS = 1_000_000; // 6 decimals
 const ORDER_COMMITTEE_ID = 3; // Committee responsible for counter-asset swaps
@@ -38,15 +44,35 @@ export function OrderBookInterface() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // API state
+  const [sellOrders, setSellOrders] = useState<DisplayOrder[]>([]);
+  const [rawOrders, setRawOrders] = useState<OrderBookApiOrder[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Order submission state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
+
   // Buy order dialog state
   const [selectedOrder, setSelectedOrder] = useState<OrderBookApiOrder | null>(
     null
   );
   const [isBuyDialogOpen, setIsBuyDialogOpen] = useState(false);
 
-  // ConvertTab state (for Buy CNPY) - tracked for potential future use
-  const [, setConvertAmount] = useState(0);
-  const [, setConvertSourceToken] = useState<BridgeToken | null>(null);
+  // Wallet store
+  const {
+    currentWallet,
+    createOrder,
+    isLoading: walletLoading,
+  } = useWalletStore();
+
+  // Ethereum wallet (wagmi)
+  const { address: ethAddress, isConnected: isEthConnected } = useAccount();
+  const chainId = useChainId();
+  const { openConnectModal } = useConnectModal();
+  const usdcAddress = chainId ? USDC_ADDRESSES[chainId] : undefined;
 
   const fetchOrderBook = useCallback(async () => {
     setIsLoading(true);
@@ -98,11 +124,115 @@ export function OrderBookInterface() {
     setTimeout(() => fetchOrderBook(), 2000);
   };
 
+  // Handle placing an order
+  const handlePlaceOrder = async () => {
+    // Clear previous messages
+    setSubmitError(null);
+    setSubmitSuccess(null);
+
+    // Validate Canopy wallet
+    if (!currentWallet) {
+      setSubmitError("Please connect a Canopy wallet first");
+      return;
+    }
+
+    if (!currentWallet.isUnlocked) {
+      setSubmitError("Please unlock your Canopy wallet first");
+      return;
+    }
+
+    // Validate Ethereum wallet (required for sell orders to receive USDC)
+    if (orderType === "sell") {
+      if (!isEthConnected || !ethAddress) {
+        setSubmitError("Please connect your Ethereum wallet to receive USDC");
+        return;
+      }
+
+      if (!usdcAddress) {
+        setSubmitError(
+          "USDC not supported on this network. Please switch to Ethereum Mainnet."
+        );
+        return;
+      }
+    }
+
+    // Validate inputs
+    const priceValue = parseFloat(price);
+    const amountValue = parseFloat(amount.replace(/,/g, ""));
+
+    if (isNaN(priceValue) || priceValue <= 0) {
+      setSubmitError("Please enter a valid price");
+      return;
+    }
+
+    if (isNaN(amountValue) || amountValue <= 0) {
+      setSubmitError("Please enter a valid amount");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      let amountForSale: number;
+      let requestedAmount: number;
+
+      if (orderType === "sell") {
+        // Selling CNPY for USDC
+        // amountForSale = CNPY amount in micro units
+        // requestedAmount = USDC amount (CNPY * price) in micro units
+        amountForSale = Math.round(amountValue * DECIMALS);
+        requestedAmount = Math.round(amountValue * priceValue * DECIMALS);
+      } else {
+        // Buying CNPY with USDC - this should use LockOrder flow, not CreateOrder
+        // For now, show error as Buy CNPY should click existing sell orders
+        setSubmitError("To buy CNPY, click on a sell order in the order book");
+        setIsSubmitting(false);
+        return;
+      }
+
+      const txHash = await createOrder(
+        ORDER_COMMITTEE_ID,
+        amountForSale,
+        requestedAmount,
+        ethAddress!, // Seller's Ethereum address to receive USDC
+        usdcAddress! // USDC contract address
+      );
+
+      setSubmitSuccess(`Order created! TX: ${txHash.slice(0, 16)}...`);
+
+      // Clear form
+      setPrice("");
+      setAmount("");
+
+      // Refresh order book after a short delay
+      setTimeout(() => {
+        fetchOrderBook();
+      }, 2000);
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error ? err.message : "Failed to create order"
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Calculate current price from best sell order, or use placeholder
   const currentPrice =
     sellOrders.length > 0 ? sellOrders[sellOrders.length - 1].price : 0;
   const priceChange = 0;
   const priceChangePercent = 0;
+
+  // Calculate total for display
+  const calculatedTotal =
+    price && amount
+      ? (
+          parseFloat(price) * parseFloat(amount.replace(/,/g, ""))
+        ).toLocaleString()
+      : "0.00";
+
+  const isWalletReady = currentWallet?.isUnlocked;
+  const isButtonDisabled = isSubmitting || walletLoading || !isWalletReady;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -205,11 +335,153 @@ export function OrderBookInterface() {
           <CardTitle>Place Order</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <ConvertTab
-            isPreview={false}
-            onAmountChange={setConvertAmount}
-            onSourceTokenChange={setConvertSourceToken}
-          />
+          {/* Wallet Status */}
+          {!currentWallet && (
+            <div className="flex items-center gap-2 p-3 bg-yellow-500/10 text-yellow-500 rounded-md text-sm">
+              <AlertCircle className="w-4 h-4" />
+              Please connect a Canopy wallet to place orders
+            </div>
+          )}
+          {currentWallet && !currentWallet.isUnlocked && (
+            <div className="flex items-center gap-2 p-3 bg-yellow-500/10 text-yellow-500 rounded-md text-sm">
+              <AlertCircle className="w-4 h-4" />
+              Please unlock your Canopy wallet to place orders
+            </div>
+          )}
+          {/* Ethereum wallet status - only show for sell orders */}
+          {orderType === "sell" && !isEthConnected && (
+            <div className="flex items-center justify-between p-3 bg-yellow-500/10 text-yellow-500 rounded-md text-sm">
+              <div className="flex items-center gap-2">
+                <Wallet className="w-4 h-4" />
+                Connect Ethereum wallet to receive USDC
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => openConnectModal?.()}
+              >
+                Connect
+              </Button>
+            </div>
+          )}
+          {/* Success/Error Messages */}
+          {submitSuccess && (
+            <div className="p-3 bg-green-500/10 text-green-500 rounded-md text-sm">
+              {submitSuccess}
+            </div>
+          )}
+          {submitError && (
+            <div className="flex items-center gap-2 p-3 bg-red-500/10 text-red-500 rounded-md text-sm">
+              <AlertCircle className="w-4 h-4" />
+              {submitError}
+            </div>
+          )}
+
+          <Tabs
+            value={orderType}
+            onValueChange={(value) => setOrderType(value as "buy" | "sell")}
+          >
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="buy" className="text-green-500">
+                Buy CNPY
+              </TabsTrigger>
+              <TabsTrigger value="sell" className="text-red-500">
+                Sell CNPY
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="buy" className="space-y-4">
+              <div className="p-6 text-center space-y-4 border rounded-lg bg-muted/30">
+                <div className="text-4xl">📈</div>
+                <h3 className="font-semibold">Buy CNPY from Sell Orders</h3>
+                <p className="text-sm text-muted-foreground">
+                  To buy CNPY, click on a sell order in the order book on the
+                  left. You'll need both your Canopy wallet (to receive CNPY)
+                  and Ethereum wallet (to pay USDC).
+                </p>
+                {sellOrders.length > 0 && (
+                  <p className="text-sm text-green-500">
+                    {sellOrders.length} sell order
+                    {sellOrders.length > 1 ? "s" : ""} available
+                  </p>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="sell" className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="sell-price">Price (USDC)</Label>
+                <Input
+                  id="sell-price"
+                  placeholder="1.2460"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sell-amount">Amount (CNPY)</Label>
+                <Input
+                  id="sell-amount"
+                  placeholder="10,000"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Total (USDC)</Label>
+                <div className="p-2 bg-muted rounded text-sm">
+                  ${calculatedTotal}
+                </div>
+              </div>
+              <Button
+                className="w-full bg-red-500 hover:bg-red-600"
+                onClick={handlePlaceOrder}
+                disabled={isButtonDisabled}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Placing Order...
+                  </>
+                ) : (
+                  "Place Sell Order"
+                )}
+              </Button>
+            </TabsContent>
+          </Tabs>
+
+          {/* Quick Actions */}
+          <div className="space-y-2">
+            <Label>Quick Fill</Label>
+            <div className="grid grid-cols-4 gap-2">
+              <Button variant="outline" size="sm" disabled={isSubmitting}>
+                25%
+              </Button>
+              <Button variant="outline" size="sm" disabled={isSubmitting}>
+                50%
+              </Button>
+              <Button variant="outline" size="sm" disabled={isSubmitting}>
+                75%
+              </Button>
+              <Button variant="outline" size="sm" disabled={isSubmitting}>
+                100%
+              </Button>
+            </div>
+          </div>
+
+          {/* Balance */}
+          <div className="space-y-2 pt-4 border-t">
+            <div className="flex justify-between text-sm">
+              <span>CNPY Balance:</span>
+              <span className="font-mono">125,000</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>USDC Balance:</span>
+              <span className="font-mono">$50,000</span>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
