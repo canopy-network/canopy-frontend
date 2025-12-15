@@ -71,6 +71,13 @@ export function ChainDetailModal({
     "a3d591f2e602fd18df7c94abf02f6d342939570b169886bb355e6879cd7b9dda8c5d825f7895336d4e29750e65fc65df@tcp://canopy.seed1.node1.us.nodefleet.net"
   ];
 
+  const truncateSeedAddress = (seed: string, startChars = 12, endChars = 12) => {
+    const [hash, url] = seed.split('@');
+    if (!hash || !url) return seed;
+    if (hash.length <= startChars + endChars) return seed;
+    return `${hash.slice(0, startChars)}...${hash.slice(-endChars)}@${url}`;
+  };
+
   const seedsArray = `[
     "${seeds.join('",\n    "')}"
 
@@ -782,8 +789,8 @@ export function ChainDetailModal({
                     >
                       <div className="flex items-center gap-3">
                         <span className="text-sm font-medium">Seed {i + 1}</span>
-                        <code className="text-xs text-muted-foreground break-all truncate md:max-w-[600px] max-w-[300px]">
-                          {seed}
+                        <code className="text-xs text-muted-foreground">
+                          {truncateSeedAddress(seed)}
                         </code>
                       </div>
                       <Button
