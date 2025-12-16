@@ -343,6 +343,51 @@ export async function getChainsWithTemplates(params?: GetChainsParams) {
 }
 
 /**
+ * Fetch all chains across pages using provided filters.
+ *
+ * @param params - Query parameters (status, include, etc.)
+ * @returns Promise resolving to the full list of chains
+ */
+export async function getAllChains(params?: GetChainsParams): Promise<Chain[]> {
+  const limit = params?.limit ?? 50;
+  let page = params?.page ?? 1;
+  let totalPages = 1;
+  const chains: Chain[] = [];
+
+  while (page <= totalPages) {
+    const response = await chainsApi.getChains({ ...params, page, limit });
+    const payload = response?.data;
+
+    let pageData: Chain[] = [];
+
+    if (Array.isArray(payload)) {
+      pageData = payload as Chain[];
+    } else if (
+      payload &&
+      typeof payload === "object" &&
+      Array.isArray((payload as any).data)
+    ) {
+      pageData = (payload as any).data as Chain[];
+    }
+
+    chains.push(...pageData);
+
+    const pagination =
+      (response as any).pagination || (payload as any)?.pagination;
+
+    if (pagination?.pages) {
+      totalPages = pagination.pages;
+    } else if (pageData.length < limit) {
+      totalPages = page; // No more pages if fewer results than limit
+    }
+
+    page += 1;
+  }
+
+  return chains;
+}
+
+/**
  * Get chains with creator information included
  * Note: API returns all related data by default
  *
@@ -389,6 +434,21 @@ export async function getGraduatedChains(
   params?: Omit<GetChainsParams, "status">
 ) {
   return chainsApi.getChains({
+    ...params,
+    status: "graduated",
+  });
+}
+
+/**
+ * Get all graduated chains across pages
+ *
+ * @param params - Additional query parameters
+ * @returns Promise resolving to all graduated chains
+ */
+export async function getAllGraduatedChains(
+  params?: Omit<GetChainsParams, "status">
+): Promise<Chain[]> {
+  return getAllChains({
     ...params,
     status: "graduated",
   });

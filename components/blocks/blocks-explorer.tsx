@@ -28,6 +28,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { getSampleBlocks, SampleBlock } from "@/lib/demo-data/sample-blocks";
+import { canopyIconSvg, getCanopyAccent, EXPLORER_ICON_GLOW } from "@/lib/utils/brand";
 
 const formatAddress = (value: string, prefix = 4, suffix = 4) =>
   `${value.slice(0, prefix)}...${value.slice(-suffix)}`;
@@ -188,7 +189,7 @@ export function BlocksExplorer({
   };
 
   return (
-    <Container type="boxed" className="space-y-6 xl:px-0">
+    <Container type="boxed" className="space-y-6 px-6 lg:px-10">
       <div
         id="blocks-page-header"
         className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
@@ -229,7 +230,7 @@ export function BlocksExplorer({
 
       {children ? <div>{children}</div> : null}
 
-      <Card className="p-6">
+    <Card className="p-6 border-primary/10 bg-gradient-to-br from-background via-background/70 to-primary/5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs text-muted-foreground">
@@ -253,6 +254,9 @@ export function BlocksExplorer({
           <Table>
             <TableHeader className="">
               <TableRow className="bg-transparent hover:bg-transparent">
+                <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">
+                  #
+                </TableHead>
                 <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">
                   Height
                 </TableHead>
@@ -278,8 +282,12 @@ export function BlocksExplorer({
             </TableHeader>
 
             <TableBody>
-              {paginatedBlocks.map((block) => (
+              {paginatedBlocks.map((block, idx) => (
                 <TableRow key={block.id} appearance="plain">
+                  <TableCell className="font-mono text-xs text-white/80">
+                    {(currentPage - 1) * ROWS_PER_PAGE + idx + 1}
+                  </TableCell>
+
                   <TableCell className="font-mono text-xs text-white/80">
                     <Link href={`/blocks/${block.number}`}>
                       {block.number.toLocaleString()}
@@ -305,9 +313,19 @@ export function BlocksExplorer({
                   </TableCell>
 
                   <TableCell>
-                    <span className="inline-flex items-center rounded-md border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-white/80">
-                      {block.block_producer}
-                    </span>
+                    <div className="inline-flex items-center gap-2">
+                      <span
+                        className="w-8 h-8 inline-flex items-center justify-center border-2 border-background rounded-full bg-muted"
+                        dangerouslySetInnerHTML={{
+                          __html: canopyIconSvg(
+                            getCanopyAccent(block.chain?.name || block.block_producer)
+                          ),
+                        }}
+                      />
+                      <span className="inline-flex items-center rounded-md border border-[#36d26a] bg-[#36d26a]/10 text-[#7cff9d] px-3 py-1 text-xs font-semibold shadow-[0_0_14px_rgba(124,255,157,0.35)]">
+                        {block.block_producer}
+                      </span>
+                    </div>
                   </TableCell>
 
                   <TableCell className="text-right text-sm text-white/80">
