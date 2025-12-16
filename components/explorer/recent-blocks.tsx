@@ -67,16 +67,7 @@ export function RecentBlocks({
     return blocks[0].timestamp; // Blocks are sorted newest first
   }, [blocks]);
 
-  if (isLoading && blocks.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <span className="ml-2 text-sm text-muted-foreground">
-          Loading blocks...
-        </span>
-      </div>
-    );
-  }
+  // Always show the component, even when loading or empty
 
   if (error) {
     return (
@@ -150,7 +141,18 @@ export function RecentBlocks({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {blocks.length > 0 ? (
+            {isLoading && blocks.length === 0 ? (
+              <TableRow appearance="plain">
+                <TableCell colSpan={7} className="text-center py-12">
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <span className="ml-2 text-sm text-muted-foreground">
+                      Loading blocks...
+                    </span>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : blocks.length > 0 ? (
               blocks.map((block) => (
                 <TableRow
                   key={block.height}

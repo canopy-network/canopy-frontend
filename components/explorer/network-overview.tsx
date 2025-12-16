@@ -40,8 +40,15 @@ export function NetworkOverview({
               Network Overview
             </h2>
           </div>
-          <div className="grid grid-cols-2 gap-3 lg:gap-5 md:grid-cols-2 xl:grid-cols-3 min-h-[324px]">
-            {metrics.map((metric) => {
+          {metrics.length === 0 ? (
+            <div className="grid grid-cols-2 gap-3 lg:gap-5 md:grid-cols-2 xl:grid-cols-3 min-h-[324px] items-center justify-center">
+              <div className="col-span-full text-center text-muted-foreground">
+                Loading network overview...
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 lg:gap-5 md:grid-cols-2 xl:grid-cols-3 min-h-[324px]">
+              {metrics.map((metric) => {
               const [valuePart, suffixPartRaw = ""] = metric.delta.split("%");
               const numericDelta = Number(valuePart);
               const isPositive = numericDelta >= 0;
@@ -92,7 +99,8 @@ export function NetworkOverview({
                 </div>
               );
             })}
-          </div>
+            </div>
+          )}
         </div>
         <ExplorerChart historicData={historicData} />
       </div>

@@ -30,8 +30,10 @@ const nextConfig = {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.INTERNAL_API_URL || 'http://app.neochiba.net:3001';
 
     return [
+      // Don't rewrite /api/explorer/* or /api/validators/* - these use Next.js API routes
+      // Only rewrite other /api/* paths to backend
       {
-        source: '/api/:path*',
+        source: '/api/:path((?!explorer|validators).*)',
         destination: `${apiUrl}/:path*`,
       },
     ]

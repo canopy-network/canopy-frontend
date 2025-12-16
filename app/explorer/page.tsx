@@ -24,14 +24,14 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ExplorerPage() {
+  // Pre-fetch overview data for SSR (React Query will use it as initialData)
   let overviewData = null;
 
   try {
     overviewData = await getExplorerOverview();
-    console.log("[ExplorerPage] overviewData", overviewData);
   } catch (error) {
     console.error("Failed to fetch explorer overview:", error);
-    // Continue with null data - component will handle fallback
+    // Continue with null data - React Query will fetch it on client
   }
 
   return <ExplorerDashboard overviewData={overviewData} />;

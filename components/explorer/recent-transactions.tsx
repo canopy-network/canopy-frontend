@@ -62,7 +62,14 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {transactions.map((tx) => (
+            {transactions.length === 0 ? (
+              <TableRow appearance="plain">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  Loading transactions...
+                </TableCell>
+              </TableRow>
+            ) : (
+              transactions.map((tx) => (
               <TableRow key={tx.tx_hash} appearance="plain">
                 <TableCell className=" pl-0 lg:pl-4 min-w-36 lg:min-w-0">
                   <Link
@@ -134,7 +141,8 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
                   )}
                 </TableCell>
               </TableRow>
-            ))}
+            ))
+            )}
           </TableBody>
         </Table>
         <div className="flex items-center justify-between lg:mt-4 mt-0 lg:pt-4 pt-3 border-t border-border">

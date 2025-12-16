@@ -1,9 +1,11 @@
 /**
- * Validators API endpoints
+ * Validators API endpoints with React Query hooks
  *
- * Provides methods to interact with validator backend endpoints
+ * Provides methods to interact with validator backend endpoints.
+ * Includes React Query hooks for data fetching with caching and automatic refetching.
  */
 
+import { useQuery, type UseQueryOptions, type UseQueryResult } from "@tanstack/react-query";
 import { apiClient } from "./client";
 
 /**
@@ -103,6 +105,7 @@ export interface ValidatorsRequest {
 
 /**
  * Validators API methods
+ * Uses /api/v1/validators/* endpoints as per documentation
  */
 export const validatorsApi = {
   /**
@@ -116,7 +119,7 @@ export const validatorsApi = {
     params?: ValidatorsRequest
   ): Promise<ValidatorsResponse> => {
     const response = await apiClient.get<ValidatorsResponse>(
-      "/api/v1/validators",
+      "/validators",
       params
     );
     return response.data;
@@ -124,15 +127,123 @@ export const validatorsApi = {
 
   /**
    * Get a single validator by address
-   * GET /api/v1/validators/:address
+   * GET /api/v1/validators/{address}
    *
    * @param address - Validator address
    * @returns Detailed validator information
    */
   getValidator: async (address: string): Promise<ValidatorDetailData> => {
     const response = await apiClient.get<ValidatorDetailResponse>(
-      `/api/v1/validators/${address}`
+      `/validators/${address}`
     );
-    return response.data; // API wraps in { data: {...} }
+    // API response structure: { data: { data: ValidatorDetailData } }
+    const responseData = response.data as unknown as ValidatorDetailResponse | ValidatorDetailData;
+    if (responseData && typeof responseData === "object" && "data" in responseData) {
+      return (responseData as ValidatorDetailResponse).data;
+    }
+    return responseData as ValidatorDetailData;
+  },
+
+  /**
+   * Export validator data
+   * GET /api/v1/validators/{address}/export
+   *
+   * @param address - Validator address
+   * @param format - Export format: "json" or "csv" (default: "json")
+   * @returns Validator data in requested format
+   */
+  exportValidatorData: async (
+    address: string,
+    format: "json" | "csv" = "json"
+  ): Promise<ValidatorDetailData | string> => {
+    const response = await apiClient.get<ValidatorDetailResponse | string>(
+      `/validators/${address}/export`,
+      { format }
+    );
+    return response.data as ValidatorDetailData | string;
   },
 };
+
+// ============================================================================
+// REACT QUERY HOOKS
+// ============================================================================
+
+/**
+ * React Query hook for fetching validators list
+ * 
+ * @param params - Query parameters for filtering validators
+ * @param options - React Query options
+ * @returns UseQueryResult with validators data
+ * 
+ * @example
+ * ```typescript
+ * const { data, isLoading, error } = useValidators({
+ *   status: "active",
+ *   limit: 50
+ * });
+ * ```
+ */
+export function useValidators(
+  params?: ValidatorsRequest,
+  options?: Omit<UseQueryOptions<ValidatorsResponse, Error>, "queryKey" | "queryFn">
+): UseQueryResult<ValidatorsResponse, Error> {
+  return useQuery({
+    queryKey: ["validators", "list", params],
+    queryFn: () => validatorsApi.getValidators(params),
+    staleTime: 30000, // 30 seconds
+    ...options,
+  });
+}
+
+/**
+ * React Query hook for fetching a single validator detail
+ * 
+ * @param address - Validator address
+ * @param options - React Query options
+ * @returns UseQueryResult with validator detail data
+ * 
+ * @example
+ * ```typescript
+ * const { data, isLoading } = useValidator("validator_address_123");
+ * ```
+ */
+export function useValidator(
+  address: string,
+  options?: Omit<UseQueryOptions<ValidatorDetailData, Error>, "queryKey" | "queryFn">
+): UseQueryResult<ValidatorDetailData, Error> {
+  return useQuery({
+    queryKey: ["validators", "detail", address],
+    queryFn: () => validatorsApi.getValidator(address),
+    enabled: !!address,
+    staleTime: 30000, // 30 seconds
+    ...options,
+  });
+}
+
+/**
+ * React Query hook for exporting validator data
+ * Uses /api/validators/[address]/export endpoint
+ * 
+ * @param address - Validator address
+ * @param format - Export format: "json" or "csv" (default: "json")
+ * @param options - React Query options
+ * @returns UseQueryResult with exported validator data
+ * 
+ * @example
+ * ```typescript
+ * const { data, isLoading } = useValidatorExport("validator_address_123", "csv");
+ * ```
+ */
+export function useValidatorExport(
+  address: string,
+  format: "json" | "csv" = "json",
+  options?: Omit<UseQueryOptions<ValidatorDetailData | string, Error>, "queryKey" | "queryFn">
+): UseQueryResult<ValidatorDetailData | string, Error> {
+  return useQuery({
+    queryKey: ["validators", "export", address, format],
+    queryFn: () => validatorsApi.exportValidatorData(address, format),
+    enabled: !!address,
+    staleTime: 60000, // 1 minute
+    ...options,
+  });
+}

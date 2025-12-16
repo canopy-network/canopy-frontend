@@ -129,7 +129,14 @@ export function TrendingChains({ chains }: TrendingChainsProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {chains.map((chain, index) => (
+            {chains.length === 0 ? (
+              <TableRow appearance="plain">
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  Loading trending chains...
+                </TableCell>
+              </TableRow>
+            ) : (
+              chains.map((chain, index) => (
               <TableRow key={chain.id} appearance="plain">
                 <TableCell className="pl-0 lg:pl-4">
                   <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted font-medium">
@@ -260,7 +267,8 @@ export function TrendingChains({ chains }: TrendingChainsProps) {
                   />
                 </TableCell>
               </TableRow>
-            ))}
+            ))
+            )}
           </TableBody>
         </Table>
         <div className="flex items-center justify-between lg:mt-4 mt- lg:pt-4 pt-3 border-t border-border">
