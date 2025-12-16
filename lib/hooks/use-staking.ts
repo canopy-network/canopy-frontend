@@ -96,6 +96,48 @@ export function useStaking(address?: string) {
     return positionsQuery.data?.pages[0]?.metadata;
   }, [positionsQuery.data]);
 
+  // Rewards list for APY calculations
+  const rewardsList = rewardsQuery.data?.rewards ?? [];
+
+  // Build chain-level APY map (weighted by staked amount when available)
+  const { apyByChain, blendedAPY } = useMemo(() => {
+    const chainAgg = new Map<number, { weighted: number; stake: number; count: number }>();
+    rewardsList.forEach((reward) => {
+      const chainId = Number(reward.chain_id);
+      const apy = Number(reward.staking_apy);
+      if (!Number.isFinite(chainId) || !Number.isFinite(apy)) return;
+      const stake = parseFloat(reward.staked_amount || "0");
+      const weight = Number.isFinite(stake) && stake > 0 ? stake : 1;
+      const entry = chainAgg.get(chainId) || { weighted: 0, stake: 0, count: 0 };
+      entry.weighted += apy * weight;
+      entry.stake += weight;
+      entry.count += 1;
+      chainAgg.set(chainId, entry);
+    });
+
+    const record: Record<number, number> = {};
+    let totalWeighted = 0;
+    let totalStake = 0;
+    chainAgg.forEach((entry, chainId) => {
+      const denom = entry.stake > 0 ? entry.stake : entry.count || 1;
+      const avg = entry.weighted / denom;
+      record[chainId] = Number.isFinite(avg) ? avg : 0;
+      totalWeighted += entry.weighted;
+      totalStake += denom;
+    });
+
+    const blendedFromApi = rewardsQuery.data?.blended_apy;
+    const blendedFallback =
+      totalStake > 0 && Number.isFinite(totalWeighted / totalStake)
+        ? totalWeighted / totalStake
+        : undefined;
+
+    return {
+      apyByChain: record,
+      blendedAPY: blendedFromApi ?? blendedFallback,
+    };
+  }, [rewardsList, rewardsQuery.data?.blended_apy]);
+
   // Calculate total staked across all positions
   const totalStaked = useMemo(() => {
     return positions.reduce((sum, position) => {
@@ -103,12 +145,17 @@ export function useStaking(address?: string) {
     }, 0);
   }, [positions]);
 
-  // Get total rewards from API response (in CNPY)
+  // Get total rewards from API response (in micro units)
   const totalRewardsEarned = useMemo(() => {
+    const fromRewardsEndpoint = rewardsQuery.data?.total_rewards;
+    if (fromRewardsEndpoint) {
+      const parsed = parseFloat(fromRewardsEndpoint);
+      if (Number.isFinite(parsed)) return parsed;
+    }
     return positions.reduce((sum, position) => {
       return sum + parseFloat(position.total_rewards || "0");
     }, 0);
-  }, [positions]);
+  }, [positions, rewardsQuery.data?.total_rewards]);
 
   // Calculate total claimable rewards from rewards API
   const totalClaimableRewards = useMemo(() => {
@@ -136,10 +183,12 @@ export function useStaking(address?: string) {
     setPositionStatus,
 
     // Rewards
-    rewards: rewardsQuery.data?.rewards ?? [],
+    rewards: rewardsList,
     rewardsQuery,
     totalRewardsEarned,
     totalClaimableRewards,
+    apyByChain,
+    blendedAPY,
 
     // Unstaking
     unstakingQueue,

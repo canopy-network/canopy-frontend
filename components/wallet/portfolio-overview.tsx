@@ -129,8 +129,8 @@ export function PortfolioOverview({ addresses }: PortfolioOverviewProps) {
 
   const totalValue = formatCNPY(accountTotals.total);
   const pnlValue = formatCNPY(performance.total_pnl_cnpy);
-  const pnlPercentage = performance.total_pnl_percentage || 0;
-  const isPositivePnL = parseFloat(performance.total_pnl_cnpy) >= 0;
+  const pnlPercentage = overview.performance.total_pnl_percentage || 0;
+  const isPositivePnL = overview.performance.total_pnl_percentage >= 0;
 
   return (
     <div className="space-y-4">
@@ -161,7 +161,7 @@ export function PortfolioOverview({ addresses }: PortfolioOverviewProps) {
                   <ArrowDownRight className="h-4 w-4 text-red-500" />
                 )}
               </div>
-              <div className="text-xs text-muted-foreground mt-1">
+              <div className={cn("text-xs text-muted-foreground mt-1", isPositivePnL ? "text-green-500" : "text-red-500")}>
                 {isPositivePnL ? "+" : ""}{formatPercentage(pnlPercentage)}%
               </div>
             </div>

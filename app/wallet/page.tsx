@@ -23,6 +23,7 @@ import { AssetsTab } from "@/components/wallet/assets-tab";
 import { ActivityTab } from "@/components/wallet/activity-tab";
 import { StakingTab } from "@/components/wallet/staking-tab";
 import { GovernanceTab } from "@/components/wallet/governance-tab";
+import { RewardsActivity } from "@/components/wallet/rewards-activity";
 import { useStaking } from "@/lib/hooks/use-staking";
 import {
   Copy,
@@ -236,6 +237,12 @@ function WalletContent() {
                     Staking
                   </TabsTrigger>
                   <TabsTrigger
+                    value="rewards"
+                    className="py-3 sm:py-4 px-0 mr-4 sm:mr-8 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent text-sm sm:text-base shrink-0"
+                  >
+                    Rewards
+                  </TabsTrigger>
+                  <TabsTrigger
                     value="activity"
                     className="py-3 sm:py-4 px-0 mr-4 sm:mr-8 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent text-sm sm:text-base shrink-0"
                   >
@@ -259,6 +266,14 @@ function WalletContent() {
                 {/* Staking Tab */}
                 <TabsContent value="staking" className="mt-4 sm:mt-6">
                   <StakingTab addresses={currentWallet ? [currentWallet.address] : []} />
+                </TabsContent>
+
+                {/* Rewards Tab */}
+                <TabsContent value="rewards" className="mt-4 sm:mt-6">
+                  <RewardsActivity
+                    addresses={currentWallet ? [currentWallet.address] : []}
+                    limit={10}
+                  />
                 </TabsContent>
 
                 {/* Activity Tab */}

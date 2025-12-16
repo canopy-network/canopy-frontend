@@ -26,16 +26,27 @@ import {
   Wallet,
   Layers,
   AlertCircle,
+  X,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { useStaking } from "@/lib/hooks/use-staking";
 import {formatBalance, formatTimeRemaining} from "@/lib/utils/wallet-helpers";
+import { useWalletEventsHistory } from "@/lib/hooks/use-wallet-events";
+import { extractStakeRewards } from "@/lib/utils/wallet-events";
 
 import { UnstakingDetailSheet } from "./unstaking-detail-sheet";
 import {fromMicroUnits} from "@/lib/utils/denomination";
 import {StakeDialog} from "@/components/wallet/stake-dialog";
 import { UnstakeDialog } from "@/components/wallet/unstake-dialog";
+import { RewardsActivity } from "@/components/wallet/rewards-activity";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Separator } from "@/components/ui/separator";
 
 interface StakingTabProps {
   addresses: string[];
@@ -45,16 +56,6 @@ type SortField = "apy" | "amount" | "earnings";
 type SortOrder = "asc" | "desc";
 type ActiveFilter = "all" | "active" | "queue";
 
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
-function formatUsd(value: number) {
-  return `$${currencyFormatter.format(value)}`;
-}
-
-const MAIN_CHAIN_ID = 1; // Real main chain ID for CNPY
 
 /**
  * Transform backend StakingPosition to display format
@@ -138,12 +139,24 @@ export function StakingTab({ addresses }: StakingTabProps) {
   // Fetch real data from backend
   const {
     positions,
-    rewards,
     unstakingQueue,
     totalRewardsEarned,
+    rewards,
+    apyByChain,
+    blendedAPY,
     isLoading,
     isError,
   } = useStaking(address);
+
+  const {
+    events: walletEvents,
+    isLoading: isLoadingWalletEvents,
+    isError: isWalletEventsError,
+  } = useWalletEventsHistory({
+    addresses,
+    limit: 50,
+    sort: "desc",
+  });
 
   const [sortBy, setSortBy] = useState<SortField>("apy");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
@@ -154,6 +167,7 @@ export function StakingTab({ addresses }: StakingTabProps) {
   const [showUnstakeDialog, setShowUnstakeDialog] = useState(false);
   const [selectedUnstaking, setSelectedUnstaking] = useState<DisplayUnstaking | null>(null);
   const [showUnstakingDetail, setShowUnstakingDetail] = useState(false);
+  const [showRewardsActivity, setShowRewardsActivity] = useState(false);
 
   // Transform backend positions to display format
   const displayStakes = useMemo<DisplayStake[]>(() => {
@@ -161,10 +175,27 @@ export function StakingTab({ addresses }: StakingTabProps) {
       // Convert amounts from uCNPY to CNPY
       const nativeAmount = fromMicroUnits(pos.staked_amount || "0");
       const cnpyAmount = fromMicroUnits(pos.staked_cnpy || "0");
-      const rewardsCNPY = pos.total_rewards
+
+      const matchingReward =
+        rewards.find(
+          (reward) =>
+            Number(reward.chain_id) === Number(pos.chain_id) &&
+            reward.address?.toLowerCase() === pos.address?.toLowerCase()
+        ) ||
+        rewards.find(
+          (reward) => Number(reward.chain_id) === Number(pos.chain_id)
+        );
+
+      const rewardsCNPY = matchingReward?.total_rewards
+        ? fromMicroUnits(matchingReward.total_rewards)
+        : pos.total_rewards
         ? fromMicroUnits(pos.total_rewards)
         : 0;
 
+      const apyValue =
+        matchingReward?.staking_apy ??
+        apyByChain[pos.chain_id] ??
+        0;
 
       return {
         id: `${pos.chain_id}-${pos.address}`,
@@ -174,7 +205,7 @@ export function StakingTab({ addresses }: StakingTabProps) {
         amount: nativeAmount,
         nativeAmount,
         cnpyAmount,
-        apy: 8.5, // TODO: Get APY from rewards/positions data
+        apy: apyValue,
         rewards: rewardsCNPY,
         rewardsUSD: undefined, // TODO: Calculate USD value
         color: CHAIN_COLORS[pos.chain_id] || "#1dd13a",
@@ -186,7 +217,46 @@ export function StakingTab({ addresses }: StakingTabProps) {
         status: pos.status,
       };
     });
-  }, [positions]);
+  }, [positions, rewards, apyByChain]);
+
+  const rewardRecords = useMemo(
+    () => extractStakeRewards(walletEvents),
+    [walletEvents]
+  );
+
+  const stakeRewardTotals = useMemo(() => {
+    const totals: Record<string, number> = {};
+
+    displayStakes.forEach((stake) => {
+      const identifiers = [
+        stake.id,
+        String(stake.chainId),
+        stake.symbol?.toLowerCase(),
+        stake.chain?.toLowerCase(),
+      ].filter(Boolean);
+
+      const totalForStake = rewardRecords.reduce((sum, reward) => {
+        const related = (reward.relatedStakeKey || "").toLowerCase();
+        const metaChain = reward.metadata?.["chain_id"];
+        const chainMatch =
+          metaChain !== undefined &&
+          Number(metaChain) === Number(stake.chainId);
+        const keyMatch =
+          related &&
+          identifiers.some((id) => id.toLowerCase().includes(related));
+        return chainMatch || keyMatch ? sum + reward.amount : sum;
+      }, 0);
+
+      totals[stake.id] = totalForStake;
+    });
+
+    return totals;
+  }, [displayStakes, rewardRecords]);
+
+  const totalRewardsFromEvents = useMemo(
+    () => rewardRecords.reduce((sum, reward) => sum + reward.amount, 0),
+    [rewardRecords]
+  );
 
   // Transform unstaking queue to display format
   const displayUnstaking = useMemo<DisplayUnstaking[]>(() => {
@@ -231,8 +301,9 @@ export function StakingTab({ addresses }: StakingTabProps) {
 
   // Convert total rewards from micro units to display value
   const totalInterestEarned = useMemo(() => {
-    return fromMicroUnits(totalRewardsEarned.toString());
-  }, [totalRewardsEarned]);
+    const fallback = parseFloat(fromMicroUnits(totalRewardsEarned.toString()));
+    return totalRewardsFromEvents > 0 ? totalRewardsFromEvents : fallback;
+  }, [totalRewardsEarned, totalRewardsFromEvents]);
 
   const handleSort = (column: SortField) => {
     if (sortBy === column) {
@@ -251,7 +322,12 @@ export function StakingTab({ addresses }: StakingTabProps) {
       const getValue = (stake: DisplayStake) => {
         if (sortBy === "apy") return stake.apy;
         if (sortBy === "amount") return stake.amount;
-        return stake.rewardsUSD ?? stake.rewards ?? 0;
+        return (
+          stakeRewardTotals[stake.id] ??
+          stake.rewardsUSD ??
+          stake.rewards ??
+          0
+        );
       };
 
       const diff = getValue(a) - getValue(b);
@@ -328,7 +404,7 @@ export function StakingTab({ addresses }: StakingTabProps) {
               setShowManageDialog(true);
             }}
           >
-            Add More
+            Manage
           </Button>
         <Button
           size="sm"
@@ -413,7 +489,7 @@ export function StakingTab({ addresses }: StakingTabProps) {
       <div className="space-y-6">
         {/* Total Interest Earned Card */}
         <Card className="p-1">
-          <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center justify-between px-4 py-3 gap-3 flex-wrap">
             <div className="space-y-1">
               <p className="text-lg font-bold">Total rewards earned</p>
               <div className="flex items-baseline gap-2">
@@ -421,10 +497,20 @@ export function StakingTab({ addresses }: StakingTabProps) {
                   {formatBalance(totalInterestEarned, 2)} CNPY
                 </h3>
               </div>
+              {typeof blendedAPY === "number" && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Badge variant="outline" className="text-[11px]">
+                    Blended APY
+                  </Badge>
+                  <span className="font-semibold text-foreground">
+                    {blendedAPY.toFixed(2)}%
+                  </span>
+                </div>
+              )}
 
               <p className="text-sm text-muted-foreground mt-4 max-w-md">
-                Earn rewards on your crypto by staking. Rewards are automatically
-                transferred based on your settings.
+                Rewards are automatically compounded or withdrawn to your wallet;
+                there is no manual claim.
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help inline-block ml-1.5 align-middle" />
@@ -437,9 +523,52 @@ export function StakingTab({ addresses }: StakingTabProps) {
                   </TooltipContent>
                 </Tooltip>
               </p>
+              {isLoadingWalletEvents && (
+                <p className="text-xs text-muted-foreground">
+                  Refreshing rewards activity...
+                </p>
+              )}
+              {isWalletEventsError && (
+                <p className="text-xs text-destructive">
+                  Unable to load recent reward events.
+                </p>
+              )}
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-auto"
+              onClick={() => setShowRewardsActivity(true)}
+            >
+              View rewards activity
+            </Button>
           </div>
         </Card>
+
+        <Sheet open={showRewardsActivity} onOpenChange={setShowRewardsActivity}>
+          <SheetContent
+            side="right"
+            className="w-full sm:max-w-xl overflow-y-auto flex flex-col gap-4"
+          >
+            <SheetHeader className="flex flex-row items-start justify-between gap-3">
+              <div className="space-y-1 text-left">
+
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="mt-1"
+                onClick={() => setShowRewardsActivity(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </SheetHeader>
+            <div className="pb-4">
+              <RewardsActivity addresses={addresses} limit={20} compact />
+            </div>
+          </SheetContent>
+        </Sheet>
+
 
         {/* Filter Tabs */}
         <div className="flex items-center gap-2">
@@ -536,6 +665,8 @@ export function StakingTab({ addresses }: StakingTabProps) {
                 {filteredStakes.length > 0 ? (
                   filteredStakes.map((stake) => {
                     const isActive = stake.amount > 0 && stake.status === "active";
+                    const rewardAmount =
+                      stakeRewardTotals[stake.id] ?? stake.rewards;
 
                     return (
                       <TableRow key={stake.id}>
@@ -615,18 +746,22 @@ export function StakingTab({ addresses }: StakingTabProps) {
                                 {formatBalance(stake.cnpyAmount, 2)} CNPY
                               </div>
                             </div>
-                          ) : (
+                        ) : (
                             <div className="text-sm text-muted-foreground">Not staked</div>
                           )}
                         </TableCell>
                         <TableCell>
-                          <div className="font-medium">{stake.apy}%</div>
+                          {stake.apy && stake.apy > 0 ? (
+                            <div className="font-medium">{stake.apy.toFixed(2)}%</div>
+                          ) : (
+                            <div className="text-sm text-muted-foreground">-</div>
+                          )}
                         </TableCell>
                         <TableCell>
-                          {stake.rewards && stake.rewards > 0 ? (
+                          {rewardAmount && rewardAmount > 0 ? (
                             <div>
                               <div className="font-medium">
-                                {formatBalance(stake.rewards, 2)} {stake.symbol}
+                                {formatBalance(rewardAmount, 2)} {stake.symbol}
                               </div>
                             </div>
                           ) : (

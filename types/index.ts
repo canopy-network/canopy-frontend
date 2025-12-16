@@ -23,6 +23,9 @@ export * from "./blocks";
 // Address-related types
 export * from "./addresses";
 
+// Wallet events
+export * from "./wallet-events";
+
 // Add other type modules here as they are created
 // export * from './user';
 // export * from './trading';

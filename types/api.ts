@@ -380,6 +380,12 @@ export interface ValidatorReward {
   last_claim_time?: string;
   reward_count: number;
   status: string;
+  staked_amount?: string;
+  staked_cnpy?: string;
+  staking_apy?: number;
+  first_reward_time?: string;
+  compound?: boolean;
+  delegate?: boolean;
 }
 
 export interface StakingRewardsRequest {
@@ -394,6 +400,11 @@ export interface StakingRewardsResponse {
   rewards: ValidatorReward[];
   total_rewards: string;
   total_cnpy: string;
+  total_staked?: string;
+  total_staked_cnpy?: string;
+  total_delegated?: string;
+  total_delegated_cnpy?: string;
+  blended_apy?: number;
   metadata: {
     total: number;
     has_more: boolean;

@@ -117,6 +117,9 @@ export { walletTransactionApi, waitForTransactionCompletion } from "./wallet-tra
 // Transactions API (wallet transactions)
 export { transactionsApi } from "./transactions";
 
+// Wallet Events API
+export { walletEventsApi } from "./wallet-events";
+
 // Staking API
 export { stakingApi } from "./staking";
 

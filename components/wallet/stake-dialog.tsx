@@ -36,6 +36,7 @@ import {
     mergeCommittees,
     normalizeChainId,
 } from "@/lib/staking/staking-utils";
+import {Badge} from "@/components/ui/badge";
 
 interface StakeDialogProps {
     open: boolean;
@@ -633,10 +634,23 @@ export function StakeDialog({
         () => buildCommitteeOptions(allChains, activeChainId),
         [allChains, activeChainId]
     );
+    // Allow delegating to any chain including the primary one; leave filtering to user
     const committeeOptionsFiltered = useMemo(
-        () => committeeOptions.filter((opt) => opt.chainId !== activeChainId),
-        [committeeOptions, activeChainId]
+        () => committeeOptions,
+        [committeeOptions]
     );
+
+    // Preselect primary chain for delegation by default (can be deselected)
+    useEffect(() => {
+        if (!open) return;
+        if (derivedMode !== "create") return;
+        if (!activeChainId || activeChainId <= 0) return;
+        setCommitteesInput((prev) => {
+            if (prev.includes(activeChainId)) return prev;
+            return [...prev, activeChainId];
+        });
+        setShowCommittees(true);
+    }, [activeChainId, derivedMode, open]);
 
     const combinedDisallow = useMemo(() => {
         const set = new Set<number>();
@@ -743,12 +757,6 @@ export function StakeDialog({
                 setCommitteeLoading(false);
             });
     }, [open, committeeLoading, committeeHasMore, committeePage, committeeQuery]);
-
-    // Ensure active chain is not in the editable committees list (especially in edit mode)
-    useEffect(() => {
-        if (!activeChainId) return;
-        setCommitteesInput((prev) => prev.filter((id) => id !== activeChainId));
-    }, [activeChainId, derivedMode]);
 
     // Don't render until we have basic data or we're on step 2+
     if (!open) {
@@ -998,13 +1006,18 @@ export function StakeDialog({
 
                                         {allChains.length > 0 && (
                                             <div className="space-y-3 pt-4 border-t">
-                                                <div className="flex items-center justify-between gap-2">
+                                                <div className="flex items-center justify-between gap-2 flex-wrap">
                                                     <div className="space-y-0.5">
-                                                        <p className="text-sm font-medium">
-                                                            Delegate to other chains (optional)
-                                                        </p>
+                                                        <div className="flex items-center gap-2">
+                                                            <p className="text-sm font-medium">
+                                                                Delegate across chains
+                                                            </p>
+                                                            <Badge variant="secondary" className="text-[11px]">
+                                                                {committeesInput.length} selected
+                                                            </Badge>
+                                                        </div>
                                                         <p className="text-xs text-muted-foreground">
-                                                            Select additional chains to earn native rewards.
+                                                            Primary chain is preselected; deselect it or add more to earn rewards from them.
                                                         </p>
                                                     </div>
                                                     <div className="flex items-center gap-2">
@@ -1015,7 +1028,7 @@ export function StakeDialog({
                                                                 className="h-8"
                                                                 onClick={() => setCommitteesInput([])}
                                                             >
-                                                                Clear
+                                                                Clear all
                                                             </Button>
                                                         )}
                                                         <Button
@@ -1024,7 +1037,7 @@ export function StakeDialog({
                                                             className="h-8"
                                                             onClick={() => setShowCommittees((prev) => !prev)}
                                                         >
-                                                            {showCommittees ? "Hide" : "Add"}
+                                                            {showCommittees ? "Hide list" : "Manage"}
                                                         </Button>
                                                     </div>
                                                 </div>

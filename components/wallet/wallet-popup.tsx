@@ -33,6 +33,7 @@ import { toast } from "sonner";
 import {
   formatBalanceWithCommas
 } from "@/lib/utils/denomination";
+import { RewardsActivity } from "./rewards-activity";
 
 export function WalletPopup() {
   const router = useRouter();
@@ -219,6 +220,12 @@ export function WalletPopup() {
                       Balances
                     </TabsTrigger>
                     <TabsTrigger
+                      value="rewards"
+                      className="py-3 bg-none rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent text-muted-foreground data-[state=active]:text-foreground"
+                    >
+                      Rewards
+                    </TabsTrigger>
+                    <TabsTrigger
                       value="activity"
                       className="py-3 bg-none rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent text-muted-foreground data-[state=active]:text-foreground"
                     >
@@ -298,6 +305,17 @@ export function WalletPopup() {
                           </div>
                         </div>
                       )}
+                    </div>
+                  </TabsContent>
+
+                  {/* Rewards Tab */}
+                  <TabsContent value="rewards" className="flex-1 overflow-y-auto mt-0 p-0 data-[state=inactive]:hidden">
+                    <div className="p-4 sm:p-6">
+                      <RewardsActivity
+                        addresses={currentWallet ? [currentWallet.address] : []}
+                        limit={5}
+                        compact
+                      />
                     </div>
                   </TabsContent>
 
