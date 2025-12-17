@@ -18,12 +18,17 @@ export interface ValidatorData {
   chain_name: string;
   staked_amount: string; // In micro units (e.g., "1000000000")
   staked_cnpy: string; // Formatted (e.g., "1,000")
+  staked_usd?: string; // Formatted USD value (e.g., "1,000.00")
+  rewards?: string; // Rewards in micro units
+  rewards_cnpy?: string; // Formatted rewards in CNPY (e.g., "109,074")
+  reward_count?: number; // Number of reward events (can be used as blocks approximation)
   status: "active" | "unstaking" | "paused";
   delegate: boolean;
   compound: boolean;
   voting_power: string; // Percentage (e.g., "100.00")
   apy?: number; // Annual percentage yield from backend
   uptime?: number;
+  missed_blocks?: number | null;
   committees: number[] | null;
   updated_at: string; // ISO 8601 timestamp
 }
@@ -33,12 +38,22 @@ export interface ValidatorData {
  */
 export interface CrossChainStake {
   chain_id: number;
+  net_address?: string; // TCP address
   staked_amount: number; // In micro units
+  staked_cnpy?: string; // Formatted CNPY value
+  staked_usd?: string; // Formatted USD value
+  output?: string; // Output address
   status: "active" | "unstaking" | "paused";
   committees: number[] | null;
-  updated_at: string;
+  max_paused_height?: number;
+  unstaking_height?: number;
+  delegate?: boolean;
+  compound?: boolean;
   apy?: number;
-  unstaking_blocks?: number;
+  rewards?: string; // Rewards in micro units
+  rewards_cnpy?: string; // Formatted rewards in CNPY
+  reward_count?: number; // Number of reward events
+  updated_at: string;
 }
 
 /**
@@ -46,6 +61,8 @@ export interface CrossChainStake {
  */
 export interface SlashingHistory {
   evidence_count: number;
+  first_evidence_height?: number;
+  last_evidence_height?: number;
   height: number;
   updated_at: string;
 }
@@ -56,24 +73,39 @@ export interface SlashingHistory {
 export interface ValidatorDetailData {
   address: string;
   public_key: string;
-  net_address: string; // TCP address
-  staked_amount: number; // In micro units
   apy?: number;
-  uptime?: number;
-  voting_power?: string;
-  output: string; // Output address
-  committees: number[] | null;
-  status: "active" | "unstaking" | "paused";
-  delegate: boolean;
-  compound: boolean;
+  rewards?: string; // Total rewards in micro units
+  rewards_cnpy?: string; // Total rewards formatted in CNPY
+  reward_count?: number; // Total number of reward events
+  commission_rate?: number | null; // Commission rate percentage
+  commission_rate_history?: any | null; // Commission rate history
+  validator_url?: string; // Validator website URL
+  github_url?: string; // GitHub URL
+  performance?: any | null; // Performance data
   slashing_history: SlashingHistory;
   cross_chain: CrossChainStake[];
   updated_at: string;
 }
 
 /**
- * Validators API response
- * Note: apiClient.get already unwraps response.data, so this is the direct structure returned
+ * Validators API response wrapper
+ */
+export interface ValidatorsResponseWrapper {
+  data: {
+    validators: ValidatorData[];
+    metadata: {
+      total: number;
+      has_more: boolean;
+      limit: number;
+      offset: number;
+      chain_stats?: any;
+    };
+  };
+  pagination: any;
+}
+
+/**
+ * Validators API response (unwrapped)
  */
 export interface ValidatorsResponse {
   validators: ValidatorData[];
@@ -118,11 +150,42 @@ export const validatorsApi = {
   getValidators: async (
     params?: ValidatorsRequest
   ): Promise<ValidatorsResponse> => {
-    const response = await apiClient.get<ValidatorsResponse>(
+    const response = await apiClient.get<ValidatorsResponseWrapper>(
       "/validators",
       params
     );
-    return response.data;
+    // API returns: { data: { validators, metadata }, pagination }
+    // apiClient.get returns: { data: ValidatorsResponseWrapper, pagination }
+    // So response.data is ValidatorsResponseWrapper which has { data: { validators, metadata }, pagination }
+    const responseData = response.data as any;
+    if (responseData?.data?.validators) {
+      return {
+        validators: responseData.data.validators,
+        metadata: responseData.data.metadata,
+      };
+    }
+    // Fallback: if structure is different, try direct access
+    if (responseData?.validators) {
+      return {
+        validators: responseData.validators,
+        metadata: responseData.metadata || {
+          total: responseData.validators.length,
+          has_more: false,
+          limit: params?.limit || 50,
+          offset: params?.offset || 0,
+        },
+      };
+    }
+    // Last fallback
+    return {
+      validators: [],
+      metadata: {
+        total: 0,
+        has_more: false,
+        limit: params?.limit || 50,
+        offset: params?.offset || 0,
+      },
+    };
   },
 
   /**

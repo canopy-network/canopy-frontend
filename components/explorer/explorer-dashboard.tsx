@@ -7,7 +7,7 @@ import { NetworkOverview } from "./network-overview";
 import { NewLaunches } from "./new-launches";
 import { TopValidators } from "./top-validators";
 import { RecentTransactions } from "./recent-transactions";
-import { RecentBlocks } from "./recent-blocks";
+import { LatestBlocks } from "./latest-blocks";
 import { TrendingChains, type ChainSummary } from "./trending-chains";
 import { Chain } from "@/types/chains";
 import { ExplorerSearchBar } from "./explorer-search-bar";
@@ -46,10 +46,28 @@ const formatOverviewMetrics = (data: ExplorerOverview | null) => {
     return [];
   }
 
-  // Format real API data
+  // Format real API data (with $ symbol)
   const formatNumber = (value: number) => {
+    if (value >= 1_000_000_000) {
+      return `$${(value / 1_000_000_000).toFixed(1)}B`;
+    }
     if (value >= 1_000_000) {
-      return `${(value / 1_000_000).toFixed(1)}M`;
+      return `$${(value / 1_000_000).toFixed(2)}M`;
+    }
+    if (value >= 1_000) {
+      return `$${(value / 1_000).toFixed(1)}K`;
+    }
+    return `$${value.toLocaleString()}`;
+  };
+
+  // Format volume without $ symbol
+  const formatVolume = (value: number, formatted?: string) => {
+    if (formatted) return formatted;
+    if (value >= 1_000_000_000) {
+      return `${(value / 1_000_000_000).toFixed(1)}B`;
+    }
+    if (value >= 1_000_000) {
+      return `${(value / 1_000_000).toFixed(2)}M`;
     }
     if (value >= 1_000) {
       return `${(value / 1_000).toFixed(1)}K`;
@@ -62,38 +80,55 @@ const formatOverviewMetrics = (data: ExplorerOverview | null) => {
     return `${sign}${change}%${suffix}`;
   };
 
-  return [
+  // Always show exactly 6 cards with available data
+  // Order: TVL, Volume, Validators, Holders, Active Chains, Total Transactions
+  const formatHolders = (value: number) => {
+    if (value >= 1_000_000) {
+      return `${(value / 1_000_000).toFixed(1)}M`;
+    }
+    if (value >= 1_000) {
+      return `${(value / 1_000).toFixed(1)}K`;
+    }
+    return value.toLocaleString();
+  };
+
+  const metrics = [
+    // TVL (first)
     {
       id: "tvl",
       label: "TVL",
       value: data.tvl_formatted || formatNumber(data.tvl),
       delta: formatDelta(data.tvl_change_24h),
     },
+    // Volume (second) - without $ symbol
     {
       id: "volume",
       label: "Volume",
-      value: data.volume_24h_formatted || formatNumber(data.volume_24h),
+      value: data.volume_24h_formatted || formatVolume(data.volume_24h),
       delta: formatDelta(data.volume_change_24h),
     },
-    {
-      id: "active_chains",
-      label: "Active Chains",
-      value: data.active_chains.toLocaleString(),
-      delta: `${data.active_chains_change >= 0 ? "+" : ""}${data.active_chains_change
-        } this week`,
-    },
+    // Validators (third)
     {
       id: "validators",
       label: "Validators",
       value: data.total_validators.toLocaleString(),
       delta: formatDelta(data.total_validators_change),
     },
+    // Holders (fourth)
     {
       id: "holders",
       label: "Holders",
-      value: formatNumber(data.total_holders),
+      value: formatHolders(data.total_holders),
       delta: formatDelta(data.total_holders_change),
     },
+    // Active Chains (fifth)
+    {
+      id: "active_chains",
+      label: "Active Chains",
+      value: data.active_chains.toLocaleString(),
+      delta: `${data.active_chains_change >= 0 ? "+" : ""}${data.active_chains_change} this week`,
+    },
+    // Total Transactions (sixth)
     {
       id: "transactions",
       label: "Total Transactions",
@@ -101,6 +136,8 @@ const formatOverviewMetrics = (data: ExplorerOverview | null) => {
       delta: formatDelta(data.total_transactions_change),
     },
   ];
+
+  return metrics;
 };
 
 
@@ -115,23 +152,36 @@ const formatTrendingValue = (value?: number | null) => {
 const mapTrendingChainsToSummary = (
   chains: ExplorerTrendingChain[]
 ): ChainSummary[] =>
-  chains.map((chain) => ({
-    id: chain.chain_id ? chain.chain_id.toString() : `rank-${chain.rank}`,
-    chainId: chain.chain_id,
-    name: chain.chain_name || "Unknown Chain",
-    rank: chain.rank,
-    market_cap: formatTrendingValue(chain.market_cap),
-    marketCapRaw: chain.market_cap,
-    tvl: formatTrendingValue(chain.tvl),
-    tvlRaw: chain.tvl,
-    liquidity: formatTrendingValue(chain.liquidity ?? chain.tvl),
-    liquidityRaw: chain.liquidity ?? chain.tvl,
-    volume_24h: formatTrendingValue(chain.volume_24h),
-    volume24hRaw: chain.volume_24h,
-    change_24h: chain.change_24h ?? 0,
-    validators: chain.validators ?? 0,
-    holders: chain.holders ?? 0,
-  }));
+  chains.map((chain) => {
+    // Generate 7-day chart data based on chain metrics (simulated trend)
+    // Use a combination of chain_id and rank to create consistent but varied trends
+    const seed = (chain.chain_id || 0) + (chain.rank || 0);
+    const baseValue = (chain.market_cap || 0) / 1000000; // Normalize to smaller range
+    const chartData = Array.from({ length: 7 }, (_, i) => {
+      const variation = Math.sin((i / 7) * Math.PI * 2 + seed) * 0.3;
+      const trend = (seed % 2 === 0 ? 1 : -1) * (i / 7) * 0.2; // Positive or negative trend
+      return Math.max(0, baseValue * (1 + variation + trend));
+    });
+
+    return {
+      id: chain.chain_id ? chain.chain_id.toString() : `rank-${chain.rank}`,
+      chainId: chain.chain_id,
+      name: chain.chain_name || "Unknown Chain",
+      rank: chain.rank,
+      market_cap: formatTrendingValue(chain.market_cap),
+      marketCapRaw: chain.market_cap,
+      tvl: formatTrendingValue(chain.tvl),
+      tvlRaw: chain.tvl,
+      liquidity: formatTrendingValue(chain.liquidity ?? chain.tvl),
+      liquidityRaw: chain.liquidity ?? chain.tvl,
+      volume_24h: formatTrendingValue(chain.volume_24h),
+      volume24hRaw: chain.volume_24h,
+      change_24h: chain.change_24h ?? 0,
+      validators: chain.validators ?? 0,
+      holders: chain.holders ?? 0,
+      chartData, // 7-day chart data
+    };
+  });
 
 interface ExplorerDashboardProps {
   overviewData?: ExplorerOverview | null;
@@ -153,7 +203,7 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
     data: recentBlocks = [],
     isLoading: isLoadingBlocks,
   } = useExplorerBlocks(
-    { limit: 10 },
+    { limit: 5 },
     { refetchInterval: 10000 } // Refetch every 10 seconds
   );
 
@@ -176,7 +226,7 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
   const {
     data: validatorsResponse,
   } = useValidators(
-    { status: "active", limit: 9 },
+    { status: "active", limit: 20 }, // Get more validators to ensure we have 8 unique after aggregation
     { refetchInterval: 10000 } // Refetch every 10 seconds
   );
 
@@ -222,6 +272,8 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
         chains: validator.committees
           ? validator.committees.map((id) => `Chain ${id}`)
           : [validator.chain_name],
+        stakedAmount: validator.staked_amount, // Raw stake in micro units
+        stakedCnp: validator.staked_cnpy, // Formatted stake
       };
     });
   }, [validatorsResponse]);
@@ -309,6 +361,10 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
         <NetworkOverview
           metrics={overviewMetrics}
           historicData={undefined}
+          historicalStats={{
+            tvl_history: overviewData?.tvl_history,
+            volume_history: overviewData?.volume_history,
+          }}
         />
 
         <TrendingChains chains={trendingChains} />
@@ -319,17 +375,16 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
           <TopValidators validators={topValidators} />
         </div>
 
-        <RecentBlocks
-          blocks={recentBlocks}
-          isLoading={isLoadingBlocks}
-          error={null}
-        />
-
         <RecentTransactions
           transactions={recentTransactions}
+          isLoading={isLoadingTransactions}
         />
 
-        <Spacer height={320} />
+        <LatestBlocks
+          blocks={recentBlocks}
+          isLoading={isLoadingBlocks}
+        />
+
       </Container>
     </>
   );

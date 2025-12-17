@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/sheet";
 import Link from "next/link";
 import { useChainsStore } from "@/lib/stores/chains-store";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { ChevronDown, Search, X, Menu } from "lucide-react";
 import { MobileSidebar } from "@/components/layout/mobile-sidebar";
@@ -30,6 +30,7 @@ import { WalletConnectButton } from "@/components/wallet/wallet-connect-button";
 import { WINDOW_BREAKPOINTS, chainStatusesLabels } from "@/lib/utils";
 import { ChainStatus } from "@/types";
 import { getSampleValidatorByAddress } from "@/lib/demo-data/sample-validators";
+import { ChainSelect } from "@/components/explorer/chain-select";
 
 // Page type definitions
 export type PageType =
@@ -91,6 +92,40 @@ export function Header() {
   const current_explorer_selected_chain = useChainsStore(
     (state) => state.currentExplorerSelectedChain
   );
+  const getChainById = useChainsStore((state) => state.getChainById);
+  
+  // Check if we're on explorer page
+  const isExplorerPage = pathname.startsWith("/explorer") || pathname.startsWith("/blocks") || pathname.startsWith("/transactions") || pathname.startsWith("/validators");
+  
+  // Get selected chain for explorer from URL or store
+  const chainIdFromUrl = searchParams.get("chain");
+  const explorerSelectedChain = useMemo(() => {
+    if (chainIdFromUrl) {
+      const chain = getChainById(chainIdFromUrl);
+      if (chain) {
+        return { id: chain.id, chain_name: chain.chain_name };
+      }
+    }
+    return current_explorer_selected_chain || { id: 0, chain_name: "Canopy" };
+  }, [chainIdFromUrl, current_explorer_selected_chain, getChainById]);
+  
+  // Prepare chain options for select
+  const chainOptions = useMemo(() => {
+    return [
+      { id: "0", chain_name: "Canopy" },
+      ...chains.map((chain) => ({
+        id: chain.id.toString(),
+        chain_name: chain.chain_name,
+      })),
+    ];
+  }, [chains]);
+  
+  // Handle chain select in explorer
+  const handleExplorerChainSelect = (chain: { id: number; chain_name: string }) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("chain", chain.id.toString());
+    router.push(`${pathname}?${params.toString()}`);
+  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -652,25 +687,40 @@ export function Header() {
           </div>
 
           <div className="hidden lg:flex items-center gap-4 ml-auto">
-            {shouldShowCollapsedWalletButton && (
-              <div className="w-[200px]">
-                <WalletConnectButton hideBalance />
-              </div>
-            )}
-            {!isLoggedIn && (
-              <Button
-                onClick={() => setLoginDialogOpen(true)}
-                variant="ghost"
-                size="sm"
-                className="text-[#7cff9d] text-sm font-semibold px-3 py-2 hover:bg-transparent gap-2 border border-[#36d26a] bg-black/30 rounded-md shadow-[0_0_14px_rgba(124,255,157,0.4)] hover:shadow-[0_0_18px_rgba(124,255,157,0.55)]"
-              >
-                <img
-                  src="/images/ethereum-logo.png"
-                  alt="Ethereum"
-                  className="h-4 w-4 object-contain drop-shadow-[0_0_8px_rgba(124,255,157,0.8)]"
-                />
-                Connect Wallet
-              </Button>
+            {isExplorerPage ? (
+              // Show Canopy Network selector in explorer instead of Connect Wallet
+              <ChainSelect
+                value={explorerSelectedChain.id.toString()}
+                onValueChange={(value) => {
+                  const chain = chainOptions.find((c) => c.id === value);
+                  if (chain) {
+                    handleExplorerChainSelect({ id: parseInt(value), chain_name: chain.chain_name });
+                  }
+                }}
+              />
+            ) : (
+              <>
+                {shouldShowCollapsedWalletButton && (
+                  <div className="w-[200px]">
+                    <WalletConnectButton hideBalance />
+                  </div>
+                )}
+                {!isLoggedIn && (
+                  <Button
+                    onClick={() => setLoginDialogOpen(true)}
+                    variant="ghost"
+                    size="sm"
+                    className="text-[#7cff9d] text-sm font-semibold px-3 py-2 hover:bg-transparent gap-2 border border-[#36d26a] bg-black/30 rounded-md shadow-[0_0_14px_rgba(124,255,157,0.4)] hover:shadow-[0_0_18px_rgba(124,255,157,0.55)]"
+                  >
+                    <img
+                      src="/images/ethereum-logo.png"
+                      alt="Ethereum"
+                      className="h-4 w-4 object-contain drop-shadow-[0_0_8px_rgba(124,255,157,0.8)]"
+                    />
+                    Connect Wallet
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </div>

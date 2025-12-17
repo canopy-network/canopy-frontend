@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { cn, WINDOW_BREAKPOINTS } from "@/lib/utils";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useChainsStore } from "@/lib/stores/chains-store";
-import { CommandSearchTrigger } from "@/components/command-search-trigger";
 import Link from "next/link";
 import {
   searchExplorerEntities,
@@ -273,14 +272,14 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
           }
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-8 lg:pl-12 pr-[120px] text-xs lg:text-sm lg:pr-[140px] py-5 lg:py-6 bg-[#1a1a1a] border-[#2a2a2a] text-white placeholder:text-gray-400  rounded-xl"
+          className="w-full pl-8 lg:pl-12 pr-4 text-xs lg:text-sm py-5 lg:py-6 bg-[#1a1a1a] border-[#2a2a2a] text-white placeholder:text-gray-400  rounded-xl"
         />
 
         {searchQuery && (
           <button
             type="button"
             onClick={handleClear}
-            className="absolute right-[140px] top-1/2 transform -translate-y-1/2 p-1.5 text-gray-400 hover:text-white transition-colors rounded-md hover:bg-white/5"
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1.5 text-gray-400 hover:text-white transition-colors rounded-md hover:bg-white/5"
             aria-label="Clear search"
           >
             <X className="h-4 w-4" />
@@ -392,14 +391,6 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
         )}
       </div>
 
-      <CommandSearchTrigger
-        className="absolute right-1 mr-[-4px] top-1/2 transform -translate-y-1/2"
-        explorerMode
-        displayChainName={selectedChain?.chain_name}
-        onChainSelect={handleChainSelect}
-        noRouterPush={true}
-        chainSearchOnly={true}
-      />
     </div>
   );
 }

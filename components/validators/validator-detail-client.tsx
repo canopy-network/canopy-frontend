@@ -1,68 +1,140 @@
 "use client";
 
-import { useCallback } from "react";
-import { Copy, Shield, TrendingUp, Info, AlertTriangle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import * as React from "react";
+import { ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { ValidatorDetailData } from "@/lib/api";
-import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { ValidatorDetailData } from "@/lib/api/validators";
 import { canopyIconSvg, getCanopyAccent } from "@/lib/utils/brand";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip as RechartsTooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { CopyableText } from "@/components/ui/copyable-text";
+import { chainsApi } from "@/lib/api/chains";
+import type { Chain } from "@/types/chains";
 
 interface ValidatorDetailClientProps {
   validator: ValidatorDetailData;
 }
 
-const MICRO_UNITS = 1_000_000;
+// Format time ago from timestamp (e.g., "1 hr 22 mins ago")
+const formatTimeAgo = (timestamp: string | number): string => {
+  const date = typeof timestamp === "string" ? new Date(timestamp) : new Date(timestamp);
+  const now = Date.now();
+  const seconds = Math.floor((now - date.getTime()) / 1000);
 
-const formatStake = (stake: number) => {
-  const stakeInTokens = stake / MICRO_UNITS;
-  return stakeInTokens.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-};
+  if (seconds < 60) return `${seconds}s ago`;
 
-const formatAddress = (address: string, prefix = 6, suffix = 6) => {
-  if (address.length <= prefix + suffix) return address;
-  return `${address.slice(0, prefix)}...${address.slice(-suffix)}`;
-};
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min${minutes === 1 ? "" : "s"} ago`;
 
-const formatDate = (dateString: string) => {
-  if (!dateString) return "N/A";
-  const date = new Date(dateString);
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "2-digit",
-    year: "numeric",
-  });
-};
-
-export function ValidatorDetailClient({
-  validator,
-}: ValidatorDetailClientProps) {
-  const copyToClipboard = useCallback(async (value: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      toast.success("Copied to clipboard!");
-    } catch (error) {
-      console.error("Failed to copy value", error);
-      toast.error("Failed to copy to clipboard");
+  const hours = Math.floor(seconds / 3600);
+  const remainingMinutes = Math.floor((seconds % 3600) / 60);
+  if (hours < 24) {
+    if (remainingMinutes === 0) {
+      return `${hours} hr ago`;
     }
+    return `${hours} hr ${remainingMinutes} min${remainingMinutes === 1 ? "" : "s"} ago`;
+  }
+
+  const days = Math.floor(seconds / 86400);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+};
+
+// Format timestamp to readable format (Nov-18 2025 12:47:27PM)
+const formatTimestamp = (timestamp: string | number): string => {
+  const date = typeof timestamp === "string" ? new Date(timestamp) : new Date(timestamp);
+  const months = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
+  const month = months[date.getMonth()];
+  const day = date.getDate();
+  const year = date.getFullYear();
+  const hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+  const ampm = hours >= 12 ? "PM" : "AM";
+  const hours12 = hours % 12 || 12;
+  return `${month}-${day} ${year} ${hours12}:${minutes}:${seconds}${ampm}`;
+};
+
+// Format combined timestamp
+const formatCombinedTimestamp = (timestamp: string | number): string => {
+  const timeAgo = formatTimeAgo(timestamp);
+  const fullDate = formatTimestamp(timestamp);
+  return `${timeAgo} (${fullDate})`;
+};
+
+// Generate validator name from address
+const getValidatorName = (address: string) => {
+  const shortAddr = address.slice(0, 6);
+  return `Val-${shortAddr.slice(-2)}`;
+};
+
+export function ValidatorDetailClient({ validator }: ValidatorDetailClientProps) {
+  const [expandedChains, setExpandedChains] = React.useState<Set<number>>(new Set());
+  const [chainNames, setChainNames] = React.useState<Record<number, string>>({});
+  const [chainColors, setChainColors] = React.useState<Record<number, string>>({});
+
+  // Fetch chain names and colors for all cross_chain entries
+  React.useEffect(() => {
+    const fetchChainInfo = async () => {
+      if (!validator?.cross_chain) return;
+
+      const names: Record<number, string> = {};
+      const colors: Record<number, string> = {};
+
+      await Promise.all(
+        validator.cross_chain.map(async (chain) => {
+          try {
+            // Try direct ID match
+            const response = await chainsApi.getChain(chain.chain_id.toString()).catch(() => null);
+
+            if (response?.data) {
+              const chainData = response.data as Chain;
+              names[chain.chain_id] = chainData.chain_name || `Chain ${chain.chain_id}`;
+              colors[chain.chain_id] = chainData.brand_color || getCanopyAccent(chain.chain_id.toString());
+            } else {
+              // Fallback
+              names[chain.chain_id] = `Chain ${chain.chain_id}`;
+              colors[chain.chain_id] = getCanopyAccent(chain.chain_id.toString());
+            }
+          } catch (error) {
+            console.error(`Failed to fetch chain ${chain.chain_id}:`, error);
+            names[chain.chain_id] = `Chain ${chain.chain_id}`;
+            colors[chain.chain_id] = getCanopyAccent(chain.chain_id.toString());
+          }
+        })
+      );
+
+      setChainNames(names);
+      setChainColors(colors);
+    };
+
+    fetchChainInfo();
+  }, [validator?.cross_chain]);
+
+  // Calculate total stake for weight calculation
+  const totalStake = React.useMemo(() => {
+    if (!validator?.cross_chain) return 0;
+    return validator.cross_chain.reduce((sum, chain) => {
+      const staked = parseFloat(chain.staked_cnpy?.replace(/,/g, "") || "0");
+      return sum + staked;
+    }, 0);
+  }, [validator?.cross_chain]);
+
+  // Toggle chain expansion
+  const toggleChain = React.useCallback((chainId: number) => {
+    setExpandedChains((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(chainId)) {
+        newSet.delete(chainId);
+      } else {
+        newSet.add(chainId);
+      }
+      return newSet;
+    });
   }, []);
 
-  // Return early if validator data is not available
+  // Early return AFTER all hooks
   if (!validator) {
     return (
       <Card className="p-6">
@@ -71,459 +143,392 @@ export function ValidatorDetailClient({
     );
   }
 
-  const chainStakes = [
-    ...(validator.staked_amount ? [validator.staked_amount] : []),
-    ...(validator.cross_chain || []).map((chain) => chain.staked_amount),
-  ];
-
-  // Calculate totals and averages
-  const totalStaked = chainStakes.reduce((sum, stake) => sum + stake, 0);
-  const chainCount = chainStakes.length || 1;
-  const averageStake = totalStaked / chainCount;
-
-  const calcVotingPower = (stake: number) =>
-    (stake / MICRO_UNITS / 10000) * 100;
-
-  const votingPowers = chainStakes.map(calcVotingPower);
-  const averageVotingPower =
-    votingPowers.length > 0
-      ? votingPowers.reduce((sum, vp) => sum + vp, 0) / votingPowers.length
-      : 0;
-
-  const rawApy = typeof validator.apy === "number" ? validator.apy : 0;
-  const averageApy = rawApy;
-
-  // Status styling
-  const statusStyles = {
-    active:
-      "border-[#00a63d] bg-[#00a63d]/10 text-[#00a63d] shadow-[0_0_14px_rgba(0,166,61,0.35)]",
-    unstaking: "border-gray-500/40 bg-gray-500/10 text-gray-300",
-    paused:
-      "border-red-500/60 bg-red-500/10 text-red-300 shadow-[0_0_12px_rgba(239,68,68,0.3)]",
-  };
-
-  // Use average voting power for dominance placeholder
-  const dominance = averageVotingPower;
+  const validatorName = getValidatorName(validator.address);
+  const status = validator.cross_chain?.[0]?.status || "active";
 
   return (
-    <div className="space-y-6">
-      {/* Header Section */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <Shield className="w-8 h-8 text-[#00a63d]" />
+    <>
+      {/* Header with Title */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-4">
+          <div
+            className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 bg-white/10 border border-white/20"
+            dangerouslySetInnerHTML={{
+              __html: canopyIconSvg(getCanopyAccent(validator.address)),
+            }}
+          />
           <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold tracking-tight">
-                Validator {formatAddress(validator.address || "Unknown", 8, 8)}
-              </h1>
+            <h1 className="text-2xl font-bold">Validator {validatorName}</h1>
+            <div className="flex items-center gap-2 mt-1">
               <Badge
-                variant="outline"
-                className={cn(
-                  "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold",
-                  statusStyles[validator.status || "active"]
-                )}
+                className={`px-2 py-1 rounded-md text-xs font-medium ${status === "active"
+                  ? "bg-[#00a63d] text-white"
+                  : status === "unstaking"
+                    ? "bg-gray-500/20 text-gray-300 border border-gray-500/40"
+                    : "bg-red-500/20 text-red-300 border border-red-500/40"
+                  }`}
               >
-                <span className="h-2 w-2 rounded-full bg-current shadow-[0_0_0_3px_rgba(255,255,255,0.08)]" />
-                {(validator.status || "active").charAt(0).toUpperCase() +
-                  (validator.status || "active").slice(1)}
+                {status === "active" ? "Online" : status === "unstaking" ? "Offline" : "Jailed"}
               </Badge>
             </div>
-            <p className="text-sm text-muted-foreground mt-1">
-              {validator.delegate ? "Delegate" : "Validator"} •{" "}
-              {validator.compound ? "Auto-Compound Enabled" : "Auto-Withdrawal"}
-            </p>
           </div>
         </div>
       </div>
 
-      {/* Main Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        {/* Total Stake Weight */}
-        <Card>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-muted-foreground">
-                Average Stake
-              </p>
-              <TrendingUp className="w-4 h-4 text-[#00a63d]" />
-            </div>
-            <div>
-              <p className="text-3xl font-bold">
-                {formatStake(averageStake)} CNPY
-              </p>
-              <p className="text-xs text-[#00a63d] mt-1">
-                APY: {averageApy.toFixed(2)}%
-              </p>
+      {/* Validator Identity Card */}
+      <Card className="w-full">
+        <div className="divide-y divide-border">
+          <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
+            <p className="text-sm text-muted-foreground">Address:</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm break-all bg-input/30 px-2 py-2 rounded-md border border-input font-mono">
+                <CopyableText text={validator.address} showFull={true} />
+              </span>
             </div>
           </div>
-        </Card>
-
-        {/* Voting Power */}
-        <Card>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-muted-foreground">
-                Average Voting Power
-              </p>
-              <Info className="w-4 h-4 text-muted-foreground" />
-            </div>
-            <div>
-              <p className="text-3xl font-bold">
-                {averageVotingPower.toFixed(2)}%
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Network Control
-              </p>
+          <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
+            <p className="text-sm text-muted-foreground">Public Key:</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm break-all bg-input/30 px-2 py-2 rounded-md border border-input font-mono">
+                <CopyableText text={validator.public_key} showFull={true} />
+              </span>
             </div>
           </div>
-        </Card>
-
-        {/* Validator Return */}
-        <Card>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-muted-foreground">
-                Average APY
-              </p>
-              <TrendingUp className="w-4 h-4 text-[#00a63d]" />
-            </div>
-            <div>
-              <p className="text-3xl font-bold">
-                {averageApy.toFixed(2)}%
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">Annual Yield</p>
-            </div>
-          </div>
-        </Card>
-
-        {/* Uptime */}
-        <Card>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-muted-foreground">
-                Uptime
-              </p>
-              <TrendingUp className="w-4 h-4 text-[#00a63d]" />
-            </div>
-            <div>
-              <p className="text-3xl font-bold">
-                {(validator.uptime ?? 0).toFixed(2)}%
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">Performance</p>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Validator Information Card */}
-      <Card className="p-6 border-primary/10">
-        <h2 className="text-lg font-semibold mb-4">Validator Information</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Address</p>
-              <div className="flex items-center gap-2">
-                <code className="text-sm bg-muted px-3 py-1.5 rounded-md flex-1">
-                  {validator.address || "N/A"}
-                </code>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => copyToClipboard(validator.address || "")}
+          {validator.validator_url && (
+            <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
+              <p className="text-sm text-muted-foreground">Validator URL:</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <a
+                  href={validator.validator_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-[#00a63d] hover:underline flex items-center gap-1"
                 >
-                  <Copy className="w-4 h-4" />
-                </Button>
+                  {validator.validator_url}
+                  <ExternalLink className="w-3 h-3" />
+                </a>
               </div>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Public Key</p>
-              <div className="flex items-center gap-2">
-                <code className="text-sm bg-muted px-3 py-1.5 rounded-md flex-1 truncate">
-                  {validator.public_key || "N/A"}
-                </code>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => copyToClipboard(validator.public_key || "")}
+          )}
+          {validator.github_url && (
+            <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
+              <p className="text-sm text-muted-foreground">GitHub URL:</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <a
+                  href={validator.github_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-[#00a63d] hover:underline flex items-center gap-1"
                 >
-                  <Copy className="w-4 h-4" />
-                </Button>
+                  {validator.github_url}
+                  <ExternalLink className="w-3 h-3" />
+                </a>
               </div>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">
-                Output Address
-              </p>
-              <div className="flex items-center gap-2">
-                <code className="text-sm bg-muted px-3 py-1.5 rounded-md flex-1">
-                  {validator.output || "N/A"}
-                </code>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => copyToClipboard(validator.output || "")}
-                >
-                  <Copy className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">
-                Network Address
-              </p>
-              <code className="text-sm bg-muted px-3 py-1.5 rounded-md block">
-                {validator.net_address || "N/A"}
-              </code>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Last Updated</p>
-              <p className="text-sm font-medium">
-                {formatDate(validator.updated_at)}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">
-                Configuration
-              </p>
-              <div className="flex gap-2">
-                <Badge variant="secondary">
-                  {validator.delegate ? "Delegate" : "Validator"}
-                </Badge>
-                <Badge variant="secondary">
-                  {validator.compound ? "Auto-Compound" : "Auto-Withdrawal"}
-                </Badge>
-              </div>
-            </div>
+          )}
+          <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
+            <p className="text-sm text-muted-foreground">Updated At:</p>
+            <p className="text-sm font-medium">
+              {formatCombinedTimestamp(validator.updated_at)}
+            </p>
           </div>
         </div>
       </Card>
 
-      {/* Cross-Chain Stakes */}
-      <Card className="p-6 border-primary/10">
-        <h2 className="text-lg font-semibold mb-4">Cross-Chain Stakes</h2>
-        <div className="space-y-4">
-          {!validator.cross_chain || validator.cross_chain.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              No cross-chain stakes found
+      {/* Validator Metrics Card */}
+      <Card className="w-full">
+        <div className="divide-y divide-border">
+          <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
+            <p className="text-sm text-muted-foreground">Total APY:</p>
+            <p className="text-lg font-semibold text-green-500">
+              {validator.apy !== null && validator.apy !== undefined ? `${validator.apy.toFixed(2)}%` : "-"}
             </p>
-          ) : (
-            validator.cross_chain.map((chain) => {
-              const chainStake = chain.staked_amount;
-              const chainVotingPower = calcVotingPower(chainStake);
-
-              return (
-                <div
-                  key={chain.chain_id}
-                  className="p-4 rounded-lg border border-primary/10 bg-primary/5"
-                >
-                  <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 border border-white/10"
-                      dangerouslySetInnerHTML={{
-                        __html: canopyIconSvg(
-                          getCanopyAccent(chain.chain_id)
-                        ),
-                      }}
-                    />
-                    <div>
-                      <p className="font-semibold">
-                        Canopy Chain {chain.chain_id}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {chainVotingPower.toFixed(2)}% voting power
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "mb-1",
-                        chain.status === "active"
-                          ? "border-[#00a63d]/40 bg-[#00a63d]/10 text-[#00a63d]"
-                          : "border-gray-500/40 bg-gray-500/10 text-gray-300"
-                      )}
-                    >
-                        {chain.status}
-                      </Badge>
-                      <p className="text-sm font-semibold">
-                        {chainVotingPower.toFixed(2)}%
-                      </p>
-                    </div>
-                  </div>
-                  <Progress
-                    value={Math.min(Math.max(chainVotingPower, 0), 100)}
-                    className="h-2"
-                    variant="green"
-                  />
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Last updated: {formatDate(chain.updated_at)}
-                  </p>
-                </div>
-              );
-            })
+          </div>
+          <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
+            <p className="text-sm text-muted-foreground">Total Rewards:</p>
+            <p className="text-lg font-semibold text-green-500">
+              {validator.rewards_cnpy || "0"} CNPY
+            </p>
+          </div>
+          <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
+            <p className="text-sm text-muted-foreground">Reward Count:</p>
+            <p className="text-lg font-semibold">
+              {validator.reward_count || 0}
+            </p>
+          </div>
+          <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
+            <p className="text-sm text-muted-foreground">Commission Rate:</p>
+            <p className="text-lg font-semibold">
+              {validator.commission_rate !== null && validator.commission_rate !== undefined ? `${validator.commission_rate}%` : "-"}
+            </p>
+          </div>
+          {validator.performance && (
+            <>
+              <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
+                <p className="text-sm text-muted-foreground">Uptime:</p>
+                <p className="text-lg font-semibold">
+                  {validator.performance.uptime !== null && validator.performance.uptime !== undefined ? `${validator.performance.uptime.toFixed(1)}%` : "-"}
+                </p>
+              </div>
+            </>
           )}
         </div>
       </Card>
 
-      {/* Cross-Chain Performance */}
+      {/* Cross Chain Staking Positions - Table with expandable rows */}
       {validator.cross_chain && validator.cross_chain.length > 0 && (
-        <Card className="p-6 border-primary/10">
-          <h2 className="text-lg font-semibold mb-4">Cross-Chain Performance</h2>
-          {(() => {
-            const chartData = validator.cross_chain.map((chain) => {
-              const chainApy =
-                typeof chain.apy === "number"
-                  ? chain.apy
-                  : typeof validator.apy === "number"
-                  ? validator.apy
-                  : 0;
-              return {
-                name: `C${String(chain.chain_id).padStart(3, "0")}`,
-                apy: chainApy,
-                status: chain.status,
-                chainId: chain.chain_id,
-              };
-            });
+        <Card className="w-full p-0 overflow-hidden">
+          {/* Table Header */}
+          <div className="grid grid-cols-7 gap-4 px-6 py-4 text-xs text-muted-foreground border-b border-white/10">
+            <div>Chain</div>
+            <div>Stake</div>
+            <div>Weight</div>
+            <div>Value</div>
+            <div>Uptime</div>
+            <div>Current Rewards</div>
+            <div>Rewards (30d)</div>
+          </div>
+
+          {/* Chain Rows */}
+          {validator.cross_chain.map((chain) => {
+            const chainName = chainNames[chain.chain_id] || `Chain ${chain.chain_id}`;
+            const chainColor = chainColors[chain.chain_id] || getCanopyAccent(chain.chain_id.toString());
+            const isExpanded = expandedChains.has(chain.chain_id);
+            const stakeCNPY = parseFloat(chain.staked_cnpy?.replace(/,/g, "") || "0");
+            const weight = totalStake > 0 ? ((stakeCNPY / totalStake) * 100) : 0;
+            const valueUSD = parseFloat(chain.staked_usd?.replace(/,/g, "") || "0");
 
             return (
-              <div className="w-full h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} barSize={32} margin={{ top: 10, right: 16, left: 0, bottom: 16 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                    <XAxis
-                      dataKey="name"
-                      tick={{ fill: "#9CA3AF", fontSize: 12 }}
-                      axisLine={{ stroke: "rgba(255,255,255,0.1)" }}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tick={{ fill: "#9CA3AF", fontSize: 12 }}
-                      axisLine={{ stroke: "rgba(255,255,255,0.1)" }}
-                      tickLine={false}
-                      tickFormatter={(v) => `${v}%`}
-                    />
-                    <RechartsTooltip
-                      cursor={{ fill: "rgba(255,255,255,0.04)" }}
-                      content={({ active, payload, label }) => {
-                        if (!active || !payload || !payload.length) return null;
-                        const item = payload[0].payload;
-                        return (
-                          <div className="rounded-md border border-white/10 bg-background/90 px-3 py-2 shadow-lg">
-                            <p className="text-sm font-semibold text-white">
-                              {label}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Status: {item.status}
-                            </p>
-                            <p className="text-sm text-[#00a63d] font-semibold">
-                              APY: {item.apy.toFixed(2)}%
-                            </p>
-                          </div>
-                        );
-                      }}
-                    />
-                    <Bar dataKey="apy" fill="#00a63d" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            );
-          })()}
-        </Card>
-      )}
-
-      {/* Slashing Events */}
-      <Card className="p-6 border-primary/10">
-        <h2 className="text-lg font-semibold mb-4">Slashing Events</h2>
-        {validator.slashing_history?.evidence_count ? (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between rounded-md border border-red-500/30 bg-red-500/10 px-4 py-3">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-red-500" />
-                <span className="font-semibold">
-                  Evidence Count: {validator.slashing_history.evidence_count}
-                </span>
-              </div>
-              <span className="text-sm text-muted-foreground">
-                Height: {validator.slashing_history.height}
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Last updated: {formatDate(validator.slashing_history.updated_at)}
-            </p>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            No slashing events recorded.
-          </p>
-        )}
-      </Card>
-
-      {/* Cross-Chain Unstaking Countdowns */}
-      {validator.cross_chain && validator.cross_chain.length > 0 && (
-        <Card className="p-6 border-primary/10">
-          <h2 className="text-lg font-semibold mb-4">
-            Cross-Chain Unstaking Countdowns
-          </h2>
-          <div className="space-y-2">
-            {validator.cross_chain.map((chain) => {
-              const blocks = chain.unstaking_blocks ?? 0;
-              const display =
-                blocks === 0 ? "Infinity" : `${blocks.toLocaleString()} blocks`;
-              return (
-                <div
-                  key={`unstake-${chain.chain_id}`}
-                  className="flex items-center justify-between rounded-md border border-white/10 bg-white/5 px-4 py-3"
+              <div key={chain.chain_id} className="border-b border-white/10 last:border-b-0">
+                {/* Row Summary - Clickable */}
+                <button
+                  type="button"
+                  className="w-full grid grid-cols-7 gap-4 px-6 py-4 items-center cursor-pointer hover:bg-white/5 transition-colors text-left"
+                  onClick={() => toggleChain(chain.chain_id)}
                 >
+                  {/* Chain Name with Icon */}
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-9 h-9 rounded-full flex items-center justify-center bg-white/5 border border-white/10"
+                      className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
                       dangerouslySetInnerHTML={{
-                        __html: canopyIconSvg(getCanopyAccent(chain.chain_id)),
+                        __html: canopyIconSvg(chainColor),
                       }}
                     />
-                    <div className="flex flex-col">
-                      <span className="font-semibold">
-                        Canopy Chain {chain.chain_id}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        Status: {chain.status}
-                      </span>
+                    <span className="text-white text-sm font-medium">{chainName}</span>
+                  </div>
+
+                  {/* Stake */}
+                  <div className="text-white text-sm">
+                    {chain.staked_cnpy || "0"} CNPY
+                  </div>
+
+                  {/* Weight */}
+                  <div className="text-white text-sm">
+                    {weight.toFixed(1)}%
+                  </div>
+
+                  {/* Value */}
+                  <div className="text-white text-sm">
+                    ${valueUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+
+                  {/* Uptime */}
+                  <div className="text-white text-sm">
+                    99.9%
+                  </div>
+
+                  {/* Current Rewards */}
+                  <div className="text-[#00a63d] text-sm font-medium">
+                    {chain.rewards_cnpy || "0"} CNPY
+                  </div>
+
+                  {/* Rewards (30d) */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#00a63d] text-sm font-medium">
+                      {chain.rewards_cnpy || "0"} CNPY
+                    </span>
+                    {isExpanded ? (
+                      <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </div>
+                </button>
+
+                {/* Expanded Details */}
+                {isExpanded && (
+                  <div className="px-6 py-4 bg-[#0a0a0a] border-t border-white/5">
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+                      {/* Row 1 */}
+                      <div className="flex justify-between items-center py-2 border-b border-white/5">
+                        <span className="text-sm text-muted-foreground">Status</span>
+                        <Badge
+                          className={`px-2 py-1 rounded text-xs font-medium ${chain.status === "active"
+                            ? "bg-[#00a63d] text-white"
+                            : chain.status === "unstaking"
+                              ? "bg-gray-500/20 text-gray-300"
+                              : "bg-red-500/20 text-red-300"
+                            }`}
+                        >
+                          {chain.status}
+                        </Badge>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b border-white/5">
+                        <span className="text-sm text-muted-foreground">APY</span>
+                        <span className="text-sm text-[#00a63d] font-medium">
+                          {chain.apy !== null && chain.apy !== undefined ? `${chain.apy.toFixed(2)}%` : "-"}
+                        </span>
+                      </div>
+
+                      {/* Row 2 */}
+                      <div className="flex justify-between items-center py-2 border-b border-white/5">
+                        <span className="text-sm text-muted-foreground">Reward Count</span>
+                        <span className="text-sm text-white">{chain.reward_count || 0}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b border-white/5">
+                        <span className="text-sm text-muted-foreground">Committees</span>
+                        <span className="text-sm text-[#00a63d]">
+                          {chain.committees && chain.committees.length > 0 ? chain.committees.join(", ") : "-"}
+                        </span>
+                      </div>
+
+                      {/* Row 3 */}
+                      <div className="flex justify-between items-center py-2 border-b border-white/5">
+                        <span className="text-sm text-muted-foreground">Delegate</span>
+                        <span className="text-sm text-white">{chain.delegate ? "Yes" : "No"}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b border-white/5">
+                        <span className="text-sm text-muted-foreground">Compound</span>
+                        <span className="text-sm text-white">{chain.compound ? "Yes" : "No"}</span>
+                      </div>
+
+                      {/* Row 4 */}
+                      <div className="flex justify-between items-center py-2 border-b border-white/5">
+                        <span className="text-sm text-muted-foreground">Max Paused Height</span>
+                        <span className="text-sm text-white">{chain.max_paused_height || 0}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b border-white/5">
+                        <span className="text-sm text-muted-foreground">Unstaking Height</span>
+                        <span className="text-sm text-white">{chain.unstaking_height || 0}</span>
+                      </div>
+
+                      {/* Net Address - Full width */}
+                      <div className="col-span-2 py-2 border-b border-white/5">
+                        <div className="flex justify-between items-start gap-4">
+                          <span className="text-sm text-muted-foreground shrink-0">Net Address</span>
+                          <div className="text-sm break-all bg-input/30 px-3 py-2 rounded border border-input font-mono max-w-[500px]">
+                            <CopyableText text={chain.net_address || "-"} showFull={true} />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Output - Full width */}
+                      <div className="col-span-2 py-2 border-b border-white/5">
+                        <div className="flex justify-between items-start gap-4">
+                          <span className="text-sm text-muted-foreground shrink-0">Output</span>
+                          <div className="text-sm break-all bg-input/30 px-3 py-2 rounded border border-input font-mono max-w-[500px]">
+                            <CopyableText text={chain.output || "-"} showFull={true} />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Updated At - Full width */}
+                      <div className="col-span-2 py-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-muted-foreground">Updated At</span>
+                          <span className="text-sm text-white">{formatCombinedTimestamp(chain.updated_at)}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs text-muted-foreground">Countdown</p>
-                    <p className="text-sm font-semibold text-[#00a63d]">
-                      {display}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
+                )}
+              </div>
+            );
+          })}
+        </Card>
+      )}
+
+      {/* Slashing History Card */}
+      {validator.slashing_history && (
+        <Card className="w-full">
+          <h4 className="text-lg mb-4">Slashing History</h4>
+          <div className="divide-y divide-border">
+            <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
+              <p className="text-sm text-muted-foreground">Evidence Count:</p>
+              <p className="text-lg font-semibold">{validator.slashing_history.evidence_count || 0}</p>
+            </div>
+            {validator.slashing_history.first_evidence_height !== undefined && validator.slashing_history.first_evidence_height > 0 && (
+              <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
+                <p className="text-sm text-muted-foreground">First Evidence Height:</p>
+                <p className="text-sm font-medium">{validator.slashing_history.first_evidence_height}</p>
+              </div>
+            )}
+            {validator.slashing_history.last_evidence_height !== undefined && validator.slashing_history.last_evidence_height > 0 && (
+              <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
+                <p className="text-sm text-muted-foreground">Last Evidence Height:</p>
+                <p className="text-sm font-medium">{validator.slashing_history.last_evidence_height}</p>
+              </div>
+            )}
+            <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
+              <p className="text-sm text-muted-foreground">Height:</p>
+              <p className="text-sm font-medium">{validator.slashing_history.height || 0}</p>
+            </div>
+            {validator.slashing_history.updated_at && (
+              <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
+                <p className="text-sm text-muted-foreground">Updated At:</p>
+                <p className="text-sm font-medium">
+                  {formatCombinedTimestamp(validator.slashing_history.updated_at)}
+                </p>
+              </div>
+            )}
           </div>
         </Card>
       )}
 
-      {/* Committees */}
-      {validator.committees && validator.committees.length > 0 && (
-        <Card className="p-6 border-primary/10">
-          <h2 className="text-lg font-semibold mb-4">Committees</h2>
-          <div className="flex flex-wrap gap-2">
-            {validator.committees.map((committeeId) => (
-              <Badge
-                key={committeeId}
-                variant="outline"
-                className="border-primary/20 bg-primary/5"
-              >
-                Committee {committeeId}
-              </Badge>
+      {/* Performance Card */}
+      {validator.performance && (
+        <Card className="w-full">
+          <h4 className="text-lg mb-4">Performance</h4>
+          <div className="divide-y divide-border">
+            {Object.entries(validator.performance).map(([key, value]) => (
+              <div key={key} className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
+                <p className="text-sm text-muted-foreground capitalize">
+                  {key.replace(/_/g, " ")}:
+                </p>
+                <p className="text-sm font-medium">
+                  {typeof value === "object" ? JSON.stringify(value) : String(value)}
+                </p>
+              </div>
             ))}
           </div>
         </Card>
       )}
-    </div>
+
+      {/* Commission Rate History */}
+      {validator.commission_rate_history && (
+        <Card className="w-full">
+          <h4 className="text-lg mb-4">Commission Rate History</h4>
+          <div className="divide-y divide-border">
+            {typeof validator.commission_rate_history === "object" ? (
+              Object.entries(validator.commission_rate_history).map(([key, value]) => (
+                <div key={key} className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
+                  <p className="text-sm text-muted-foreground capitalize">
+                    {key.replace(/_/g, " ")}:
+                  </p>
+                  <p className="text-sm font-medium">
+                    {typeof value === "object" ? JSON.stringify(value) : String(value)}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
+                <p className="text-sm text-muted-foreground">History:</p>
+                <p className="text-sm font-medium">{String(validator.commission_rate_history)}</p>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
+    </>
   );
 }

@@ -1,25 +1,17 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { ArrowUpRight, TrendingUp, TrendingDown } from "lucide-react";
-import Link from "next/link";
-import { LatestUpdated } from "./latest-updated";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { TrendingUp, TrendingDown } from "lucide-react";
+import { TableCard, TableColumn } from "./table-card";
 import { canopyIconSvg, getCanopyAccent } from "@/lib/utils/brand";
-import { cn } from "@/lib/utils";
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 
 interface Validator {
   name: string;
   address: string;
   stake?: string;
+  stakedCnp?: string; // Formatted stake in CNPY (e.g., "1,000")
+  stakedAmount?: string; // Raw stake amount in micro units
   apr?: string;
   apy?: number;
   votingPower?: number;
@@ -40,6 +32,7 @@ type AggregatedValidator = Validator & {
   chainCount: number;
   totalVotingPower: number;
   totalApy: number;
+  totalStake: number; // Total stake in micro units
   entries: number;
   votingPowerAvg: number;
   apyAvg: number;
@@ -69,6 +62,8 @@ function UptimeTrend({ data, color }: { data: number[]; color: string }) {
 }
 
 export function TopValidators({ validators }: TopValidatorsProps) {
+  const router = useRouter();
+
   // Determine uptime color based on percentage
   const getUptimeColor = (uptime: number) => {
     if (uptime >= 99)
@@ -84,18 +79,26 @@ export function TopValidators({ validators }: TopValidatorsProps) {
     return "text-red-500";
   };
 
-  const formatVotingPower = (value?: number) => {
-    if (value === undefined || value === null || Number.isNaN(value)) {
-      return "0%";
-    }
-    return `${value.toFixed(2)}%`;
-  };
-
   const formatApy = (apy?: number) => {
-    if (apy === undefined || apy === null || Number.isNaN(apy)) return "N/A";
+    if (apy === undefined || apy === null || Number.isNaN(apy) || apy === 0) return "0%";
+    // Format with commas for large numbers, always 3 decimal places
     return `${apy.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}%`;
+  };
+
+  const formatStake = (stakeInMicroUnits: number): string => {
+    // Convert from micro units to CNPY (divide by 1,000,000)
+    const cnpyAmount = stakeInMicroUnits / 1_000_000;
+
+    if (cnpyAmount >= 1_000_000) {
+      return `${(cnpyAmount / 1_000_000).toFixed(1)}M CNPY`;
+    }
+    if (cnpyAmount >= 1_000) {
+      return `${(cnpyAmount / 1_000).toFixed(1)}K CNPY`;
+    }
+    return `${cnpyAmount.toFixed(1)} CNPY`;
   };
 
   const mergeStatus = (
@@ -134,6 +137,10 @@ export function TopValidators({ validators }: TopValidatorsProps) {
       const apy = Number(validator.apy ?? 0);
       const uptimeValue = Number(validator.uptime ?? 0);
       const statusValue = validator.originalStatus || validator.status;
+      // Parse stake amount (remove commas if present, then parse)
+      const stakeAmount = validator.stakedAmount
+        ? parseFloat(validator.stakedAmount.replace(/,/g, ''))
+        : 0;
       const existing = byAddress.get(validator.address);
 
       if (existing) {
@@ -145,6 +152,7 @@ export function TopValidators({ validators }: TopValidatorsProps) {
         existing.chainCount = mergedChains.length;
         existing.totalVotingPower += votingPower;
         existing.totalApy += apy;
+        existing.totalStake += stakeAmount;
         existing.entries += 1;
         existing.totalUptime += uptimeValue;
         existing.rawStatus = mergeStatus(existing.rawStatus, statusValue);
@@ -155,6 +163,7 @@ export function TopValidators({ validators }: TopValidatorsProps) {
           chainCount: chains.length,
           totalVotingPower: votingPower,
           totalApy: apy,
+          totalStake: stakeAmount,
           entries: 1,
           votingPowerAvg: votingPower,
           apyAvg: apy,
@@ -165,7 +174,8 @@ export function TopValidators({ validators }: TopValidatorsProps) {
       }
     });
 
-    return Array.from(byAddress.values())
+    // Calculate averages and sort by voting power
+    const sorted = Array.from(byAddress.values())
       .map((validator) => ({
         ...validator,
         votingPowerAvg:
@@ -179,7 +189,19 @@ export function TopValidators({ validators }: TopValidatorsProps) {
         uptime:
           validator.entries > 0 ? validator.totalUptime / validator.entries : 0,
       }))
-      .sort((a, b) => b.votingPowerAvg - a.votingPowerAvg);
+      .sort((a, b) => {
+        // Sort by total stake (descending), then by voting power (descending) as tiebreaker
+        if (b.totalStake !== a.totalStake) {
+          return b.totalStake - a.totalStake;
+        }
+        if (b.votingPowerAvg !== a.votingPowerAvg) {
+          return b.votingPowerAvg - a.votingPowerAvg;
+        }
+        return (b.apyAvg || 0) - (a.apyAvg || 0);
+      });
+
+    // Return top 8 validators
+    return sorted.slice(0, 8);
   }, [validators]);
 
   const getChainAvatars = (
@@ -191,176 +213,112 @@ export function TopValidators({ validators }: TopValidatorsProps) {
     return chains.slice(0, limit);
   };
 
-  const getStatusAppearance = (status?: string) => {
-    const normalized = (status || "").toLowerCase();
-    if (normalized === "active") {
-      return {
-        classes:
-          "bg-[#00a63d]/15 text-[#00a63d] border border-[#00a63d]/50",
-        label: "active",
-      };
+
+  const columns: TableColumn[] = [
+    { label: "Rank", width: "w-16" },
+    { label: "Validator", width: "w-[140px]" },
+    { label: "Chains", width: "w-32" },
+    { label: "Stake", width: "w-32" },
+    { label: "APY", width: "w-32" },
+    { label: "Uptime", width: "w-32" },
+  ];
+
+  // Handle row click to navigate to validator detail
+  const handleRowClick = (rowIndex: number) => {
+    const validator = aggregatedValidators[rowIndex];
+    if (validator?.address) {
+      router.push(`/validators/${validator.address}`);
     }
-    if (normalized === "inactive") {
-      return {
-        classes: "bg-red-500/15 text-red-500 border border-red-500/50",
-        label: "inactive",
-      };
-    }
-    return {
-      classes:
-        "bg-yellow-500/15 text-yellow-500 border border-yellow-500/50",
-      label: status || "unknown",
-    };
   };
 
-  return (
-    <div className="card-like p-4">
-      <div className="flex items-center justify-between leading-none mb-4 lg:pl-3">
-        <h2 className="lg:text-xl text-lg font-bold text-white">
-          Top Validators
-        </h2>
-        <LatestUpdated timeAgo="44 secs ago" />
-      </div>
+  const rows = aggregatedValidators.map((validator, index) => {
+    const chainAvatars = getChainAvatars(validator.chains, validator.address);
 
-      <div className="overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow appearance="plain">
-              <TableHead className="pl-0 lg:pl-4">Rank</TableHead>
-              <TableHead className="pl-0 lg:pl-4">Validator</TableHead>
-              <TableHead className="pl-0 lg:pl-4">Chains</TableHead>
-              <TableHead className="pl-0 lg:pl-4 text-right">
-                Voting Power
-              </TableHead>
-              <TableHead className="pl-0 lg:pl-4 text-right">APY</TableHead>
-              <TableHead className="pl-0 lg:pl-4 text-right">Uptime</TableHead>
-              <TableHead className="pl-0 lg:pl-4 text-right">Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {aggregatedValidators.map((validator, index) => (
-              <TableRow key={validator.address} appearance="plain">
-                <TableCell className="pl-0 lg:pl-4">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/5 font-medium">
-                    {index + 1}
-                  </div>
-                </TableCell>
-                <TableCell className="pl-0 lg:pl-4">
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <span
-                        className="w-10 h-10 inline-flex items-center justify-center border-2 border-background rounded-full bg-muted"
-                        dangerouslySetInnerHTML={{
-                          __html: canopyIconSvg(
-                            getCanopyAccent(validator.name)
-                          ),
-                        }}
-                      />
-                      {validator.status && (
-                        <div
-                          className={cn(
-                            "absolute -inset-1 rounded-full border-2 animate-pulse opacity-60",
-                            validator.status === "healthy"
-                              ? "border-[#00a63d]"
-                              : validator.status === "warning"
-                              ? "border-yellow-400/70"
-                              : "border-red-500/70"
-                          )}
-                        />
-                      )}
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="font-medium">{validator.name}</span>
-                      <span className="text-xs text-muted-foreground font-mono truncate max-w-[220px]">
-                        {validator.address}
-                      </span>
-                    </div>
-                  </div>
-                </TableCell>
-
-                <TableCell className="pl-0 lg:pl-4">
-                  <div className="flex items-center gap-2">
-                    <div className="flex -space-x-2">
-                      {getChainAvatars(validator.chains, validator.address).map(
-                        (chain, chainIndex) => (
-                          <span
-                            key={`${validator.address}-${chain}-${chainIndex}`}
-                            className="w-6 h-6 inline-flex items-center justify-center border-2 border-background rounded-full bg-muted"
-                            dangerouslySetInnerHTML={{
-                              __html: canopyIconSvg(
-                                getCanopyAccent(`${chain}-${chainIndex}`)
-                              ),
-                            }}
-                          />
-                        )
-                      )}
-                    </div>
-                    <span className="text-sm whitespace-nowrap">
-                      +{validator.chainCount}
-                    </span>
-                  </div>
-                </TableCell>
-
-                <TableCell className="pl-0 lg:pl-4 text-right">
-                  <div className="font-medium inline-flex">
-                    {formatVotingPower(validator.votingPowerAvg)}
-                  </div>
-                </TableCell>
-                <TableCell className="pl-0 lg:pl-4 text-right">
-                  <div className="font-medium inline-flex">
-                    {formatApy(validator.apyAvg)}
-                  </div>
-                </TableCell>
-                <TableCell className="pl-0 lg:pl-4 text-right">
-                  <span
-                    className={`inline-flex items-center justify-end gap-1 px-2 py-1 rounded-md font-medium ${getUptimeColor(
-                      validator.uptime
-                    )}`}
-                  >
-                    {validator.uptime.toFixed(1)}%
-                    {validator.uptimeTrend && (
-                      <UptimeTrend
-                        data={validator.uptimeTrend}
-                        color={getUptimeTextColor(validator.uptime)}
-                      />
-                    )}
-                  </span>
-                </TableCell>
-                <TableCell className="pl-0 lg:pl-4 text-right">
-                  {(() => {
-                    const appearance = getStatusAppearance(
-                      validator.rawStatus
-                    );
-                    return (
-                      <span
-                        className={cn(
-                          "inline-flex items-center justify-center px-3 py-1 rounded-md text-sm font-medium",
-                          appearance.classes
-                        )}
-                      >
-                        {appearance.label}
-                      </span>
-                    );
-                  })()}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-
-        <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-          <Link href="/validators">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-foreground gap-1"
-            >
-              View All Validators
-              <ArrowUpRight className="w-4 h-4" />
-            </Button>
-          </Link>
+    return [
+      // Rank
+      <div
+        key="rank"
+        className="flex items-center justify-center w-8 h-8 rounded-full bg-white/10 font-medium text-white text-sm"
+      >
+        {index + 1}
+      </div>,
+      // Validator
+      <div key="validator" className="flex items-center gap-3">
+        <div
+          className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+          dangerouslySetInnerHTML={{
+            __html: canopyIconSvg(getCanopyAccent(validator.name)),
+          }}
+        />
+        <div className="flex flex-col">
+          <span className="font-medium text-white text-sm">{validator.name}</span>
+          <span className="text-xs text-muted-foreground font-mono truncate max-w-[130px]">
+            {validator.address}
+          </span>
         </div>
-      </div>
-    </div>
+      </div>,
+      // Chains
+      <div key="chains" className="flex items-center gap-2">
+        <div className="bg-white/10 rounded-full p-2 flex items-center gap-1">
+          <div className="flex -space-x-2">
+            {chainAvatars.map((chain, chainIndex) => (
+              <span
+                key={`${validator.address}-${chain}-${chainIndex}`}
+                className="w-6 h-6 inline-flex items-center justify-center border border-background rounded-full bg-white/10"
+                dangerouslySetInnerHTML={{
+                  __html: canopyIconSvg(
+                    getCanopyAccent(`${chain}-${chainIndex}`)
+                  ),
+                }}
+              />
+            ))}
+          </div>
+          <span className="text-gray-400 font-medium text-sm">
+            +{validator.chainCount}
+          </span>
+        </div>
+      </div>,
+      // Stake
+      <span key="stake" className="text-white font-medium text-sm">
+        {formatStake(validator.totalStake || 0)}
+      </span>,
+      // APY
+      <span key="apy" className="text-white font-medium text-sm">
+        {formatApy(validator.apyAvg)}
+      </span>,
+      // Uptime
+      <span
+        key="uptime"
+        className={`inline-flex items-center gap-1 px-2 py-1 rounded-md font-medium text-sm ${getUptimeColor(
+          validator.uptime
+        )}`}
+      >
+        {validator.uptime.toFixed(1)}%
+        {validator.uptimeTrend && (
+          <UptimeTrend
+            data={validator.uptimeTrend}
+            color={getUptimeTextColor(validator.uptime)}
+          />
+        )}
+      </span>,
+    ];
+  });
+
+  return (
+    <TableCard
+      id="top-validators"
+      title="Top Validators"
+      live={true}
+      columns={columns}
+      rows={rows}
+      viewAllPath="/validators"
+      loading={aggregatedValidators.length === 0}
+      updatedTime="44 secs ago"
+      compactFooter={true}
+      spacing={3}
+      className="gap-2 lg:gap-6"
+      viewAllText="Validators"
+      onRowClick={handleRowClick}
+    />
   );
 }

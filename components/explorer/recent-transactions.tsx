@@ -1,163 +1,218 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { ArrowUpRight } from "lucide-react";
+import * as React from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { LiveStatusComponent } from "./live-status-component";
-import { LatestUpdated } from "./latest-updated";
-import { TableArrow } from "@/components/icons";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-
+import { TableCard, TableColumn } from "./table-card";
 import { Transaction } from "@/lib/api/explorer";
-import { EXPLORER_ICON_GLOW } from "@/lib/utils/brand";
+import { canopyIconSvg, getCanopyAccent } from "@/lib/utils/brand";
+import { TableArrow } from "@/components/icons";
+import { chainsApi } from "@/lib/api/chains";
+import type { Chain } from "@/types/chains";
 
 const formatAddress = (value: string, prefix = 6, suffix = 6) =>
   `${value.slice(0, prefix)}...${value.slice(-suffix)}`;
 
+// Format time ago from ISO timestamp string
+const formatTimeAgo = (timestamp: string): string => {
+  const now = Date.now();
+  const txTime = new Date(timestamp).getTime();
+  const seconds = Math.floor((now - txTime) / 1000);
+
+  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
+};
+
 interface RecentTransactionsProps {
   transactions: Transaction[];
+  isLoading?: boolean;
 }
 
-export function RecentTransactions({ transactions }: RecentTransactionsProps) {
-  return (
-    <div className="mb-8 card-like p-4">
-      <div className="flex items-center justify-between leading-none">
-        <h2 className="lg:text-xl text-lg font-bold text-white">
-          Recent Transactions
-        </h2>
-        <LatestUpdated timeAgo="3 mins ago" />
-      </div>
+export function RecentTransactions({ transactions, isLoading = false }: RecentTransactionsProps) {
+  const [chainNames, setChainNames] = React.useState<Record<number, string>>({});
+  const [chainColors, setChainColors] = React.useState<Record<number, string>>({});
 
-      <div className="overflow-hidden lg:mt-6 mt-3">
-        <Table>
-          <TableHeader className="">
-            <TableRow className="bg-transparent hover:bg-transparent">
-              <TableHead className="text-xs pl-0 lg:pl-4 tracking-wide text-muted-foreground">
-                Chain Name
-              </TableHead>
-              <TableHead className="text-xs px-4 tracking-wide text-muted-foreground">
-                Hash
-              </TableHead>
-              <TableHead className="text-xs tracking-wide text-muted-foreground">
-                From
-              </TableHead>
-              <TableHead />
-              <TableHead className="text-xs tracking-wide text-muted-foreground">
-                To
-              </TableHead>
-              <TableHead className="text-xs tracking-wide text-muted-foreground">
-                Time
-              </TableHead>
-              <TableHead className="text-right text-xs tracking-wide text-muted-foreground">
-                Amount
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {transactions.length === 0 ? (
-              <TableRow appearance="plain">
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                  Loading transactions...
-                </TableCell>
-              </TableRow>
-            ) : (
-              transactions.map((tx) => (
-              <TableRow key={tx.tx_hash} appearance="plain">
-                <TableCell className=" pl-0 lg:pl-4 min-w-36 lg:min-w-0">
-                  <Link
-                    href={`/chains/${tx.chain_id}/transactions`}
-                    className="flex items-center gap-3 hover:opacity-80 transition-opacity"
-                  >
-                    <Image
-                      src="https://placehold.co/32/EEE/31343C"
-                      alt="Blockchain"
-                      width={32}
-                      height={32}
-                      className="object-contain rounded-full size-8 border border-white/10"
-                      data-sample="chain-logo"
-                    />
-                    <span
-                      className="font-semibold text-sm text-ellipsis overflow-hidden whitespace-nowrap"
-                      data-sample="chain-name"
-                    >
-                      blockchain
-                    </span>
-                  </Link>
-                </TableCell>
+  // Fetch chain names and colors for all unique chain_ids in transactions
+  React.useEffect(() => {
+    const fetchChainInfo = async () => {
+      if (!transactions || transactions.length === 0) return;
 
-                <TableCell className="text-xs text-white/80 px-4">
-                  <Link
-                    href={`/transactions/${encodeURIComponent(tx.tx_hash)}`}
-                    className="hover:opacity-80 transition-opacity hover:underline"
-                  >
-                    {formatAddress(tx.tx_hash, 6, 6)}
-                  </Link>
-                </TableCell>
+      const uniqueChainIds = Array.from(
+        new Set(transactions.map((tx) => tx.chain_id))
+      );
 
-                <TableCell className="text-xs text-white">
-                  {tx.signer ? (
-                    <Link
-                      href={`/accounts/${tx.signer}`}
-                      className="hover:opacity-80 transition-opacity hover:underline"
-                    >
-                      {formatAddress(tx.signer, 6, 6)}
-                    </Link>
-                  ) : (
-                    <span className="text-muted-foreground">-</span>
-                  )}
-                </TableCell>
+      const names: Record<number, string> = {};
+      const colors: Record<number, string> = {};
 
-                <TableCell className="w-40 px-0">
-                  <TableArrow className={EXPLORER_ICON_GLOW} />
-                </TableCell>
+      await Promise.all(
+        uniqueChainIds.map(async (chainId) => {
+          try {
+            const response = await chainsApi.getChain(chainId.toString()).catch(() => null);
+            if (response?.data) {
+              const chainData = response.data as Chain;
+              names[chainId] = chainData.chain_name || `Chain ${chainId}`;
+              colors[chainId] = chainData.brand_color || getCanopyAccent(chainId.toString());
+            } else {
+              names[chainId] = `Chain ${chainId}`;
+              colors[chainId] = getCanopyAccent(chainId.toString());
+            }
+          } catch (error) {
+            console.error(`Failed to fetch chain ${chainId}:`, error);
+            names[chainId] = `Chain ${chainId}`;
+            colors[chainId] = getCanopyAccent(chainId.toString());
+          }
+        })
+      );
 
-                <TableCell className="text-xs text-white">
-                  {tx.counterparty ? formatAddress(tx.counterparty, 6, 6) : "-"}
-                </TableCell>
+      setChainNames(names);
+      setChainColors(colors);
+    };
 
-                <TableCell className="text-sm text-muted-foreground">
-                  <span data-sample="relative-time">1 minute ago</span>
-                </TableCell>
+    fetchChainInfo();
+  }, [transactions]);
 
-                <TableCell className="text-right">
-                  {tx.amount != null ? (
-                    <span className="font-semibold text-sm text-[#00a63d]">
-                      {tx.amount.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}{" "}
-                      CNPY
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground text-sm">-</span>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))
-            )}
-          </TableBody>
-        </Table>
-        <div className="flex items-center justify-between lg:mt-4 mt-0 lg:pt-4 pt-3 border-t border-border">
-          <Link href="/transactions">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-foreground gap-1"
-            >
-              View All Transactions
-              <ArrowUpRight className={`w-4 h-4 ${EXPLORER_ICON_GLOW}`} />
-            </Button>
+  // Helper function to get chain name from chain_id
+  const getChainName = React.useCallback(
+    (chainId: number): string => {
+      return chainNames[chainId] || `Chain ${chainId}`;
+    },
+    [chainNames]
+  );
+
+  // Helper function to get chain color from chain_id
+  const getChainColor = React.useCallback(
+    (chainId: number): string => {
+      return chainColors[chainId] || getCanopyAccent(chainId.toString());
+    },
+    [chainColors]
+  );
+
+  // Get the most recent transaction timestamp for LatestUpdated component
+  const mostRecentTimestamp = React.useMemo(() => {
+    if (transactions.length === 0) return undefined;
+    return transactions[0].timestamp; // Transactions are sorted newest first
+  }, [transactions]);
+
+  const columns: TableColumn[] = [
+    { label: "Chain Name", width: "w-[180px]" },
+    { label: "Hash", width: "w-32" },
+    { label: "Status", width: "w-24" },
+    { label: "From", width: "w-32" },
+    { label: "", width: "w-10" }, // Arrow column
+    { label: "To", width: "w-32" },
+    { label: "Time", width: "w-32" },
+    { label: "Amount", width: "w-32" },
+  ];
+
+  const rows = transactions.map((tx) => {
+    const chainName = getChainName(tx.chain_id);
+    const chainColor = getChainColor(tx.chain_id);
+    const isCertificateResult = tx.message_type === "certificateResults";
+
+    return [
+      // Chain Name
+      <div key="chain" className="flex items-center gap-3">
+        <div
+          className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+          dangerouslySetInnerHTML={{
+            __html: canopyIconSvg(chainColor),
+          }}
+        />
+        <Link
+          href={`/chains/${tx.chain_id}/transactions`}
+          className="flex flex-col hover:text-primary transition-colors"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <span className="font-medium text-white text-sm">{chainName}</span>
+        </Link>
+      </div>,
+      // Hash
+      <Link
+        key="hash"
+        href={`/transactions/${encodeURIComponent(tx.tx_hash)}`}
+        className="text-xs text-white/80 hover:opacity-80 transition-opacity hover:underline"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {formatAddress(tx.tx_hash, 6, 6)}
+      </Link>,
+      // Status
+      <div key="status">
+        {isCertificateResult ? (
+          <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30">
+            Certificate
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground">-</span>
+        )}
+      </div>,
+      // From
+      <div key="from">
+        {tx.signer && tx.signer.trim() !== "" ? (
+          <Link
+            href={`/accounts/${tx.signer}`}
+            className="text-xs text-white hover:opacity-80 transition-opacity hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {formatAddress(tx.signer, 6, 6)}
           </Link>
-        </div>
-      </div>
-    </div>
+        ) : (
+          <span className="text-xs text-muted-foreground">-</span>
+        )}
+      </div>,
+      // Arrow
+      <div key="arrow" className="flex items-center justify-center">
+        <TableArrow className={''} />
+      </div>,
+      // To
+      <div key="to">
+        {tx.counterparty && tx.counterparty.trim() !== "" ? (
+          <Link
+            href={`/accounts/${tx.counterparty}`}
+            className="text-xs text-white hover:opacity-80 transition-opacity hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {formatAddress(tx.counterparty, 6, 6)}
+          </Link>
+        ) : (
+          <span className="text-xs text-muted-foreground">-</span>
+        )}
+      </div>,
+      // Time
+      <span key="time" className="text-sm text-muted-foreground">
+        {formatTimeAgo(tx.timestamp)}
+      </span>,
+      // Amount
+      <div key="amount" className="text-right">
+        {tx.amount != null ? (
+          <span className="font-semibold text-sm text-[#00a63d]">
+            {tx.amount.toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}{" "}
+            CNPY
+          </span>
+        ) : (
+          <span className="text-muted-foreground text-sm">-</span>
+        )}
+      </div>,
+    ];
+  });
+
+  return (
+    <TableCard
+      id="recent-transactions"
+      title="Recent Transactions"
+      live={true}
+      columns={columns}
+      rows={rows}
+      viewAllPath="/transactions"
+      loading={isLoading || transactions.length === 0}
+      updatedTime={mostRecentTimestamp ? formatTimeAgo(mostRecentTimestamp) : undefined}
+      compactFooter={true}
+      spacing={3}
+      className="gap-2 lg:gap-6"
+      viewAllText="Transactions"
+    />
   );
 }

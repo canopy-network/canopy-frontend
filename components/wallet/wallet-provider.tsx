@@ -34,40 +34,51 @@ interface WalletContextType {
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore();
-  const {
-    currentWallet,
-    wallets,
-    isLoading,
-    fetchWallets,
-    selectWallet,
-    resetWalletState,
-  } = useWalletStore();
-
+  const [isClient, setIsClient] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [showSelectDialog, setShowSelectDialog] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [hasHydrated, setHasHydrated] = useState(false);
 
+  // Ensure we're on the client before using stores
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const { isAuthenticated } = useAuthStore();
+  const walletStore = useWalletStore();
+  
+  // Safe destructure with defaults for SSR
+  const currentWallet = walletStore?.currentWallet ?? null;
+  const wallets = walletStore?.wallets ?? [];
+  const isLoading = walletStore?.isLoading ?? false;
+  const fetchWallets = walletStore?.fetchWallets ?? (() => Promise.resolve());
+  const selectWallet = walletStore?.selectWallet ?? (() => {});
+  const resetWalletState = walletStore?.resetWalletState ?? (() => {});
+
   // Rehydrate wallet store on mount (restore persisted state)
   useEffect(() => {
+    if (!isClient) return;
+    
     console.log('🔄 Rehydrating wallet store from localStorage...');
-    useWalletStore.persist.rehydrate();
+    useWalletStore.persist?.rehydrate?.();
     setHasHydrated(true);
 
     // Log rehydrated state
-    const state = useWalletStore.getState();
-    console.log('✅ Wallet store rehydrated:', {
-      walletsCount: state.wallets.length,
-      currentWallet: state.currentWallet?.address,
-      hasCurrentWallet: !!state.currentWallet,
-    });
-  }, []);
+    const state = useWalletStore.getState?.();
+    if (state) {
+      console.log('✅ Wallet store rehydrated:', {
+        walletsCount: state.wallets.length,
+        currentWallet: state.currentWallet?.address,
+        hasCurrentWallet: !!state.currentWallet,
+      });
+    }
+  }, [isClient]);
 
   // Fetch wallets when user is authenticated and store is hydrated
   useEffect(() => {
-    if (!hasHydrated) {
+    if (!isClient || !hasHydrated) {
       console.log('⏳ Waiting for wallet store hydration...');
       return; // Wait for hydration
     }
@@ -82,7 +93,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       // Reset wallet state when user logs out
       resetWalletState();
     }
-  }, [isAuthenticated, hasHydrated]);
+  }, [isClient, isAuthenticated, hasHydrated, fetchWallets, resetWalletState]);
 
   /**
    * Connect wallet flow:

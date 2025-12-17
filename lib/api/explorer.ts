@@ -449,6 +449,9 @@ export async function searchExplorerEntities(
  * @property {number} total_transactions_change - Change in total transactions (percentage or count)
  */
 export interface ExplorerOverview {
+  market_cap?: number;
+  market_cap_formatted?: string;
+  market_cap_change_24h?: number;
   tvl: number;
   tvl_formatted: string;
   tvl_change_24h: number;
@@ -463,6 +466,8 @@ export interface ExplorerOverview {
   total_holders_change: number;
   total_transactions: number;
   total_transactions_change: number;
+  tvl_history?: Array<{ time: number; value: number }>;
+  volume_history?: Array<{ time: number; value: number }>;
 }
 
 /**
