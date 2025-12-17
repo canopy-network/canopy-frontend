@@ -7,14 +7,16 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowUpDown, TrendingUp, Loader2, AlertCircle, Wallet } from "lucide-react"
+import { ArrowUpDown, TrendingUp, Loader2, AlertCircle, Wallet, Trash2, DollarSign } from "lucide-react"
 import { orderbookApi } from "@/lib/api"
 import { useWalletStore } from "@/lib/stores/wallet-store"
 import { BuyOrderDialog } from "./buy-order-dialog"
+import { DeleteOrderDialog } from "./delete-order-dialog"
+import { CloseOrderDialog } from "./close-order-dialog"
 import { useAccount, useChainId } from "wagmi"
 import { useConnectModal } from "@rainbow-me/rainbowkit"
 import { USDC_ADDRESSES } from "@/lib/web3/config"
-import type { OrderBookApiOrder, DisplayOrder } from "@/types/orderbook"
+import { isOrderLocked, type OrderBookApiOrder, type DisplayOrder } from "@/types/orderbook"
 
 const DECIMALS = 1_000_000 // 6 decimals
 const ORDER_COMMITTEE_ID = 3 // Committee responsible for counter-asset swaps
@@ -33,8 +35,8 @@ function transformOrder(order: OrderBookApiOrder): DisplayOrder {
 
 export function OrderBookInterface() {
   const [orderType, setOrderType] = useState<"buy" | "sell">("buy")
-  const [price, setPrice] = useState("")
-  const [amount, setAmount] = useState("")
+  const [price, setPrice] = useState("1")
+  const [amount, setAmount] = useState("1")
 
   // API state
   const [sellOrders, setSellOrders] = useState<DisplayOrder[]>([])
@@ -51,8 +53,16 @@ export function OrderBookInterface() {
   const [selectedOrder, setSelectedOrder] = useState<OrderBookApiOrder | null>(null)
   const [isBuyDialogOpen, setIsBuyDialogOpen] = useState(false)
 
+  // Delete order dialog state
+  const [selectedDeleteOrder, setSelectedDeleteOrder] = useState<OrderBookApiOrder | null>(null)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+
+  // Close order dialog state
+  const [selectedCloseOrder, setSelectedCloseOrder] = useState<OrderBookApiOrder | null>(null)
+  const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false)
+
   // Wallet store
-  const { currentWallet, createOrder, isLoading: walletLoading } = useWalletStore()
+  const { currentWallet, createOrder, deleteOrder, isLoading: walletLoading } = useWalletStore()
 
   // Ethereum wallet (wagmi)
   const { address: ethAddress, isConnected: isEthConnected } = useAccount()
@@ -60,8 +70,8 @@ export function OrderBookInterface() {
   const { openConnectModal } = useConnectModal()
   const usdcAddress = chainId ? USDC_ADDRESSES[chainId] : undefined
 
-  const fetchOrderBook = useCallback(async () => {
-    setIsLoading(true)
+  const fetchOrderBook = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true)
     setError(null)
     try {
       const response = await orderbookApi.getOrderBook({ chainId: ORDER_COMMITTEE_ID })
@@ -81,12 +91,19 @@ export function OrderBookInterface() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch order book")
     } finally {
-      setIsLoading(false)
+      if (!silent) setIsLoading(false)
     }
   }, [])
 
   useEffect(() => {
     fetchOrderBook()
+
+    // Refresh order book every 5 seconds (silent to avoid UI flicker)
+    const interval = setInterval(() => {
+      fetchOrderBook(true)
+    }, 5000)
+
+    return () => clearInterval(interval)
   }, [fetchOrderBook])
 
   // Handle clicking on a sell order to buy
@@ -102,6 +119,34 @@ export function OrderBookInterface() {
   const handleBuySuccess = () => {
     setIsBuyDialogOpen(false)
     setSelectedOrder(null)
+    // Refresh order book
+    setTimeout(() => fetchOrderBook(), 2000)
+  }
+
+  // Handle clicking delete on an order
+  const handleDeleteClick = (order: OrderBookApiOrder) => {
+    setSelectedDeleteOrder(order)
+    setIsDeleteDialogOpen(true)
+  }
+
+  // Handle successful delete
+  const handleDeleteSuccess = () => {
+    setIsDeleteDialogOpen(false)
+    setSelectedDeleteOrder(null)
+    // Refresh order book
+    setTimeout(() => fetchOrderBook(), 2000)
+  }
+
+  // Handle clicking close on a locked order
+  const handleCloseClick = (order: OrderBookApiOrder) => {
+    setSelectedCloseOrder(order)
+    setIsCloseDialogOpen(true)
+  }
+
+  // Handle successful close
+  const handleCloseSuccess = () => {
+    setIsCloseDialogOpen(false)
+    setSelectedCloseOrder(null)
     // Refresh order book
     setTimeout(() => fetchOrderBook(), 2000)
   }
@@ -250,17 +295,63 @@ export function OrderBookInterface() {
                 </div>
                 <div className="space-y-1">
                   {sellOrders.length > 0 ? (
-                    sellOrders.map((order) => (
-                      <button
-                        key={order.id}
-                        onClick={() => handleOrderClick(order.id)}
-                        className="w-full flex justify-between items-center p-2 rounded hover:bg-red-500/10 border-l-2 border-red-500/20 cursor-pointer transition-colors text-left"
-                      >
-                        <span className="text-red-500 font-mono">{order.price.toFixed(4)}</span>
-                        <span className="font-mono">{order.amount.toLocaleString()}</span>
-                        <span className="font-mono">${order.total.toLocaleString()}</span>
-                      </button>
-                    ))
+                    sellOrders.map((order) => {
+                      const rawOrder = rawOrders.find((o) => o.id === order.id)
+                      const isOwnOrder = currentWallet?.address === rawOrder?.sellersSendAddress
+                      const orderLocked = rawOrder ? isOrderLocked(rawOrder) : false
+                      const canDelete = isOwnOrder && !orderLocked && currentWallet?.isUnlocked
+                      // Check if this locked order is locked by the current user (buyer)
+                      const isLockedByMe = orderLocked && rawOrder?.buyerReceiveAddress === currentWallet?.address
+                      const canClose = isLockedByMe && isEthConnected
+
+                      return (
+                        <div key={order.id} className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleOrderClick(order.id)}
+                            className={`flex-1 flex justify-between items-center p-2 rounded hover:bg-red-500/10 border-l-2 cursor-pointer transition-colors text-left ${
+                              isOwnOrder ? "border-green-500/50 bg-green-500/5" :
+                              isLockedByMe ? "border-yellow-500/50 bg-yellow-500/5" : "border-red-500/20"
+                            }`}
+                          >
+                            <span className="text-red-500 font-mono">{order.price.toFixed(4)}</span>
+                            <span className="font-mono">{order.amount.toLocaleString()}</span>
+                            <span className="font-mono">${order.total.toLocaleString()}</span>
+                            {isOwnOrder && (
+                              <Badge variant="outline" className="ml-2 text-xs">Your Order</Badge>
+                            )}
+                            {isLockedByMe && (
+                              <Badge variant="outline" className="ml-2 text-xs bg-yellow-500/10 text-yellow-600">Locked by You</Badge>
+                            )}
+                          </button>
+                          {canDelete && rawOrder && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 hover:bg-red-500/20"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDeleteClick(rawOrder)
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4 text-red-500" />
+                            </Button>
+                          )}
+                          {canClose && rawOrder && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 hover:bg-green-500/20"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleCloseClick(rawOrder)
+                              }}
+                            >
+                              <DollarSign className="w-4 h-4 text-green-500" />
+                            </Button>
+                          )}
+                        </div>
+                      )
+                    })
                   ) : (
                     <div className="text-center py-4 text-muted-foreground">
                       No sell orders available
@@ -446,6 +537,22 @@ export function OrderBookInterface() {
         open={isBuyDialogOpen}
         onOpenChange={setIsBuyDialogOpen}
         onSuccess={handleBuySuccess}
+      />
+
+      {/* Delete Order Dialog */}
+      <DeleteOrderDialog
+        order={selectedDeleteOrder}
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        onSuccess={handleDeleteSuccess}
+      />
+
+      {/* Close Order Dialog */}
+      <CloseOrderDialog
+        order={selectedCloseOrder}
+        open={isCloseDialogOpen}
+        onOpenChange={setIsCloseDialogOpen}
+        onSuccess={handleCloseSuccess}
       />
     </div>
   )

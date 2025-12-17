@@ -17,9 +17,11 @@ import { useState, useCallback } from "react";
 import { useAccount, useChainId, useSendTransaction, useWaitForTransactionReceipt } from "wagmi";
 import { encodeFunctionData, toHex } from "viem";
 import { USDC_ADDRESSES, ERC20_TRANSFER_ABI } from "@/lib/web3/config";
+import { chainsApi } from "@/lib/api";
 import type { LockOrderData, OrderBookApiOrder } from "@/types/orderbook";
 
-const DEFAULT_BUYER_CHAIN_DEADLINE = 900000; // ~2.5 hours at 10s blocks
+// Deadline offset: ~6.7 minutes at 10s blocks = 40 blocks
+const DEADLINE_BLOCK_OFFSET = 40;
 
 interface UseLockOrderParams {
   order: OrderBookApiOrder | null;
@@ -118,13 +120,19 @@ export function useLockOrder({
     setError(null);
 
     try {
+      // Fetch current Canopy block height to calculate deadline
+      const CANOPY_CHAIN_ID = 1;
+      const heightResponse = await chainsApi.getChainHeight(String(CANOPY_CHAIN_ID));
+      const currentHeight = heightResponse.data.height;
+      const deadline = currentHeight + DEADLINE_BLOCK_OFFSET;
+
       // Build LockOrder data payload
       const lockOrderData: LockOrderData = {
         orderId: order.id,
         chain_id: order.committee,
         buyerSendAddress: stripHexPrefix(buyerEthAddress),
         buyerReceiveAddress: stripHexPrefix(buyerCanopyAddress),
-        buyerChainDeadline: DEFAULT_BUYER_CHAIN_DEADLINE,
+        buyerChainDeadline: deadline,
       };
 
       // For lock order, amount is 0 (we're just signaling intent)
