@@ -291,7 +291,6 @@ export function StakeDialog({
                                 token_symbol: `C${String(chainId).padStart(3, '0')}`,
                                 chain_description: "",
                                 template_id: "",
-                                consensus_mechanism: "",
                                 chain_id: String(chainId),
                                 brand_color: null,
                                 status: "active",

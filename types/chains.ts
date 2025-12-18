@@ -45,9 +45,6 @@ export interface Chain {
   /** ID of the template used to create this chain */
   template_id: string;
 
-  /** Consensus mechanism used by the chain */
-  consensus_mechanism: string;
-
   /** Total token supply for the chain */
   token_total_supply: number;
 
@@ -65,12 +62,6 @@ export interface Chain {
 
   /** Bonding curve slope for price discovery */
   bonding_curve_slope: number;
-
-  /** Scheduled launch time (ISO 8601) */
-  scheduled_launch_time?: string;
-
-  /** Actual launch time (ISO 8601, nullable) */
-  actual_launch_time: string | null;
 
   /** Creator's initial CNPY purchase amount */
   creator_initial_purchase_cnpy: number;
@@ -337,7 +328,6 @@ export interface CreateChainRequest {
   token_symbol: string;
   chain_description?: string;
   template_id?: string;
-  consensus_mechanism?: string;
   token_total_supply?: number;
   graduation_threshold?: number;
   creation_fee_cnpy?: number;

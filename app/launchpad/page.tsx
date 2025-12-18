@@ -226,7 +226,6 @@ export default function LaunchpadPage() {
         token_symbol: formData.ticker,
         chain_description: formData.chainDescription || formData.description,
         template_id: formData.template?.id || "",
-        consensus_mechanism: formData.template?.default_consensus || "PoS",
         token_total_supply: Number(formData.tokenSupply),
         graduation_threshold: formData.graduationThreshold,
         creation_fee_cnpy: 100.0,

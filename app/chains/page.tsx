@@ -25,7 +25,6 @@ export default async function ChainsPage() {
       const getDate = (chain: Chain) =>
         new Date(
           (chain as any).graduation_time ||
-            chain.actual_launch_time ||
             chain.created_at ||
             0
         ).getTime();
