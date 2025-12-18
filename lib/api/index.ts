@@ -122,6 +122,12 @@ export {
 // Transactions API (wallet transactions)
 export { transactionsApi } from "./transactions";
 
+// Wallet Events API
+export { walletEventsApi } from "./wallet-events";
+
+// Wallet Rewards API
+export { walletRewardsApi } from "./wallet-rewards";
+
 // Staking API
 export { stakingApi } from "./staking";
 

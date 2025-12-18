@@ -234,6 +234,8 @@ export function useTransactions(
     enabled?: boolean;
     chainIds?: number[];
     transactionTypes?: string[];
+    startDate?: string;
+    endDate?: string;
     historyLimit?: number;
   }
 ) {
@@ -244,6 +246,8 @@ export function useTransactions(
     {
       chain_ids: options?.chainIds,
       transaction_types: options?.transactionTypes,
+      start_date: options?.startDate,
+      end_date: options?.endDate,
     },
     {
       enabled,

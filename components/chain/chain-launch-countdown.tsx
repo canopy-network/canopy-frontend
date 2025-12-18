@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Clock, CircleAlert, SquarePen } from "lucide-react";
 import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 
 interface ChainLaunchCountdownProps {
   publicationDate?: string;
@@ -26,13 +26,7 @@ export function ChainLaunchCountdown({
     ) {
       setTimeRemaining(0);
       toast.error("No scheduled launch time set", {
-        position: "bottom-right",
         duration: 4000,
-        style: {
-          background: "hsl(var(--muted))",
-          color: "hsl(var(--foreground))",
-          border: "1px solid hsl(var(--border))",
-        },
       });
       return;
     }
@@ -43,13 +37,7 @@ export function ChainLaunchCountdown({
     if (isNaN(launchTime)) {
       setTimeRemaining(0);
       toast.error("Invalid launch time format", {
-        position: "bottom-right",
         duration: 4000,
-        style: {
-          background: "hsl(var(--muted))",
-          color: "hsl(var(--foreground))",
-          border: "1px solid hsl(var(--border))",
-        },
       });
       return;
     }

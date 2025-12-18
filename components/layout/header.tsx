@@ -19,9 +19,9 @@ import {
 } from "@/components/ui/sheet";
 import Link from "next/link";
 import { useChainsStore } from "@/lib/stores/chains-store";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Input } from "@/components/ui/input";
-import { ChevronDown, Search, X, Menu } from "lucide-react";
+import { ChevronDown, Search, Menu } from "lucide-react";
 import { MobileSidebar } from "@/components/layout/mobile-sidebar";
 import { LoginDialog } from "@/components/auth/login-dialog";
 import { useAuthStore } from "@/lib/stores/auth-store";
@@ -364,25 +364,25 @@ export function Header() {
     return null;
   }
 
-  // Chain search filter
-  const filteredChains = searchQuery.trim()
-    ? chains
-        .filter((chain) =>
-          chain.chain_name.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-        .slice(0, 10)
-    : [];
+  // Chain search filter - Memoized for performance
+  const filteredChains = useMemo(() => {
+    if (!searchQuery.trim()) return [];
 
-  // Mobile chain search filter
-  const mobileFilteredChains = mobileSearchQuery.trim()
-    ? chains
-        .filter((chain) =>
-          chain.chain_name
-            .toLowerCase()
-            .includes(mobileSearchQuery.toLowerCase())
-        )
-        .slice(0, 10)
-    : [];
+    const query = searchQuery.toLowerCase();
+    return chains
+      .filter((chain) => chain.chain_name.toLowerCase().includes(query))
+      .slice(0, 10);
+  }, [searchQuery, chains]);
+
+  // Mobile chain search filter - Memoized for performance
+  const mobileFilteredChains = useMemo(() => {
+    if (!mobileSearchQuery.trim()) return [];
+
+    const query = mobileSearchQuery.toLowerCase();
+    return chains
+      .filter((chain) => chain.chain_name.toLowerCase().includes(query))
+      .slice(0, 10);
+  }, [mobileSearchQuery, chains]);
 
   const handleChainSelect = (chainId: string) => {
     setIsSearchOpen(false);

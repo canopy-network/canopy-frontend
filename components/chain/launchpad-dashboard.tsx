@@ -420,8 +420,9 @@ export function LaunchpadDashboard() {
     };
   }, [hasMore, isLoadingMore, isLoading]);
 
-  // Polling: Refresh only virtual_pool, graduation, and price history every 10 seconds
+  // Polling: Refresh only virtual_pool, graduation, and price history every 30 seconds
   // This avoids refetching all chains which causes unnecessary rerenders
+  // OPTIMIZED: Reduced frequency from 10s to 30s and limited to first 20 chains for better performance
   useEffect(() => {
     // Don't poll if component is loading
     if (isLoading) {
@@ -434,10 +435,13 @@ export function LaunchpadDashboard() {
       const currentChains = chainsRef.current;
       if (currentChains.length === 0) return;
 
+      // PERFORMANCE: Only poll first 20 chains to reduce load
+      const chainsToUpdate = currentChains.slice(0, 20);
+
       // Fetch virtual_pool and graduation for each chain in batches
       const batchSize = 5;
-      for (let i = 0; i < currentChains.length; i += batchSize) {
-        const batch = currentChains.slice(i, i + batchSize);
+      for (let i = 0; i < chainsToUpdate.length; i += batchSize) {
+        const batch = chainsToUpdate.slice(i, i + batchSize);
         const promises = batch.map(async (chain) => {
           try {
             // Fetch chain with only virtual_pool and graduation to minimize data transfer
@@ -495,16 +499,19 @@ export function LaunchpadDashboard() {
       }
     };
 
-    // Function to refresh price history for all currently loaded chains
+    // Function to refresh price history for currently loaded chains
     const refreshPriceHistory = async () => {
       // Use ref to get latest chains without causing re-renders
       const currentChains = chainsRef.current;
       if (currentChains.length === 0) return;
 
-      // Fetch price history for all chains in parallel (batched)
+      // PERFORMANCE: Only poll first 20 chains to reduce load
+      const chainsToUpdate = currentChains.slice(0, 20);
+
+      // Fetch price history for chains in parallel (batched)
       const batchSize = 5;
-      for (let i = 0; i < currentChains.length; i += batchSize) {
-        const batch = currentChains.slice(i, i + batchSize);
+      for (let i = 0; i < chainsToUpdate.length; i += batchSize) {
+        const batch = chainsToUpdate.slice(i, i + batchSize);
         const promises = batch.map(async (chain) => {
           try {
             const response = await getChainPriceHistory(chain.id);
@@ -540,7 +547,7 @@ export function LaunchpadDashboard() {
       refreshPriceHistory();
     }
 
-    // Set up polling interval (10 seconds)
+    // Set up polling interval (30 seconds - OPTIMIZED from 10s)
     const interval = setInterval(() => {
       // Only poll if page is visible (not in background tab)
       if (
@@ -550,7 +557,7 @@ export function LaunchpadDashboard() {
         refreshChainData();
         refreshPriceHistory();
       }
-    }, 10000); // 10 seconds
+    }, 30000); // 30 seconds (was 10 seconds)
 
     // Cleanup on unmount
     return () => clearInterval(interval);

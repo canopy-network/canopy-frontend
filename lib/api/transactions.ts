@@ -215,6 +215,7 @@ export const transactionsApi = {
    * GET /api/v1/wallet/transactions/batch-status
    *
    * @param data - List of transaction hashes
+   * @param chainId - Optional chain ID
    * @returns Batch status response with all statuses
    */
   getBatchStatus: async (

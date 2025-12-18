@@ -93,7 +93,7 @@ export interface WalletState {
   deleteWallet: (walletId: string) => Promise<void>;
 
   // Actions - Wallet Unlock/Lock
-  unlockWallet: (walletId: string, password: string) => Promise<void>;
+  unlockWallet: (walletId: string, password: string, skipSaveSession?: boolean) => Promise<void>;
   lockWallet: (walletId: string) => void;
   lockAllWallets: () => void;
 
@@ -321,16 +321,23 @@ export const useWalletStore = create<WalletState>()(
           // 🔓 Auto-unlock all wallets if password session exists
           const cachedPassword = getCachedPassword();
           if (cachedPassword) {
-            console.log('🔐 Password session found, auto-unlocking all wallets...');
+            console.log('🔐 Password session found, auto-unlocking', wallets.length, 'wallets...');
+
+            // Save password session ONCE before unlocking (not per wallet)
+            savePasswordSession(cachedPassword);
+
             // Unlock all wallets with cached password
+            let successCount = 0;
             for (const wallet of wallets) {
               try {
-                await get().unlockWallet(wallet.id, cachedPassword);
+                // Call unlockWallet but skip saving password session (already saved above)
+                await get().unlockWallet(wallet.id, cachedPassword, true);
+                successCount++;
               } catch (error) {
-                console.warn(`⚠️ Failed to auto-unlock wallet ${wallet.id}:`, error);
+                console.warn(`⚠️ Failed to auto-unlock wallet ${wallet.id}`);
               }
             }
-            console.log('✅ Auto-unlock complete');
+            console.log(`✅ Auto-unlock complete: ${successCount}/${wallets.length} wallets unlocked`);
           }
         } catch (error) {
           const errorMessage =
@@ -511,7 +518,7 @@ export const useWalletStore = create<WalletState>()(
        * - Private key only exists in memory (never persisted to localStorage)
        * - On page refresh, wallet resets to locked state
        */
-      unlockWallet: async (walletId: string, password: string) => {
+      unlockWallet: async (walletId: string, password: string, skipSaveSession = false) => {
         try {
           set({ isLoading: true, error: null });
 
@@ -561,7 +568,10 @@ export const useWalletStore = create<WalletState>()(
           }
 
           // ✅ Save password session (3-day expiration) for auto-unlock on page refresh
-          savePasswordSession(passwordNoSpaces);
+          // Only save if not skipping (to avoid duplicate saves during bulk unlock)
+          if (!skipSaveSession) {
+            savePasswordSession(passwordNoSpaces);
+          }
 
           // Store private key in memory only (partialize will remove it before persisting)
           set((state) => ({
@@ -587,7 +597,10 @@ export const useWalletStore = create<WalletState>()(
             isLoading: false,
           }));
 
-          console.log(`🔓 Wallet unlocked with 3-day session: ${walletId}`);
+          // Only log individual unlocks if not in bulk unlock mode
+          if (!skipSaveSession) {
+            console.log(`🔓 Wallet unlocked with 3-day session: ${walletId}`);
+          }
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : "Failed to unlock wallet";
@@ -682,7 +695,7 @@ export const useWalletStore = create<WalletState>()(
             chainId: account.chain_id,
             distribution: {
               liquid: account.available_balance, // Raw value
-              staked: account.staked_balance, // Raw value
+              staked: account.staked_balance + account.delegated_balance, // Raw value
               delegated: account.delegated_balance, // Raw value
             },
           }));
@@ -890,8 +903,7 @@ export const useWalletStore = create<WalletState>()(
             throw validationError;
           }
 
-          // Create and sign the transaction with multi-curve support
-          console.log("🔐 Signing transaction with protobuf...");
+
           const signedTx = createAndSignTransaction(
             txParams,
             wallet.privateKey,    // ✅ Private key
@@ -899,8 +911,7 @@ export const useWalletStore = create<WalletState>()(
             wallet.curveType as CurveType // ✅ Curve type determines signing algorithm!
           );
 
-          console.log("✅ Transaction signed locally with", wallet.curveType);
-          console.log("📤 Submitting raw transaction to backend...");
+          signedTx.chain_id = chainId
 
           // Submit the raw transaction to the backend
           const response = await walletTransactionApi.sendRawTransaction(signedTx);
