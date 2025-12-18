@@ -394,7 +394,7 @@ export const useWalletStore = create<WalletState>()(
                       salt: encrypted.salt,
                       encrypted: encrypted.encryptedPrivateKey,
                       keyAddress: encrypted.address,
-                      keyNickName: walletName || "Main Wallet",
+                      keyNickname: walletName || "Main Wallet",
                   }
               }
           };
