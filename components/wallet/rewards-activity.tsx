@@ -6,9 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExternalLink, RefreshCw, Search, ChevronDown, Calendar as CalendarIcon, Check } from "lucide-react";
-import { useWalletEventsHistory } from "@/lib/hooks/use-wallet-events";
-import { extractStakeRewards } from "@/lib/utils/wallet-events";
-import type { WalletEventsHistoryParams } from "@/types/wallet-events";
+import { useWalletRewardsHistory } from "@/lib/hooks/use-wallet-rewards";
+import type { WalletRewardsHistoryParams } from "@/types/wallet-rewards";
+import type { RewardRecord } from "@/types/wallet-events";
 import { formatBalance } from "@/lib/utils/wallet-helpers";
 import {
   Popover,
@@ -45,13 +45,13 @@ const CHAIN_COLORS: Record<number, string> = {
 interface RewardsActivityProps {
   addresses: string[];
   limit?: number;
-  filters?: Omit<WalletEventsHistoryParams, "addresses">;
+  filters?: Omit<WalletRewardsHistoryParams, "addresses">;
   relatedStakeKey?: string;
   compact?: boolean;
 }
 
 function getExplorerUrl(
-  reward: ReturnType<typeof extractStakeRewards>[number]
+  reward: RewardRecord
 ): string | undefined {
   const metadata = reward.metadata || {};
   return (
@@ -82,14 +82,14 @@ export function RewardsActivity({
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
 
   const {
-    events,
+    rewards,
     isLoading,
     isError,
     refetch,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useWalletEventsHistory(
+  } = useWalletRewardsHistory(
     {
       ...filters,
       addresses,
@@ -129,10 +129,10 @@ export function RewardsActivity({
     return () => clearTimeout(debounce);
   }, [chainSearchQuery]);
 
-  const rewards = useMemo(
-    () => extractStakeRewards(events, { relatedStakeKey }),
-    [events, relatedStakeKey]
-  );
+  const filteredByStakeKey = useMemo(() => {
+    if (!relatedStakeKey) return rewards;
+    return rewards.filter((reward) => reward.relatedStakeKey === relatedStakeKey);
+  }, [rewards, relatedStakeKey]);
 
   const chainOptions = useMemo(() => {
     const dedup = new Map<number, string>();
@@ -146,17 +146,32 @@ export function RewardsActivity({
     };
 
     chains.forEach((c) => {
+      const chainIdMatch = typeof (c as any).chain_id === "string"
+        ? (c as any).chain_id.match(/\d+/)
+        : null;
+      const idMatch = typeof (c as any).id === "string" ? (c as any).id.match(/\d+/) : null;
       const idNum =
-        c.chain_id !== undefined
-          ? Number(c.chain_id)
-          : c.id !== undefined
-          ? Number(c.id)
+        chainIdMatch?.[0] !== undefined
+          ? Number(chainIdMatch[0])
+          : idMatch?.[0] !== undefined
+          ? Number(idMatch[0])
           : undefined;
-      const name = c.chain_name || c.name || (idNum !== undefined && !Number.isNaN(idNum) ? `Chain ${idNum}` : undefined);
+      const chainName =
+        typeof (c as any).chain_name === "string"
+          ? (c as any).chain_name
+          : undefined;
+      const altName =
+        typeof (c as any).name === "string" ? (c as any).name : undefined;
+      const name =
+        chainName ||
+        altName ||
+        (idNum !== undefined && !Number.isNaN(idNum)
+          ? `Chain ${idNum}`
+          : undefined);
       addChain(idNum, name);
     });
 
-    rewards.forEach((reward) => {
+    filteredByStakeKey.forEach((reward) => {
       const metaChain = reward.metadata?.["chain_id"];
       const chainId = metaChain !== undefined ? Number(metaChain) : undefined;
       const name =
@@ -168,7 +183,7 @@ export function RewardsActivity({
     return Array.from(dedup.entries())
       .sort(([a], [b]) => a - b)
       .map(([id, name]) => ({ id, name }));
-  }, [chains, rewards]);
+  }, [chains, filteredByStakeKey]);
 
   const chainNameMap = useMemo(() => {
     const map = new Map<number, string>();
@@ -177,13 +192,13 @@ export function RewardsActivity({
   }, [chainOptions]);
 
   const filteredRewards = useMemo(() => {
-    if (selectedChainId === "all") return rewards;
+    if (selectedChainId === "all") return filteredByStakeKey;
     const chainNum = Number(selectedChainId);
-    return rewards.filter((reward) => {
+    return filteredByStakeKey.filter((reward) => {
       const metaChain = reward.metadata?.["chain_id"];
       return metaChain !== undefined && Number(metaChain) === chainNum;
     });
-  }, [rewards, selectedChainId]);
+  }, [filteredByStakeKey, selectedChainId]);
 
   const displayedTotal = useMemo(
     () =>
@@ -193,7 +208,7 @@ export function RewardsActivity({
     [filteredRewards]
   );
 
-  const getChainInfo = (reward: ReturnType<typeof extractStakeRewards>[number]) => {
+  const getChainInfo = (reward: RewardRecord) => {
     const chainIdRaw = reward.metadata?.["chain_id"];
     const chainId = chainIdRaw !== undefined ? Number(chainIdRaw) : undefined;
     const chainName =

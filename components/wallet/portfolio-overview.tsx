@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -17,79 +17,31 @@ export function PortfolioOverview({ addresses }: PortfolioOverviewProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (addresses.length === 0) {
-      setLoading(false);
-      return;
-    }
+  // Memoize addresses key to prevent unnecessary re-renders
+  // IMPORTANT: Create a copy before sort() to avoid mutating the original array
+  const addressesKey = useMemo(() => [...addresses].sort().join(","), [addresses]);
 
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [overviewData, perfData] = await Promise.all([
-          portfolioApi.getPortfolioOverview({ addresses }),
-          portfolioApi.getPortfolioPerformance({ addresses, period: "7d" })
-        ]);
-
-        setOverview(overviewData);
-        setPerformance(perfData);
-        setError(null);
-      } catch (err: any) {
-        console.error("Failed to fetch portfolio data:", err);
-        setError(err.message || "Failed to load portfolio data");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [addresses.join(",")]);
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <div className="h-32 bg-muted/50 animate-pulse rounded-lg" />
-        <div className="h-20 bg-muted/50 animate-pulse rounded-lg" />
-        <div className="h-64 bg-muted/50 animate-pulse rounded-lg" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <Card>
-        <CardContent className="py-12 text-center">
-          <p className="text-destructive mb-2">Error loading portfolio</p>
-          <p className="text-sm text-muted-foreground">{error}</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!overview || !performance) {
-    return (
-      <Card>
-        <CardContent className="py-12 text-center">
-          <p className="text-muted-foreground">No portfolio data available</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Format numbers
-  const formatCNPY = (value: string | number) => {
+  // Memoize format functions to prevent recreation on every render
+  // IMPORTANT: All hooks must be at the top level, before any early returns
+  const formatCNPY = useCallback((value: string | number) => {
     const num = typeof value === 'string' ? parseFloat(value) : value;
     return new Intl.NumberFormat('en-US', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     }).format(num / 1000000);
-  };
+  }, []);
 
-  const formatPercentage = (value: number) => {
+  const formatPercentage = useCallback((value: number) => {
     return value.toFixed(2);
-  };
+  }, []);
 
-  const accountTotals = overview.accounts.reduce(
+  // Memoize expensive calculation to prevent re-running on every render
+  const accounts = useMemo(() =>
+    Array.isArray(overview?.accounts) ? overview.accounts : [],
+    [overview?.accounts]
+  );
+
+  const accountTotals = useMemo(() => accounts.reduce(
     (acc, account) => {
       const liquid = parseFloat(account.balance ?? account.available_balance ?? "0");
       const staked = parseFloat(account.staked_balance ?? "0");
@@ -125,12 +77,71 @@ export function PortfolioOverview({ addresses }: PortfolioOverviewProps) {
       liquid: 0,
       byChain: new Map<number, { chain_id: number; chain_name: string; token_symbol: string; total: number; staked: number; liquid: number }>(),
     }
-  );
+  ), [accounts]);
+
+  useEffect(() => {
+    if (addresses.length === 0) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [overviewData, perfData] = await Promise.all([
+          portfolioApi.getPortfolioOverview({ addresses }),
+          portfolioApi.getPortfolioPerformance({ addresses, period: "7d" })
+        ]);
+
+        setOverview(overviewData);
+        setPerformance(perfData);
+        setError(null);
+      } catch (err: any) {
+        console.error("Failed to fetch portfolio data:", err);
+        setError(err.message || "Failed to load portfolio data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [addressesKey]); // addressesKey already depends on addresses, no need for both
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="h-32 bg-muted/50 animate-pulse rounded-lg" />
+        <div className="h-20 bg-muted/50 animate-pulse rounded-lg" />
+        <div className="h-64 bg-muted/50 animate-pulse rounded-lg" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <p className="text-destructive mb-2">Error loading portfolio</p>
+          <p className="text-sm text-muted-foreground">{error}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!overview || !performance) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <p className="text-muted-foreground">No portfolio data available</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const totalValue = formatCNPY(accountTotals.total);
-  const pnlValue = formatCNPY(performance.total_pnl_cnpy);
-  const pnlPercentage = overview.performance.total_pnl_percentage || 0;
-  const isPositivePnL = overview.performance.total_pnl_percentage >= 0;
+  const pnlValue = formatCNPY(performance?.total_pnl_cnpy ?? 0);
+  const pnlPercentage = performance?.total_pnl_percentage ?? overview.performance?.total_pnl_percentage ?? 0;
+  const isPositivePnL = pnlPercentage >= 0;
 
   return (
     <div className="space-y-4">

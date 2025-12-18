@@ -73,6 +73,7 @@ interface DisplayStake {
   rewardsUSD?: number;
   color: string;
   restakeRewards: boolean;
+  delegate: boolean; // true = delegated stake, false = direct validator
   committees?: Array<{
     chainId: number;
     chainName: string;
@@ -176,21 +177,19 @@ export function StakingTab({ addresses }: StakingTabProps) {
       const nativeAmount = fromMicroUnits(pos.staked_amount || "0");
       const cnpyAmount = fromMicroUnits(pos.staked_cnpy || "0");
 
-      const matchingReward =
-        rewards.find(
-          (reward) =>
-            Number(reward.chain_id) === Number(pos.chain_id) &&
-            reward.address?.toLowerCase() === pos.address?.toLowerCase()
-        ) ||
-        rewards.find(
-          (reward) => Number(reward.chain_id) === Number(pos.chain_id)
-        );
-
-      const rewardsCNPY = matchingReward?.total_rewards
-        ? fromMicroUnits(matchingReward.total_rewards)
-        : pos.total_rewards
+      // Always use position.total_rewards as source of truth (in micro units)
+      const rewardsCNPY = pos.total_rewards
         ? fromMicroUnits(pos.total_rewards)
         : 0;
+
+      // Get APY from rewards endpoint or fallback to apyByChain
+      const matchingReward = rewards.find(
+        (reward) =>
+          Number(reward.chain_id) === Number(pos.chain_id) &&
+          reward.address?.toLowerCase() === pos.address?.toLowerCase()
+      ) || rewards.find(
+        (reward) => Number(reward.chain_id) === Number(pos.chain_id)
+      );
 
       const apyValue =
         matchingReward?.staking_apy ??
@@ -210,6 +209,7 @@ export function StakingTab({ addresses }: StakingTabProps) {
         rewardsUSD: undefined, // TODO: Calculate USD value
         color: CHAIN_COLORS[pos.chain_id] || "#1dd13a",
         restakeRewards: pos.compound,
+        delegate: pos.delegate,
         committees: pos.committees.map((committee) => ({
           chainId: committee.chain_id,
           chainName: committee.chain_name
@@ -300,10 +300,11 @@ export function StakingTab({ addresses }: StakingTabProps) {
   }, [unstakingQueue]);
 
   // Convert total rewards from micro units to display value
+  // Always use positions.total_rewards as source of truth (from useStaking hook)
+  // Events are only used for displaying detailed reward history, not for total calculation
   const totalInterestEarned = useMemo(() => {
-    const fallback = parseFloat(fromMicroUnits(totalRewardsEarned.toString()));
-    return totalRewardsFromEvents > 0 ? totalRewardsFromEvents : fallback;
-  }, [totalRewardsEarned, totalRewardsFromEvents]);
+    return parseFloat(fromMicroUnits(totalRewardsEarned.toString()));
+  }, [totalRewardsEarned]);
 
   const handleSort = (column: SortField) => {
     if (sortBy === column) {
@@ -322,12 +323,8 @@ export function StakingTab({ addresses }: StakingTabProps) {
       const getValue = (stake: DisplayStake) => {
         if (sortBy === "apy") return stake.apy;
         if (sortBy === "amount") return stake.amount;
-        return (
-          stakeRewardTotals[stake.id] ??
-          stake.rewardsUSD ??
-          stake.rewards ??
-          0
-        );
+        // Always use position.total_rewards (stake.rewards) for sorting
+        return stake.rewards ?? 0;
       };
 
       const diff = getValue(a) - getValue(b);
@@ -387,11 +384,40 @@ export function StakingTab({ addresses }: StakingTabProps) {
   const renderActionButtons = (stake: DisplayStake) => {
     const isActive = stake.amount > 0 && stake.status === "active";
     const isUnstaking = stake.status === "unstaking";
+    const isDirectValidator = !stake.delegate;
 
     if (isUnstaking) {
       return ( <></>);
     }
 
+    // Direct validator stakes cannot be managed through Super App
+    if (isDirectValidator) {
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex flex-col items-end gap-1">
+              <Badge
+                variant="outline"
+                className="text-[10px] text-orange-600 border-orange-500 bg-orange-50 dark:bg-orange-950/30 whitespace-nowrap cursor-help font-semibold"
+              >
+                <AlertCircle className="w-3 h-3 mr-1" />
+                Node Validator
+              </Badge>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs   backdrop-blur-sm p-2 rounded-md " >
+            <p className="font-semibold mb-1 flex items-center gap-1.5">
+              <AlertCircle className="w-4 h-4 text-orange-500" />
+              Direct Node Validator Stake
+            </p>
+            <p className="text-sm text-left">
+              This is a direct validator stake that cannot be managed through the Super App.
+              Please manage this stake directly through your Canopy validator node.
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
 
     if (isActive) {
       return (
@@ -665,8 +691,8 @@ export function StakingTab({ addresses }: StakingTabProps) {
                 {filteredStakes.length > 0 ? (
                   filteredStakes.map((stake) => {
                     const isActive = stake.amount > 0 && stake.status === "active";
-                    const rewardAmount =
-                      stakeRewardTotals[stake.id] ?? stake.rewards;
+                    // Always use position.total_rewards (stake.rewards) as source of truth
+                    const rewardAmount = stake.rewards;
 
                     return (
                       <TableRow key={stake.id}>

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Rocket, Link as LinkIcon, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 
 export function ChainSuccessBanner() {
   const searchParams = useSearchParams();
@@ -40,13 +40,7 @@ export function ChainSuccessBanner() {
     try {
       await navigator.clipboard.writeText(url);
       toast.success("Copied to clipboard", {
-        position: "bottom-right",
         duration: 3000,
-        style: {
-          background: "hsl(var(--muted))",
-          color: "hsl(var(--foreground))",
-          border: "1px solid hsl(var(--border))",
-        },
       });
     } catch (err) {
       console.error("Failed to copy:", err);

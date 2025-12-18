@@ -11,7 +11,6 @@ import { ErrorBoundary } from "@/components/providers/error-boundary";
 import { AuthCookieSync } from "@/components/auth/auth-cookie-sync";
 import { Web3Provider } from "@/components/web3/web3-provider";
 import { Toaster } from "sonner";
-import { Toaster as HotToaster } from "react-hot-toast";
 import "./globals.css";
 import { Header } from "@/components/layout/header";
 
@@ -66,7 +65,6 @@ export default function RootLayout({
                       },
                     }}
                   />
-                  <HotToaster />
                 </WalletProvider>
               </StoreProvider>
             </Web3Provider>

@@ -3,7 +3,7 @@
 // Force SSR for this page
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent, CardDescription,
@@ -57,6 +57,13 @@ function WalletContent() {
   const [showQuickActionsSheet, setShowQuickActionsSheet] = useState(false);
   const [activeTab, setActiveTab] = useState("assets");
 
+  // Memoize addresses array to prevent recreation on every render
+  // This is critical to prevent infinite loops in child components
+  const addresses = useMemo(
+    () => (currentWallet ? [currentWallet.address] : []),
+    [currentWallet?.address]
+  );
+
   // Fetch data when wallet changes
   useEffect(() => {
     if (currentWallet) {
@@ -64,7 +71,7 @@ function WalletContent() {
       fetchTransactions(currentWallet.id);
       fetchPortfolioOverview([currentWallet.address]);
     }
-  }, [currentWallet]);
+  }, [currentWallet?.id, currentWallet?.address, fetchBalance, fetchTransactions, fetchPortfolioOverview]);
 
   const copyAddress = () => {
     if (currentWallet) {
@@ -258,27 +265,25 @@ function WalletContent() {
 
                 {/* Assets Tab */}
                 <TabsContent value="assets" className="mt-4 sm:mt-6">
-                  <AssetsTab
-                    addresses={currentWallet ? [currentWallet.address] : []}
-                  />
+                  <AssetsTab addresses={addresses} />
                 </TabsContent>
 
                 {/* Staking Tab */}
                 <TabsContent value="staking" className="mt-4 sm:mt-6">
-                  <StakingTab addresses={currentWallet ? [currentWallet.address] : []} />
+                  <StakingTab addresses={addresses} />
                 </TabsContent>
 
                 {/* Rewards Tab */}
                 <TabsContent value="rewards" className="mt-4 sm:mt-6">
                   <RewardsActivity
-                    addresses={currentWallet ? [currentWallet.address] : []}
+                    addresses={addresses}
                     limit={10}
                   />
                 </TabsContent>
 
                 {/* Activity Tab */}
                 <TabsContent value="activity" className="mt-4 sm:mt-6">
-                  <ActivityTab addresses={currentWallet ? [currentWallet.address] : []} compact />
+                  <ActivityTab addresses={addresses} compact />
                 </TabsContent>
 
                 {/* Governance Tab */}

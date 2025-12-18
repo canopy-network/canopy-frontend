@@ -145,17 +145,13 @@ export function useStaking(address?: string) {
     }, 0);
   }, [positions]);
 
-  // Get total rewards from API response (in micro units)
+  // Calculate total rewards from positions (in micro units)
+  // Always use positions as the source of truth for total rewards
   const totalRewardsEarned = useMemo(() => {
-    const fromRewardsEndpoint = rewardsQuery.data?.total_rewards;
-    if (fromRewardsEndpoint) {
-      const parsed = parseFloat(fromRewardsEndpoint);
-      if (Number.isFinite(parsed)) return parsed;
-    }
     return positions.reduce((sum, position) => {
       return sum + parseFloat(position.total_rewards || "0");
     }, 0);
-  }, [positions, rewardsQuery.data?.total_rewards]);
+  }, [positions]);
 
   // Calculate total claimable rewards from rewards API
   const totalClaimableRewards = useMemo(() => {
