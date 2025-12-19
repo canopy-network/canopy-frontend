@@ -303,6 +303,7 @@ export function ValidatorsExplorer({ chainContext }: ValidatorsExplorerProps) {
         totalCount={totalCount}
         currentPage={currentPage}
         onPageChange={setCurrentPage}
+        showCSVButton={true}
         spacing={3}
         className="gap-2 lg:gap-6"
       />

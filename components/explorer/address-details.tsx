@@ -2,18 +2,23 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Copy, ArrowUpRight, Search, User } from "lucide-react";
+import { Upload, Heart, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useExplorerAddress } from "@/lib/api/explorer";
-import type { AddressResponse } from "@/types/addresses";
 import { CopyableText } from "../ui/copyable-text";
+import { TableCard } from "./table-card";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { getCanopyAccent, canopyIconSvg } from "@/lib/utils/brand";
+import { chainsApi } from "@/lib/api/chains";
+import type { Chain } from "@/types/chains";
 
-// Format time ago from timestamp (e.g., "1 hr 22 mins ago")
-const formatTimeAgo = (timestamp: number): string => {
+// Format time ago from timestamp (e.g., "204d ago")
+const formatTimeAgo = (timestamp: string): string => {
   const now = Date.now();
-  const seconds = Math.floor((now - timestamp) / 1000);
+  const date = new Date(timestamp);
+  const seconds = Math.floor((now - date.getTime()) / 1000);
 
   if (seconds < 60) return `${seconds}s ago`;
 
@@ -21,53 +26,10 @@ const formatTimeAgo = (timestamp: number): string => {
   if (minutes < 60) return `${minutes} min${minutes === 1 ? "" : "s"} ago`;
 
   const hours = Math.floor(seconds / 3600);
-  const remainingMinutes = Math.floor((seconds % 3600) / 60);
-  if (hours < 24) {
-    if (remainingMinutes === 0) {
-      return `${hours} hr ago`;
-    }
-    return `${hours} hr ${remainingMinutes} min${
-      remainingMinutes === 1 ? "" : "s"
-    } ago`;
-  }
+  if (hours < 24) return `${hours} hr${hours === 1 ? "" : "s"} ago`;
 
   const days = Math.floor(seconds / 86400);
-  return `${days} day${days === 1 ? "" : "s"} ago`;
-};
-
-// Format timestamp to readable format (Nov-18 2025 12:47:27PM)
-const formatTimestamp = (timestamp: number): string => {
-  const date = new Date(timestamp);
-  const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-  const month = months[date.getMonth()];
-  const day = date.getDate();
-  const year = date.getFullYear();
-  const hours = date.getHours();
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const seconds = String(date.getSeconds()).padStart(2, "0");
-  const ampm = hours >= 12 ? "PM" : "AM";
-  const hours12 = hours % 12 || 12;
-  return `${month}-${day} ${year} ${hours12}:${minutes}:${seconds}${ampm}`;
-};
-
-// Format combined timestamp (1 hr 22 mins ago (Nov-18 2025 12:47:27PM))
-const formatCombinedTimestamp = (timestamp: number): string => {
-  const timeAgo = formatTimeAgo(timestamp);
-  const fullDate = formatTimestamp(timestamp);
-  return `${timeAgo} (${fullDate})`;
+  return `${days}d ago`;
 };
 
 // Format address (truncate middle)
@@ -78,21 +40,44 @@ const formatAddress = (address: string, startChars = 6, endChars = 6): string =>
   return `${address.slice(0, startChars)}…${address.slice(-endChars)}`;
 };
 
-// Format number with commas
-const formatNumber = (num: number): string => {
-  return num.toLocaleString();
+// Format CNPY amount
+const formatCNPY = (amount: number | string): string => {
+  const num = typeof amount === "string" ? parseFloat(amount.replace(/,/g, "")) : amount;
+  if (num >= 1_000_000_000) {
+    return `${(num / 1_000_000_000).toFixed(2)}B`;
+  } else if (num >= 1_000_000) {
+    return `${(num / 1_000_000).toFixed(2)}M`;
+  } else if (num >= 1_000) {
+    return `${(num / 1_000).toFixed(2)}K`;
+  }
+  return num.toFixed(2);
 };
 
-// Format CNPY amount
-const formatCNPY = (amount: number): string => {
-  if (amount >= 1_000_000_000) {
-    return `${(amount / 1_000_000_000).toFixed(2)}B CNPY`;
-  } else if (amount >= 1_000_000) {
-    return `${(amount / 1_000_000).toFixed(2)}M CNPY`;
-  } else if (amount >= 1_000) {
-    return `${(amount / 1_000).toFixed(2)}K CNPY`;
-  }
-  return `${amount.toFixed(2)} CNPY`;
+// Format USD amount
+const formatUSD = (amount: number | string): string => {
+  const num = typeof amount === "string" ? parseFloat(amount.replace(/,/g, "")) : amount;
+  return num.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+// Format timestamp to "1 min ago"
+const formatTimeAgoShort = (timestamp: string): string => {
+  const now = Date.now();
+  const date = new Date(timestamp);
+  const seconds = Math.floor((now - date.getTime()) / 1000);
+
+  if (seconds < 60) return `${seconds}s ago`;
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+
+  const hours = Math.floor(seconds / 3600);
+  if (hours < 24) return `${hours} hr ago`;
+
+  const days = Math.floor(seconds / 86400);
+  return `${days}d ago`;
 };
 
 interface AddressDetailsProps {
@@ -100,264 +85,527 @@ interface AddressDetailsProps {
 }
 
 export function AddressDetails({ address }: AddressDetailsProps) {
-  const [searchQuery, setSearchQuery] = React.useState("");
+  const { data: addressData, isLoading: loading, error: queryError } = useExplorerAddress(address, true, 20);
+  
+  // States for chain information
+  const [chainNames, setChainNames] = React.useState<Record<number, string>>({});
+  const [chainColors, setChainColors] = React.useState<Record<number, string>>({});
+  const [chainTokens, setChainTokens] = React.useState<Record<number, string>>({}); // token_symbol for each chain
 
-  // Use React Query hook to fetch address data
-  const {
-    data: addressData,
-    isLoading: loading,
-    error: queryError,
-  } = useExplorerAddress(address, true, 20);
+  // Memoize balances and transactions to avoid dependency issues
+  const balances = React.useMemo(() => addressData?.balances || [], [addressData?.balances]);
+  const transactions = React.useMemo(() => addressData?.transactions || [], [addressData?.transactions]);
 
-  const error = queryError ? "Failed to load address details" : null;
+  // Fetch chain info for transactions
+  React.useEffect(() => {
+    const fetchChainInfo = async () => {
+      if (!transactions || transactions.length === 0) return;
 
-  // Copy to clipboard
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch (err) {
-      console.error("Failed to copy:", err);
-    }
-  };
+      const uniqueChainIds = Array.from(
+        new Set(transactions.flatMap((chainTxs) => chainTxs.transactions.map(() => chainTxs.chain_id)))
+      );
+
+      const names: Record<number, string> = {};
+      const colors: Record<number, string> = {};
+
+      await Promise.all(
+        uniqueChainIds.map(async (chainId) => {
+          try {
+            const response = await chainsApi.getChain(chainId.toString()).catch(() => null);
+            if (response?.data) {
+              const chainData = response.data as Chain;
+              names[chainId] = chainData.chain_name || `Chain ${chainId}`;
+              colors[chainId] = chainData.brand_color || getCanopyAccent(chainId.toString());
+            } else {
+              names[chainId] = `Chain ${chainId}`;
+              colors[chainId] = getCanopyAccent(chainId.toString());
+            }
+          } catch (error) {
+            console.error(`Failed to fetch chain ${chainId}:`, error);
+            names[chainId] = `Chain ${chainId}`;
+            colors[chainId] = getCanopyAccent(chainId.toString());
+          }
+        })
+      );
+
+      setChainNames((prev) => ({ ...prev, ...names }));
+      setChainColors((prev) => ({ ...prev, ...colors }));
+    };
+
+    fetchChainInfo();
+  }, [transactions]);
+
+  // Fetch chain info for balances (to get token_symbol)
+  React.useEffect(() => {
+    const fetchBalanceChainInfo = async () => {
+      if (!balances || balances.length === 0) return;
+
+      const names: Record<number, string> = {};
+      const colors: Record<number, string> = {};
+      const tokens: Record<number, string> = {};
+
+      await Promise.all(
+        balances.map(async (balance) => {
+          const chainId = balance.chain_id;
+          try {
+            const response = await chainsApi.getChain(chainId.toString()).catch(() => null);
+            if (response?.data) {
+              const chainData = response.data as Chain;
+              names[chainId] = chainData.chain_name || `Chain ${chainId}`;
+              colors[chainId] = chainData.brand_color || getCanopyAccent(chainId.toString());
+              tokens[chainId] = chainData.token_symbol || "CNPY";
+            } else {
+              names[chainId] = `Chain ${chainId}`;
+              colors[chainId] = getCanopyAccent(chainId.toString());
+              tokens[chainId] = "CNPY";
+            }
+          } catch (error) {
+            console.error(`Failed to fetch chain ${chainId}:`, error);
+            names[chainId] = `Chain ${chainId}`;
+            colors[chainId] = getCanopyAccent(chainId.toString());
+            tokens[chainId] = "CNPY";
+          }
+        })
+      );
+
+      setChainNames((prev) => ({ ...prev, ...names }));
+      setChainColors((prev) => ({ ...prev, ...colors }));
+      setChainTokens((prev) => ({ ...prev, ...tokens }));
+    };
+
+    fetchBalanceChainInfo();
+  }, [balances]);
+
+  // Helper functions
+  const getChainName = React.useCallback(
+    (chainId: number): string => {
+      return chainNames[chainId] || `Chain ${chainId}`;
+    },
+    [chainNames]
+  );
+
+  const getChainColor = React.useCallback(
+    (chainId: number): string => {
+      return chainColors[chainId] || getCanopyAccent(chainId.toString());
+    },
+    [chainColors]
+  );
+
+  const getChainToken = React.useCallback(
+    (chainId: number): string => {
+      return chainTokens[chainId] || "CNPY";
+    },
+    [chainTokens]
+  );
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <span className="ml-2 text-sm text-muted-foreground">
-          Loading address...
-        </span>
+        <span className="ml-2 text-sm text-muted-foreground">Loading account...</span>
       </div>
     );
   }
 
-  if (error || !addressData) {
+  if (queryError || !addressData) {
     return (
       <div className="text-center py-12">
         <p className="text-sm font-medium text-destructive mb-1">
-          {error || "Address not found"}
+          {queryError ? "Failed to load account details" : "Account not found"}
         </p>
       </div>
     );
   }
 
   const summary = addressData.summary;
-  const balances = addressData.balances || [];
-  const transactions = addressData.transactions || [];
+  
+  // Only use real LP positions data
+  const lpPositions = addressData.lp_positions || [];
+
+  // Calculate portfolio value in USD (assuming 1 CNPY = 1 USD for now)
+  const portfolioValueUSD = parseFloat(summary.total_portfolio_value_fmt || "0");
+
+  // Calculate staked vs free percentages
+  const totalValue = summary.total_portfolio_value_cnpy;
+  const stakedPercent = totalValue > 0 ? (summary.staked_balance_cnpy / totalValue) * 100 : 0;
+  const freePercent = totalValue > 0 ? (summary.liquid_balance_cnpy / totalValue) * 100 : 0;
+
+  // Get account creation date (from first balance or mock)
+  const accountCreationDate = balances.length > 0 
+    ? balances[0].updated_at 
+    : new Date().toISOString();
+  const createdAgo = formatTimeAgo(accountCreationDate);
+
+  // Prepare portfolio chart data from balances
+  const chartColors = ["#F472B6", "#00a63d", "#38BDF8", "#FBBF24", "#C084FC"];
+  const portfolioChartData = balances.map((balance, idx) => {
+    const percentage = totalValue > 0 ? (balance.balance / totalValue) * 100 : 0;
+    const chainColor = getChainColor(balance.chain_id);
+    const chainName = getChainName(balance.chain_id);
+    return {
+      name: chainName,
+      value: percentage,
+      color: chainColor || chartColors[idx % chartColors.length],
+    };
+  });
+
+  // Add "Other" if there are more assets
+  if (summary.lp_balance_cnpy > 0 || summary.staked_balance_cnpy > 0) {
+    const otherValue = summary.lp_balance_cnpy + summary.staked_balance_cnpy;
+    const otherPercent = totalValue > 0 ? (otherValue / totalValue) * 100 : 0;
+    if (otherPercent > 0) {
+      portfolioChartData.push({
+        name: "Other",
+        value: otherPercent,
+        color: chartColors[portfolioChartData.length % chartColors.length],
+      });
+    }
+  }
+
+  // Prepare token list for Portfolio tab
+  const tokenList = balances.map((balance, idx) => {
+    const balanceValue = parseFloat(balance.balance_fmt || "0");
+    const usdValue = balanceValue; // Assuming 1 CNPY = 1 USD
+    const tokenSymbol = getChainToken(balance.chain_id);
+    const chainName = getChainName(balance.chain_id);
+    const chainColor = getChainColor(balance.chain_id);
+    return {
+      id: idx + 1,
+      chainId: balance.chain_id,
+      chainName,
+      chainColor,
+      token: tokenSymbol,
+      balance: balanceValue,
+      usdValue,
+    };
+  });
+
+  // Prepare transactions for TableCard
+  const allTransactions = transactions.flatMap((chainTxs) =>
+    chainTxs.transactions.map((tx) => ({
+      ...tx,
+      chain_id: chainTxs.chain_id,
+      chain_name: chainTxs.chain_name,
+    }))
+  );
+
+  const transactionRows = allTransactions.map((tx) => {
+    const chainName = getChainName(tx.chain_id);
+    const chainColor = getChainColor(tx.chain_id);
+    
+    return [
+    <div key="chain" className="flex items-center gap-3">
+      <div
+        className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+        dangerouslySetInnerHTML={{
+          __html: canopyIconSvg(chainColor),
+        }}
+      />
+      <Link
+        href={`/chains/${tx.chain_id}/transactions`}
+        className="flex flex-col hover:text-primary transition-colors"
+      >
+        <span className="font-medium text-white text-sm">{chainName}</span>
+      </Link>
+    </div>,
+    <Link
+      key="hash"
+      href={`/transactions/${encodeURIComponent(tx.tx_hash)}`}
+      className="text-sm font-mono text-primary hover:underline"
+    >
+      {formatAddress(tx.tx_hash, 6, 4)}
+    </Link>,
+    <Link
+      key="height"
+      href={`/blocks/${tx.height}`}
+      className="text-sm hover:text-primary"
+    >
+      {tx.height.toLocaleString()}
+    </Link>,
+    <span key="method" className="text-sm">{tx.type || "Transfer"}</span>,
+    <span key="to" className="text-sm font-mono text-muted-foreground">
+      {formatAddress(tx.to, 5, 5)}
+    </span>,
+    <span key="time" className="text-sm text-muted-foreground">
+      {formatTimeAgoShort(tx.timestamp)}
+    </span>,
+    <div key="amount" className="flex flex-col items-end">
+      <span className="text-sm text-[#00a63d] font-medium">
+        {formatCNPY(tx.amount)} CNPY
+      </span>
+      {tx.fee > 0 && (
+        <span className="text-xs text-muted-foreground">
+          {formatCNPY(tx.fee)} CNPY
+        </span>
+      )}
+    </div>,
+    ];
+  });
+
+  const transactionColumns = [
+    { label: "Chain Name" },
+    { label: "Hash" },
+    { label: "Block Height" },
+    { label: "Method" },
+    { label: "To" },
+    { label: "Time" },
+    { label: "Amount" },
+  ];
+
+  // Prepare LP positions rows for TableCard
+  const lpPositionColumns = [
+    { label: "Chain Name" },
+    { label: "Pool ID" },
+    { label: "Points" },
+    { label: "Share %" },
+    { label: "Estimated Value" },
+    { label: "Height" },
+    { label: "Time" },
+  ];
+
+  const lpPositionRows = lpPositions.map((lp) => [
+    <span key="chain" className="text-sm">{lp.chain_name}</span>,
+    <span key="pool" className="text-sm font-mono">{lp.pool_id}</span>,
+    <span key="points" className="text-sm">{lp.points.toLocaleString()}</span>,
+    <span key="share" className="text-sm">{lp.share_percentage.toFixed(2)}%</span>,
+    <span key="value" className="text-sm text-[#00a63d]">
+      {lp.estimated_value_fmt || formatCNPY(lp.estimated_value_cnpy)} CNPY
+    </span>,
+    <span key="height" className="text-sm">{lp.height.toLocaleString()}</span>,
+    <span key="time" className="text-sm text-muted-foreground">
+      {formatTimeAgoShort(lp.updated_at)}
+    </span>,
+  ]);
 
   return (
-    <>
-      {/* Header with Title and Search */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/25 flex items-center justify-center">
-            <User className="w-5 h-5 text-primary" />
-          </div>
+    <div className="space-y-6">
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Link href="/explorer" className="hover:text-white transition-colors">
+          Explorer
+        </Link>
+        <ChevronRight className="w-4 h-4" />
+        <span className="text-white">Account {formatAddress(address, 5, 5)}</span>
+      </div>
+
+      {/* Account Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div
+            className="w-16 h-16 rounded-lg flex items-center justify-center shrink-0 bg-white/10 border border-white/20"
+            dangerouslySetInnerHTML={{
+              __html: canopyIconSvg(getCanopyAccent(address)),
+            }}
+          />
           <div>
-            <h1 className="text-2xl font-bold">Account</h1>
-            <p className="text-sm text-muted-foreground font-mono">
-              {formatAddress(address, 8, 8)}
-            </p>
+            <h1 className="text-2xl font-bold mb-1">Account</h1>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground font-mono">
+                {formatAddress(address, 5, 5)}
+              </span>
+              <CopyableText text={address} showFull={false} textClassName="text-sm text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">•</span>
+              <span className="text-sm text-muted-foreground">created {createdAgo}</span>
+            </div>
           </div>
         </div>
-        <div className="w-full flex-1 max-w-[532px]">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="text"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search by address, tx hash, block..."
-              className="w-full pl-12 pr-4 py-6 bg-[#1a1a1a] border-[#2a2a2a] text-white placeholder:text-muted-foreground"
-            />
-          </div>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="h-9 w-9">
+            <Upload className="w-4 h-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-9 w-9">
+            <Heart className="w-4 h-4" />
+          </Button>
         </div>
       </div>
 
-      {/* Address Summary Card */}
-      <Card className="w-full">
-        <div className="divide-y divide-border">
-          <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
-            <p className="text-sm text-muted-foreground">Address:</p>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm break-all bg-input/30 px-2 py-2 rounded-md border border-input font-mono">
-                <CopyableText text={address} showFull={true} />
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0"
-                onClick={() => copyToClipboard(address)}
-              >
-                <Copy className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-          <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
-            <p className="text-sm text-muted-foreground">Total Portfolio Value:</p>
-            <p className="text-lg font-semibold text-green-500">
-              {summary.total_portfolio_value_fmt || formatCNPY(summary.total_portfolio_value_cnpy)}
-            </p>
-          </div>
-          <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
-            <p className="text-sm text-muted-foreground">Liquid Balance:</p>
-            <p className="text-lg font-semibold">
-              {formatCNPY(summary.liquid_balance_cnpy)}
-            </p>
-          </div>
-          {summary.staked_balance_cnpy > 0 && (
-            <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
-              <p className="text-sm text-muted-foreground">Staked Balance:</p>
-              <p className="text-lg font-semibold">
-                {formatCNPY(summary.staked_balance_cnpy)}
-              </p>
-            </div>
-          )}
-          {summary.lp_balance_cnpy > 0 && (
-            <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
-              <p className="text-sm text-muted-foreground">LP Balance:</p>
-              <p className="text-lg font-semibold">
-                {formatCNPY(summary.lp_balance_cnpy)}
-              </p>
-            </div>
-          )}
-          <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
-            <p className="text-sm text-muted-foreground">Chains:</p>
-            <p className="text-lg font-semibold">
-              {summary.chain_count}
-            </p>
-          </div>
-          {summary.is_validator && (
-            <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
-              <p className="text-sm text-muted-foreground">Validator Status:</p>
-              <p className="text-sm font-medium">
-                Active on {summary.validator_chain_count} chain{summary.validator_chain_count !== 1 ? "s" : ""}
-              </p>
-            </div>
-          )}
-        </div>
-      </Card>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Portfolio Value */}
+        <Card className="p-6">
+          <p className="text-sm text-muted-foreground mb-2">Portfolio Value</p>
+          <p className="text-2xl font-bold">${formatUSD(portfolioValueUSD)} USD</p>
+        </Card>
 
-      {/* Balances by Chain */}
-      {balances.length > 0 && (
-        <Card className="w-full">
-          <h4 className="text-lg mb-4">Balances by Chain</h4>
-          <div className="divide-y divide-border">
-            {balances.map((balance) => (
-              <div
-                key={balance.chain_id}
-                className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center"
-              >
-                <p className="text-sm text-muted-foreground">{balance.chain_name}:</p>
-                <p className="text-sm font-medium">
-                  {balance.balance_fmt || formatCNPY(balance.balance)}
-                </p>
-              </div>
-            ))}
+        {/* Staked vs Free */}
+        <Card className="p-6">
+          <p className="text-sm text-muted-foreground mb-2">Staked vs Free</p>
+          <div className="relative h-2 bg-white/10 rounded-full mb-2">
+            <div
+              className="absolute left-0 top-0 h-full bg-[#00a63d] rounded-full"
+              style={{ width: `${stakedPercent}%` }}
+            />
+            <div
+              className="absolute left-0 top-0 h-full bg-white/20 rounded-full"
+              style={{ width: `${freePercent}%`, left: `${stakedPercent}%` }}
+            />
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-[#00a63d]">Staked: {stakedPercent.toFixed(0)}%</span>
+            <span className="text-muted-foreground">Free: {freePercent.toFixed(0)}%</span>
           </div>
         </Card>
-      )}
+      </div>
 
-      {/* Recent Transactions */}
-      {transactions.length > 0 && (
-        <Card className="w-full">
-          <h4 className="text-lg mb-4">
-            <b>
-              {transactions.reduce((sum, chain) => sum + chain.total, 0)}
-            </b>{" "}
+      {/* Tabs */}
+      <Tabs defaultValue="portfolio" className="space-y-6">
+        <TabsList className="w-fit bg-transparent p-0 h-auto gap-0">
+          <TabsTrigger
+            value="portfolio"
+            className="data-[state=active]:border-b-2 data-[state=active]:border-[#00a63d] data-[state=active]:text-white data-[state=active]:bg-transparent rounded-md px-4 py-2"
+          >
+            Portfolio
+          </TabsTrigger>
+          <TabsTrigger
+            value="transactions"
+            className="data-[state=active]:border-b-2 data-[state=active]:border-[#00a63d] data-[state=active]:text-white data-[state=active]:bg-transparent rounded-md px-4 py-2"
+          >
             Transactions
-          </h4>
-          <div className="space-y-6">
-            {transactions.map((chainTxs) => (
-              <div key={chainTxs.chain_id} className="space-y-2">
-                <h5 className="text-sm font-medium text-muted-foreground">
-                  {chainTxs.chain_name} ({chainTxs.total} transactions)
-                </h5>
-                <div className="divide-y divide-border">
-                  {chainTxs.transactions.slice(0, 10).map((tx) => (
-                    <div
-                      key={tx.tx_hash}
-                      className="py-3 flex flex-col gap-2 lg:grid lg:grid-cols-[1fr_auto] lg:gap-4"
-                    >
-                      <div className="flex flex-col gap-1">
-                        <Link
-                          href={`/transactions/${encodeURIComponent(tx.tx_hash)}`}
-                          className="text-sm font-mono text-primary hover:underline"
-                        >
-                          {formatAddress(tx.tx_hash, 8, 8)}
-                        </Link>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>{tx.type}</span>
-                          <span>•</span>
-                          <Link
-                            href={`/blocks/${tx.height}`}
-                            className="hover:text-foreground"
-                          >
-                            Block #{tx.height}
-                          </Link>
-                          <span>•</span>
-                          <span>
-                            {formatCombinedTimestamp(new Date(tx.timestamp).getTime())}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end gap-1 text-sm">
-                        {tx.amount > 0 && (
-                          <p className="font-medium">
-                            {formatCNPY(tx.amount)}
-                          </p>
-                        )}
-                        {tx.fee > 0 && (
-                          <p className="text-xs text-muted-foreground">
-                            Fee: {formatCNPY(tx.fee)}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {chainTxs.total > 10 && (
-                  <div className="pt-2">
-                    <Link href={`/transactions?address=${address}&chain=${chainTxs.chain_id}`}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-muted-foreground hover:text-foreground gap-1"
-                      >
-                        View All {chainTxs.total} Transactions
-                        <ArrowUpRight className="w-4 h-4" />
-                      </Button>
-                    </Link>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
+          </TabsTrigger>
+          <TabsTrigger
+            value="positions"
+            className="data-[state=active]:border-b-2 data-[state=active]:border-[#00a63d] data-[state=active]:text-white data-[state=active]:bg-transparent rounded-md px-4 py-2"
+          >
+            LP Positions
+          </TabsTrigger>
+        </TabsList>
 
-      {/* No Transactions Message */}
-      {transactions.length === 0 && (
-        <Card className="w-full gap-4">
-          <h4 className="text-lg">Transactions</h4>
-          <div className="py-8 text-center">
-            <p className="text-sm text-muted-foreground mb-4">
-              No transactions found for this address.
-            </p>
-            <Link href="/transactions">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground hover:text-foreground gap-1"
-              >
-                View All Transactions
-                <ArrowUpRight className="w-4 h-4" />
-              </Button>
-            </Link>
+        {/* Portfolio Tab */}
+        <TabsContent value="portfolio" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Donut Chart */}
+            <Card className="p-6">
+              <div className="relative h-64 mb-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={portfolioChartData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={2}
+                      dataKey="value"
+                      stroke="none"
+                    >
+                      {portfolioChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length > 0) {
+                          const data = payload[0];
+                          const name = data.name || "";
+                          const value = data.value || 0;
+                          const totalValue = portfolioValueUSD;
+                          const segmentValue = (value / 100) * totalValue;
+                          return (
+                            <div className="bg-black/90 border border-white/20 rounded-lg p-3 shadow-lg">
+                              <p className="text-sm font-medium text-white mb-1">{name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {value.toFixed(2)}% • ${formatUSD(segmentValue)} USD
+                              </p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-white">
+                      {formatUSD(portfolioValueUSD)}
+                    </p>
+                    <p className="text-sm text-muted-foreground">USD</p>
+                  </div>
+                </div>
+              </div>
+              {/* Legend */}
+              <div className="space-y-2">
+                {portfolioChartData.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: item.color }}
+                      />
+                      <span className="text-sm">{item.name}</span>
+                    </div>
+                    <span className="text-sm font-medium">{item.value.toFixed(0)}%</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* Token List */}
+            <Card className="p-6">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left text-sm text-muted-foreground pb-2">#</th>
+                      <th className="text-left text-sm text-muted-foreground pb-2">Token</th>
+                      <th className="text-left text-sm text-muted-foreground pb-2">Balance</th>
+                      <th className="text-right text-sm text-muted-foreground pb-2">USD Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tokenList.map((token) => (
+                      <tr key={token.id} className="border-b border-border">
+                        <td className="py-3 text-sm">{token.id}</td>
+                        <td className="py-3">
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+                              dangerouslySetInnerHTML={{
+                                __html: canopyIconSvg(token.chainColor || getCanopyAccent(token.chainId.toString())),
+                              }}
+                            />
+                            <span className="text-sm font-medium">{token.token}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 text-sm">{formatCNPY(token.balance)} {token.token}</td>
+                        <td className="py-3 text-sm text-right">${formatUSD(token.usdValue)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
           </div>
-        </Card>
-      )}
-    </>
+        </TabsContent>
+
+        {/* Transactions Tab */}
+        <TabsContent value="transactions" className="space-y-6">
+          <TableCard
+            title="Transactions"
+            columns={transactionColumns}
+            rows={transactionRows}
+            loading={loading}
+            paginate={true}
+            pageSize={10}
+            totalCount={allTransactions.length}
+            searchPlaceholder="Search transactions..."
+          />
+        </TabsContent>
+
+        {/* LP Positions Tab */}
+        <TabsContent value="positions" className="space-y-6">
+          <TableCard
+            title="LP Positions"
+            columns={lpPositionColumns}
+            rows={lpPositionRows}
+            loading={loading}
+            paginate={lpPositions.length > 10}
+            pageSize={10}
+            totalCount={lpPositions.length}
+            searchPlaceholder="Search LP positions..."
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
-

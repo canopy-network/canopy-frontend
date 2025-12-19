@@ -397,6 +397,7 @@ export function TransactionsExplorer({ chainContext }: TransactionsExplorerProps
         onPageChange={setCurrentPage}
         spacing={3}
         className="gap-2 lg:gap-6"
+        showCSVButton={true}
       />
     </div>
   );

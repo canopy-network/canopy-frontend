@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Download } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { LatestUpdated } from "./latest-updated";
 import { HashSearchbar } from "@/components/hash-searchbar";
@@ -45,6 +45,8 @@ export interface TableCardProps {
   searchPlaceholder?: string; // Placeholder for search input
   onSearch?: (query: string) => void; // Callback when search query changes
   searchValue?: string; // Current search value
+  showCSVButton?: boolean; // Show CSV export button
+  onCSVExport?: () => void; // Custom CSV export handler (optional, will use default if not provided)
 }
 
 export function TableCard({
@@ -73,6 +75,8 @@ export function TableCard({
   searchPlaceholder,
   onSearch,
   searchValue,
+  showCSVButton = false,
+  onCSVExport,
 }: TableCardProps) {
   // Internal pagination for when external pagination is not provided
   const [internalPage, setInternalPage] = React.useState(1);
@@ -156,6 +160,62 @@ export function TableCard({
     24: "py-24",
   };
 
+  // Function to extract text content from React nodes
+  const extractTextFromNode = (node: React.ReactNode): string => {
+    if (typeof node === "string" || typeof node === "number") {
+      return String(node);
+    }
+    if (React.isValidElement(node)) {
+      if (node.props.children) {
+        return React.Children.toArray(node.props.children)
+          .map(extractTextFromNode)
+          .join(" ");
+      }
+      return "";
+    }
+    if (Array.isArray(node)) {
+      return node.map(extractTextFromNode).join(" ");
+    }
+    return "";
+  };
+
+  // Default CSV export function
+  const handleCSVExport = () => {
+    if (onCSVExport) {
+      onCSVExport();
+      return;
+    }
+
+    // Extract headers
+    const headers = columns.map((col) => col.label);
+
+    // Extract all rows (not just current page)
+    const allRowsData = rows.map((row) =>
+      row.map((cell) => {
+        const text = extractTextFromNode(cell);
+        // Remove extra whitespace and newlines
+        return text.trim().replace(/\s+/g, " ");
+      })
+    );
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(","),
+      ...allRowsData.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+    ].join("\n");
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${title || "export"}_${new Date().toISOString().split("T")[0]}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <Card padding="explorer" id={id} className={`gap-2 lg:gap-6 ${className || ""}`}>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 leading-none">
@@ -174,6 +234,17 @@ export function TableCard({
               placeholder={searchPlaceholder}
               wrapperClassName="min-w-[400px]"
             />
+          )}
+          {showCSVButton && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCSVExport}
+              className="border-white/20 text-white/80 hover:bg-white/10 hover:text-white"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              CSV
+            </Button>
           )}
           {live && <LatestUpdated showLive={live} className="self-end sm:self-auto" />}
         </div>

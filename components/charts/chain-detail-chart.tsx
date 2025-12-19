@@ -212,7 +212,12 @@ export const ChainDetailChart = ({
     const series = chart.addSeries(LineSeries, areaSeriesOptions);
 
     if (data && data.length > 0) {
-      series.setData(data as any);
+      // Ensure data is properly formatted
+      const formattedData = data.map((item) => ({
+        time: item.time,
+        value: typeof item.value === 'number' ? item.value : parseFloat(String(item.value || 0)),
+      }));
+      series.setData(formattedData as any);
     }
 
     const toolTipWidth = 200;

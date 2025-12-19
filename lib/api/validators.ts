@@ -57,6 +57,19 @@ export interface CrossChainStake {
 }
 
 /**
+ * Performance information
+ */
+export interface Performance {
+  missed_blocks_count?: number;
+  missed_blocks_window?: number;
+  uptime_percentage?: number;
+  last_signed_height?: number;
+  start_height?: number;
+  height?: number;
+  updated_at?: string;
+}
+
+/**
  * Slashing history information
  */
 export interface SlashingHistory {
@@ -81,7 +94,7 @@ export interface ValidatorDetailData {
   commission_rate_history?: any | null; // Commission rate history
   validator_url?: string; // Validator website URL
   github_url?: string; // GitHub URL
-  performance?: any | null; // Performance data
+  performance?: Performance | null; // Performance data
   slashing_history: SlashingHistory;
   cross_chain: CrossChainStake[];
   updated_at: string;
@@ -133,6 +146,59 @@ export interface ValidatorsRequest {
   delegate?: boolean;
   limit?: number;
   offset?: number;
+}
+
+/**
+ * Reward event from validator rewards endpoint
+ */
+export interface RewardEvent {
+  height: number;
+  chain_id: number;
+  chain_name: string;
+  chain_symbol: string;
+  type: string;
+  address: string;
+  reference: string;
+  amount: string;
+  sold_amount: string | null;
+  bought_amount: string | null;
+  cnpy_amount: string;
+  usd_amount: string;
+  success: boolean | null;
+  timestamp: string;
+}
+
+/**
+ * Rewards by chain from validator rewards endpoint
+ */
+export interface RewardsByChain {
+  source_chain_id: number;
+  chain_name: string;
+  chain_symbol: string;
+  events: RewardEvent[];
+}
+
+/**
+ * Validator rewards API response
+ */
+export interface ValidatorRewardsResponse {
+  data: {
+    rewards_by_chain: RewardsByChain[];
+  };
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+}
+
+/**
+ * Validator rewards API query parameters
+ */
+export interface ValidatorRewardsRequest {
+  chain_id?: number;
+  addresses: string[]; // Array of validator addresses
 }
 
 /**
@@ -225,6 +291,52 @@ export const validatorsApi = {
     );
     return response.data as ValidatorDetailData | string;
   },
+
+  /**
+   * Get validator rewards history
+   * GET /api/v1/validator/rewards
+   *
+   * @param params - Query parameters (chain_id, addresses)
+   * @returns Rewards history data grouped by chain
+   */
+  getValidatorRewards: async (
+    params: ValidatorRewardsRequest
+  ): Promise<ValidatorRewardsResponse> => {
+    // Convert addresses array to JSON string for the API
+    const queryParams: Record<string, string> = {
+      addresses: JSON.stringify(params.addresses),
+    };
+    if (params.chain_id) {
+      queryParams.chain_id = params.chain_id.toString();
+    }
+    
+    const response = await apiClient.get<ValidatorRewardsResponse>(
+      "/validator/rewards",
+      queryParams
+    );
+    
+    // apiClient.get returns ApiResponse<T> which is { data: T, pagination: ... }
+    // But our Next.js API route returns the backend response directly
+    // So response.data might already be ValidatorRewardsResponse or wrapped
+    const responseData = response.data as any;
+    
+    // Handle both wrapped and unwrapped responses
+    if (responseData?.data?.rewards_by_chain) {
+      // Already in correct format
+      return responseData as ValidatorRewardsResponse;
+    } else if (responseData?.rewards_by_chain) {
+      // Unwrapped format, wrap it
+      return {
+        data: {
+          rewards_by_chain: responseData.rewards_by_chain,
+        },
+        pagination: responseData.pagination || null,
+      };
+    }
+    
+    // Fallback
+    return responseData as ValidatorRewardsResponse;
+  },
 };
 
 // ============================================================================
@@ -306,6 +418,35 @@ export function useValidatorExport(
     queryKey: ["validators", "export", address, format],
     queryFn: () => validatorsApi.exportValidatorData(address, format),
     enabled: !!address,
+    staleTime: 60000, // 1 minute
+    ...options,
+  });
+}
+
+/**
+ * React Query hook for fetching validator rewards history
+ * Uses /api/validator/rewards endpoint
+ * 
+ * @param params - Query parameters (chain_id, addresses)
+ * @param options - React Query options
+ * @returns UseQueryResult with rewards history data
+ * 
+ * @example
+ * ```typescript
+ * const { data, isLoading } = useValidatorRewards({
+ *   chain_id: 1,
+ *   addresses: ["address1", "address2"]
+ * });
+ * ```
+ */
+export function useValidatorRewards(
+  params: ValidatorRewardsRequest,
+  options?: Omit<UseQueryOptions<ValidatorRewardsResponse, Error>, "queryKey" | "queryFn">
+): UseQueryResult<ValidatorRewardsResponse, Error> {
+  return useQuery({
+    queryKey: ["validators", "rewards", params],
+    queryFn: () => validatorsApi.getValidatorRewards(params),
+    enabled: !!params.addresses && params.addresses.length > 0,
     staleTime: 60000, // 1 minute
     ...options,
   });

@@ -112,16 +112,16 @@ export function ChainSelect({ value, onValueChange, className }: ChainSelectProp
     // Normalize both values to strings for comparison
     const normalizedValue = String(value);
     const found = chainOptions.find((option) => String(option.value) === normalizedValue);
-    
+
     if (!found && chainOptions.length > 0) {
       return chainOptions[0];
     }
-    
+
     return found || chainOptions[0];
   }, [chainOptions, value]);
-  
+
   const selectedBrandColor = selectedOption?.brand_color || "#00a63d";
-  
+
   // Ensure we use the exact same object reference from chainOptions for react-select
   // react-select compares by reference, not by value
   const exactSelectedOption = useMemo(() => {
@@ -154,7 +154,7 @@ export function ChainSelect({ value, onValueChange, className }: ChainSelectProp
       height: "38px",
       backgroundColor: "#000000",
       borderColor: selectedBrandColor,
-      borderRadius: "6px",
+      borderRadius: "12px",
       boxShadow: state.isFocused
         ? `0 0 18px ${hexToRgba(selectedBrandColor, 0.55)}`
         : `0 0 14px ${hexToRgba(selectedBrandColor, 0.4)}`,
@@ -177,6 +177,7 @@ export function ChainSelect({ value, onValueChange, className }: ChainSelectProp
       padding: "0px",
       color: selectedBrandColor,
       fontSize: "14px",
+
     }),
     indicatorSeparator: () => ({
       display: "none",
