@@ -12,12 +12,7 @@
  */
 
 import { create } from "zustand";
-import {
-  persist,
-  createJSONStorage,
-  StateStorage,
-  devtools,
-} from "zustand/middleware";
+import { persist, createJSONStorage, StateStorage } from "zustand/middleware";
 import {
   LocalWallet,
   UpdateWalletRequest,
@@ -26,25 +21,11 @@ import {
   ImportWalletRequest,
   WalletTransactionStatus,
 } from "@/types/wallet";
-import {
-  walletApi,
-  portfolioApi,
-  walletTransactionApi,
-  chainsApi,
-  paramsApi,
-} from "@/lib/api";
+import { walletApi, portfolioApi, walletTransactionApi, chainsApi, paramsApi } from "@/lib/api";
 import type { FeeParams } from "@/types/params";
 import { DEFAULT_FEE_PARAMS } from "@/types/params";
-import type {
-  SendTransactionRequest,
-  TransactionHistoryRequest,
-  EstimateFeeRequest,
-} from "@/types/wallet";
-import {
-  generateEncryptedKeyPair,
-  decryptPrivateKey,
-  EncryptedKeyPair,
-} from "@/lib/crypto/wallet";
+import type { SendTransactionRequest, TransactionHistoryRequest, EstimateFeeRequest } from "@/types/wallet";
+import { generateEncryptedKeyPair, decryptPrivateKey, EncryptedKeyPair } from "@/lib/crypto/wallet";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { validateSeedphrase } from "@/lib/crypto/seedphrase";
 import {
@@ -86,34 +67,15 @@ export interface WalletState {
   // Portfolio data (cached)
   portfolioOverview: any | null; // Full portfolio overview
   multiChainBalance: any | null; // Balance across all chains
-  availableAssets: {
-    chainId: string;
-    symbol: string;
-    name: string;
-    balance: string;
-  }[];
-
-  // Fee parameters (cached from blockchain)
-  feeParams: FeeParams | null;
-
-  // Dialog state
-  showSendDialog: boolean;
-  showReceiveDialog: boolean;
-  showStakeDialog: boolean;
-
-  // Fee parameters (cached from blockchain)
-  feeParams: FeeParams | null;
+  availableAssets: { chainId: string; symbol: string; name: string; balance: string }[];
 
   // Fee parameters (cached from blockchain)
   feeParams: FeeParams | null;
 
   // Actions - Wallet Management
   fetchWallets: () => Promise<void>;
-  selectWallet: (walletId: string) => Promise<void>;
-  createWallet: (
-    seedphrase: string,
-    walletName?: string
-  ) => Promise<{ wallet: LocalWallet; seedphrase: string }>;
+  selectWallet: (walletId: string) => void;
+  createWallet: (seedphrase: string, walletName?: string) => Promise<{ wallet: LocalWallet; seedphrase: string }>;
   updateWallet: (walletId: string, data: UpdateWalletRequest) => Promise<void>;
   deleteWallet: (walletId: string) => Promise<void>;
 
@@ -144,24 +106,10 @@ export interface WalletState {
     usdcContractAddress: string // USDC contract address (with 0x prefix)
   ) => Promise<string>;
 
-  // Actions - Delete Order (MessageDeleteOrder)
-  deleteOrder: (
-    orderId: string, // Order ID to delete
-    committeeId: number // Committee ID for the order
-  ) => Promise<string>;
-
   // Actions - Utilities
   clearError: () => void;
   resetWalletState: () => void;
   migrateWalletCurveTypes: () => void; // Migrate existing wallets to include curve type
-
-  // Actions - Dialog Management
-  openSendDialog: () => void;
-  closeSendDialog: () => void;
-  openReceiveDialog: () => void;
-  closeReceiveDialog: () => void;
-  openStakeDialog: () => void;
-  closeStakeDialog: () => void;
 }
 
 // Custom storage for Zustand
@@ -205,9 +153,7 @@ function encryptPassword(password: string): string {
   const key = "canopy-session-key-2024";
   let encrypted = "";
   for (let i = 0; i < password.length; i++) {
-    encrypted += String.fromCharCode(
-      password.charCodeAt(i) ^ key.charCodeAt(i % key.length)
-    );
+    encrypted += String.fromCharCode(password.charCodeAt(i) ^ key.charCodeAt(i % key.length));
   }
   return btoa(encrypted);
 }
@@ -217,9 +163,7 @@ function decryptPassword(encrypted: string): string {
   const decoded = atob(encrypted);
   let password = "";
   for (let i = 0; i < decoded.length; i++) {
-    password += String.fromCharCode(
-      decoded.charCodeAt(i) ^ key.charCodeAt(i % key.length)
-    );
+    password += String.fromCharCode(decoded.charCodeAt(i) ^ key.charCodeAt(i % key.length));
   }
   return password;
 }
@@ -238,9 +182,7 @@ function savePasswordSession(password: string): void {
 
   try {
     localStorage.setItem(PASSWORD_SESSION_KEY, JSON.stringify(session));
-    console.log(
-      `💾 Password session saved (expires in ${SESSION_EXPIRATION_DAYS} days)`
-    );
+    console.log(`💾 Password session saved (expires in ${SESSION_EXPIRATION_DAYS} days)`);
   } catch (error) {
     console.error("Failed to save password session:", error);
   }
@@ -268,9 +210,7 @@ function getCachedPassword(): string | null {
 
     // Session is valid, decrypt and return password
     const password = decryptPassword(session.encryptedPassword);
-    const daysLeft = Math.ceil(
-      (session.expiresAt - now) / (1000 * 60 * 60 * 24)
-    );
+    const daysLeft = Math.ceil((session.expiresAt - now) / (1000 * 60 * 60 * 24));
     console.log(`✅ Password session valid (${daysLeft} days remaining)`);
     return password;
   } catch (error) {
@@ -297,8 +237,8 @@ function clearPasswordSession(): void {
 }
 
 export const useWalletStore = create<WalletState>()(
-  devtools(
-    persist((set, get) => ({
+  persist(
+    (set, get) => ({
       // Initial state
       wallets: [],
       currentWallet: null,
@@ -310,66 +250,55 @@ export const useWalletStore = create<WalletState>()(
       multiChainBalance: null,
       availableAssets: [],
       feeParams: null,
-      showSendDialog: false,
-      showReceiveDialog: false,
-      showStakeDialog: false,
 
       // Fetch all wallets for the current user
       // Uses only exportWallets endpoint which contains all necessary data
       fetchWallets: async () => {
+        try {
           set({ isLoading: true, error: null });
 
           console.log("🔄 Fetching wallets from export endpoint...");
 
+          const exportResponse = await walletApi.exportWallets();
+
           const addressMap = exportResponse?.addressMap || {};
 
           // Convert addressMap to LocalWallet array
-          const wallets: LocalWallet[] = Object.entries(addressMap).map(
-            ([address, data]) => {
-              // Detect curve type from public key
-              let curveType: string;
-              try {
-                curveType = detectPublicKeyCurve(data.publicKey);
-                console.log(
-                  `✅ Detected curve type for ${address}: ${curveType}`
-                );
-              } catch (error) {
-                console.warn(
-                  `⚠️ Failed to detect curve type for ${address}, defaulting to ed25519:`,
-                  error
-                );
-                curveType = CurveType.ED25519; // Default to Ed25519
-              }
-
-              return {
-                // From export endpoint
-                id: address,
-                address: data.keyAddress || address,
-                public_key: data.publicKey,
-                encrypted_private_key: data.encrypted,
-                salt: data.salt,
-                wallet_name: data.keyNickname || "Unnamed Wallet",
-                curveType, // ✅ Store detected curve type
-
-                // Local state only
-                // Will be set to true after auto-unlock attempt (if password session exists)
-                isUnlocked: false,
-              };
+          const wallets: LocalWallet[] = Object.entries(addressMap).map(([address, data]) => {
+            // Detect curve type from public key
+            let curveType: string;
+            try {
+              curveType = detectPublicKeyCurve(data.publicKey);
+              console.log(`✅ Detected curve type for ${address}: ${curveType}`);
+            } catch (error) {
+              console.warn(`⚠️ Failed to detect curve type for ${address}, defaulting to ed25519:`, error);
+              curveType = CurveType.ED25519; // Default to Ed25519
             }
-          );
+
+            return {
+              // From export endpoint
+              id: address,
+              address: data.keyAddress || address,
+              public_key: data.publicKey,
+              encrypted_private_key: data.encrypted,
+              salt: data.salt,
+              wallet_name: data.keyNickname || "Unnamed Wallet",
+              curveType, // ✅ Store detected curve type
+
+              // Local state only
+              // Will be set to true after auto-unlock attempt (if password session exists)
+              isUnlocked: false,
+            };
+          });
 
           console.log("✅ Populated", wallets.length, "wallets successfully");
-
-          // Preserve currentWallet if it exists
-          const previousCurrentWallet = get().currentWallet;
-          const currentWalletId = previousCurrentWallet?.id;
 
           set({ wallets, isLoading: false });
 
           // 🔓 Auto-unlock all wallets if password session exists
           const cachedPassword = getCachedPassword();
           if (cachedPassword) {
-            console.log('🔐 Password session found, auto-unlocking', wallets.length, 'wallets...');
+            console.log("🔐 Password session found, auto-unlocking", wallets.length, "wallets...");
 
             // Save password session ONCE before unlocking (not per wallet)
             savePasswordSession(cachedPassword);
@@ -388,8 +317,7 @@ export const useWalletStore = create<WalletState>()(
             console.log(`✅ Auto-unlock complete: ${successCount}/${wallets.length} wallets unlocked`);
           }
         } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Failed to fetch wallets";
+          const errorMessage = error instanceof Error ? error.message : "Failed to fetch wallets";
           console.error("❌ Failed to fetch wallets:", error);
           set({ error: errorMessage, isLoading: false });
           throw error;
@@ -397,53 +325,12 @@ export const useWalletStore = create<WalletState>()(
       },
 
       // Select a wallet as the current wallet
-      selectWallet: async (walletId: string) => {
+      selectWallet: (walletId: string) => {
         const { wallets } = get();
         const wallet = wallets.find((w) => w.id === walletId);
 
         if (wallet) {
-          // If wallet is not unlocked, try to auto-unlock silently
-          if (!wallet.isUnlocked || !wallet.privateKey) {
-            let unlockPassword = getCachedPassword();
-            if (!unlockPassword) {
-              const masterSeedphrase = retrieveMasterSeedphrase();
-              if (masterSeedphrase) {
-                unlockPassword = masterSeedphrase.replace(/\s+/g, "");
-              }
-            }
-
-            if (unlockPassword) {
-              try {
-                console.log(
-                  `🔓 Auto-unlocking wallet ${walletId} on selection...`
-                );
-                await get().unlockWallet(walletId, unlockPassword);
-                // Get the updated wallet after unlock
-                const updatedWallets = get().wallets;
-                const updatedWallet = updatedWallets.find(
-                  (w) => w.id === walletId
-                );
-                if (updatedWallet) {
-                  set({ currentWallet: updatedWallet });
-                } else {
-                  set({ currentWallet: wallet });
-                }
-              } catch (error) {
-                console.warn(
-                  `⚠️ Failed to auto-unlock wallet ${walletId} on selection:`,
-                  error
-                );
-                // Still set the wallet even if unlock fails
-                set({ currentWallet: wallet });
-              }
-            } else {
-              // No password available, just set the wallet
-              set({ currentWallet: wallet });
-            }
-          } else {
-            // Wallet is already unlocked, just set it
-            set({ currentWallet: wallet });
-          }
+          set({ currentWallet: wallet });
 
           // Fetch balance and transactions for the selected wallet
           get().fetchBalance(walletId);
@@ -452,11 +339,7 @@ export const useWalletStore = create<WalletState>()(
       },
 
       // Create a new wallet with seedphrase
-      createWallet: async (
-        seedphrase: string,
-        walletName?: string,
-        walletDescription?: string
-      ) => {
+      createWallet: async (seedphrase: string, walletName?: string, walletDescription?: string) => {
         try {
           set({ isLoading: true, error: null });
 
@@ -477,22 +360,20 @@ export const useWalletStore = create<WalletState>()(
           const seedphraseNoSpaces = normalizedSeedphrase.replace(/\s+/g, "");
 
           // Generate encrypted keypair using seedphrase as password
-          const { encrypted } = await generateEncryptedKeyPair(
-            seedphraseNoSpaces
-          );
+          const { encrypted } = await generateEncryptedKeyPair(seedphraseNoSpaces);
 
           // Create wallet request with seedphrase WITHOUT SPACES
           // The ImportWalletRequest is a map of addresses to their encrypted data
           const importRequest: ImportWalletRequest = {
-              addressMap:{
-                  [encrypted.address]: {
-                      publicKey: encrypted.publicKey,
-                      salt: encrypted.salt,
-                      encrypted: encrypted.encryptedPrivateKey,
-                      keyAddress: encrypted.address,
-                      keyNickname: walletName || "Main Wallet",
-                  }
-              }
+            addressMap: {
+              [encrypted.address]: {
+                publicKey: encrypted.publicKey,
+                salt: encrypted.salt,
+                encrypted: encrypted.encryptedPrivateKey,
+                keyAddress: encrypted.address,
+                keyNickname: walletName || "Main Wallet",
+              },
+            },
           };
 
           // Send to backend
@@ -519,10 +400,7 @@ export const useWalletStore = create<WalletState>()(
             curveType = detectPublicKeyCurve(encrypted.publicKey);
             console.log(`✅ Created wallet with curve type: ${curveType}`);
           } catch (error) {
-            console.warn(
-              `⚠️ Failed to detect curve type, defaulting to ed25519:`,
-              error
-            );
+            console.warn(`⚠️ Failed to detect curve type, defaulting to ed25519:`, error);
             curveType = CurveType.ED25519; // Default to Ed25519
           }
 
@@ -546,8 +424,7 @@ export const useWalletStore = create<WalletState>()(
 
           return { wallet: localWallet, seedphrase };
         } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Failed to create wallet";
+          const errorMessage = error instanceof Error ? error.message : "Failed to create wallet";
           set({ error: errorMessage, isLoading: false });
           throw error;
         }
@@ -561,18 +438,13 @@ export const useWalletStore = create<WalletState>()(
           const updatedWallet = await walletApi.updateWallet(walletId, data);
 
           set((state) => ({
-            wallets: state.wallets.map((w) =>
-              w.id === walletId ? { ...w, ...updatedWallet } : w
-            ),
+            wallets: state.wallets.map((w) => (w.id === walletId ? { ...w, ...updatedWallet } : w)),
             currentWallet:
-              state.currentWallet?.id === walletId
-                ? { ...state.currentWallet, ...updatedWallet }
-                : state.currentWallet,
+              state.currentWallet?.id === walletId ? { ...state.currentWallet, ...updatedWallet } : state.currentWallet,
             isLoading: false,
           }));
         } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Failed to update wallet";
+          const errorMessage = error instanceof Error ? error.message : "Failed to update wallet";
           set({ error: errorMessage, isLoading: false });
           throw error;
         }
@@ -587,13 +459,11 @@ export const useWalletStore = create<WalletState>()(
 
           set((state) => ({
             wallets: state.wallets.filter((w) => w.id !== walletId),
-            currentWallet:
-              state.currentWallet?.id === walletId ? null : state.currentWallet,
+            currentWallet: state.currentWallet?.id === walletId ? null : state.currentWallet,
             isLoading: false,
           }));
         } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Failed to delete wallet";
+          const errorMessage = error instanceof Error ? error.message : "Failed to delete wallet";
           set({ error: errorMessage, isLoading: false });
           throw error;
         }
@@ -622,9 +492,7 @@ export const useWalletStore = create<WalletState>()(
 
           // Verify we have encryption data (should be available from export)
           if (!wallet.encrypted_private_key || !wallet.salt) {
-            throw new Error(
-              "Wallet encryption data not available. Please refresh your wallets."
-            );
+            throw new Error("Wallet encryption data not available. Please refresh your wallets.");
           }
 
           // Normalize and remove spaces from password/seedphrase
@@ -639,10 +507,7 @@ export const useWalletStore = create<WalletState>()(
           };
 
           // RECALCULATE private key by decrypting (never read from storage)
-          const privateKeyBytes = await decryptPrivateKey(
-            encryptedKeyPair,
-            passwordNoSpaces
-          );
+          const privateKeyBytes = await decryptPrivateKey(encryptedKeyPair, passwordNoSpaces);
 
           // Convert bytes to hex string
           const privateKeyHex = bytesToHex(privateKeyBytes);
@@ -654,10 +519,7 @@ export const useWalletStore = create<WalletState>()(
               curveType = detectPublicKeyCurve(wallet.public_key);
               console.log(`✅ Detected curve type on unlock: ${curveType}`);
             } catch (error) {
-              console.warn(
-                `⚠️ Failed to detect curve type on unlock, defaulting to ed25519:`,
-                error
-              );
+              console.warn(`⚠️ Failed to detect curve type on unlock, defaulting to ed25519:`, error);
               curveType = CurveType.ED25519;
             }
           }
@@ -697,8 +559,7 @@ export const useWalletStore = create<WalletState>()(
             console.log(`🔓 Wallet unlocked with 3-day session: ${walletId}`);
           }
         } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Failed to unlock wallet";
+          const errorMessage = error instanceof Error ? error.message : "Failed to unlock wallet";
           set({ error: errorMessage, isLoading: false });
           throw error;
         }
@@ -767,11 +628,7 @@ export const useWalletStore = create<WalletState>()(
             addresses: [wallet.address],
           });
 
-          if (
-            !overview ||
-            !overview.accounts ||
-            overview.accounts.length === 0
-          ) {
+          if (!overview || !overview.accounts || overview.accounts.length === 0) {
             // No balance data available, set empty balance
             set({
               balance: {
@@ -785,7 +642,7 @@ export const useWalletStore = create<WalletState>()(
           // Build tokens array - one token per chain
           // Note: API already returns balances in standard units (not micro)
           // Store raw values - formatting happens in the view layer
-          const tokens: WalletBalance['tokens'] = overview.accounts.map((account) => ({
+          const tokens: WalletBalance["tokens"] = overview.accounts.map((account) => ({
             symbol: generateChainSymbol(account.chain_id),
             name: account.chain_name,
             balance: account.balance, // Raw value from API
@@ -841,27 +698,25 @@ export const useWalletStore = create<WalletState>()(
           }
 
           // Fetch transaction history from API
-          const historyResponse =
-            await walletTransactionApi.getTransactionHistory({
-              addresses: [wallet.address],
-              limit: 50,
-              sort: "desc",
-            });
+          const historyResponse = await walletTransactionApi.getTransactionHistory({
+            addresses: [wallet.address],
+            limit: 50,
+            sort: "desc",
+          });
 
           // Convert API response to WalletTransaction format
           // Amounts are converted from micro (uCNPY) to CNPY
-          const walletTransactions: WalletTransaction[] =
-            historyResponse.transactions.map((tx) => ({
-              id: tx.transaction_hash,
-              type: tx.type.toLowerCase() as any,
-              amount: fromMicroUnits(tx.amount), // Convert from micro units to standard units
-              token: "CNPY", // Default to CNPY, could be extracted from transaction
-              from: tx.from_address,
-              to: tx.to_address,
-              status: tx.status.toLowerCase() as WalletTransactionStatus,
-              timestamp: tx.timestamp,
-              txHash: tx.transaction_hash,
-            }));
+          const walletTransactions: WalletTransaction[] = historyResponse.transactions.map((tx) => ({
+            id: tx.transaction_hash,
+            type: tx.type.toLowerCase() as any,
+            amount: fromMicroUnits(tx.amount), // Convert from micro units to standard units
+            token: "CNPY", // Default to CNPY, could be extracted from transaction
+            from: tx.from_address,
+            to: tx.to_address,
+            status: tx.status.toLowerCase() as WalletTransactionStatus,
+            timestamp: tx.timestamp,
+            txHash: tx.transaction_hash,
+          }));
 
           set({ transactions: walletTransactions });
         } catch (error) {
@@ -879,9 +734,7 @@ export const useWalletStore = create<WalletState>()(
           const targetAddresses = addresses || wallets.map((w) => w.address);
 
           if (targetAddresses.length === 0) {
-            console.warn(
-              "No wallet addresses available for portfolio overview"
-            );
+            console.warn("No wallet addresses available for portfolio overview");
             return;
           }
 
@@ -906,9 +759,7 @@ export const useWalletStore = create<WalletState>()(
           const targetAddresses = addresses || wallets.map((w) => w.address);
 
           if (targetAddresses.length === 0) {
-            console.warn(
-              "No wallet addresses available for multi-chain balance"
-            );
+            console.warn("No wallet addresses available for multi-chain balance");
             return;
           }
 
@@ -947,35 +798,25 @@ export const useWalletStore = create<WalletState>()(
       },
 
       // Send a transaction using send-raw endpoint with locally signed transaction
-      sendTransaction: async (
-        request: SendTransactionRequest
-      ): Promise<string> => {
+      sendTransaction: async (request: SendTransactionRequest): Promise<string> => {
         try {
           set({ isLoading: true, error: null });
 
           // Find the wallet to get the private key
           const { wallets } = get();
-          const wallet = wallets.find(
-            (w) => w.address === request.from_address
-          );
+          const wallet = wallets.find((w) => w.address === request.from_address);
 
           if (!wallet) {
-            throw new Error(
-              "Wallet not found for address: " + request.from_address
-            );
+            throw new Error("Wallet not found for address: " + request.from_address);
           }
 
           if (!wallet.privateKey || !wallet.isUnlocked) {
-            throw new Error(
-              "Wallet is locked. Please unlock the wallet first."
-            );
+            throw new Error("Wallet is locked. Please unlock the wallet first.");
           }
 
           // Ensure curveType is set
           if (!wallet.curveType) {
-            throw new Error(
-              "Wallet curve type not detected. Please refresh your wallets."
-            );
+            throw new Error("Wallet curve type not detected. Please refresh your wallets.");
           }
 
           // Convert amount from denom to udenom
@@ -1024,28 +865,20 @@ export const useWalletStore = create<WalletState>()(
           signedTx.chain_id = chainId;
 
           // Submit the raw transaction to the backend
-          const response = await walletTransactionApi.sendRawTransaction(
-            signedTx
-          );
+          const response = await walletTransactionApi.sendRawTransaction(signedTx);
 
           console.log("✅ Transaction sent:", response.transaction_hash);
 
           // Refresh balance and transactions after sending
           const { currentWallet, fetchBalance, fetchTransactions } = get();
           if (currentWallet) {
-            await Promise.all([
-              fetchBalance(currentWallet.id),
-              fetchTransactions(currentWallet.id),
-            ]);
+            await Promise.all([fetchBalance(currentWallet.id), fetchTransactions(currentWallet.id)]);
           }
 
           set({ isLoading: false });
           return response.transaction_hash;
         } catch (error) {
-          const errorMessage =
-            error instanceof Error
-              ? error.message
-              : "Failed to send transaction";
+          const errorMessage = error instanceof Error ? error.message : "Failed to send transaction";
           console.error("❌ Failed to send transaction:", error);
           set({ error: errorMessage, isLoading: false });
           throw error;
@@ -1061,9 +894,7 @@ export const useWalletStore = create<WalletState>()(
             amount: toMicroUnits(request.amount),
           };
 
-          const response = await walletTransactionApi.estimateFee(
-            requestWithMicro
-          );
+          const response = await walletTransactionApi.estimateFee(requestWithMicro);
 
           // Convert estimated fee from uCNPY to CNPY
           return fromMicroUnits(response.estimated_fee);
@@ -1076,10 +907,10 @@ export const useWalletStore = create<WalletState>()(
       // Create a cross-chain swap order using send-raw endpoint (MessageCreateOrder)
       // NOTE: This is NOT for DEX v2 limit orders. For DEX, use dexLimitOrder transaction type.
       createOrder: async (
-        committeeId: number,  // Committee responsible for counter-asset swap
+        committeeId: number, // Committee responsible for counter-asset swap
         amountForSale: number,
         requestedAmount: number,
-        sellerEthAddress: string,  // Ethereum address to receive USDC
+        sellerEthAddress: string, // Ethereum address to receive USDC
         usdcContractAddress: string // USDC contract address (with 0x prefix)
       ): Promise<string> => {
         try {
@@ -1106,9 +937,7 @@ export const useWalletStore = create<WalletState>()(
 
           // Get current blockchain height (always use chain 1 for the main chain)
           const BLOCKCHAIN_CHAIN_ID = 1;
-          const currentHeight = await chainsApi.getChainHeight(
-            String(BLOCKCHAIN_CHAIN_ID)
-          );
+          const currentHeight = await chainsApi.getChainHeight(String(BLOCKCHAIN_CHAIN_ID));
 
           // Fetch fee params for createOrder transaction
           const feeParams = await get().fetchFeeParams();
@@ -1117,9 +946,7 @@ export const useWalletStore = create<WalletState>()(
           // - sellerReceiveAddress: Ethereum address where seller receives USDC (no 0x prefix)
           // - sellersSendAddress: Canopy address where seller's CNPY is escrowed from
           // - data: USDC contract address (no 0x prefix) - committee uses this to watch for payments
-          const ethAddressNoPrefix = sellerEthAddress.startsWith("0x")
-            ? sellerEthAddress.slice(2)
-            : sellerEthAddress;
+          const ethAddressNoPrefix = sellerEthAddress.startsWith("0x") ? sellerEthAddress.slice(2) : sellerEthAddress;
           const usdcAddressNoPrefix = usdcContractAddress.startsWith("0x")
             ? usdcContractAddress.slice(2)
             : usdcContractAddress;
@@ -1162,118 +989,19 @@ export const useWalletStore = create<WalletState>()(
             currentWallet.curveType as CurveType
           );
 
-          console.log(
-            "✅ Order transaction signed locally with",
-            currentWallet.curveType
-          );
+          console.log("✅ Order transaction signed locally with", currentWallet.curveType);
           console.log("📤 Submitting raw transaction to backend...");
 
           // Submit the raw transaction to the backend
-          const response = await walletTransactionApi.sendRawTransaction(
-            signedTx
-          );
+          const response = await walletTransactionApi.sendRawTransaction(signedTx);
 
           console.log("✅ Order created:", response.transaction_hash);
 
           set({ isLoading: false });
           return response.transaction_hash;
         } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Failed to create order";
+          const errorMessage = error instanceof Error ? error.message : "Failed to create order";
           console.error("❌ Failed to create order:", error);
-          set({ error: errorMessage, isLoading: false });
-          throw error;
-        }
-      },
-
-      // Delete a cross-chain swap order using send-raw endpoint (MessageDeleteOrder)
-      deleteOrder: async (
-        orderId: string, // Order ID to delete
-        committeeId: number // Committee ID for the order
-      ): Promise<string> => {
-        try {
-          set({ isLoading: true, error: null });
-
-          // Get current wallet
-          const { currentWallet } = get();
-
-          if (!currentWallet) {
-            throw new Error(
-              "No wallet selected. Please select a wallet first."
-            );
-          }
-
-          if (!currentWallet.privateKey || !currentWallet.isUnlocked) {
-            throw new Error(
-              "Wallet is locked. Please unlock the wallet first."
-            );
-          }
-
-          if (!currentWallet.curveType) {
-            throw new Error(
-              "Wallet curve type not detected. Please refresh your wallets."
-            );
-          }
-
-          // Get current blockchain height (always use chain 1 for the main chain)
-          const BLOCKCHAIN_CHAIN_ID = 1;
-          const currentHeight = await chainsApi.getChainHeight(
-            String(BLOCKCHAIN_CHAIN_ID)
-          );
-
-          // Fetch fee params for deleteOrder transaction
-          const feeParams = await get().fetchFeeParams();
-
-          // Build transaction parameters
-          // chainID in txParams is the blockchain chain ID (1), not the committee
-          const txParams = {
-            type: "deleteOrder",
-            msg: {
-              orderId: orderId, // Order ID (hex string)
-              chainId: committeeId, // Committee ID
-            },
-            fee: feeParams.deleteOrderFee, // Use deleteOrderFee from blockchain params
-            memo: "",
-            networkID: 1,
-            chainID: BLOCKCHAIN_CHAIN_ID, // Blockchain chain ID = 1
-            height: currentHeight.data.height,
-          };
-
-          try {
-            validateTransactionParams(txParams);
-          } catch (validationError) {
-            console.error("❌ Transaction validation failed:", validationError);
-            throw validationError;
-          }
-
-          // Create and sign the transaction
-          console.log("🔐 Signing deleteOrder transaction with protobuf...");
-          const signedTx = createAndSignTransaction(
-            txParams,
-            currentWallet.privateKey,
-            currentWallet.public_key,
-            currentWallet.curveType as CurveType
-          );
-
-          console.log(
-            "✅ Delete order transaction signed locally with",
-            currentWallet.curveType
-          );
-          console.log("📤 Submitting raw transaction to backend...");
-
-          // Submit the raw transaction to the backendClos
-          const response = await walletTransactionApi.sendRawTransaction(
-            signedTx
-          );
-
-          console.log("✅ Order deleted:", response.transaction_hash);
-
-          set({ isLoading: false });
-          return response.transaction_hash;
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Failed to delete order";
-          console.error("❌ Failed to delete order:", error);
           set({ error: errorMessage, isLoading: false });
           throw error;
         }
@@ -1296,9 +1024,7 @@ export const useWalletStore = create<WalletState>()(
             // Detect curve type from public key
             try {
               const curveType = detectPublicKeyCurve(wallet.public_key);
-              console.log(
-                `✅ Migrated wallet ${wallet.id}: detected ${curveType}`
-              );
+              console.log(`✅ Migrated wallet ${wallet.id}: detected ${curveType}`);
 
               return {
                 ...wallet,
@@ -1317,21 +1043,14 @@ export const useWalletStore = create<WalletState>()(
             state.currentWallet && !state.currentWallet.curveType
               ? (() => {
                   try {
-                    const curveType = detectPublicKeyCurve(
-                      state.currentWallet.public_key
-                    );
-                    console.log(
-                      `✅ Migrated current wallet: detected ${curveType}`
-                    );
+                    const curveType = detectPublicKeyCurve(state.currentWallet.public_key);
+                    console.log(`✅ Migrated current wallet: detected ${curveType}`);
                     return {
                       ...state.currentWallet,
                       curveType,
                     };
                   } catch (error) {
-                    console.error(
-                      `❌ Failed to migrate current wallet:`,
-                      error
-                    );
+                    console.error(`❌ Failed to migrate current wallet:`, error);
                     return {
                       ...state.currentWallet,
                       curveType: CurveType.ED25519,
@@ -1362,22 +1081,11 @@ export const useWalletStore = create<WalletState>()(
           portfolioOverview: null,
           multiChainBalance: null,
           feeParams: null,
-          showSendDialog: false,
-          showReceiveDialog: false,
-          showStakeDialog: false,
         });
 
         console.log("🔄 Wallet state reset and password session cleared");
       },
-
-      // Dialog Management Actions
-      openSendDialog: () => set({ showSendDialog: true }),
-      closeSendDialog: () => set({ showSendDialog: false }),
-      openReceiveDialog: () => set({ showReceiveDialog: true }),
-      closeReceiveDialog: () => set({ showReceiveDialog: false }),
-      openStakeDialog: () => set({ showStakeDialog: true }),
-      closeStakeDialog: () => set({ showStakeDialog: false }),
-    })),
+    }),
     {
       name: "canopy-wallet-storage",
       storage: createJSONStorage(() => zustandStorage),

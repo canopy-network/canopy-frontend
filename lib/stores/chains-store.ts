@@ -11,7 +11,7 @@
  */
 
 import { create } from "zustand";
-import { devtools, persist } from "zustand/middleware";
+import { devtools, persist, createJSONStorage, StateStorage } from "zustand/middleware";
 import {
   chainsApi,
   virtualPoolsApi,
@@ -132,16 +132,20 @@ function processChainAssets(chain: Chain): Chain {
 // ============================================================================
 
 // Custom storage that handles SSR
-const createNoopStorage = (): any => {
-  return {
-    getItem: () => null,
-    setItem: () => {},
-    removeItem: () => {},
-  };
+const zustandStorage: StateStorage = {
+  getItem: (name: string): string | null => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(name);
+  },
+  setItem: (name: string, value: string): void => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(name, value);
+  },
+  removeItem: (name: string): void => {
+    if (typeof window === "undefined") return;
+    localStorage.removeItem(name);
+  },
 };
-
-const storage =
-  typeof window !== "undefined" ? localStorage : createNoopStorage();
 
 // Create chains store only on client side
 const createChainsStore = () => {
@@ -486,7 +490,7 @@ const createChainsStore = () => {
         }),
         {
           name: "chains-store",
-          storage,
+          storage: createJSONStorage(() => zustandStorage),
           partialize: (state) => ({
             // Only persist filters and pagination, not the actual data
             filters: state.filters,

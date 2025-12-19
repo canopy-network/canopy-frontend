@@ -262,19 +262,19 @@ export default function BridgeTokenDialog({
                               <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
                             ) : (
                               <>
-                                <p className="font-medium text-sm">
-                                  {balance.toLocaleString("en-US", {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                  })}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  $
-                                  {balance.toLocaleString("en-US", {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                  })}
-                                </p>
+                            <p className="font-medium text-sm">
+                              {balance.toLocaleString("en-US", {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              $
+                              {balance.toLocaleString("en-US", {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                            </p>
                               </>
                             )}
                           </div>
