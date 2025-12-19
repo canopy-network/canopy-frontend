@@ -205,7 +205,6 @@ export default function AddLiquidityDialog({ open, onOpenChange, selectedPool = 
         // Create and sign transaction
         const { createAndSignTransaction } = await import("@/lib/crypto/transaction");
 
-        console.log("[depositMsg]", depositMsg);
         const signedTx = createAndSignTransaction(
           {
             type: "dexLiquidityDeposit",

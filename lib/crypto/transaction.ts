@@ -339,7 +339,6 @@ export function createDexLiquidityDepositMessage(chainId: number, amount: number
     chainId,
     amount,
     address,
-    orderId: "", // Will be populated by backend
   };
 }
 

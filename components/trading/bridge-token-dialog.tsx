@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,10 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Wallet, ChevronRight } from "lucide-react";
+import { Wallet, ChevronRight, Loader2 } from "lucide-react";
+import { useAccount, useChainId, useReadContract } from "wagmi";
+import { formatUnits } from "viem";
+import { USDC_ADDRESSES } from "@/lib/web3/config";
 import type { BridgeToken, ConnectedWallets } from "@/types/trading";
 
 // Chain configuration
@@ -45,26 +48,91 @@ interface BridgeTokenDialogProps {
   onConnectWallet?: (chainId: string) => Promise<void>;
 }
 
-// Mock connected wallets state - in real app this would come from wallet providers
-const mockWalletState: ConnectedWallets = {
-  ethereum: {
-    connected: true,
-    address: "0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199",
-    balances: {
-      USDC: 1500.5,
-      USDT: 850.25,
-    },
+// ERC20 balanceOf ABI
+const ERC20_BALANCE_ABI = [
+  {
+    name: "balanceOf",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ type: "uint256" }],
   },
-};
+  {
+    name: "decimals",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint8" }],
+  },
+] as const;
 
 export default function BridgeTokenDialog({
   open,
   onOpenChange,
   onSelectToken,
-  connectedWallets = mockWalletState,
+  connectedWallets,
   onConnectWallet,
 }: BridgeTokenDialogProps) {
   const [connectingChain, setConnectingChain] = useState<string | null>(null);
+  const { address: ethAddress, isConnected: isWagmiConnected } = useAccount();
+  const chainId = useChainId();
+  
+  // Get USDC contract address for current chain
+  const usdcAddress = chainId ? USDC_ADDRESSES[chainId] : undefined;
+
+  // Fetch USDC balance using wagmi
+  const { data: usdcBalance, isLoading: isLoadingBalance } = useReadContract({
+    address: usdcAddress,
+    abi: ERC20_BALANCE_ABI,
+    functionName: "balanceOf",
+    args: ethAddress ? [ethAddress] : undefined,
+    query: {
+      enabled: !!ethAddress && !!usdcAddress && open,
+    },
+  });
+
+  // Fetch USDC decimals
+  const { data: usdcDecimals } = useReadContract({
+    address: usdcAddress,
+    abi: ERC20_BALANCE_ABI,
+    functionName: "decimals",
+    query: {
+      enabled: !!usdcAddress && open,
+    },
+  });
+
+  // Calculate actual USDC balance
+  const actualUsdcBalance = useMemo(() => {
+    if (!usdcBalance || !usdcDecimals) return 0;
+    return parseFloat(formatUnits(usdcBalance, usdcDecimals));
+  }, [usdcBalance, usdcDecimals]);
+
+  // Build connected wallets state from wagmi
+  const effectiveConnectedWallets: ConnectedWallets = useMemo(() => {
+    if (isWagmiConnected && ethAddress) {
+      return {
+        ethereum: {
+          connected: true,
+          address: ethAddress,
+          balances: {
+            USDC: actualUsdcBalance,
+            USDT: 0, // USDT not currently supported
+          },
+        },
+      };
+    }
+    // Fallback to provided connectedWallets if wagmi is not connected
+    return connectedWallets || {
+      ethereum: {
+        connected: false,
+        address: null,
+        balances: {
+          USDC: 0,
+          USDT: 0,
+        },
+      },
+    };
+  }, [isWagmiConnected, ethAddress, actualUsdcBalance, connectedWallets]);
 
   const handleConnectWallet = async (chainId: string) => {
     setConnectingChain(chainId);
@@ -83,7 +151,7 @@ export default function BridgeTokenDialog({
   const handleSelectToken = (chainId: string, tokenSymbol: string) => {
     // Only ethereum is supported
     if (chainId !== "ethereum") return;
-    const wallet = connectedWallets.ethereum;
+    const wallet = effectiveConnectedWallets.ethereum;
     if (!wallet?.connected) return;
 
     const token = stablecoins.find((s) => s.symbol === tokenSymbol);
@@ -119,7 +187,7 @@ export default function BridgeTokenDialog({
           {chains.map((chain) => {
             // Only ethereum is supported
             const wallet =
-              chain.id === "ethereum" ? connectedWallets?.ethereum : undefined;
+              chain.id === "ethereum" ? effectiveConnectedWallets?.ethereum : undefined;
             const isConnected = wallet?.connected;
             const isConnecting = connectingChain === chain.id;
 
@@ -158,6 +226,7 @@ export default function BridgeTokenDialog({
                     {stablecoins.map((token) => {
                       const balance = wallet.balances[token.symbol] || 0;
                       const hasBalance = balance > 0;
+                      const isLoading = isLoadingBalance && token.symbol === "USDC";
 
                       return (
                         <button
@@ -165,9 +234,9 @@ export default function BridgeTokenDialog({
                           onClick={() =>
                             handleSelectToken(chain.id, token.symbol)
                           }
-                          disabled={!hasBalance}
+                          disabled={!hasBalance || isLoading}
                           className={`w-full p-3 flex items-center justify-between transition-colors ${
-                            hasBalance
+                            hasBalance && !isLoading
                               ? "hover:bg-muted/50 cursor-pointer"
                               : "opacity-50 cursor-not-allowed"
                           }`}
@@ -189,19 +258,25 @@ export default function BridgeTokenDialog({
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="font-medium text-sm">
-                              {balance.toLocaleString("en-US", {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              $
-                              {balance.toLocaleString("en-US", {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}
-                            </p>
+                            {isLoading ? (
+                              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                            ) : (
+                              <>
+                                <p className="font-medium text-sm">
+                                  {balance.toLocaleString("en-US", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  $
+                                  {balance.toLocaleString("en-US", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                </p>
+                              </>
+                            )}
                           </div>
                         </button>
                       );

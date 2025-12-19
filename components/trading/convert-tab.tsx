@@ -3,16 +3,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import {
-  Plus,
-  ChevronRight,
-  ChevronDown,
-  ArrowDown,
-  Check,
-  Zap,
-  Loader2,
-  AlertCircle,
-} from "lucide-react";
+import { Plus, ChevronRight, ChevronDown, ArrowDown, Check, Zap, Loader2, AlertCircle } from "lucide-react";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import BridgeTokenDialog from "@/components/trading/bridge-token-dialog";
@@ -20,13 +11,7 @@ import ConvertTransactionDialog from "@/components/trading/convert-transaction-d
 import { orderbookApi } from "@/lib/api";
 import { useChainId } from "wagmi";
 import { USDC_ADDRESSES } from "@/lib/web3/config";
-import type {
-  ChainData,
-  BridgeToken,
-  ConnectedWallets,
-  OrderBookOrder,
-  OrderSelection,
-} from "@/types/trading";
+import type { ChainData, BridgeToken, ConnectedWallets, OrderBookOrder, OrderSelection } from "@/types/trading";
 import type { OrderBookApiOrder } from "@/types/orderbook";
 
 // Chain IDs for cross-chain swaps:
@@ -52,12 +37,7 @@ type SellMode = "instant" | "create";
 // CNPY Logo SVG Component
 function CnpyLogo({ className = "w-6 h-6" }: { className?: string }) {
   return (
-    <svg
-      className={className}
-      viewBox="0 0 18 17"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
+    <svg className={className} viewBox="0 0 18 17" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
         d="M12.7649 0.880227C12.658 0.827134 12.5342 0.905351 12.5342 1.02378V3.04351C12.5342 3.18794 12.7104 3.26027 12.8135 3.15814L14.069 1.91394C14.1383 1.84534 14.1317 1.73215 14.0535 1.67368C13.6439 1.36708 13.2123 1.10259 12.7649 0.880227Z"
         fill="currentColor"
@@ -105,8 +85,7 @@ function ChainBadge({ chain, size = "sm" }: ChainBadgeProps) {
     ethereum: { color: "#627EEA", label: "ETH" },
   };
   const config = chainConfig[chain] || chainConfig.ethereum;
-  const sizeClass =
-    size === "sm" ? "w-4 h-4 text-[8px]" : "w-5 h-5 text-[10px]";
+  const sizeClass = size === "sm" ? "w-4 h-4 text-[8px]" : "w-5 h-5 text-[10px]";
 
   return (
     <div
@@ -140,8 +119,7 @@ function calculateOrderSelection(
   });
 
   let remainingBudget = inputAmount;
-  const selectedOrders: (OrderBookOrder & { cost: number; savings: number })[] =
-    [];
+  const selectedOrders: (OrderBookOrder & { cost: number; savings: number })[] = [];
   let totalSavings = 0;
   let totalCost = 0;
   let cnpyReceived = 0;
@@ -176,12 +154,7 @@ interface OrderRowProps {
   percentOfBudget: number;
 }
 
-function OrderRow({
-  order,
-  isSelected,
-  index,
-  percentOfBudget,
-}: OrderRowProps) {
+function OrderRow({ order, isSelected, index, percentOfBudget }: OrderRowProps) {
   return (
     <div
       className={`relative flex items-center justify-between py-2 px-3 rounded-lg transition-all duration-200 overflow-hidden ${
@@ -200,25 +173,17 @@ function OrderRow({
       <div className="relative flex items-center gap-2">
         <div
           className={`w-4 h-4 rounded-full flex items-center justify-center transition-all ${
-            isSelected
-              ? "bg-green-500 text-white"
-              : "border border-muted-foreground/30"
+            isSelected ? "bg-green-500 text-white" : "border border-muted-foreground/30"
           }`}
         >
           {isSelected && <Check className="w-2.5 h-2.5" />}
         </div>
         <span className="text-sm font-medium">${order.amount}</span>
         <span className="text-xs text-green-500">{order.discount}%</span>
-        {isSelected && (
-          <span className="text-xs text-muted-foreground">
-            ({Math.round(percentOfBudget)}%)
-          </span>
-        )}
+        {isSelected && <span className="text-xs text-muted-foreground">({Math.round(percentOfBudget)}%)</span>}
       </div>
       {isSelected && order.savings !== undefined && (
-        <span className="relative text-xs text-green-500 font-medium">
-          +${order.savings.toFixed(2)}
-        </span>
+        <span className="relative text-xs text-green-500 font-medium">+${order.savings.toFixed(2)}</span>
       )}
     </div>
   );
@@ -253,9 +218,7 @@ export default function ConvertTab({
   const isConnected = wallets.length > 0;
   const ethAddress = user?.wallet_address; // Ethereum address from SIWE sign-in
 
-  const [conversionPair, setConversionPair] = useState<ConversionPair | null>(
-    null
-  );
+  const [conversionPair, setConversionPair] = useState<ConversionPair | null>(null);
 
   // Get chain ID for USDC contract address lookup
   const chainId = useChainId();
@@ -267,9 +230,7 @@ export default function ConvertTab({
   const cnpyBalance = useMemo(() => {
     if (!balance?.tokens) return 0;
     // Find CNPY token (chain 1) - it could be "C001" or have chainId === 1
-    const cnpyToken = balance.tokens.find(
-      (token) => token.chainId === 1 || token.symbol === "C001"
-    );
+    const cnpyToken = balance.tokens.find((token) => token.chainId === 1 || token.symbol === "C001");
     if (!cnpyToken) return 0;
     // Use liquid/available balance if available, otherwise fall back to total balance
     const liquidBalance = cnpyToken.distribution?.liquid;
@@ -287,9 +248,7 @@ export default function ConvertTab({
   const [showBridgeDialog, setShowBridgeDialog] = useState(false);
   const [sourceToken, setSourceToken] = useState<BridgeToken | null>(null);
   const [amount, setAmount] = useState("");
-  const [sortMode, setSortMode] = useState<"best_price" | "best_fill">(
-    "best_price"
-  );
+  const [sortMode, setSortMode] = useState<"best_price" | "best_fill">("best_price");
   const [showOrders, setShowOrders] = useState(false);
   const [isShaking, setIsShaking] = useState(false);
   const [showTransactionDialog, setShowTransactionDialog] = useState(false);
@@ -303,19 +262,20 @@ export default function ConvertTab({
   const [realOrders, setRealOrders] = useState<OrderBookApiOrder[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
+  // Connected wallets state - will be populated from BridgeTokenDialog
+  // which fetches real balances using wagmi
   const [connectedWallets, setConnectedWallets] = useState<ConnectedWallets>({
     ethereum: {
       connected: !!ethAddress,
       address: ethAddress || null,
-      balances: { USDC: 1500.5, USDT: 850.25 },
+      balances: { USDC: 0, USDT: 0 },
     },
   });
 
   // Calculate USDC receive amount for sell mode
   const sellCalculation = useMemo(() => {
     const cnpyAmount = parseFloat(amount) || 0;
-    if (cnpyAmount <= 0)
-      return { usdcReceive: 0, fee: 0, pricePerCnpy: 0, gross: 0 };
+    if (cnpyAmount <= 0) return { usdcReceive: 0, fee: 0, pricePerCnpy: 0, gross: 0 };
 
     if (sellMode === "instant") {
       // Instant mode: fixed price with fee
@@ -443,12 +403,7 @@ export default function ConvertTab({
   }, [realOrders]);
 
   const selection = useMemo(
-    () =>
-      calculateOrderSelection(
-        availableOrders,
-        parseFloat(amount) || 0,
-        sortMode
-      ),
+    () => calculateOrderSelection(availableOrders, parseFloat(amount) || 0, sortMode),
     [availableOrders, amount, sortMode]
   );
 
@@ -470,13 +425,14 @@ export default function ConvertTab({
     if (direction === "sell") {
       setAmount(cnpyBalance.toString());
     } else if (sourceToken) {
-      setAmount(sourceToken.balance.toString());
+      // Use the actual balance from the selected token (fetched from wallet)
+      const maxBalance = sourceToken.balance || 0;
+      setAmount(maxBalance.toString());
     }
   };
 
   const getButtonState = (): ButtonState => {
-    if (!isConnected)
-      return { disabled: false, text: "Connect Wallet", variant: "connect" };
+    if (!isConnected) return { disabled: false, text: "Connect Wallet", variant: "connect" };
     if (!currentWallet)
       return {
         disabled: true,
@@ -498,8 +454,7 @@ export default function ConvertTab({
 
     // Sell mode validations
     if (direction === "sell") {
-      if (!amount || parseFloat(amount) <= 0)
-        return { disabled: true, text: "Enter amount", variant: "disabled" };
+      if (!amount || parseFloat(amount) <= 0) return { disabled: true, text: "Enter amount", variant: "disabled" };
       if (parseFloat(amount) > cnpyBalance)
         return {
           disabled: true,
@@ -508,8 +463,7 @@ export default function ConvertTab({
         };
       if (sellMode === "create" && (!sellPrice || parseFloat(sellPrice) <= 0))
         return { disabled: true, text: "Enter price", variant: "disabled" };
-      if (isSubmitting)
-        return { disabled: true, text: "Processing...", variant: "disabled" };
+      if (isSubmitting) return { disabled: true, text: "Processing...", variant: "disabled" };
 
       const cnpyAmount = parseFloat(amount) || 0;
       return {
@@ -520,10 +474,8 @@ export default function ConvertTab({
     }
 
     // Buy mode validations (existing logic)
-    if (!sourceToken)
-      return { disabled: true, text: "Select token", variant: "disabled" };
-    if (!amount || parseFloat(amount) <= 0)
-      return { disabled: true, text: "Enter amount", variant: "disabled" };
+    if (!sourceToken) return { disabled: true, text: "Select token", variant: "disabled" };
+    if (!amount || parseFloat(amount) <= 0) return { disabled: true, text: "Enter amount", variant: "disabled" };
     if (parseFloat(amount) > sourceToken.balance)
       return { disabled: true, text: "Insufficient balance", variant: "error" };
     if (selection.selectedOrders.length === 0)
@@ -532,8 +484,7 @@ export default function ConvertTab({
         text: "No orders available",
         variant: "disabled",
       };
-    if (isSubmitting)
-      return { disabled: true, text: "Processing...", variant: "disabled" };
+    if (isSubmitting) return { disabled: true, text: "Processing...", variant: "disabled" };
     return {
       disabled: false,
       text: `Convert $${selection.totalCost.toFixed(2)}`,
@@ -641,9 +592,7 @@ export default function ConvertTab({
           `Sell order created! TX: ${txHash.slice(
             0,
             16
-          )}... | Selling ${cnpyAmount.toLocaleString()} CNPY for $${usdcAmount.toFixed(
-            2
-          )} USDC`
+          )}... | Selling ${cnpyAmount.toLocaleString()} CNPY for $${usdcAmount.toFixed(2)} USDC`
         );
       } else {
         // BUY CNPY with USDC
@@ -659,9 +608,7 @@ export default function ConvertTab({
           return;
         }
 
-        const totalCnpyToReceive = Math.round(
-          selection.cnpyReceived * DECIMALS
-        );
+        const totalCnpyToReceive = Math.round(selection.cnpyReceived * DECIMALS);
         const totalUsdcToSpend = Math.round(selection.totalCost * DECIMALS);
 
         // Buy CNPY with USDC
@@ -690,9 +637,7 @@ export default function ConvertTab({
         fetchOrders();
       }, 2000);
     } catch (err) {
-      setSubmitError(
-        err instanceof Error ? err.message : "Failed to create order"
-      );
+      setSubmitError(err instanceof Error ? err.message : "Failed to create order");
     } finally {
       setIsSubmitting(false);
     }
@@ -715,17 +660,10 @@ export default function ConvertTab({
                 </div>
                 <div className="text-left">
                   <p className="text-base font-semibold">CNPY</p>
-                  <p className="text-sm text-muted-foreground">
-                    {cnpyBalance.toLocaleString()} CNPY
-                  </p>
+                  <p className="text-sm text-muted-foreground">{cnpyBalance.toLocaleString()} CNPY</p>
                 </div>
               </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={handleUseMax}
-              >
+              <Button variant="secondary" size="sm" className="h-7 text-xs" onClick={handleUseMax}>
                 Use max
               </Button>
             </div>
@@ -740,10 +678,7 @@ export default function ConvertTab({
                   const value = e.target.value;
                   if (value === "" || /^\d*\.?\d*$/.test(value)) {
                     setAmount(value);
-                    if (
-                      parseFloat(value) > cnpyBalance &&
-                      parseFloat(amount) <= cnpyBalance
-                    ) {
+                    if (parseFloat(value) > cnpyBalance && parseFloat(amount) <= cnpyBalance) {
                       setIsShaking(true);
                       setTimeout(() => setIsShaking(false), 400);
                     }
@@ -759,9 +694,8 @@ export default function ConvertTab({
             {/* Price Info */}
             {amount && parseFloat(amount) > 0 && (
               <div className="text-center text-sm text-muted-foreground">
-                $
-                {(parseFloat(amount) * sellCalculation.pricePerCnpy).toFixed(2)}{" "}
-                • ${sellCalculation.pricePerCnpy.toFixed(2)}/CNPY
+                ${(parseFloat(amount) * sellCalculation.pricePerCnpy).toFixed(2)} • $
+                {sellCalculation.pricePerCnpy.toFixed(2)}/CNPY
               </div>
             )}
           </Card>
@@ -794,23 +728,16 @@ export default function ConvertTab({
                 <div className="text-left">
                   <div className="flex items-center gap-2">
                     <p className="text-base font-semibold">USDC</p>
-                    <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">
-                      Ethereum
-                    </span>
+                    <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">Ethereum</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {connectedWallets.ethereum.balances.USDC.toLocaleString()}{" "}
-                    USDC
+                    {sourceToken?.balance ? sourceToken.balance.toLocaleString() : "0"} USDC
                   </p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-base font-semibold">
-                  ${sellCalculation.usdcReceive.toFixed(2)}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  @${sellCalculation.pricePerCnpy.toFixed(3)}/CNPY
-                </p>
+                <p className="text-base font-semibold">${sellCalculation.usdcReceive.toFixed(2)}</p>
+                <p className="text-sm text-muted-foreground">@${sellCalculation.pricePerCnpy.toFixed(3)}/CNPY</p>
               </div>
             </div>
 
@@ -842,18 +769,13 @@ export default function ConvertTab({
             {/* Mode-specific content */}
             {sellMode === "instant" ? (
               <div className="space-y-2 text-sm text-muted-foreground">
-                <div className="text-red-400">
-                  -${sellCalculation.fee.toFixed(2)}
-                </div>
+                <div className="text-red-400">-${sellCalculation.fee.toFixed(2)}</div>
               </div>
             ) : (
               <div className="space-y-2">
                 <div className="text-green-500 text-sm">
                   +$
-                  {(
-                    (parseFloat(amount) || 0) * (parseFloat(sellPrice) || 0) -
-                    sellCalculation.gross
-                  ).toFixed(2)}
+                  {((parseFloat(amount) || 0) * (parseFloat(sellPrice) || 0) - sellCalculation.gross).toFixed(2)}
                 </div>
               </div>
             )}
@@ -863,9 +785,7 @@ export default function ConvertTab({
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">You receive</p>
-                  <p className="text-xl font-bold">
-                    ${sellCalculation.usdcReceive.toFixed(2)} USDC
-                  </p>
+                  <p className="text-xl font-bold">${sellCalculation.usdcReceive.toFixed(2)} USDC</p>
                   {sellMode === "instant" && (
                     <p className="text-sm text-muted-foreground">
                       Fee: {INSTANT_FEE_PERCENT}% ($
@@ -880,9 +800,7 @@ export default function ConvertTab({
             {/* Custom price input for "Create Order" mode */}
             {sellMode === "create" && (
               <div className="space-y-2 border-t border-border pt-4">
-                <label className="text-sm text-muted-foreground">
-                  Your price per CNPY (USDC)
-                </label>
+                <label className="text-sm text-muted-foreground">Your price per CNPY (USDC)</label>
                 <input
                   type="text"
                   inputMode="decimal"
@@ -911,9 +829,7 @@ export default function ConvertTab({
             </div>
           )}
           {submitSuccess && (
-            <div className="p-3 mb-3 bg-green-500/10 text-green-500 rounded-md text-sm">
-              {submitSuccess}
-            </div>
+            <div className="p-3 mb-3 bg-green-500/10 text-green-500 rounded-md text-sm">{submitSuccess}</div>
           )}
 
           <Button
@@ -942,8 +858,7 @@ export default function ConvertTab({
               <div className="flex items-center gap-2">
                 <Zap className="w-3.5 h-3.5" />
                 <span>
-                  {parseFloat(amount).toLocaleString()} CNPY → $
-                  {sellCalculation.usdcReceive.toFixed(2)} USDC
+                  {parseFloat(amount).toLocaleString()} CNPY → ${sellCalculation.usdcReceive.toFixed(2)} USDC
                 </span>
               </div>
             </div>
@@ -979,9 +894,7 @@ export default function ConvertTab({
                 </div>
                 <div className="text-left">
                   <div className="flex items-center gap-2">
-                    <p className="text-base font-semibold">
-                      {sourceToken.symbol}
-                    </p>
+                    <p className="text-base font-semibold">{sourceToken.symbol}</p>
                     <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground capitalize">
                       {sourceToken.chain}
                     </span>
@@ -992,12 +905,7 @@ export default function ConvertTab({
                   </p>
                 </div>
               </button>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={handleUseMax}
-              >
+              <Button variant="secondary" size="sm" className="h-7 text-xs" onClick={handleUseMax}>
                 Use max
               </Button>
             </div>
@@ -1005,9 +913,7 @@ export default function ConvertTab({
             {/* Budget Label */}
             {amount && parseFloat(amount) > 0 && (
               <div className="text-center">
-                <span className="text-xs text-muted-foreground tracking-wider">
-                  BUDGET
-                </span>
+                <span className="text-xs text-muted-foreground tracking-wider">BUDGET</span>
               </div>
             )}
 
@@ -1023,10 +929,7 @@ export default function ConvertTab({
                     if (value === "" || /^\d*\.?\d*$/.test(value)) {
                       setAmount(value);
                       // Trigger shake when exceeding balance
-                      if (
-                        parseFloat(value) > sourceToken.balance &&
-                        parseFloat(amount) <= sourceToken.balance
-                      ) {
+                      if (parseFloat(value) > sourceToken.balance && parseFloat(amount) <= sourceToken.balance) {
                         setIsShaking(true);
                         setTimeout(() => setIsShaking(false), 400);
                       }
@@ -1044,9 +947,7 @@ export default function ConvertTab({
             {selection.totalCost > 0 && parseFloat(amount) > 0 && (
               <div className="space-y-1 text-center">
                 <div className="flex items-center justify-center gap-2">
-                  <span className="text-xs text-muted-foreground tracking-wider">
-                    SPENDING
-                  </span>
+                  <span className="text-xs text-muted-foreground tracking-wider">SPENDING</span>
                   <span className="text-lg font-semibold text-green-500">
                     $
                     {selection.totalCost.toLocaleString(undefined, {
@@ -1056,9 +957,7 @@ export default function ConvertTab({
                   </span>
                 </div>
                 {selection.gap > 0.01 && (
-                  <div className="text-sm text-muted-foreground">
-                    ${selection.gap.toFixed(2)} unused
-                  </div>
+                  <div className="text-sm text-muted-foreground">${selection.gap.toFixed(2)} unused</div>
                 )}
               </div>
             )}
@@ -1075,9 +974,7 @@ export default function ConvertTab({
                 </div>
                 <div>
                   <p className="text-base font-semibold">Select token</p>
-                  <p className="text-sm text-muted-foreground">
-                    Choose USDC to convert
-                  </p>
+                  <p className="text-sm text-muted-foreground">Choose USDC to convert</p>
                 </div>
               </div>
               <ChevronRight className="w-5 h-5 text-muted-foreground" />
@@ -1114,20 +1011,13 @@ export default function ConvertTab({
             </div>
             <div className="text-right">
               <p className="text-base font-semibold">
-                {selection.cnpyReceived > 0
-                  ? selection.cnpyReceived.toLocaleString()
-                  : "0"}
+                {selection.cnpyReceived > 0 ? selection.cnpyReceived.toLocaleString() : "0"}
               </p>
               {selection.totalSavings > 0 ? (
-                <p className="text-sm text-green-500">
-                  +${selection.totalSavings.toFixed(2)} bonus
-                </p>
+                <p className="text-sm text-green-500">+${selection.totalSavings.toFixed(2)} bonus</p>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  $
-                  {selection.cnpyReceived > 0
-                    ? selection.cnpyReceived.toFixed(2)
-                    : "0.00"}
+                  ${selection.cnpyReceived > 0 ? selection.cnpyReceived.toFixed(2) : "0.00"}
                 </p>
               )}
             </div>
@@ -1142,11 +1032,7 @@ export default function ConvertTab({
                   onClick={() => setShowOrders(!showOrders)}
                   className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  <ChevronDown
-                    className={`w-4 h-4 transition-transform ${
-                      showOrders ? "" : "-rotate-90"
-                    }`}
-                  />
+                  <ChevronDown className={`w-4 h-4 transition-transform ${showOrders ? "" : "-rotate-90"}`} />
                   <span>Orders</span>
                   {selection.selectedOrders.length > 0 && (
                     <span className="text-xs bg-green-500/20 text-green-500 px-1.5 py-0.5 rounded">
@@ -1158,9 +1044,7 @@ export default function ConvertTab({
                   <button
                     onClick={() => setSortMode("best_price")}
                     className={`px-2 py-1 text-xs font-medium rounded transition-all ${
-                      sortMode === "best_price"
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground"
+                      sortMode === "best_price" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
                     }`}
                   >
                     Best price
@@ -1168,9 +1052,7 @@ export default function ConvertTab({
                   <button
                     onClick={() => setSortMode("best_fill")}
                     className={`px-2 py-1 text-xs font-medium rounded transition-all ${
-                      sortMode === "best_fill"
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground"
+                      sortMode === "best_fill" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
                     }`}
                   >
                     Best fill
@@ -1184,25 +1066,18 @@ export default function ConvertTab({
                   {isLoadingOrders ? (
                     <div className="flex items-center justify-center py-4">
                       <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                      <span className="ml-2 text-sm text-muted-foreground">
-                        Loading orders...
-                      </span>
+                      <span className="ml-2 text-sm text-muted-foreground">Loading orders...</span>
                     </div>
                   ) : displayOrders.length === 0 ? (
-                    <p className="text-center text-xs text-muted-foreground py-3">
-                      No sell orders available
-                    </p>
+                    <p className="text-center text-xs text-muted-foreground py-3">No sell orders available</p>
                   ) : (
                     displayOrders.slice(0, 6).map((order, index) => {
-                      const selectedOrder = selection.selectedOrders.find(
-                        (o) => o.id === order.id
-                      );
+                      const selectedOrder = selection.selectedOrders.find((o) => o.id === order.id);
                       const isSelected = selectedOrderIds.has(order.id);
                       // Calculate what % of the total budget this order's cost represents
                       const orderCost = order.amount * order.price;
                       const budgetAmount = parseFloat(amount) || 0;
-                      const percentOfBudget =
-                        budgetAmount > 0 ? (orderCost / budgetAmount) * 100 : 0;
+                      const percentOfBudget = budgetAmount > 0 ? (orderCost / budgetAmount) * 100 : 0;
                       return (
                         <OrderRow
                           key={order.id}
@@ -1219,9 +1094,7 @@ export default function ConvertTab({
 
               {/* No amount state */}
               {(!amount || parseFloat(amount) <= 0) && showOrders && (
-                <p className="text-center text-xs text-muted-foreground py-3">
-                  Enter an amount to see matched orders
-                </p>
+                <p className="text-center text-xs text-muted-foreground py-3">Enter an amount to see matched orders</p>
               )}
             </div>
           )}
@@ -1238,9 +1111,7 @@ export default function ConvertTab({
           </div>
         )}
         {submitSuccess && (
-          <div className="p-3 mb-3 bg-green-500/10 text-green-500 rounded-md text-sm">
-            {submitSuccess}
-          </div>
+          <div className="p-3 mb-3 bg-green-500/10 text-green-500 rounded-md text-sm">{submitSuccess}</div>
         )}
 
         <Button
@@ -1283,8 +1154,7 @@ export default function ConvertTab({
             <div className="flex items-center gap-2">
               <Zap className="w-3.5 h-3.5" />
               <span>
-                ${selection.totalCost.toFixed(2)} →{" "}
-                {selection.cnpyReceived.toLocaleString()} CNPY
+                ${selection.totalCost.toFixed(2)} → {selection.cnpyReceived.toLocaleString()} CNPY
               </span>
             </div>
           </div>
