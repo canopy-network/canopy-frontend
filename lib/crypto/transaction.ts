@@ -232,22 +232,6 @@ export function createOrderMessage(
 }
 
 /**
- * Creates a DeleteOrder transaction message
- *
- * Mirrors fsm.NewDeleteOrderTx() from canopy/fsm/transaction.go:399-402
- *
- * @param orderId - Order ID to delete (hex string)
- * @param chainId - Committee chain ID
- * @returns MessageDeleteOrder payload
- */
-export function createDeleteOrderMessage(orderId: string, chainId: number): TransactionMessage {
-  return {
-    orderId,
-    chainId,
-  };
-}
-
-/**
  * Validates transaction parameters before signing
  *
  * @param params - Transaction parameters
@@ -366,6 +350,5 @@ export function createDexLimitOrderMessage(
     amountForSale,
     requestedAmount,
     sellerReceiveAddress: address,
-    orderId: "", // Will be populated by backend
   };
 }

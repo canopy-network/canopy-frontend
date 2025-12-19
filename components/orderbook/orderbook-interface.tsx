@@ -1,238 +1,214 @@
-"use client";
+"use client"
 
-import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  ArrowUpDown,
-  TrendingUp,
-  Loader2,
-  AlertCircle,
-  Wallet,
-} from "lucide-react";
-import { orderbookApi } from "@/lib/api";
-import { useWalletStore } from "@/lib/stores/wallet-store";
-import { BuyOrderDialog } from "./buy-order-dialog";
-import { useAccount, useChainId } from "wagmi";
-import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { USDC_ADDRESSES } from "@/lib/web3/config";
-import type { OrderBookApiOrder, DisplayOrder } from "@/types/orderbook";
+import { useState, useEffect, useCallback } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ArrowUpDown, TrendingUp, Loader2, AlertCircle, Wallet } from "lucide-react"
+import { orderbookApi } from "@/lib/api"
+import { useWalletStore } from "@/lib/stores/wallet-store"
+import { BuyOrderDialog } from "./buy-order-dialog"
+import { useAccount, useChainId } from "wagmi"
+import { useConnectModal } from "@rainbow-me/rainbowkit"
+import { USDC_ADDRESSES } from "@/lib/web3/config"
+import type { OrderBookApiOrder, DisplayOrder } from "@/types/orderbook"
 
-const DECIMALS = 1_000_000; // 6 decimals
-const ORDER_COMMITTEE_ID = 3; // Committee responsible for counter-asset swaps
+const DECIMALS = 1_000_000 // 6 decimals
+const ORDER_COMMITTEE_ID = 3 // Committee responsible for counter-asset swaps
 
 function transformOrder(order: OrderBookApiOrder): DisplayOrder {
-  const amount = order.amountForSale / DECIMALS;
-  const total = order.requestedAmount / DECIMALS;
-  const price = order.requestedAmount / order.amountForSale;
+  const amount = order.amountForSale / DECIMALS
+  const total = order.requestedAmount / DECIMALS
+  const price = order.requestedAmount / order.amountForSale
   return {
     id: order.id,
     price,
     amount,
     total,
-  };
+  }
 }
 
 export function OrderBookInterface() {
-  // API state
-  const [sellOrders, setSellOrders] = useState<DisplayOrder[]>([]);
-  const [rawOrders, setRawOrders] = useState<OrderBookApiOrder[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [orderType, setOrderType] = useState<"buy" | "sell">("buy")
+  const [price, setPrice] = useState("")
+  const [amount, setAmount] = useState("")
 
   // API state
-  const [sellOrders, setSellOrders] = useState<DisplayOrder[]>([]);
-  const [rawOrders, setRawOrders] = useState<OrderBookApiOrder[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [sellOrders, setSellOrders] = useState<DisplayOrder[]>([])
+  const [rawOrders, setRawOrders] = useState<OrderBookApiOrder[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // Order submission state
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null)
 
   // Buy order dialog state
-  const [selectedOrder, setSelectedOrder] = useState<OrderBookApiOrder | null>(
-    null
-  );
-  const [isBuyDialogOpen, setIsBuyDialogOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<OrderBookApiOrder | null>(null)
+  const [isBuyDialogOpen, setIsBuyDialogOpen] = useState(false)
 
   // Wallet store
-  const {
-    currentWallet,
-    createOrder,
-    isLoading: walletLoading,
-  } = useWalletStore();
+  const { currentWallet, createOrder, isLoading: walletLoading } = useWalletStore()
 
   // Ethereum wallet (wagmi)
-  const { address: ethAddress, isConnected: isEthConnected } = useAccount();
-  const chainId = useChainId();
-  const { openConnectModal } = useConnectModal();
-  const usdcAddress = chainId ? USDC_ADDRESSES[chainId] : undefined;
+  const { address: ethAddress, isConnected: isEthConnected } = useAccount()
+  const chainId = useChainId()
+  const { openConnectModal } = useConnectModal()
+  const usdcAddress = chainId ? USDC_ADDRESSES[chainId] : undefined
 
   const fetchOrderBook = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
     try {
-      const response = await orderbookApi.getOrderBook({
-        chainId: ORDER_COMMITTEE_ID,
-      });
+      const response = await orderbookApi.getOrderBook({ chainId: ORDER_COMMITTEE_ID })
       // response.data is an array of ChainOrderBook
-      const orderBooks = response.data || [];
+      const orderBooks = response.data || []
       // Flatten all raw orders from all chains
-      const allRawOrders = orderBooks.flatMap((book) => book.orders || []);
+      const allRawOrders = orderBooks.flatMap((book) => book.orders || [])
       // Sort by price descending (highest price first for sell orders)
       allRawOrders.sort((a, b) => {
-        const priceA = a.requestedAmount / a.amountForSale;
-        const priceB = b.requestedAmount / b.amountForSale;
-        return priceB - priceA;
-      });
-      setRawOrders(allRawOrders);
+        const priceA = a.requestedAmount / a.amountForSale
+        const priceB = b.requestedAmount / b.amountForSale
+        return priceB - priceA
+      })
+      setRawOrders(allRawOrders)
       // Transform for display
-      setSellOrders(allRawOrders.map(transformOrder));
+      setSellOrders(allRawOrders.map(transformOrder))
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to fetch order book"
-      );
+      setError(err instanceof Error ? err.message : "Failed to fetch order book")
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, []);
+  }, [])
 
   useEffect(() => {
-    fetchOrderBook();
-  }, [fetchOrderBook]);
+    fetchOrderBook()
+  }, [fetchOrderBook])
 
   // Handle clicking on a sell order to buy
   const handleOrderClick = (orderId: string) => {
-    const order = rawOrders.find((o) => o.id === orderId);
+    const order = rawOrders.find((o) => o.id === orderId)
     if (order) {
-      setSelectedOrder(order);
-      setIsBuyDialogOpen(true);
+      setSelectedOrder(order)
+      setIsBuyDialogOpen(true)
     }
-  };
+  }
 
   // Handle successful buy order
   const handleBuySuccess = () => {
-    setIsBuyDialogOpen(false);
-    setSelectedOrder(null);
+    setIsBuyDialogOpen(false)
+    setSelectedOrder(null)
     // Refresh order book
-    setTimeout(() => fetchOrderBook(), 2000);
-  };
+    setTimeout(() => fetchOrderBook(), 2000)
+  }
 
   // Handle placing an order
   const handlePlaceOrder = async () => {
     // Clear previous messages
-    setSubmitError(null);
-    setSubmitSuccess(null);
+    setSubmitError(null)
+    setSubmitSuccess(null)
 
     // Validate Canopy wallet
     if (!currentWallet) {
-      setSubmitError("Please connect a Canopy wallet first");
-      return;
+      setSubmitError("Please connect a Canopy wallet first")
+      return
     }
 
     if (!currentWallet.isUnlocked) {
-      setSubmitError("Please unlock your Canopy wallet first");
-      return;
+      setSubmitError("Please unlock your Canopy wallet first")
+      return
     }
 
     // Validate Ethereum wallet (required for sell orders to receive USDC)
     if (orderType === "sell") {
       if (!isEthConnected || !ethAddress) {
-        setSubmitError("Please connect your Ethereum wallet to receive USDC");
-        return;
+        setSubmitError("Please connect your Ethereum wallet to receive USDC")
+        return
       }
 
       if (!usdcAddress) {
-        setSubmitError(
-          "USDC not supported on this network. Please switch to Ethereum Mainnet."
-        );
-        return;
+        setSubmitError("USDC not supported on this network. Please switch to Ethereum Mainnet.")
+        return
       }
     }
 
     // Validate inputs
-    const priceValue = parseFloat(price);
-    const amountValue = parseFloat(amount.replace(/,/g, ""));
+    const priceValue = parseFloat(price)
+    const amountValue = parseFloat(amount.replace(/,/g, ""))
 
     if (isNaN(priceValue) || priceValue <= 0) {
-      setSubmitError("Please enter a valid price");
-      return;
+      setSubmitError("Please enter a valid price")
+      return
     }
 
     if (isNaN(amountValue) || amountValue <= 0) {
-      setSubmitError("Please enter a valid amount");
-      return;
+      setSubmitError("Please enter a valid amount")
+      return
     }
 
-    setIsSubmitting(true);
+    setIsSubmitting(true)
 
     try {
-      let amountForSale: number;
-      let requestedAmount: number;
+      let amountForSale: number
+      let requestedAmount: number
 
       if (orderType === "sell") {
         // Selling CNPY for USDC
         // amountForSale = CNPY amount in micro units
         // requestedAmount = USDC amount (CNPY * price) in micro units
-        amountForSale = Math.round(amountValue * DECIMALS);
-        requestedAmount = Math.round(amountValue * priceValue * DECIMALS);
+        amountForSale = Math.round(amountValue * DECIMALS)
+        requestedAmount = Math.round(amountValue * priceValue * DECIMALS)
       } else {
         // Buying CNPY with USDC - this should use LockOrder flow, not CreateOrder
         // For now, show error as Buy CNPY should click existing sell orders
-        setSubmitError("To buy CNPY, click on a sell order in the order book");
-        setIsSubmitting(false);
-        return;
+        setSubmitError("To buy CNPY, click on a sell order in the order book")
+        setIsSubmitting(false)
+        return
       }
 
       const txHash = await createOrder(
         ORDER_COMMITTEE_ID,
         amountForSale,
         requestedAmount,
-        ethAddress!, // Seller's Ethereum address to receive USDC
-        usdcAddress! // USDC contract address
-      );
+        ethAddress!,     // Seller's Ethereum address to receive USDC
+        usdcAddress!     // USDC contract address
+      )
 
-      setSubmitSuccess(`Order created! TX: ${txHash.slice(0, 16)}...`);
+      setSubmitSuccess(`Order created! TX: ${txHash.slice(0, 16)}...`)
 
       // Clear form
-      setPrice("");
-      setAmount("");
+      setPrice("")
+      setAmount("")
 
       // Refresh order book after a short delay
       setTimeout(() => {
-        fetchOrderBook();
-      }, 2000);
+        fetchOrderBook()
+      }, 2000)
     } catch (err) {
-      setSubmitError(
-        err instanceof Error ? err.message : "Failed to create order"
-      );
+      setSubmitError(err instanceof Error ? err.message : "Failed to create order")
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   // Calculate current price from best sell order, or use placeholder
-  const currentPrice =
-    sellOrders.length > 0 ? sellOrders[sellOrders.length - 1].price : 0;
-  const priceChange = 0;
-  const priceChangePercent = 0;
+  const currentPrice = sellOrders.length > 0
+    ? sellOrders[sellOrders.length - 1].price
+    : 0
+  const priceChange = 0
+  const priceChangePercent = 0
 
   // Calculate total for display
-  const calculatedTotal =
-    price && amount
-      ? (
-          parseFloat(price) * parseFloat(amount.replace(/,/g, ""))
-        ).toLocaleString()
-      : "0.00";
+  const calculatedTotal = price && amount
+    ? (parseFloat(price) * parseFloat(amount.replace(/,/g, ""))).toLocaleString()
+    : "0.00"
 
-  const isWalletReady = currentWallet?.isUnlocked;
-  const isButtonDisabled = isSubmitting || walletLoading || !isWalletReady;
+  const isWalletReady = currentWallet?.isUnlocked
+  const isButtonDisabled = isSubmitting || walletLoading || !isWalletReady
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -246,12 +222,8 @@ export function OrderBookInterface() {
                 {currentPrice > 0 ? `$${currentPrice.toFixed(4)}` : "--"}
               </div>
               {currentPrice > 0 && (
-                <Badge
-                  variant="default"
-                  className="bg-green-500/10 text-green-500"
-                >
-                  <TrendingUp className="w-3 h-3 mr-1" />+
-                  {priceChange.toFixed(4)} ({priceChangePercent}%)
+                <Badge variant="default" className="bg-green-500/10 text-green-500">
+                  <TrendingUp className="w-3 h-3 mr-1" />+{priceChange.toFixed(4)} ({priceChangePercent}%)
                 </Badge>
               )}
             </div>
@@ -261,9 +233,7 @@ export function OrderBookInterface() {
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-              <span className="ml-2 text-muted-foreground">
-                Loading order book...
-              </span>
+              <span className="ml-2 text-muted-foreground">Loading order book...</span>
             </div>
           ) : error ? (
             <div className="flex items-center justify-center py-12 text-red-500">
@@ -286,15 +256,9 @@ export function OrderBookInterface() {
                         onClick={() => handleOrderClick(order.id)}
                         className="w-full flex justify-between items-center p-2 rounded hover:bg-red-500/10 border-l-2 border-red-500/20 cursor-pointer transition-colors text-left"
                       >
-                        <span className="text-red-500 font-mono">
-                          {order.price.toFixed(4)}
-                        </span>
-                        <span className="font-mono">
-                          {order.amount.toLocaleString()}
-                        </span>
-                        <span className="font-mono">
-                          ${order.total.toLocaleString()}
-                        </span>
+                        <span className="text-red-500 font-mono">{order.price.toFixed(4)}</span>
+                        <span className="font-mono">{order.amount.toLocaleString()}</span>
+                        <span className="font-mono">${order.total.toLocaleString()}</span>
                       </button>
                     ))
                   ) : (
@@ -355,11 +319,7 @@ export function OrderBookInterface() {
                 <Wallet className="w-4 h-4" />
                 Connect Ethereum wallet to receive USDC
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => openConnectModal?.()}
-              >
+              <Button size="sm" variant="outline" onClick={() => openConnectModal?.()}>
                 Connect
               </Button>
             </div>
@@ -377,10 +337,7 @@ export function OrderBookInterface() {
             </div>
           )}
 
-          <Tabs
-            value={orderType}
-            onValueChange={(value) => setOrderType(value as "buy" | "sell")}
-          >
+          <Tabs value={orderType} onValueChange={(value) => setOrderType(value as "buy" | "sell")}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="buy" className="text-green-500">
                 Buy CNPY
@@ -395,14 +352,12 @@ export function OrderBookInterface() {
                 <div className="text-4xl">📈</div>
                 <h3 className="font-semibold">Buy CNPY from Sell Orders</h3>
                 <p className="text-sm text-muted-foreground">
-                  To buy CNPY, click on a sell order in the order book on the
-                  left. You'll need both your Canopy wallet (to receive CNPY)
-                  and Ethereum wallet (to pay USDC).
+                  To buy CNPY, click on a sell order in the order book on the left.
+                  You'll need both your Canopy wallet (to receive CNPY) and Ethereum wallet (to pay USDC).
                 </p>
                 {sellOrders.length > 0 && (
                   <p className="text-sm text-green-500">
-                    {sellOrders.length} sell order
-                    {sellOrders.length > 1 ? "s" : ""} available
+                    {sellOrders.length} sell order{sellOrders.length > 1 ? "s" : ""} available
                   </p>
                 )}
               </div>
@@ -493,5 +448,5 @@ export function OrderBookInterface() {
         onSuccess={handleBuySuccess}
       />
     </div>
-  );
+  )
 }

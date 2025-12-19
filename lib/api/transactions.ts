@@ -219,8 +219,7 @@ export const transactionsApi = {
    * @returns Batch status response with all statuses
    */
   getBatchStatus: async (
-    data: BatchStatusRequest,
-    chainId?: number
+    data: BatchStatusRequest
   ): Promise<BatchStatusResponse> => {
     const params: Record<string, string | number | undefined> = {
       hashes: data.transaction_hashes?.join(","),

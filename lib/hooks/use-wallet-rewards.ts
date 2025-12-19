@@ -1,28 +1,25 @@
 "use client";
 
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { walletEventsApi } from "@/lib/api/wallet-events";
-import type {
-  WalletEventBase,
-  WalletEventsHistoryParams,
-} from "@/types/wallet-events";
+import { walletRewardsApi } from "@/lib/api/wallet-rewards";
+import type { WalletRewardsHistoryParams } from "@/types/wallet-rewards";
 
-export const walletEventsKeys = {
-  all: ["wallet-events"] as const,
+export const walletRewardsKeys = {
+  all: ["wallet-rewards"] as const,
   history: (
     addresses?: string[],
-    filters?: Partial<WalletEventsHistoryParams>
-  ) => [...walletEventsKeys.all, "history", addresses, filters] as const,
+    filters?: Partial<WalletRewardsHistoryParams>
+  ) => [...walletRewardsKeys.all, "history", addresses, filters] as const,
 };
 
-interface UseWalletEventsOptions {
+interface UseWalletRewardsOptions {
   enabled?: boolean;
   pageSize?: number;
 }
 
-export function useWalletEventsHistory(
-  params: WalletEventsHistoryParams = {},
-  options?: UseWalletEventsOptions
+export function useWalletRewardsHistory(
+  params: WalletRewardsHistoryParams = {},
+  options?: UseWalletRewardsOptions
 ) {
   const addresses = params.address
     ? [params.address]
@@ -32,9 +29,9 @@ export function useWalletEventsHistory(
     options?.enabled ?? (addresses.length > 0 || !!params.address);
 
   const query = useInfiniteQuery({
-    queryKey: walletEventsKeys.history(addresses, params),
+    queryKey: walletRewardsKeys.history(addresses, params),
     queryFn: ({ pageParam = params.page ?? 1 }) =>
-      walletEventsApi.getHistory({
+      walletRewardsApi.getHistory({
         ...params,
         page: pageParam,
         limit: options?.pageSize ?? params.limit ?? 20,
@@ -59,12 +56,13 @@ export function useWalletEventsHistory(
     staleTime: 30_000,
   });
 
-  const events =
-    query.data?.pages.flatMap((page) => page.events || []) ?? [];
+  const rewards =
+    query.data?.pages.flatMap((page) => page.rewards || []) ?? [];
 
   return {
     ...query,
-    events,
-    isEmpty: !query.isLoading && events.length === 0,
+    rewards,
+    isEmpty: !query.isLoading && rewards.length === 0,
   };
 }
+

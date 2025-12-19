@@ -327,12 +327,8 @@ const MessageCreateOrder = root.lookupType("types.MessageCreateOrder");
 const MessageEditOrder = root.lookupType("types.MessageEditOrder");
 const MessageDeleteOrder = root.lookupType("types.MessageDeleteOrder");
 const MessageDexLimitOrder = root.lookupType("types.MessageDexLimitOrder");
-const MessageDexLiquidityDeposit = root.lookupType(
-  "types.MessageDexLiquidityDeposit"
-);
-const MessageDexLiquidityWithdraw = root.lookupType(
-  "types.MessageDexLiquidityWithdraw"
-);
+const MessageDexLiquidityDeposit = root.lookupType("types.MessageDexLiquidityDeposit");
+const MessageDexLiquidityWithdraw = root.lookupType("types.MessageDexLiquidityWithdraw");
 
 /**
  * Creates a google.protobuf.Any from a message
@@ -357,11 +353,7 @@ function createAny(messageTypeName: string, messageBytes: Uint8Array): any {
 /**
  * Encodes MessageSend - Standard token transfer
  */
-export function encodeMessageSend(
-  fromAddress: string,
-  toAddress: string,
-  amount: number
-): Uint8Array {
+export function encodeMessageSend(fromAddress: string, toAddress: string, amount: number): Uint8Array {
   const message = MessageSend.create({
     from_address: hexToBytes(fromAddress),
     to_address: hexToBytes(toAddress),
@@ -403,8 +395,7 @@ export function encodeMessageStake(params: {
   };
 
   // Protobuf omits default values - we must match this behavior
-  if (!shouldOmit(params.netAddress))
-    messageData.net_address = params.netAddress;
+  if (!shouldOmit(params.netAddress)) messageData.net_address = params.netAddress;
   if (!shouldOmit(params.delegate)) messageData.delegate = params.delegate;
   if (!shouldOmit(params.compound)) messageData.compound = params.compound;
 
@@ -438,10 +429,8 @@ export function encodeMessageEditStake(params: {
 
   // Protobuf omits default values - we must match this behavior
   if (!shouldOmit(params.amount)) messageData.amount = params.amount;
-  if (!shouldOmit(params.committees))
-    messageData.committees = params.committees;
-  if (!shouldOmit(params.netAddress))
-    messageData.net_address = params.netAddress;
+  if (!shouldOmit(params.committees)) messageData.committees = params.committees;
+  if (!shouldOmit(params.netAddress)) messageData.net_address = params.netAddress;
   if (!shouldOmit(params.compound)) messageData.compound = params.compound;
 
   // NEVER include signer
@@ -500,10 +489,7 @@ export function encodeMessageChangeParameter(params: {
   const messageData: any = {
     parameter_space: params.parameterSpace,
     parameter_key: params.parameterKey,
-    parameter_value: createAny(
-      params.parameterValue.typeUrl,
-      params.parameterValue.value
-    ),
+    parameter_value: createAny(params.parameterValue.typeUrl, params.parameterValue.value),
     start_height: params.startHeight,
     end_height: params.endHeight,
     signer: hexToBytes(params.signer), // Backend always sets this
@@ -764,11 +750,7 @@ export function getSignBytesProtobuf(tx: {
 
   switch (tx.type) {
     case "send":
-      msgBytes = encodeMessageSend(
-        tx.msg.fromAddress,
-        tx.msg.toAddress,
-        tx.msg.amount
-      );
+      msgBytes = encodeMessageSend(tx.msg.fromAddress, tx.msg.toAddress, tx.msg.amount);
       msgTypeName = "types.MessageSend";
       break;
 
@@ -916,11 +898,7 @@ export function encodeSignedTransaction(tx: {
 
   switch (tx.type) {
     case "MessageSend":
-      msgBytes = encodeMessageSend(
-        tx.msg.fromAddress,
-        tx.msg.toAddress,
-        tx.msg.amount
-      );
+      msgBytes = encodeMessageSend(tx.msg.fromAddress, tx.msg.toAddress, tx.msg.amount);
       msgTypeName = "types.MessageSend";
       break;
     // ... (add other cases as needed)
@@ -960,8 +938,5 @@ export function debugProtobufEncoding(tx: any): void {
   console.log("Transaction:", JSON.stringify(tx, null, 2));
   console.log("Sign bytes length:", signBytes.length);
   console.log("Sign bytes (hex):", Buffer.from(signBytes).toString("hex"));
-  console.log(
-    "Sign bytes (base64):",
-    Buffer.from(signBytes).toString("base64")
-  );
+  console.log("Sign bytes (base64):", Buffer.from(signBytes).toString("base64"));
 }

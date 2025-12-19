@@ -6,6 +6,7 @@
  */
 
 import { apiClient } from "./client";
+import { ApiClientError } from "./client";
 import {
     Wallet,
     UpdateWalletRequest,
@@ -132,7 +133,7 @@ export const walletApi = {
 
   /**
    * Export wallets in keystore format with encryption data
-   * GET /api/v1/wallet/export
+   * POST /api/v1/wallet/export (fallback to GET for backwards compatibility)
    *
    * This endpoint returns all wallets with their encrypted private keys,
    * salts, and public keys - necessary for unlocking wallets locally.
@@ -140,9 +141,26 @@ export const walletApi = {
    * @returns Wallets in keystore format (addressMap)
    */
   exportWallets: async (): Promise<ExportWalletResponse> => {
-    const response = await apiClient.get<ExportWalletResponse>(
-      "/api/v1/wallet/export"
-    );
-    return response.data;
+    try {
+      const response = await apiClient.post<ExportWalletResponse>(
+        "/api/v1/wallet/export",
+        undefined,
+        { skipErrorToast: true } as any
+      );
+      return response.data;
+    } catch (error) {
+      // Older launchpad versions expose export as GET.
+      if (
+        error instanceof ApiClientError &&
+        (error.status === 404 || error.status === 405)
+      ) {
+        const response = await apiClient.get<ExportWalletResponse>(
+          "/api/v1/wallet/export"
+        );
+        return response.data;
+      }
+
+      throw error;
+    }
   },
 };

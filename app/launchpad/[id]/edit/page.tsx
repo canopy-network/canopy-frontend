@@ -138,9 +138,6 @@ export default function EditChainPage(props: EditChainPageProps) {
         setCurrentChain(chainData);
         // Initialize form with existing data
         setChainDescription(chainData.chain_description || "");
-        if (chainData.scheduled_launch_time) {
-          setLaunchDate(new Date(chainData.scheduled_launch_time));
-        }
 
         // Process included assets (if available from the include parameter)
         if (chainData.assets && Array.isArray(chainData.assets)) {
@@ -334,13 +331,6 @@ export default function EditChainPage(props: EditChainPageProps) {
         chain_description: chainDescription,
       };
 
-      // Add launch date if changed
-      if (launchNow) {
-        updateData.scheduled_launch_time = new Date().toISOString();
-      } else if (launchDate) {
-        updateData.scheduled_launch_time = launchDate.toISOString();
-      }
-
       //TODO: PATCH chain update has not been implemented yet.
       setIsEditMode(false);
       return console.log({ "Stud updating chain": updateData });
@@ -377,9 +367,7 @@ export default function EditChainPage(props: EditChainPageProps) {
     // Reset form to original values
     if (chain) {
       setChainDescription(chain.chain_description || "");
-      if (chain.scheduled_launch_time) {
-        setLaunchDate(new Date(chain.scheduled_launch_time));
-      }
+      setLaunchDate(undefined);
       setLaunchNow(false);
       setLogo(null);
       // Reset logo preview to existing asset if available
@@ -945,12 +933,6 @@ export default function EditChainPage(props: EditChainPageProps) {
                 <p className="font-medium">
                   {new Date(chain.created_at).toLocaleString()}
                 </p>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-muted-foreground">
-                  Consensus Mechanism
-                </Label>
-                <p className="font-medium">{chain.consensus_mechanism}</p>
               </div>
             </div>
           </CardContent>

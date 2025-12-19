@@ -104,6 +104,9 @@ export interface WalletState {
   // Fee parameters (cached from blockchain)
   feeParams: FeeParams | null;
 
+  // Fee parameters (cached from blockchain)
+  feeParams: FeeParams | null;
+
   // Actions - Wallet Management
   fetchWallets: () => Promise<void>;
   selectWallet: (walletId: string) => Promise<void>;
@@ -115,7 +118,7 @@ export interface WalletState {
   deleteWallet: (walletId: string) => Promise<void>;
 
   // Actions - Wallet Unlock/Lock
-  unlockWallet: (walletId: string, password: string) => Promise<void>;
+  unlockWallet: (walletId: string, password: string, skipSaveSession?: boolean) => Promise<void>;
   lockWallet: (walletId: string) => void;
   lockAllWallets: () => void;
 
@@ -314,12 +317,9 @@ export const useWalletStore = create<WalletState>()(
       // Fetch all wallets for the current user
       // Uses only exportWallets endpoint which contains all necessary data
       fetchWallets: async () => {
-        try {
           set({ isLoading: true, error: null });
 
           console.log("🔄 Fetching wallets from export endpoint...");
-
-          const exportResponse = await walletApi.exportWallets();
 
           const addressMap = exportResponse?.addressMap || {};
 
@@ -366,54 +366,26 @@ export const useWalletStore = create<WalletState>()(
 
           set({ wallets, isLoading: false });
 
-          // 🔓 Auto-unlock all wallets silently using password session or master seedphrase
-          let unlockPassword = getCachedPassword();
-          if (!unlockPassword) {
-            // Fallback to master seedphrase (stored when creating wallet)
-            const masterSeedphrase = retrieveMasterSeedphrase();
-            if (masterSeedphrase) {
-              unlockPassword = masterSeedphrase.replace(/\s+/g, "");
-            }
-          }
+          // 🔓 Auto-unlock all wallets if password session exists
+          const cachedPassword = getCachedPassword();
+          if (cachedPassword) {
+            console.log('🔐 Password session found, auto-unlocking', wallets.length, 'wallets...');
 
-          if (unlockPassword) {
-            console.log("🔐 Auto-unlocking all wallets...");
+            // Save password session ONCE before unlocking (not per wallet)
+            savePasswordSession(cachedPassword);
+
+            // Unlock all wallets with cached password
+            let successCount = 0;
             for (const wallet of wallets) {
               try {
-                await get().unlockWallet(wallet.id, unlockPassword);
+                // Call unlockWallet but skip saving password session (already saved above)
+                await get().unlockWallet(wallet.id, cachedPassword, true);
+                successCount++;
               } catch (error) {
-                console.warn(
-                  `⚠️ Failed to auto-unlock wallet ${wallet.id}:`,
-                  error
-                );
+                console.warn(`⚠️ Failed to auto-unlock wallet ${wallet.id}`);
               }
             }
-            console.log("✅ Auto-unlock complete");
-          }
-
-          // Restore currentWallet if it was set before and still exists
-          // OR auto-select first wallet if none was selected
-          const updatedWallets = get().wallets;
-          if (currentWalletId) {
-            const restoredWallet = updatedWallets.find(
-              (w) => w.id === currentWalletId
-            );
-            if (restoredWallet) {
-              set({ currentWallet: restoredWallet });
-              console.log(`✅ Restored currentWallet: ${currentWalletId}`);
-            } else if (updatedWallets.length > 0) {
-              // Previous wallet no longer exists, auto-select first wallet
-              set({ currentWallet: updatedWallets[0] });
-              console.log(
-                `✅ Auto-selected first wallet: ${updatedWallets[0].id}`
-              );
-            }
-          } else if (updatedWallets.length > 0) {
-            // No previous wallet, auto-select first wallet
-            set({ currentWallet: updatedWallets[0] });
-            console.log(
-              `✅ Auto-selected first wallet: ${updatedWallets[0].id}`
-            );
+            console.log(`✅ Auto-unlock complete: ${successCount}/${wallets.length} wallets unlocked`);
           }
         } catch (error) {
           const errorMessage =
@@ -512,15 +484,15 @@ export const useWalletStore = create<WalletState>()(
           // Create wallet request with seedphrase WITHOUT SPACES
           // The ImportWalletRequest is a map of addresses to their encrypted data
           const importRequest: ImportWalletRequest = {
-            addressMap: {
-              [encrypted.address]: {
-                publicKey: encrypted.publicKey,
-                salt: encrypted.salt,
-                encrypted: encrypted.encryptedPrivateKey,
-                keyAddress: encrypted.address,
-                keyNickName: walletName || "Main Wallet",
-              },
-            },
+              addressMap:{
+                  [encrypted.address]: {
+                      publicKey: encrypted.publicKey,
+                      salt: encrypted.salt,
+                      encrypted: encrypted.encryptedPrivateKey,
+                      keyAddress: encrypted.address,
+                      keyNickname: walletName || "Main Wallet",
+                  }
+              }
           };
 
           // Send to backend
@@ -636,7 +608,7 @@ export const useWalletStore = create<WalletState>()(
        * - Private key only exists in memory (never persisted to localStorage)
        * - On page refresh, wallet resets to locked state
        */
-      unlockWallet: async (walletId: string, password: string) => {
+      unlockWallet: async (walletId: string, password: string, skipSaveSession = false) => {
         try {
           set({ isLoading: true, error: null });
 
@@ -691,7 +663,10 @@ export const useWalletStore = create<WalletState>()(
           }
 
           // ✅ Save password session (3-day expiration) for auto-unlock on page refresh
-          savePasswordSession(passwordNoSpaces);
+          // Only save if not skipping (to avoid duplicate saves during bulk unlock)
+          if (!skipSaveSession) {
+            savePasswordSession(passwordNoSpaces);
+          }
 
           // Store private key in memory only (partialize will remove it before persisting)
           set((state) => ({
@@ -717,7 +692,10 @@ export const useWalletStore = create<WalletState>()(
             isLoading: false,
           }));
 
-          console.log(`🔓 Wallet unlocked with 3-day session: ${walletId}`);
+          // Only log individual unlocks if not in bulk unlock mode
+          if (!skipSaveSession) {
+            console.log(`🔓 Wallet unlocked with 3-day session: ${walletId}`);
+          }
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : "Failed to unlock wallet";
@@ -807,21 +785,19 @@ export const useWalletStore = create<WalletState>()(
           // Build tokens array - one token per chain
           // Note: API already returns balances in standard units (not micro)
           // Store raw values - formatting happens in the view layer
-          const tokens: WalletBalance["tokens"] = overview.accounts.map(
-            (account) => ({
-              symbol: generateChainSymbol(account.chain_id),
-              name: account.chain_name,
-              balance: account.balance, // Raw value from API
-              usdValue: undefined, // USD value not provided in current response
-              logo: undefined,
-              chainId: account.chain_id,
-              distribution: {
-                liquid: account.available_balance, // Raw value
-                staked: account.staked_balance, // Raw value
-                delegated: account.delegated_balance, // Raw value
-              },
-            })
-          );
+          const tokens: WalletBalance['tokens'] = overview.accounts.map((account) => ({
+            symbol: generateChainSymbol(account.chain_id),
+            name: account.chain_name,
+            balance: account.balance, // Raw value from API
+            usdValue: undefined, // USD value not provided in current response
+            logo: undefined,
+            chainId: account.chain_id,
+            distribution: {
+              liquid: account.available_balance, // Raw value
+              staked: account.staked_balance + account.delegated_balance, // Raw value
+              delegated: account.delegated_balance, // Raw value
+            },
+          }));
 
           // API already returns total in standard units (not micro)
           // Store raw value - formatting happens in the view layer
@@ -1100,10 +1076,10 @@ export const useWalletStore = create<WalletState>()(
       // Create a cross-chain swap order using send-raw endpoint (MessageCreateOrder)
       // NOTE: This is NOT for DEX v2 limit orders. For DEX, use dexLimitOrder transaction type.
       createOrder: async (
-        committeeId: number, // Committee responsible for counter-asset swap
+        committeeId: number,  // Committee responsible for counter-asset swap
         amountForSale: number,
         requestedAmount: number,
-        sellerEthAddress: string, // Ethereum address to receive USDC
+        sellerEthAddress: string,  // Ethereum address to receive USDC
         usdcContractAddress: string // USDC contract address (with 0x prefix)
       ): Promise<string> => {
         try {
@@ -1113,27 +1089,19 @@ export const useWalletStore = create<WalletState>()(
           const { currentWallet } = get();
 
           if (!currentWallet) {
-            throw new Error(
-              "No wallet selected. Please select a wallet first."
-            );
+            throw new Error("No wallet selected. Please select a wallet first.");
           }
 
           if (!currentWallet.privateKey || !currentWallet.isUnlocked) {
-            throw new Error(
-              "Wallet is locked. Please unlock the wallet first."
-            );
+            throw new Error("Wallet is locked. Please unlock the wallet first.");
           }
 
           if (!currentWallet.curveType) {
-            throw new Error(
-              "Wallet curve type not detected. Please refresh your wallets."
-            );
+            throw new Error("Wallet curve type not detected. Please refresh your wallets.");
           }
 
           if (!sellerEthAddress) {
-            throw new Error(
-              "Ethereum address required. Please connect your Ethereum wallet."
-            );
+            throw new Error("Ethereum address required. Please connect your Ethereum wallet.");
           }
 
           // Get current blockchain height (always use chain 1 for the main chain)

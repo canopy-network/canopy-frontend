@@ -33,6 +33,7 @@ import {
   Edit2,
   X,
   CheckCircle2,
+  ShieldCheck,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -49,6 +50,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { WalletLinkingSection } from "@/components/settings/wallet-linking-section";
+import { WalletImportExportSection } from "@/components/settings/wallet-import-export-section";
 
 function SettingsContent() {
   const user = useAuthStore((state) => state.user);
@@ -114,6 +116,7 @@ function SettingsContent() {
   const navigationItems = [
     { id: "public-profile", label: "Public profile", icon: User },
     { id: "account", label: "Account", icon: User },
+    { id: "wallet-backup", label: "Wallet backup", icon: ShieldCheck },
     { id: "appearance", label: "Appearance", icon: Palette },
     { id: "notifications", label: "Notifications", icon: Bell },
   ];
@@ -1061,6 +1064,19 @@ function SettingsContent() {
                     Save Account Settings
                   </Button>
                 </div>
+              </div>
+            )}
+
+            {activeSection === "wallet-backup" && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">Wallet backup</h2>
+                  <p className="text-muted-foreground">
+                    Export encrypted keystores and restore them securely.
+                  </p>
+                </div>
+
+                <WalletImportExportSection />
               </div>
             )}
 

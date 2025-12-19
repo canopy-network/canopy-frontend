@@ -16,8 +16,7 @@ import { mainnet, polygon, arbitrum, base, optimism } from "wagmi/chains";
  * Get yours at: https://cloud.walletconnect.com
  * This is required for mobile wallet connections via WalletConnect
  */
-const WALLETCONNECT_PROJECT_ID =
-  process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "";
+const WALLETCONNECT_PROJECT_ID = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "";
 
 /**
  * Wagmi configuration with RainbowKit defaults

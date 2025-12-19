@@ -17,11 +17,9 @@ import { useState, useCallback } from "react";
 import { useAccount, useChainId, useSendTransaction, useWaitForTransactionReceipt } from "wagmi";
 import { encodeFunctionData, toHex } from "viem";
 import { USDC_ADDRESSES, ERC20_TRANSFER_ABI } from "@/lib/web3/config";
-import { chainsApi } from "@/lib/api";
 import type { LockOrderData, OrderBookApiOrder } from "@/types/orderbook";
 
-// Deadline offset: ~6.7 minutes at 10s blocks = 40 blocks
-const DEADLINE_BLOCK_OFFSET = 40;
+const DEFAULT_BUYER_CHAIN_DEADLINE = 900000; // ~2.5 hours at 10s blocks
 
 interface UseLockOrderParams {
   order: OrderBookApiOrder | null;
@@ -69,7 +67,10 @@ function createLockOrderCallData(
   return `${transferData}${jsonHex}` as `0x${string}`;
 }
 
-export function useLockOrder({ order, buyerCanopyAddress }: UseLockOrderParams): UseLockOrderReturn {
+export function useLockOrder({
+  order,
+  buyerCanopyAddress,
+}: UseLockOrderParams): UseLockOrderReturn {
   const { address: buyerEthAddress } = useAccount();
   const chainId = useChainId();
   const [error, setError] = useState<Error | null>(null);
@@ -117,19 +118,13 @@ export function useLockOrder({ order, buyerCanopyAddress }: UseLockOrderParams):
     setError(null);
 
     try {
-      // Fetch current Canopy block height to calculate deadline
-      const CANOPY_CHAIN_ID = 1;
-      const heightResponse = await chainsApi.getChainHeight(String(CANOPY_CHAIN_ID));
-      const currentHeight = heightResponse.data.height;
-      const deadline = currentHeight + DEADLINE_BLOCK_OFFSET;
-
       // Build LockOrder data payload
       const lockOrderData: LockOrderData = {
         orderId: order.id,
         chain_id: order.committee,
         buyerSendAddress: stripHexPrefix(buyerEthAddress),
         buyerReceiveAddress: stripHexPrefix(buyerCanopyAddress),
-        buyerChainDeadline: deadline,
+        buyerChainDeadline: DEFAULT_BUYER_CHAIN_DEADLINE,
       };
 
       // For lock order, amount is 0 (we're just signaling intent)
@@ -138,7 +133,11 @@ export function useLockOrder({ order, buyerCanopyAddress }: UseLockOrderParams):
 
       // The 'to' in the ERC20 transfer is the buyer's own address
       // (This is how the committee knows who is locking the order)
-      const callData = createLockOrderCallData(buyerEthAddress, amount, lockOrderData);
+      const callData = createLockOrderCallData(
+        buyerEthAddress,
+        amount,
+        lockOrderData
+      );
 
       // Send transaction to USDC contract
       sendTransaction({

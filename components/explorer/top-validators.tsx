@@ -5,20 +5,8 @@ import { ArrowUpRight, TrendingUp, TrendingDown } from "lucide-react";
 import Link from "next/link";
 import { LiveStatusComponent } from "./live-status-component";
 import { LatestUpdated } from "./latest-updated";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { canopyIconSvg, getCanopyAccent } from "@/lib/utils/brand";
 import { cn } from "@/lib/utils";
 
@@ -49,32 +37,18 @@ function UptimeTrend({ data, color }: { data: number[]; color: string }) {
   const isUpward = lastValue > firstValue;
 
   return (
-    <div className={color}>
-      {isUpward ? (
-        <TrendingUp className="w-3 h-3" />
-      ) : (
-        <TrendingDown className="w-3 h-3" />
-      )}
-    </div>
+    <div className={color}>{isUpward ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}</div>
   );
 }
 
 // Radial progress ring component
-function RadialProgress({
-  score,
-  status,
-}: {
-  score: number;
-  status?: "healthy" | "warning" | "at_risk";
-}) {
+function RadialProgress({ score, status }: { score: number; status?: "healthy" | "warning" | "at_risk" }) {
   const radius = 12;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (score / 100) * circumference;
 
   // Use status if provided, otherwise determine from score
-  const getStatusFromScore = (
-    score: number
-  ): "healthy" | "warning" | "at_risk" => {
+  const getStatusFromScore = (score: number): "healthy" | "warning" | "at_risk" => {
     if (score >= 100) return "healthy";
     if (score >= 60) return "warning";
     return "at_risk";
@@ -124,11 +98,7 @@ function RadialProgress({
       </svg>
       {/* Score text */}
       <div className="absolute inset-0 flex items-center justify-center">
-        <span
-          className={`text-[10px] font-medium ${getColor(effectiveStatus)}`}
-        >
-          {Math.round(score)}
-        </span>
+        <span className={`text-[10px] font-medium ${getColor(effectiveStatus)}`}>{Math.round(score)}</span>
       </div>
     </div>
   );
@@ -172,28 +142,18 @@ function HealthBadge({
           <div className="flex items-center gap-2 cursor-help">
             {/* Pulse dot */}
             <div className="relative">
-              <div
-                className={`w-2 h-2 rounded-full ${config.color} animate-pulse`}
-              />
-              <div
-                className={`absolute inset-0 w-2 h-2 rounded-full ${config.color} opacity-75 animate-ping`}
-              />
+              <div className={`w-2 h-2 rounded-full ${config.color} animate-pulse`} />
+              <div className={`absolute inset-0 w-2 h-2 rounded-full ${config.color} opacity-75 animate-ping`} />
             </div>
             {/* Radial progress if score provided */}
-            {score !== undefined && (
-              <RadialProgress score={score} status={status} />
-            )}
+            {score !== undefined && <RadialProgress score={score} status={status} />}
           </div>
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-xs">
           <div className="font-medium">{config.label}</div>
-          <div className="text-xs text-muted-foreground mt-1">
-            {tooltipMessage}
-          </div>
+          <div className="text-xs text-muted-foreground mt-1">{tooltipMessage}</div>
           {score !== undefined && (
-            <div className="text-xs text-muted-foreground mt-1">
-              Performance score: {Math.round(score)}/100
-            </div>
+            <div className="text-xs text-muted-foreground mt-1">Performance score: {Math.round(score)}/100</div>
           )}
         </TooltipContent>
       </Tooltip>
@@ -204,8 +164,7 @@ function HealthBadge({
 export function TopValidators({ validators }: TopValidatorsProps) {
   // Determine uptime color based on percentage
   const getUptimeColor = (uptime: number) => {
-    if (uptime >= 99)
-      return "bg-[#36d26a]/10 text-[#7cff9d] border border-[#36d26a]/50";
+    if (uptime >= 99) return "bg-[#36d26a]/10 text-[#7cff9d] border border-[#36d26a]/50";
     if (uptime >= 97) return "bg-yellow-500/10 text-yellow-500";
     return "bg-red-500/10 text-red-500";
   };
@@ -220,9 +179,7 @@ export function TopValidators({ validators }: TopValidatorsProps) {
   return (
     <div className="card-like p-4">
       <div className="flex items-center justify-between leading-none mb-4 lg:pl-3">
-        <h2 className="lg:text-xl text-lg font-bold text-white">
-          Top Validators
-        </h2>
+        <h2 className="lg:text-xl text-lg font-bold text-white">Top Validators</h2>
         <LatestUpdated timeAgo="44 secs ago" />
       </div>
 
@@ -240,10 +197,7 @@ export function TopValidators({ validators }: TopValidatorsProps) {
           </TableHeader>
           <TableBody>
             {validators.map((validator, index) => (
-              <TableRow
-                key={`${validator.address}-${index}`}
-                appearance="plain"
-              >
+              <TableRow key={validator.address} appearance="plain">
                 <TableCell className="pl-0 lg:pl-4">
                   <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/5 font-medium">
                     {index + 1}
@@ -255,9 +209,7 @@ export function TopValidators({ validators }: TopValidatorsProps) {
                       <span
                         className="w-10 h-10 inline-flex items-center justify-center border-2 border-background rounded-full bg-muted"
                         dangerouslySetInnerHTML={{
-                          __html: canopyIconSvg(
-                            getCanopyAccent(validator.name)
-                          ),
+                          __html: canopyIconSvg(getCanopyAccent(validator.name)),
                         }}
                       />
                       {validator.status && (
@@ -296,10 +248,7 @@ export function TopValidators({ validators }: TopValidatorsProps) {
                   >
                     {validator.uptime.toFixed(1)}%
                     {validator.uptimeTrend && (
-                      <UptimeTrend
-                        data={validator.uptimeTrend}
-                        color={getUptimeTextColor(validator.uptime)}
-                      />
+                      <UptimeTrend data={validator.uptimeTrend} color={getUptimeTextColor(validator.uptime)} />
                     )}
                   </span>
                 </TableCell>
@@ -319,11 +268,7 @@ export function TopValidators({ validators }: TopValidatorsProps) {
 
         <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
           <Link href="/validators">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-foreground gap-1"
-            >
+            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground gap-1">
               View All Validators
               <ArrowUpRight className="w-4 h-4" />
             </Button>

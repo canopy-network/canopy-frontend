@@ -69,7 +69,7 @@ export const walletTransactionApi = {
 
   /**
    * Get transaction history
-   * GET /api/v1/wallet/transactions/history
+   * POST /api/v1/wallet/transactions/history
    *
    * @param data - Transaction history request with filters
    * @returns Paginated transaction history

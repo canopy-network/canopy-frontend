@@ -11,7 +11,6 @@ import { ErrorBoundary } from "@/components/providers/error-boundary";
 import { AuthCookieSync } from "@/components/auth/auth-cookie-sync";
 import { Web3Provider } from "@/components/web3/web3-provider";
 import { Toaster } from "sonner";
-import { Toaster as HotToaster } from "react-hot-toast";
 import "./globals.css";
 import { Header } from "@/components/layout/header";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -23,8 +22,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Canopy Super App",
-  description:
-    "Unified blockchain ecosystem for launching, discovering, and participating in new chains",
+  description: "Unified blockchain ecosystem for launching, discovering, and participating in new chains",
   generator: "Canopy",
 };
 
@@ -69,7 +67,6 @@ export default function RootLayout({
                         },
                       }}
                     />
-                    <HotToaster />
                   </TooltipProvider>
                 </WalletProvider>
               </StoreProvider>

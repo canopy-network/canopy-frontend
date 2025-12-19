@@ -35,7 +35,7 @@ export interface ProjectCardProps {
   accolades?: Accolade[];
 }
 
-export const ProjectCard = ({
+const ProjectCardComponent = ({
   project,
   virtualPool,
   onBuyClick,
@@ -317,3 +317,17 @@ export const ProjectCard = ({
     </Card>
   );
 };
+
+// Memoize component to prevent unnecessary re-renders
+// Custom comparison function for optimized performance
+export const ProjectCard = React.memo(ProjectCardComponent, (prevProps, nextProps) => {
+  // Only re-render if critical data changes
+  return (
+    prevProps.project.id === nextProps.project.id &&
+    prevProps.project.chain_name === nextProps.project.chain_name &&
+    prevProps.project.is_graduated === nextProps.project.is_graduated &&
+    JSON.stringify(prevProps.virtualPool) === JSON.stringify(nextProps.virtualPool) &&
+    prevProps.chartData?.length === nextProps.chartData?.length &&
+    prevProps.accolades.length === nextProps.accolades.length
+  );
+});

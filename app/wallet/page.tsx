@@ -3,7 +3,7 @@
 // Force SSR for this page
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -28,7 +28,18 @@ import AssetsTab from "@/components/wallet/assets-tab";
 import { ActivityTab } from "@/components/wallet/activity-tab";
 import { StakingTab } from "@/components/wallet/staking-tab";
 import { GovernanceTab } from "@/components/wallet/governance-tab";
-import { Send, Download, Coins, Repeat, Wallet, ChevronUp } from "lucide-react";
+import { RewardsActivity } from "@/components/wallet/rewards-activity";
+import { useStaking } from "@/lib/hooks/use-staking";
+import {
+  Copy,
+  Send,
+  Download,
+  Coins,
+  Settings,
+  Repeat,
+  LogOut, Wallet,
+  ChevronUp,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Container } from "@/components/layout/container";
@@ -48,9 +59,17 @@ function WalletContent() {
     openReceiveDialog,
     openStakeDialog,
   } = useWalletStore();
+  const { positions } = useStaking(currentWallet?.address);
 
   const [showQuickActionsSheet, setShowQuickActionsSheet] = useState(false);
   const [activeTab, setActiveTab] = useState("orders");
+
+  // Memoize addresses array to prevent recreation on every render
+  // This is critical to prevent infinite loops in child components
+  const addresses = useMemo(
+    () => (currentWallet ? [currentWallet.address] : []),
+    [currentWallet?.address]
+  );
 
   // Fetch data when wallet changes
   useEffect(() => {
@@ -60,6 +79,26 @@ function WalletContent() {
       fetchPortfolioOverview([currentWallet.address]);
     }
   }, [currentWallet?.id, currentWallet?.address, fetchBalance, fetchTransactions, fetchPortfolioOverview]);
+
+  const copyAddress = () => {
+    if (currentWallet) {
+      navigator.clipboard.writeText(currentWallet.address);
+      toast.success("Address copied to clipboard");
+    }
+  };
+
+  const formatAddress = (address: string) => {
+    if (!address) return "";
+    const fullAddress = address.startsWith("0x") ? address : `0x${address}`;
+    return `${fullAddress.slice(0, 6)}...${fullAddress.slice(-4)}`;
+  };
+
+  const handleDisconnect = () => {
+    router.push("/");
+    setTimeout(() => {
+      // Disconnect logic handled by wallet provider
+    }, 100);
+  };
 
   // Use real balance data from the store, fallback to defaults
   const displayBalance = balance?.total || "0.00";
@@ -79,6 +118,9 @@ function WalletContent() {
 
   const displayUSDValue = `$${totalUSDValue.toFixed(2)}`;
   const displayTransactions = transactions.length > 0 ? transactions : [];
+  const disallowChainIds = positions
+    .filter((p) => p.status !== "unstaking")
+    .map((p) => p.chain_id);
 
   if (!isAuthenticated) {
     return (
@@ -177,142 +219,202 @@ function WalletContent() {
               <AssetsTab />
             </TabsContent>
 
-            {/* Staking Tab */}
-            <TabsContent value="staking" className="mt-4 sm:mt-6">
-              <StakingTab
-                addresses={currentWallet ? [currentWallet.address] : []}
-              />
-            </TabsContent>
+              {/* Tabs for Assets, Activity, Staking, Governance */}
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="h-auto w-full justify-start bg-transparent p-0 border-b rounded-none overflow-x-auto scrollbar-hide">
+                  <TabsTrigger
+                    value="assets"
+                    className="py-3 sm:py-4 px-0 mr-4 sm:mr-8 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent text-sm sm:text-base shrink-0"
+                  >
+                    Assets
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="staking"
+                    className="py-3 sm:py-4 px-0 mr-4 sm:mr-8 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent text-sm sm:text-base shrink-0"
+                  >
+                    Staking
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="rewards"
+                    className="py-3 sm:py-4 px-0 mr-4 sm:mr-8 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent text-sm sm:text-base shrink-0"
+                  >
+                    Rewards
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="activity"
+                    className="py-3 sm:py-4 px-0 mr-4 sm:mr-8 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent text-sm sm:text-base shrink-0"
+                  >
+                    Activity
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="governance"
+                    className="py-3 sm:py-4 px-0 mr-4 sm:mr-8 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent text-sm sm:text-base shrink-0"
+                  >
+                    Governance
+                  </TabsTrigger>
+                </TabsList>
 
-            {/* Activity Tab */}
-            <TabsContent value="activity" className="mt-4 sm:mt-6">
-              <ActivityTab
-                addresses={currentWallet ? [currentWallet.address] : []}
-                compact
-              />
-            </TabsContent>
+                {/* Assets Tab */}
+                <TabsContent value="assets" className="mt-4 sm:mt-6">
+                  <AssetsTab addresses={addresses} />
+                </TabsContent>
 
-            {/* Governance Tab */}
-            <TabsContent value="governance" className="mt-4 sm:mt-6">
-              <GovernanceTab tokens={displayTokens} />
-            </TabsContent>
-          </Tabs>
+                {/* Staking Tab */}
+                <TabsContent value="staking" className="mt-4 sm:mt-6">
+                  <StakingTab addresses={addresses} />
+                </TabsContent>
+
+                {/* Rewards Tab */}
+                <TabsContent value="rewards" className="mt-4 sm:mt-6">
+                  <RewardsActivity
+                    addresses={addresses}
+                    limit={10}
+                  />
+                </TabsContent>
+
+                {/* Activity Tab */}
+                <TabsContent value="activity" className="mt-4 sm:mt-6">
+                  <ActivityTab addresses={addresses} compact />
+                </TabsContent>
+
+                {/* Governance Tab */}
+                <TabsContent value="governance" className="mt-4 sm:mt-6">
+                  <GovernanceTab tokens={displayTokens} />
+                </TabsContent>
+              </Tabs>
+            </div>
+          </div>
+
+          {/* Quick Actions Sidebar - Desktop */}
+          <div className="hidden lg:block lg:order-2">
+            <Card className="w-64 shrink-0 h-fit sticky top-4">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    className="h-auto py-4 flex-col gap-2"
+                    onClick={() => setShowSendDialog(true)}
+                  >
+                    <Send className="h-5 w-5" />
+                    <span className="text-xs">Send</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-auto py-4 flex-col gap-2"
+                    onClick={() => setShowReceiveDialog(true)}
+                  >
+                    <Download className="h-5 w-5" />
+                    <span className="text-xs">Buy</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-auto py-4 flex-col gap-2"
+                    onClick={() => toast.info("Swap coming soon")}
+                  >
+                    <Repeat className="h-5 w-5" />
+                    <span className="text-xs">Swap</span>
+                  </Button>
+                  <Button
+        variant="outline"
+        className="h-auto py-4 flex-col gap-2"
+        onClick={() => setShowStakeDialog(true)}
+      >
+        <Coins className="h-5 w-5" />
+        <span className="text-xs">Stake</span>
+      </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Quick Actions Button - Mobile */}
+          <div className="lg:hidden w-full order-1 lg:order-2">
+            <Sheet open={showQuickActionsSheet} onOpenChange={setShowQuickActionsSheet}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-between h-12"
+                >
+                  <span className="text-sm font-medium">Quick Actions</span>
+                  <ChevronUp className="h-4 w-4" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="h-auto p-0">
+                <SheetHeader className="px-6 pt-6 pb-4">
+                  <SheetTitle>Quick Actions</SheetTitle>
+                </SheetHeader>
+                <div className="px-6 pb-6">
+                  <div className="grid grid-cols-4 gap-3">
+                    <Button
+                      variant="outline"
+                      className="h-auto py-4 flex-col gap-2"
+                      onClick={() => {
+                        setShowSendDialog(true);
+                        setShowQuickActionsSheet(false);
+                      }}
+                    >
+                      <Send className="h-5 w-5" />
+                      <span className="text-xs">Send</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-auto py-4 flex-col gap-2"
+                      onClick={() => {
+                        setShowReceiveDialog(true);
+                        setShowQuickActionsSheet(false);
+                      }}
+                    >
+                      <Download className="h-5 w-5" />
+                      <span className="text-xs">Buy</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-auto py-4 flex-col gap-2"
+                      onClick={() => {
+                        toast.info("Swap coming soon");
+                        setShowQuickActionsSheet(false);
+                      }}
+                    >
+                      <Repeat className="h-5 w-5" />
+                      <span className="text-xs">Swap</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-auto py-4 flex-col gap-2"
+                      onClick={() => {
+                        setShowStakeDialog(true);
+                        setShowQuickActionsSheet(false);
+                      }}
+                    >
+                      <Coins className="h-5 w-5" />
+                      <span className="text-xs">Stake</span>
+                    </Button>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
         </div>
       </div>
 
-      {/* Quick Actions Sidebar - Desktop */}
-      <div className="hidden lg:block lg:order-2">
-        <Card className="w-64 shrink-0 h-fit sticky top-4">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                variant="outline"
-                className="h-auto py-4 flex-col gap-2"
-                onClick={openSendDialog}
-              >
-                <Send className="h-5 w-5" />
-                <span className="text-xs">Send</span>
-              </Button>
-              <Button
-                variant="outline"
-                className="h-auto py-4 flex-col gap-2"
-                onClick={openReceiveDialog}
-              >
-                <Download className="h-5 w-5" />
-                <span className="text-xs">Buy</span>
-              </Button>
-              <Button
-                variant="outline"
-                className="h-auto py-4 flex-col gap-2"
-                onClick={() => toast.info("Swap coming soon")}
-              >
-                <Repeat className="h-5 w-5" />
-                <span className="text-xs">Swap</span>
-              </Button>
-              <Button
-                variant="outline"
-                className="h-auto py-4 flex-col gap-2"
-                onClick={openStakeDialog}
-              >
-                <Coins className="h-5 w-5" />
-                <span className="text-xs">Stake</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Quick Actions Button - Mobile */}
-      <div className="lg:hidden w-full order-1 lg:order-2">
-        <Sheet
-          open={showQuickActionsSheet}
-          onOpenChange={setShowQuickActionsSheet}
-        >
-          <SheetTrigger asChild>
-            <Button variant="outline" className="w-full justify-between h-12">
-              <span className="text-sm font-medium">Quick Actions</span>
-              <ChevronUp className="h-4 w-4" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="bottom" className="h-auto p-0">
-            <SheetHeader className="px-6 pt-6 pb-4">
-              <SheetTitle>Quick Actions</SheetTitle>
-            </SheetHeader>
-            <div className="px-6 pb-6">
-              <div className="grid grid-cols-4 gap-3">
-                <Button
-                  variant="outline"
-                  className="h-auto py-4 flex-col gap-2"
-                  onClick={() => {
-                    openSendDialog();
-                    setShowQuickActionsSheet(false);
-                  }}
-                >
-                  <Send className="h-5 w-5" />
-                  <span className="text-xs">Send</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-auto py-4 flex-col gap-2"
-                  onClick={() => {
-                    openReceiveDialog();
-                    setShowQuickActionsSheet(false);
-                  }}
-                >
-                  <Download className="h-5 w-5" />
-                  <span className="text-xs">Buy</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-auto py-4 flex-col gap-2"
-                  onClick={() => {
-                    toast.info("Swap coming soon");
-                    setShowQuickActionsSheet(false);
-                  }}
-                >
-                  <Repeat className="h-5 w-5" />
-                  <span className="text-xs">Swap</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-auto py-4 flex-col gap-2"
-                  onClick={() => {
-                    openStakeDialog();
-                    setShowQuickActionsSheet(false);
-                  }}
-                >
-                  <Coins className="h-5 w-5" />
-                  <span className="text-xs">Stake</span>
-                </Button>
-              </div>
-            </div>
-          </SheetContent>
-        </Sheet>
-      </div>
-    </Container>
+      {/* Dialogs */}
+      <SendTransactionDialog
+        open={showSendDialog}
+        onOpenChange={setShowSendDialog}
+      />
+      <ReceiveDialog
+        open={showReceiveDialog}
+        onOpenChange={setShowReceiveDialog}
+      />
+      <StakeDialog
+        open={showStakeDialog}
+        onOpenChange={setShowStakeDialog}
+        disallowChainIds={disallowChainIds}
+      />
+    </div>
   );
 }
 

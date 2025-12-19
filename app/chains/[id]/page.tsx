@@ -159,7 +159,6 @@ export default async function ChainPage(props: ChainPageProps) {
           <aside className="w-[352px] flex-shrink-0 h-fit lg:block hidden">
             {chain.status === "draft" ? (
               <ChainLaunchCountdown
-                publicationDate={chain.scheduled_launch_time}
                 chainId={chain.id}
               />
             ) : (

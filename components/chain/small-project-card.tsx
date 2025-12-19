@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Chain, ChainExtended, Accolade } from "@/types/chains";
-import { useMemo, useState } from "react";
+import { useMemo, useState, memo } from "react";
 import { HexagonIcon } from "@/components/icons/hexagon-icon";
 import { Users, TrendingUp, Star, Target } from "lucide-react";
 import { ChainProgressBar } from "./chain-progress-bar";
@@ -29,7 +29,7 @@ interface SmallProjectCardProps {
   accolades?: Accolade[];
 }
 
-export const SmallProjectCard = ({
+const SmallProjectCardComponent = ({
   project,
   href = `/chains/${project.id}`,
   viewMode = "grid",
@@ -435,3 +435,16 @@ export const SmallProjectCard = ({
     </Link>
   );
 };
+
+// Memoize component to prevent unnecessary re-renders
+// Custom comparison function for optimized performance
+export const SmallProjectCard = memo(SmallProjectCardComponent, (prevProps, nextProps) => {
+  // Only re-render if critical data changes
+  return (
+    prevProps.project.id === nextProps.project.id &&
+    prevProps.project.chain_name === nextProps.project.chain_name &&
+    prevProps.viewMode === nextProps.viewMode &&
+    JSON.stringify(prevProps.project.virtual_pool) === JSON.stringify(nextProps.project.virtual_pool) &&
+    prevProps.accolades.length === nextProps.accolades.length
+  );
+});

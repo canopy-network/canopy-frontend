@@ -63,10 +63,7 @@ export { sendEmailCode, verifyCode } from "./auth";
 export { updateProfile, uploadUserMedia } from "./users";
 
 // Transactions API
-export {
-  getChainTransactions,
-  type Transaction as ApiTransaction,
-} from "./transactions";
+export { getChainTransactions, type Transaction as ApiTransaction } from "./transactions";
 
 // Price History API
 export {
@@ -78,14 +75,7 @@ export {
 } from "./price-history";
 
 // Health API
-export {
-  healthApi,
-  isApiHealthy,
-  getApiVersion,
-  getApiStatus,
-  waitForApiHealth,
-  monitorApiHealth,
-} from "./health";
+export { healthApi, isApiHealthy, getApiVersion, getApiStatus, waitForApiHealth, monitorApiHealth } from "./health";
 
 // Media Upload API
 export {
@@ -114,13 +104,16 @@ export { walletApi } from "./wallet";
 export { portfolioApi } from "./portfolio";
 
 // Wallet Transaction API
-export {
-  walletTransactionApi,
-  waitForTransactionCompletion,
-} from "./wallet-transactions";
+export { walletTransactionApi, waitForTransactionCompletion } from "./wallet-transactions";
 
 // Transactions API (wallet transactions)
 export { transactionsApi } from "./transactions";
+
+// Wallet Events API
+export { walletEventsApi } from "./wallet-events";
+
+// Wallet Rewards API
+export { walletRewardsApi } from "./wallet-rewards";
 
 // Staking API
 export { stakingApi } from "./staking";
@@ -168,12 +161,7 @@ export type {
   AssetType,
 } from "@/types/chains";
 
-export type {
-  Template,
-  TemplateCategory,
-  ComplexityLevel,
-  GetTemplatesParams,
-} from "@/types/templates";
+export type { Template, TemplateCategory, ComplexityLevel, GetTemplatesParams } from "@/types/templates";
 
 // Explorer API
 export {
@@ -207,12 +195,7 @@ export type {
 
 // AMM API
 export { ammApi } from "./amm";
-export type {
-  OrderBookApiOrder,
-  ChainOrderBook,
-  OrderBookResponse,
-  DisplayOrder,
-} from "@/types/orderbook";
+export type { OrderBookApiOrder, ChainOrderBook, OrderBookResponse, DisplayOrder } from "@/types/orderbook";
 
 export type { FeeParams } from "@/types/params";
 export { DEFAULT_FEE_PARAMS } from "@/types/params";
