@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { TableCard, TableColumn } from "@/components/explorer/table-card";
-import { validatorsApi, type ValidatorData } from "@/lib/api/validators";
+import { useValidators } from "@/lib/api/validators";
 import { canopyIconSvg, getCanopyAccent } from "@/lib/utils/brand";
 
-const ROWS_PER_PAGE = 8;
+const ROWS_PER_PAGE = 12;
 
 interface ValidatorsExplorerProps {
   chainContext?: {
@@ -32,35 +33,42 @@ type AggregatedValidator = {
 };
 
 export function ValidatorsExplorer({ chainContext }: ValidatorsExplorerProps) {
+  const searchParams = useSearchParams();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
-  const [validators, setValidators] = useState<ValidatorData[]>([]);
-  const [isLoadingValidators, setIsLoadingValidators] = useState(true);
-  const [chainFilterId, setChainFilterId] = useState<string | null>(null);
 
-  const chainContextId = chainContext?.id ?? null;
-
-  useEffect(() => {
-    setChainFilterId(chainContextId);
-  }, [chainContextId]);
-
-  useEffect(() => {
-    async function fetchValidators() {
-      try {
-        setIsLoadingValidators(true);
-        const response = await validatorsApi.getValidators({
-          chain_id: chainContextId ? parseInt(chainContextId) : undefined,
-          limit: 1000,
-        });
-        setValidators(response.validators);
-        setIsLoadingValidators(false);
-      } catch (err) {
-        console.error("Failed to fetch validators:", err);
-        setIsLoadingValidators(false);
-      }
+  // Get chain_id from URL search params or chainContext
+  const chainIdFromUrl = searchParams.get("chain");
+  const effectiveChainId = useMemo(() => {
+    // Priority: URL param > chainContext
+    if (chainIdFromUrl) {
+      const chainIdNum = parseInt(chainIdFromUrl, 10);
+      return chainIdNum > 0 ? chainIdNum : undefined;
     }
-    fetchValidators();
-  }, [chainContextId]);
+    return chainContext?.id ? parseInt(chainContext.id, 10) : undefined;
+  }, [chainIdFromUrl, chainContext?.id]);
+
+  // Calculate offset for pagination
+  const offset = useMemo(() => {
+    return (currentPage - 1) * ROWS_PER_PAGE;
+  }, [currentPage]);
+
+  // Fetch validators using React Query with pagination
+  const {
+    data: validatorsResponse,
+    isLoading: isLoadingValidators,
+  } = useValidators(
+    {
+      ...(effectiveChainId && { chain_id: effectiveChainId }),
+      limit: ROWS_PER_PAGE,
+      offset: offset,
+    },
+    {
+      staleTime: 10000, // 10 seconds
+    }
+  );
+
+  const totalCount = validatorsResponse?.metadata?.total || 0;
 
   const formatStakeUSD = (stake: number): string => {
     if (stake >= 1000000) {
@@ -72,6 +80,7 @@ export function ValidatorsExplorer({ chainContext }: ValidatorsExplorerProps) {
   };
 
   const aggregatedValidators = useMemo<AggregatedValidator[]>(() => {
+    const validators = validatorsResponse?.validators || [];
     const byAddress = new Map<string, AggregatedValidator>();
 
     validators.forEach((validator) => {
@@ -128,35 +137,28 @@ export function ValidatorsExplorer({ chainContext }: ValidatorsExplorerProps) {
     });
 
     return Array.from(byAddress.values()).sort((a, b) => b.stakeUSD - a.stakeUSD);
-  }, [validators]);
+  }, [validatorsResponse?.validators]);
 
+  // Filter validators by search query (client-side filtering on current page)
   const filteredValidators = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
+    if (!query) return aggregatedValidators;
+
     return aggregatedValidators.filter((validator) => {
-      const matchesQuery = query
-        ? [validator.validatorName, validator.address, validator.status]
-          .join(" ")
-          .toLowerCase()
-          .includes(query)
-        : true;
-      const matchesChain = chainFilterId
-        ? validator.chains.includes(parseInt(chainFilterId))
-        : true;
-      return matchesQuery && matchesChain;
+      return [validator.validatorName, validator.address, validator.status]
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
     });
-  }, [searchQuery, chainFilterId, aggregatedValidators]);
+  }, [searchQuery, aggregatedValidators]);
 
-  const totalEntries = filteredValidators.length;
-  const totalPages = Math.max(1, Math.ceil(totalEntries / ROWS_PER_PAGE));
+  // Calculate pagination
+  const totalPages = Math.max(1, Math.ceil(totalCount / ROWS_PER_PAGE));
 
-  const paginatedValidators = useMemo(() => {
-    const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
-    return filteredValidators.slice(startIndex, startIndex + ROWS_PER_PAGE);
-  }, [filteredValidators, currentPage]);
-
+  // Reset to page 1 when chain changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, chainFilterId]);
+  }, [effectiveChainId]);
 
   useEffect(() => {
     setCurrentPage((prev) => Math.min(prev, totalPages));
@@ -187,7 +189,7 @@ export function ValidatorsExplorer({ chainContext }: ValidatorsExplorerProps) {
     { label: "Status", width: "w-32" },
   ];
 
-  const rows = paginatedValidators.map((validator) => {
+  const rows = filteredValidators.map((validator: AggregatedValidator) => {
     const getUptimeColor = (uptime: number) => {
       if (uptime >= 99) return "bg-[#00a63d]/10 text-[#00a63d] border border-[#00a63d]/50";
       if (uptime >= 97) return "bg-yellow-500/10 text-yellow-500 border border-yellow-500/50";
@@ -230,7 +232,7 @@ export function ValidatorsExplorer({ chainContext }: ValidatorsExplorerProps) {
       <div key="chains" className="flex items-center gap-2">
         <div className="bg-white/10 rounded-full p-2 flex items-center gap-1">
           <div className="flex -space-x-2">
-            {validator.chains.slice(0, 2).map((chainId) => (
+            {validator.chains.slice(0, 2).map((chainId: number) => (
               <div
                 key={chainId}
                 className="w-6 h-6 rounded-full border border-background bg-white/10 flex items-center justify-center"
@@ -298,7 +300,7 @@ export function ValidatorsExplorer({ chainContext }: ValidatorsExplorerProps) {
         paginate={true}
         pageSize={ROWS_PER_PAGE}
         currentEntriesPerPage={ROWS_PER_PAGE}
-        totalCount={totalEntries}
+        totalCount={totalCount}
         currentPage={currentPage}
         onPageChange={setCurrentPage}
         spacing={3}

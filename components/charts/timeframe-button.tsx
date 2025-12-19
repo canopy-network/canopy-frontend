@@ -13,14 +13,15 @@ export const TimeframeButton = ({
   loadingChart: boolean;
   children: React.ReactNode;
 }) => {
+  const isSelected = selectedTimeframe === timeframe;
   return (
     <Button
       key={timeframe}
-      variant={selectedTimeframe === timeframe ? "secondary" : "ghost"}
+      variant={isSelected ? "secondary" : "ghost"}
       size="sm"
       onClick={() => setSelectedTimeframe(timeframe)}
       disabled={loadingChart}
-      className="rounded-md gap-1.5 h-8 text-xs px-3"
+      className="rounded-md gap-1.5 h-8 text-xs px-3 transition-all"
     >
       {children}
     </Button>

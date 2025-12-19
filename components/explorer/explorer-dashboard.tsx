@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Container } from "@/components/layout/container";
 import { Spacer } from "@/components/layout/spacer";
 import { NetworkOverview } from "./network-overview";
@@ -16,6 +17,7 @@ import {
   useExplorerBlocks,
   useExplorerTrendingChains,
   useExplorerOverview,
+  useExplorerHistorical,
   type ExplorerOverview,
   type ExplorerTrendingChain,
 } from "@/lib/api/explorer";
@@ -189,13 +191,29 @@ interface ExplorerDashboardProps {
 
 export function ExplorerDashboard({ overviewData: initialOverviewData }: ExplorerDashboardProps) {
   const [newChains, setNewChains] = useState<Chain[]>([]);
+  const searchParams = useSearchParams();
+  
+  // Get selected chain from URL parameter
+  const selectedChainId = useMemo(() => {
+    const chainParam = searchParams.get("chain");
+    if (chainParam) {
+      const chainId = parseInt(chainParam, 10);
+      // If chain_id is 0 or invalid, return undefined (no filter = all chains)
+      return chainId > 0 ? chainId : undefined;
+    }
+    return undefined; // No chain selected = show all chains
+  }, [searchParams]);
 
   // Use React Query hooks with auto-refetch every 10 seconds
   const {
     data: recentTransactions = [],
     isLoading: isLoadingTransactions,
   } = useExplorerTransactions(
-    { limit: 5, sort: "desc" },
+    { 
+      limit: 5, 
+      sort: "desc",
+      ...(selectedChainId && { chain_id: selectedChainId }),
+    },
     { refetchInterval: 10000 } // Refetch every 10 seconds
   );
 
@@ -203,7 +221,10 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
     data: recentBlocks = [],
     isLoading: isLoadingBlocks,
   } = useExplorerBlocks(
-    { limit: 5 },
+    { 
+      limit: 5,
+      ...(selectedChainId && { chain_id: selectedChainId }),
+    },
     { refetchInterval: 10000 } // Refetch every 10 seconds
   );
 
@@ -218,15 +239,68 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
   const {
     data: overviewData,
     isLoading: isLoadingOverview,
-  } = useExplorerOverview({
-    refetchInterval: 30000, // Refetch every 30 seconds
-    initialData: initialOverviewData || undefined, // Use SSR data as initial
-  });
+  } = useExplorerOverview(
+    selectedChainId ? { chain_id: selectedChainId } : undefined,
+    {
+      refetchInterval: 30000, // Refetch every 30 seconds
+      initialData: initialOverviewData || undefined, // Use SSR data as initial
+    }
+  );
+
+  // State for timeframe selection (managed here to trigger refetch)
+  // Default to 1H when no chain is selected, 1D when chain is selected
+  const [selectedTimeframe, setSelectedTimeframe] = useState("1H");
+
+  // Map timeframe to range and interval
+  // Backend only supports: 1h, 1d, 7d, 1m
+  const timeframeToParams = (timeframe: string): { range: "1h" | "1d" | "7d" | "1m"; interval: "5m" | "1h" | "1d" } => {
+    switch (timeframe) {
+      case "1H":
+        return { range: "1h", interval: "5m" };
+      case "1D":
+        return { range: "1d", interval: "5m" };
+      case "1W":
+        return { range: "7d", interval: "1h" };
+      case "1M":
+        return { range: "1m", interval: "1h" }; // Backend uses "1m" not "30d"
+      default:
+        return { range: "1d", interval: "5m" };
+    }
+  };
+
+  const { range, interval } = timeframeToParams(selectedTimeframe);
+
+  // Fetch historical data for TVL chart
+  // Always use the selected timeframe (range and interval)
+  // Only include chain_id if a chain is selected
+  const {
+    data: historicalData,
+    isLoading: isLoadingHistorical,
+  } = useExplorerHistorical(
+    selectedChainId
+      ? {
+          chain_id: selectedChainId,
+          range,
+          interval,
+        }
+      : {
+          // When no chain selected, use selected timeframe without chain_id
+          range,
+          interval,
+        },
+    {
+      refetchInterval: 60000, // Refetch every 60 seconds
+    }
+  );
 
   const {
     data: validatorsResponse,
   } = useValidators(
-    { status: "active", limit: 20 }, // Get more validators to ensure we have 8 unique after aggregation
+    { 
+      status: "active", 
+      limit: 20,
+      ...(selectedChainId && { chain_id: selectedChainId }),
+    }, // Get more validators to ensure we have 8 unique after aggregation
     { refetchInterval: 10000 } // Refetch every 10 seconds
   );
 
@@ -360,7 +434,18 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
 
         <NetworkOverview
           metrics={overviewMetrics}
-          historicData={undefined}
+          historicData={
+            historicalData
+              ? {
+                  tvl: historicalData.tvl || [],
+                  volume: historicalData.volume || [],
+                  transactions: historicalData.transactions,
+                }
+              : undefined
+          }
+          selectedTimeframe={selectedTimeframe}
+          onTimeframeChange={setSelectedTimeframe}
+          isLoadingHistorical={isLoadingHistorical}
           historicalStats={{
             tvl_history: overviewData?.tvl_history,
             volume_history: overviewData?.volume_history,

@@ -172,7 +172,7 @@ export function TableCard({
               value={searchValue || ""}
               onType={onSearch}
               placeholder={searchPlaceholder}
-              wrapperClassName="max-w-[256px]"
+              wrapperClassName="min-w-[400px]"
             />
           )}
           {live && <LatestUpdated showLive={live} className="self-end sm:self-auto" />}

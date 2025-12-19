@@ -100,19 +100,30 @@ export function Header() {
   // Get selected chain for explorer from URL or store
   const chainIdFromUrl = searchParams.get("chain");
   const explorerSelectedChain = useMemo(() => {
+    console.log("[Header] chainIdFromUrl:", chainIdFromUrl, "chains count:", chains.length);
     if (chainIdFromUrl) {
-      const chain = getChainById(chainIdFromUrl);
-      if (chain) {
-        return { id: chain.id, chain_name: chain.chain_name };
+      const chainIdNum = parseInt(chainIdFromUrl, 10);
+      if (chainIdNum === 0) {
+        return { id: 0, chain_name: "All Chains" };
       }
+      // Try to find chain by ID (both string and number formats)
+      const chain = getChainById(chainIdFromUrl) || getChainById(chainIdNum.toString());
+      console.log("[Header] Found chain:", chain ? { id: chain.id, name: chain.chain_name } : "not found");
+      if (chain) {
+        const id = typeof chain.id === "string" ? parseInt(chain.id, 10) : Number(chain.id);
+        return { id, chain_name: chain.chain_name };
+      }
+      // If chain not found in store, return a temporary object with the ID from URL
+      console.log("[Header] Chain not found in store, using URL ID:", chainIdNum);
+      return { id: chainIdNum, chain_name: `Chain ${chainIdNum}` };
     }
-    return current_explorer_selected_chain || { id: 0, chain_name: "Canopy" };
-  }, [chainIdFromUrl, current_explorer_selected_chain, getChainById]);
+    return current_explorer_selected_chain || { id: 0, chain_name: "All Chains" };
+  }, [chainIdFromUrl, current_explorer_selected_chain, getChainById, chains.length]);
   
   // Prepare chain options for select
   const chainOptions = useMemo(() => {
     return [
-      { id: "0", chain_name: "Canopy" },
+      { id: "0", chain_name: "All Chains" },
       ...chains.map((chain) => ({
         id: chain.id.toString(),
         chain_name: chain.chain_name,
@@ -123,8 +134,15 @@ export function Header() {
   // Handle chain select in explorer
   const handleExplorerChainSelect = (chain: { id: number; chain_name: string }) => {
     const params = new URLSearchParams(searchParams.toString());
-    params.set("chain", chain.id.toString());
-    router.push(`${pathname}?${params.toString()}`);
+    if (chain.id === 0) {
+      // Remove chain parameter for "All Chains"
+      params.delete("chain");
+    } else {
+      params.set("chain", chain.id.toString());
+    }
+    // Only add query string if there are params, otherwise just use pathname
+    const queryString = params.toString();
+    router.push(queryString ? `${pathname}?${queryString}` : pathname);
   };
 
   useEffect(() => {
@@ -690,11 +708,25 @@ export function Header() {
             {isExplorerPage ? (
               // Show Canopy Network selector in explorer instead of Connect Wallet
               <ChainSelect
-                value={explorerSelectedChain.id.toString()}
+                value={chainIdFromUrl || explorerSelectedChain.id.toString()}
+                key={`${chainIdFromUrl || explorerSelectedChain.id.toString()}-${chains.length}`}
                 onValueChange={(value) => {
-                  const chain = chainOptions.find((c) => c.id === value);
-                  if (chain) {
-                    handleExplorerChainSelect({ id: parseInt(value), chain_name: chain.chain_name });
+                  if (value === "0") {
+                    // Handle "All Chains" selection
+                    handleExplorerChainSelect({ id: 0, chain_name: "All Chains" });
+                  } else {
+                    const chain = chainOptions.find((c) => c.id === value);
+                    if (chain) {
+                      const chainId = parseInt(value, 10);
+                      handleExplorerChainSelect({ id: chainId, chain_name: chain.chain_name });
+                    } else {
+                      // Fallback: try to get chain from store
+                      const chainFromStore = getChainById(value);
+                      if (chainFromStore) {
+                        const chainId = typeof chainFromStore.id === "string" ? parseInt(chainFromStore.id, 10) : Number(chainFromStore.id);
+                        handleExplorerChainSelect({ id: chainId, chain_name: chainFromStore.chain_name });
+                      }
+                    }
                   }
                 }}
               />

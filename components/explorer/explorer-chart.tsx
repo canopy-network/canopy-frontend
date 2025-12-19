@@ -7,7 +7,8 @@ import {
   TimeframeButtonLayout,
 } from "@/components/charts/timeframe-button";
 
-const timeframes = ["1H", "1D", "1W", "1M", "1Y", "ALL"];
+// Only show timeframes supported by the backend: 1h, 1d, 7d, 1m
+const timeframes = ["1H", "1D", "1W", "1M"];
 
 interface HistoricDataPoint {
   time: number;
@@ -22,20 +23,47 @@ interface HistoricData {
 
 interface ExplorerChartProps {
   historicData?: HistoricData;
+  selectedTimeframe?: string;
+  onTimeframeChange?: (timeframe: string) => void;
+  isLoadingHistorical?: boolean;
 }
 
 const chartMetricConfig = {
-  tvl: { label: "TVL", color: "#00a63d" },
-  volume: { label: "Volume", color: "#00a63d" },
-  transactions: { label: "Transactions", color: "#00a63d" },
+  tvl: { label: "TVL", color: "#9ca3af" }, // Gray line for chart
+  volume: { label: "Volume", color: "#9ca3af" },
+  transactions: { label: "Transactions", color: "#9ca3af" },
 };
 
-export function ExplorerChart({ historicData }: ExplorerChartProps) {
+export function ExplorerChart({ 
+  historicData, 
+  selectedTimeframe: externalTimeframe,
+  onTimeframeChange,
+  isLoadingHistorical = false,
+}: ExplorerChartProps) {
   const [chartMetric, setChartMetric] = useState<"tvl" | "volume" | "transactions">("tvl");
-  const [selectedTimeframe, setSelectedTimeframe] = useState("1D");
+  const [internalTimeframe, setInternalTimeframe] = useState("1D");
+  
+  // Use external timeframe if provided, otherwise use internal state
+  const selectedTimeframe = externalTimeframe ?? internalTimeframe;
+  const setSelectedTimeframe = (timeframe: string) => {
+    if (onTimeframeChange) {
+      onTimeframeChange(timeframe);
+    } else {
+      setInternalTimeframe(timeframe);
+    }
+  };
 
   // Only use real historic data - no mockup data
-  const hasData = historicData && historicData[chartMetric] && historicData[chartMetric].length > 0;
+  const currentData = historicData?.[chartMetric];
+  const hasData = currentData && Array.isArray(currentData) && currentData.length > 0;
+
+  // Ensure data is in correct format (time as number, value as number)
+  const formattedData = hasData
+    ? currentData.map((point) => ({
+      time: typeof point.time === "number" ? point.time : parseInt(String(point.time)),
+      value: typeof point.value === "number" ? point.value : parseFloat(String(point.value)),
+    }))
+    : null;
 
   return (
     <div className="" id="network-overview-chart">
@@ -47,11 +75,10 @@ export function ExplorerChart({ historicData }: ExplorerChartProps) {
               <button
                 key={metric}
                 onClick={() => setChartMetric(metric)}
-                className={`rounded-full px-5 py-2 text-sm font-semibold transition-all ${
-                  active
-                    ? "bg-[#00a63d]/10 text-white border border-[#00a63d] shadow-[0_8px_30px_rgba(0,166,61,0.35)]"
-                    : "bg-[#111] text-gray-400 hover:text-white"
-                }`}
+                className={`rounded-lg px-5 py-2 text-sm font-semibold transition-all ${active
+                  ? "border border-green-500  text-green-500"
+                  : "bg-white/5 text-gray-400 hover:text-white"
+                  }`}
               >
                 {chartMetricConfig[metric].label}
               </button>
@@ -68,17 +95,27 @@ export function ExplorerChart({ historicData }: ExplorerChartProps) {
               timeframe={tf}
               selectedTimeframe={selectedTimeframe}
               setSelectedTimeframe={setSelectedTimeframe}
-              loadingChart={false}
+              loadingChart={isLoadingHistorical}
             >
               {tf}
             </TimeframeButton>
           ))}
         </TimeframeButtonLayout>
-        <div className="h-full pt-12 p-3 lg:px-4">
-          {hasData && historicData && historicData[chartMetric] ? (
+        <div className="h-full pt-12 p-3 lg:px-4 relative">
+          {isLoadingHistorical ? (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+              <div className="text-center">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#00a63d] mb-3"></div>
+                <p className="text-sm font-medium mb-1">Loading historical data...</p>
+                <p className="text-xs text-muted-foreground">
+                  Fetching {chartMetricConfig[chartMetric].label} data for {selectedTimeframe}
+                </p>
+              </div>
+            </div>
+          ) : hasData && formattedData ? (
             <ChainDetailChart
               height={324 - 64}
-              data={historicData[chartMetric]}
+              data={formattedData}
               timeframe={selectedTimeframe}
               lineColor={chartMetricConfig[chartMetric].color}
             />

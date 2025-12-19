@@ -99,6 +99,41 @@ export interface ExplorerTrendingChainsResponse {
 }
 
 /**
+ * Historical data point
+ */
+export interface HistoricalDataPoint {
+  time: number; // Unix timestamp
+  value: number;
+}
+
+/**
+ * Historical data response
+ */
+export interface ExplorerHistoricalData {
+  tvl?: HistoricalDataPoint[];
+  volume?: HistoricalDataPoint[];
+  validators?: HistoricalDataPoint[];
+  transactions?: HistoricalDataPoint[];
+}
+
+/**
+ * Explorer historical response
+ */
+export interface ExplorerHistoricalResponse {
+  data: ExplorerHistoricalData;
+  pagination: null;
+}
+
+/**
+ * Query parameters for getting historical data
+ */
+export interface GetExplorerHistoricalParams {
+  chain_id?: number; // Optional: 0 or undefined means "all chains"
+  range: string; // e.g., "1d", "7d", "30d"
+  interval: string; // e.g., "5m", "1h", "1d"
+}
+
+/**
  * Query parameters for getting transactions
  */
 export interface GetExplorerTransactionsParams {
@@ -222,11 +257,13 @@ export const explorerApi = {
    * Get network-wide statistics overview
    * GET /api/v1/explorer/overview
    *
+   * @param params - Optional query parameters including chain_id
    * @returns Promise resolving to overview data with pagination wrapper
    */
-  getOverview: () =>
+  getOverview: (params?: { chain_id?: number }) =>
     apiClient.get<ExplorerOverviewResponse>(
-      "/explorer/overview"
+      "/explorer/overview",
+      params
     ),
 
   /**
@@ -261,6 +298,25 @@ export const explorerApi = {
       `/explorer/addresses/${address}`,
       params
     ),
+
+  /**
+   * Get historical data for TVL, volume, validators, and transactions
+   * GET /api/v1/explorer/historical
+   *
+   * @param params - Query parameters (chain_id is optional, range and interval are required)
+   * @returns Promise resolving to historical data
+   */
+  getHistorical: (params: GetExplorerHistoricalParams) => {
+    // Remove chain_id if it's 0 or undefined to avoid sending it
+    const { chain_id, ...restParams } = params;
+    const filteredParams = chain_id && chain_id !== 0 
+      ? { ...restParams, chain_id }
+      : restParams;
+    return apiClient.get<ExplorerHistoricalResponse>(
+      "/explorer/historical",
+      filteredParams
+    );
+  },
 };
 
 // ============================================================================
@@ -344,6 +400,70 @@ export async function getExplorerBlocks(
 }
 
 /**
+ * Get recent blocks with pagination (convenience function)
+ * Uses explorerApi.getBlocks() which calls /api/explorer/blocks
+ *
+ * @param params - Query parameters for filtering and pagination
+ * @returns Promise resolving to blocks response with pagination
+ */
+export async function getExplorerBlocksWithPagination(
+  params?: GetExplorerBlocksParams
+): Promise<ExplorerBlocksResponse> {
+  console.log("[getExplorerBlocksWithPagination] Params:", params);
+  const response = await explorerApi.getBlocks(params);
+  console.log("[getExplorerBlocksWithPagination] Response structure:", {
+    response,
+    responseData: response.data,
+    isArray: Array.isArray(response.data),
+    hasData: !!response.data?.data,
+    hasPagination: !!response.data?.pagination,
+    dataKeys: response.data ? Object.keys(response.data) : [],
+  });
+  
+  // apiClient.get returns ApiResponse<T> which is { data: T, pagination: ... }
+  // Check if response.data is already ExplorerBlocksResponse structure
+  if (response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
+    // response.data is ExplorerBlocksResponse = { data: Block[], pagination: {...} }
+    if ('data' in response.data && 'pagination' in response.data) {
+      return response.data as ExplorerBlocksResponse;
+    }
+  }
+  
+  // If response.data is an array, it means the API returned blocks directly
+  // We need to construct ExplorerBlocksResponse from response
+  if (Array.isArray(response.data)) {
+    return {
+      data: response.data,
+      pagination: response.pagination || {
+        limit: params?.limit || 20,
+        next_cursor: null,
+      },
+    };
+  }
+  
+  // Fallback: try to extract from nested structure
+  const responseData = response.data as any;
+  if (responseData?.data && Array.isArray(responseData.data)) {
+    return {
+      data: responseData.data,
+      pagination: responseData.pagination || response.pagination || {
+        limit: params?.limit || 20,
+        next_cursor: null,
+      },
+    };
+  }
+  
+  // Default empty response
+  return {
+    data: [],
+    pagination: {
+      limit: params?.limit || 20,
+      next_cursor: null,
+    },
+  };
+}
+
+/**
  * Get a single block by height (convenience function)
  * Uses explorerApi.getBlock() which calls /api/explorer/blocks/[height]
  *
@@ -387,12 +507,52 @@ export async function getExplorerTrendingChains(
   }
 }
 
+/**
+ * Get historical data (convenience function)
+ * Uses explorerApi.getHistorical() which calls /api/explorer/historical
+ *
+ * @param params - Query parameters (chain_id, range, interval)
+ * @returns Promise resolving to historical data
+ */
+export async function getExplorerHistorical(
+  params: GetExplorerHistoricalParams
+): Promise<ExplorerHistoricalData | null> {
+  try {
+    const response = await explorerApi.getHistorical(params) as any;
+    // Debug: log response structure
+    console.log("[getExplorerHistorical] Response structure:", {
+      hasData: !!response.data,
+      hasNestedData: !!response.data?.data,
+      dataKeys: response.data ? Object.keys(response.data) : [],
+      nestedDataKeys: response.data?.data ? Object.keys(response.data.data) : [],
+    });
+
+    // Handle different response structures
+    // If response.data is already ExplorerHistoricalData (direct from Next.js API)
+    if (response.data?.tvl !== undefined || response.data?.volume !== undefined || response.data?.transactions !== undefined) {
+      return response.data as ExplorerHistoricalData;
+    }
+    // If response.data.data exists (nested structure)
+    if (response.data?.data) {
+      return response.data.data as ExplorerHistoricalData;
+    }
+    return null;
+  } catch (error) {
+    console.error("[getExplorerHistorical] Error fetching historical data:", error);
+    return null;
+  }
+}
+
 // ============================================================================
 // EXPLORER SEARCH
 // ============================================================================
 
 export interface ExplorerSearchResponse {
   data: ExplorerSearchResult[];
+  pagination: null | {
+    limit?: number;
+    next_cursor?: number | null;
+  };
 }
 
 /**
@@ -413,7 +573,23 @@ export async function searchExplorerEntities(
       "/explorer/search",
       { q: trimmedQuery }
     );
-    return response.data?.data || [];
+    console.log("[searchExplorerEntities] Raw API response:", response);
+    
+    // Based on logs, apiClient.get returns the response directly as { data: [...], pagination: null }
+    // So response is already ExplorerSearchResponse, not ApiResponse<ExplorerSearchResponse>
+    // Therefore we access response.data directly
+    const searchResponse = response as unknown as ExplorerSearchResponse;
+    console.log("[searchExplorerEntities] SearchResponse:", searchResponse);
+    console.log("[searchExplorerEntities] SearchResponse.data:", searchResponse?.data);
+    
+    const results = searchResponse?.data || [];
+    console.log("[searchExplorerEntities] Extracted results:", results);
+    console.log("[searchExplorerEntities] Results length:", results.length);
+    if (results.length > 0) {
+      console.log("[searchExplorerEntities] First result:", results[0]);
+      console.log("[searchExplorerEntities] First result type:", results[0]?.type);
+    }
+    return results;
   } catch (error) {
     console.error(
       "[searchExplorerEntities] Error fetching search results",
@@ -488,9 +664,9 @@ export interface ExplorerOverviewResponse {
  * const overview = await getExplorerOverview();
  * ```
  */
-export async function getExplorerOverview(): Promise<ExplorerOverview | null> {
+export async function getExplorerOverview(params?: { chain_id?: number }): Promise<ExplorerOverview | null> {
   try {
-    const response = await explorerApi.getOverview();
+    const response = await explorerApi.getOverview(params);
     // Handle different response structures
     if (response.data && !response.data.data && typeof response.data === 'object' && 'tvl' in response.data) {
       // Direct ExplorerOverview object
@@ -650,20 +826,23 @@ export function useExplorerBlock(
  * React Query hook for fetching network overview
  * Uses /api/explorer/overview endpoint
  * 
+ * @param params - Optional parameters including chain_id
  * @param options - React Query options
  * @returns UseQueryResult with overview data
  * 
  * @example
  * ```typescript
  * const { data, isLoading } = useExplorerOverview();
+ * const { data: chainData } = useExplorerOverview({ chain_id: 3 });
  * ```
  */
 export function useExplorerOverview(
+  params?: { chain_id?: number },
   options?: Omit<UseQueryOptions<ExplorerOverview | null, Error>, "queryKey" | "queryFn">
 ): UseQueryResult<ExplorerOverview | null, Error> {
   return useQuery({
-    queryKey: ["explorer", "overview"],
-    queryFn: getExplorerOverview,
+    queryKey: ["explorer", "overview", params],
+    queryFn: () => getExplorerOverview(params),
     staleTime: 30000, // 30 seconds
     ...options,
   });
@@ -745,6 +924,36 @@ export function useExplorerSearch(
     queryKey: ["explorer", "search", query],
     queryFn: () => searchExplorerEntities(query),
     enabled: !!query && query.trim().length > 0,
+    staleTime: 60000, // 1 minute
+    ...options,
+  });
+}
+
+/**
+ * React Query hook for fetching historical data
+ * Uses /api/explorer/historical endpoint
+ * 
+ * @param params - Query parameters (chain_id, range, interval)
+ * @param options - React Query options
+ * @returns UseQueryResult with historical data
+ * 
+ * @example
+ * ```typescript
+ * const { data, isLoading } = useExplorerHistorical({ 
+ *   chain_id: 1, 
+ *   range: "1d", 
+ *   interval: "5m" 
+ * });
+ * ```
+ */
+export function useExplorerHistorical(
+  params: GetExplorerHistoricalParams | undefined,
+  options?: Omit<UseQueryOptions<ExplorerHistoricalData | null, Error>, "queryKey" | "queryFn">
+): UseQueryResult<ExplorerHistoricalData | null, Error> {
+  return useQuery({
+    queryKey: ["explorer", "historical", params],
+    queryFn: () => params ? getExplorerHistorical(params) : Promise.resolve(null),
+    enabled: !!params && !!params.range && !!params.interval, // chain_id is optional
     staleTime: 60000, // 1 minute
     ...options,
   });

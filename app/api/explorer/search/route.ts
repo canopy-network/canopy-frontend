@@ -10,6 +10,8 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
  * 
  * Query Parameters:
  * - q (string, required) - Search query (transaction hash, block hash, address, or block height)
+ * - chain_id (uint64, optional) - Chain ID to filter search results
+ * - limit (integer, optional) - Number of results per page (default: 20, max: 50)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -18,9 +20,8 @@ export async function GET(request: NextRequest) {
     const queryString = searchParams.toString();
 
     // Construct backend URL
-    const backendUrl = `${API_BASE_URL}/api/v1/explorer/search${
-      queryString ? `?${queryString}` : ""
-    }`;
+    const backendUrl = `${API_BASE_URL}/api/v1/explorer/search${queryString ? `?${queryString}` : ""
+      }`;
 
     // Forward request to backend
     const response = await fetch(backendUrl, {

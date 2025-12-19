@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { TableCard, TableColumn } from "@/components/explorer/table-card";
 import { explorerApi, type Transaction } from "@/lib/api/explorer";
@@ -34,37 +35,95 @@ interface TransactionsExplorerProps {
 }
 
 export function TransactionsExplorer({ chainContext }: TransactionsExplorerProps) {
+  const searchParams = useSearchParams();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
+  const [cursorHistory, setCursorHistory] = useState<(number | undefined)[]>([undefined]); // Track cursor history for pagination
   const [chainNames, setChainNames] = useState<Record<number, string>>({});
   const [chainColors, setChainColors] = useState<Record<number, string>>({});
 
-  const chainContextId = chainContext?.id ? parseInt(chainContext.id) : undefined;
+  // Get chain_id from URL search params or chainContext
+  const chainIdFromUrl = searchParams.get("chain");
+  const effectiveChainId = useMemo(() => {
+    // Priority: URL param > chainContext
+    if (chainIdFromUrl) {
+      const chainIdNum = parseInt(chainIdFromUrl, 10);
+      return chainIdNum > 0 ? chainIdNum : undefined;
+    }
+    return chainContext?.id ? parseInt(chainContext.id, 10) : undefined;
+  }, [chainIdFromUrl, chainContext?.id]);
+
+  // Calculate cursor for current page (cursor-based pagination)
+  // cursorHistory[0] = undefined (page 1, no cursor)
+  // cursorHistory[1] = cursor used to fetch page 2 (next_cursor from page 1)
+  // cursorHistory[2] = cursor used to fetch page 3 (next_cursor from page 2)
+  // So to fetch page N, we use cursorHistory[N-1]
+  const currentCursor = useMemo(() => {
+    // Page 1 uses no cursor, page 2+ uses cursor from history
+    return currentPage > 1 ? cursorHistory[currentPage - 1] : undefined;
+  }, [currentPage, cursorHistory]);
 
   // Fetch transactions with pagination
   useEffect(() => {
     async function fetchTransactions() {
       try {
         setIsLoadingTransactions(true);
-        const cursor = currentPage > 1 ? (currentPage - 1) * ROWS_PER_PAGE : undefined;
         const response = await explorerApi.getTransactions({
-          chain_id: chainContextId,
+          ...(effectiveChainId && { chain_id: effectiveChainId }),
           limit: ROWS_PER_PAGE,
-          cursor,
+          cursor: currentCursor,
           sort: "desc",
         });
 
         if (response?.data) {
-          const txData = Array.isArray(response.data) ? response.data : response.data.data || [];
+          // Handle both direct array and nested data structure
+          const txData = Array.isArray(response.data) 
+            ? response.data 
+            : (response.data as any).data || [];
+          
           setTransactions(txData);
-          // Estimate total count (if we have next_cursor, we know there are more)
-          if (response.data.pagination?.next_cursor) {
-            setTotalCount((currentPage * ROWS_PER_PAGE) + 1); // At least this many
+
+          // Get pagination info
+          const pagination = Array.isArray(response.data)
+            ? (response as any).pagination
+            : (response.data as any).pagination || response.pagination;
+
+          // Update cursor history and total count based on pagination
+          if (txData.length > 0 && pagination) {
+            const nextCursor = pagination.next_cursor;
+
+            // Store cursor for next page navigation
+            // next_cursor is the height of the last transaction in current page
+            // Store it in cursorHistory[currentPage] so we can use it to fetch page (currentPage + 1)
+            if (nextCursor !== null && nextCursor !== undefined) {
+              setCursorHistory((prev) => {
+                const newHistory = [...prev];
+                // Ensure array is long enough
+                while (newHistory.length <= currentPage) {
+                  newHistory.push(undefined);
+                }
+                // Store cursor for next page (currentPage + 1)
+                newHistory[currentPage] = nextCursor;
+                return newHistory;
+              });
+            }
+
+            // Calculate total count
+            // next_cursor is the height of the last transaction, which represents the total number of transactions
+            const hasMore = nextCursor !== null && nextCursor !== undefined;
+            if (hasMore) {
+              // Use next_cursor as the total count since it represents the height of the last transaction
+              // Height is incremental, so next_cursor is a good estimate of total transactions
+              setTotalCount(nextCursor);
+            } else {
+              // This is the last page, calculate exact total from current page data
+              setTotalCount(txData.length + ((currentPage - 1) * ROWS_PER_PAGE));
+            }
           } else {
-            setTotalCount(txData.length + ((currentPage - 1) * ROWS_PER_PAGE));
+            setTotalCount(0);
           }
         }
         setIsLoadingTransactions(false);
@@ -74,7 +133,14 @@ export function TransactionsExplorer({ chainContext }: TransactionsExplorerProps
       }
     }
     fetchTransactions();
-  }, [currentPage, chainContextId]);
+  }, [currentPage, effectiveChainId, currentCursor]);
+
+  // Reset to page 1 when chain changes
+  useEffect(() => {
+    setCurrentPage(1);
+    setCursorHistory([undefined]);
+    setTotalCount(0);
+  }, [effectiveChainId]);
 
   // Fetch chain names and colors for all unique chain_ids in transactions
   useEffect(() => {

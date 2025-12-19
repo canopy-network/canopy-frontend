@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -8,12 +8,19 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
  * Returns network-wide statistics overview including TVL, volume, active chains,
  * validators, holders, and transaction metrics with 24-hour change indicators.
  * 
- * No query parameters required.
+ * Query parameters:
+ * - chain_id: number (optional) - Chain ID to filter overview data
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Construct backend URL
-    const backendUrl = `${API_BASE_URL}/api/v1/explorer/overview`;
+    const searchParams = request.nextUrl.searchParams;
+    const chainId = searchParams.get("chain_id");
+    
+    // Construct backend URL with chain_id if provided
+    let backendUrl = `${API_BASE_URL}/api/v1/explorer/overview`;
+    if (chainId) {
+      backendUrl += `?chain_id=${chainId}`;
+    }
 
     // Forward request to backend
     const response = await fetch(backendUrl, {

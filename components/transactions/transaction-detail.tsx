@@ -2,14 +2,11 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Copy, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { CopyableText } from "@/components/ui/copyable-text";
 import { Transaction } from "@/lib/api/explorer";
-import { cn } from "@/lib/utils";
 
 // Format time ago from timestamp (e.g., "1 hr 22 mins ago")
 const formatTimeAgo = (timestamp: string): string => {
@@ -28,7 +25,8 @@ const formatTimeAgo = (timestamp: string): string => {
     if (remainingMinutes === 0) {
       return `${hours} hr ago`;
     }
-    return `${hours} hr ${remainingMinutes} min${remainingMinutes === 1 ? "" : "s"} ago`;
+    return `${hours} hr ${remainingMinutes} min${remainingMinutes === 1 ? "" : "s"
+      } ago`;
   }
 
   const days = Math.floor(seconds / 86400);
@@ -53,7 +51,7 @@ const formatTimestamp = (timestamp: string): string => {
   return `${month}-${day} ${year} ${hours12}:${minutes}:${seconds}${ampm}`;
 };
 
-// Format combined timestamp
+// Format combined timestamp (1 hr 22 mins ago (Nov-18 2025 12:47:27PM))
 const formatCombinedTimestamp = (timestamp: string): string => {
   const timeAgo = formatTimeAgo(timestamp);
   const fullDate = formatTimestamp(timestamp);
@@ -71,31 +69,11 @@ const formatMethod = (method: string) => {
     .trim();
 };
 
-// Get method badge color
-const getMethodColor = (method: string) => {
-  const methodLower = method.toLowerCase();
-  if (methodLower.includes("transfer")) {
-    return "border-emerald-500/40 bg-emerald-500/10 text-emerald-300";
-  }
-  if (methodLower.includes("swap")) {
-    return "border-sky-500/40 bg-sky-500/10 text-sky-300";
-  }
-  if (methodLower.includes("stake")) {
-    return "border-purple-500/40 bg-purple-500/10 text-purple-300";
-  }
-  if (methodLower.includes("contract") || methodLower.includes("certificate")) {
-    return "border-amber-400/40 bg-amber-500/10 text-amber-200";
-  }
-  return "border-white/20 bg-white/5 text-white/80";
-};
-
 interface TransactionDetailProps {
   transaction: Transaction;
 }
 
 export function TransactionDetail({ transaction }: TransactionDetailProps) {
-  const truncatedHash = `${transaction.tx_hash.slice(0, 6)}...${transaction.tx_hash.slice(-4)}`;
-
   // Format transaction hash with 0x prefix if not present
   const formatHash = (hash: string) => {
     return hash.startsWith("0x") ? hash : `0x${hash}`;
@@ -114,34 +92,26 @@ export function TransactionDetail({ transaction }: TransactionDetailProps) {
   const minimumFee = 0.1;
 
   return (
-    <div className="space-y-6">
-      {/* Breadcrumbs */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Link href="/explorer" className="hover:text-white transition-colors">
-          Explorer
-        </Link>
-        <ChevronRight className="w-4 h-4" />
-        <span className="text-white">Transaction {truncatedHash}</span>
-      </div>
+    <>
 
       {/* Tabs */}
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList className="w-fit bg-transparent p-0 h-auto gap-0">
           <TabsTrigger
             value="overview"
-            className="data-[state=active]:border-b-2 data-[state=active]:border-[#00a63d] data-[state=active]:text-white data-[state=active]:bg-transparent rounded-none px-4 py-2"
+            className="data-[state=active]:border-b-2 data-[state=active]:border-[#00a63d] data-[state=active]:text-white data-[state=active]:bg-transparent rounded-md px-4 py-2"
           >
             Overview
           </TabsTrigger>
           <TabsTrigger
             value="internal"
-            className="data-[state=active]:border-b-2 data-[state=active]:border-[#00a63d] data-[state=active]:text-white data-[state=active]:bg-transparent rounded-none px-4 py-2"
+            className="data-[state=active]:border-b-2 data-[state=active]:border-[#00a63d] data-[state=active]:text-white data-[state=active]:bg-transparent rounded-md px-4 py-2"
           >
             Internal Txns
           </TabsTrigger>
           <TabsTrigger
             value="logs"
-            className="data-[state=active]:border-b-2 data-[state=active]:border-[#00a63d] data-[state=active]:text-white data-[state=active]:bg-transparent rounded-none px-4 py-2"
+            className="data-[state=active]:border-b-2 data-[state=active]:border-[#00a63d] data-[state=active]:text-white data-[state=active]:bg-transparent rounded-md px-4 py-2"
           >
             Logs
           </TabsTrigger>
@@ -149,20 +119,18 @@ export function TransactionDetail({ transaction }: TransactionDetailProps) {
 
         <TabsContent value="overview" className="space-y-6">
           {/* Transaction Overview Card */}
-          <Card className="p-6">
+          <Card className="w-full">
             <div className="divide-y divide-border">
               <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
                 <p className="text-sm text-muted-foreground">Transaction Hash:</p>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-sm break-all">{fullHash}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0"
-                    onClick={() => navigator.clipboard.writeText(fullHash)}
-                  >
-                    <Copy className="w-4 h-4" />
-                  </Button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <CopyableText
+                    text={fullHash}
+                    showFull={true}
+                    className="flex items-center gap-2"
+                    textClassName="font-mono text-sm break-all"
+                    iconMuted={false}
+                  />
                 </div>
               </div>
 
@@ -178,14 +146,7 @@ export function TransactionDetail({ transaction }: TransactionDetailProps) {
 
               <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
                 <p className="text-sm text-muted-foreground">Method:</p>
-                <span
-                  className={cn(
-                    "inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium w-fit",
-                    getMethodColor(transaction.message_type)
-                  )}
-                >
-                  {formatMethod(transaction.message_type)}
-                </span>
+                <p className="text-sm font-medium">{formatMethod(transaction.message_type)}</p>
               </div>
 
               <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
@@ -198,38 +159,38 @@ export function TransactionDetail({ transaction }: TransactionDetailProps) {
           </Card>
 
           {/* Participants and Financials Card */}
-          <Card className="p-6">
+          <Card className="w-full">
             <div className="divide-y divide-border">
               <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
                 <p className="text-sm text-muted-foreground">From:</p>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-sm break-all">{fromAddress || "-"}</span>
-                  {fromAddress && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      onClick={() => navigator.clipboard.writeText(fromAddress)}
-                    >
-                      <Copy className="w-4 h-4" />
-                    </Button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {fromAddress ? (
+                    <CopyableText
+                      text={fromAddress}
+                      showFull={true}
+                      className="flex items-center gap-2"
+                      textClassName="font-mono text-sm break-all"
+                      iconMuted={false}
+                    />
+                  ) : (
+                    <span className="text-sm text-muted-foreground">-</span>
                   )}
                 </div>
               </div>
 
               <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
                 <p className="text-sm text-muted-foreground">To:</p>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-sm break-all">{toAddress || "-"}</span>
-                  {toAddress && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      onClick={() => navigator.clipboard.writeText(toAddress)}
-                    >
-                      <Copy className="w-4 h-4" />
-                    </Button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {toAddress ? (
+                    <CopyableText
+                      text={toAddress}
+                      showFull={true}
+                      className="flex items-center gap-2"
+                      textClassName="font-mono text-sm break-all"
+                      iconMuted={false}
+                    />
+                  ) : (
+                    <span className="text-sm text-muted-foreground">-</span>
                   )}
                 </div>
               </div>
@@ -246,9 +207,9 @@ export function TransactionDetail({ transaction }: TransactionDetailProps) {
                 <p className="text-sm font-semibold text-[#00a63d]">
                   {transaction.fee != null
                     ? `${transaction.fee.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })} CNPY`
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })} CNPY`
                     : "0 CNPY"}
                 </p>
               </div>
@@ -276,13 +237,18 @@ export function TransactionDetail({ transaction }: TransactionDetailProps) {
                       </span>
                     </>
                   )}
+                  {gasLimit === 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      {gasUsed.toLocaleString()} (Gas Limit)
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
           </Card>
 
           {/* Memo Card */}
-          <Card className="p-6">
+          <Card className="w-full">
             <div className="py-4">
               <p className="text-sm text-muted-foreground mb-2">Memo:</p>
               <p className="text-sm text-white">
@@ -295,7 +261,7 @@ export function TransactionDetail({ transaction }: TransactionDetailProps) {
         </TabsContent>
 
         <TabsContent value="internal">
-          <Card className="p-6">
+          <Card className="w-full p-6">
             <div className="text-sm text-muted-foreground">
               No internal transactions were recorded for this transaction.
             </div>
@@ -303,13 +269,13 @@ export function TransactionDetail({ transaction }: TransactionDetailProps) {
         </TabsContent>
 
         <TabsContent value="logs">
-          <Card className="p-6">
+          <Card className="w-full p-6">
             <div className="text-sm text-muted-foreground">
               No logs were recorded for this transaction.
             </div>
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+    </>
   );
 }

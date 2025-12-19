@@ -32,12 +32,18 @@ interface NetworkOverviewProps {
   metrics: Metric[];
   historicData?: HistoricData;
   historicalStats?: HistoricalStats;
+  selectedTimeframe?: string;
+  onTimeframeChange?: (timeframe: string) => void;
+  isLoadingHistorical?: boolean;
 }
 
 export function NetworkOverview({
   metrics,
   historicData,
   historicalStats,
+  selectedTimeframe,
+  onTimeframeChange,
+  isLoadingHistorical = false,
 }: NetworkOverviewProps) {
   // Calculate historical statistics
   const calculateStats = (data: HistoricDataPoint[] | undefined) => {
@@ -155,7 +161,12 @@ export function NetworkOverview({
       </div>
 
       {/* Chart Section */}
-      <ExplorerChart historicData={historicData} />
+      <ExplorerChart 
+        historicData={historicData}
+        selectedTimeframe={selectedTimeframe}
+        onTimeframeChange={onTimeframeChange}
+        isLoadingHistorical={isLoadingHistorical}
+      />
     </div>
   );
 }

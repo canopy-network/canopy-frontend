@@ -251,3 +251,12 @@ body,
 .card-like {
   @apply rounded-xl border border-border bg-card text-card-foreground shadow;
 }
+
+/* React Select Styles */
+.chain-select__menu-portal {
+  z-index: 9999 !important;
+}
+
+.chain-select__menu {
+  z-index: 9999 !important;
+}

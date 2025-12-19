@@ -124,7 +124,7 @@ export function NewLaunches({ chains }: NewLaunchesProps) {
     { label: "Graduation Status", width: "w-36" },
   ];
 
-  const rows = chains.map((chain) => {
+  const rows = chains.slice(0, 5).map((chain) => {
     const uniqueTraders =
       chain.virtual_pool?.unique_traders ??
       (chain as any)?.graduated_pool?.unique_traders ??

@@ -201,7 +201,7 @@ export function TopValidators({ validators }: TopValidatorsProps) {
       });
 
     // Return top 8 validators
-    return sorted.slice(0, 8);
+    return sorted.slice(0, 5);
   }, [validators]);
 
   const getChainAvatars = (

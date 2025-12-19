@@ -1,39 +1,31 @@
 "use client";
 
-import { ReactNode, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Download, Filter } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Container } from "@/components/layout/container";
-import { Button } from "@/components/ui/button";
+import { TableCard, TableColumn } from "@/components/explorer/table-card";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { cn } from "@/lib/utils";
-import { Card } from "@/components/ui/card";
-import { CommandSearchTrigger } from "@/components/command-search-trigger";
-import { HashSearchbar } from "@/components/hash-searchbar";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
-import { getSampleBlocks, SampleBlock } from "@/lib/demo-data/sample-blocks";
-import { canopyIconSvg, getCanopyAccent, EXPLORER_ICON_GLOW } from "@/lib/utils/brand";
+  useExplorerSearch,
+  getExplorerBlocksWithPagination,
+  type Block,
+} from "@/lib/api/explorer";
+import type { ExplorerBlocksResponse } from "@/types/blocks";
+import { canopyIconSvg, EXPLORER_ICON_GLOW, getCanopyAccent } from "@/lib/utils/brand";
+import { useChainsStore } from "@/lib/stores/chains-store";
+import { CopyableText } from "@/components/ui/copyable-text";
+import { useQuery } from "@tanstack/react-query";
+import { Box } from "lucide-react";
 
-const formatAddress = (value: string, prefix = 4, suffix = 4) =>
-  `${value.slice(0, prefix)}...${value.slice(-suffix)}`;
+const ROWS_PER_PAGE = 10;
 
-const getRelativeTime = (timestamp: string) => {
+// Format address (truncate middle)
+const formatAddress = (value: string, prefix = 6, suffix = 6) => {
+  if (!value || value.length <= prefix + suffix) return value;
+  return `${value.slice(0, prefix)}…${value.slice(-suffix)}`;
+};
+
+// Format time ago from timestamp
+const formatTimeAgo = (timestamp: string): string => {
   const now = Date.now();
   const time = new Date(timestamp).getTime();
   const diff = Math.max(1, Math.round((now - time) / 60000));
@@ -44,48 +36,17 @@ const getRelativeTime = (timestamp: string) => {
   return `${days}d ago`;
 };
 
-const formatBlockTime = (blockTime?: number) => {
+// Format block time
+const formatBlockTime = (blockTime?: number): string => {
   if (!blockTime) return "—";
   return `${blockTime.toFixed(1)} s`;
 };
 
-const sampleBlocks = getSampleBlocks();
-const ROWS_PER_PAGE = 20;
-
-type PaginationEntry = number | "ellipsis";
-
-const buildPaginationRange = (
-  currentPage: number,
-  totalPages: number
-): PaginationEntry[] => {
-  if (totalPages <= 6) {
-    return Array.from({ length: totalPages }, (_, index) => index + 1);
-  }
-
-  const range = new Set<number>([
-    1,
-    totalPages,
-    currentPage,
-    currentPage - 1,
-    currentPage + 1,
-  ]);
-
-  const sorted = Array.from(range)
-    .filter((page) => page >= 1 && page <= totalPages)
-    .sort((a, b) => a - b);
-
-  const pagination: PaginationEntry[] = [];
-  let previous: number | undefined;
-
-  for (const page of sorted) {
-    if (previous !== undefined && page - previous > 1) {
-      pagination.push("ellipsis");
-    }
-    pagination.push(page);
-    previous = page;
-  }
-
-  return pagination;
+// Get validator name from address
+const getValidatorName = (address: string): string => {
+  if (!address || address.length < 6) return "—";
+  const shortAddr = address.slice(0, 6);
+  return `Val-${shortAddr.slice(-2)}`;
 };
 
 interface BlocksExplorerProps {
@@ -94,327 +55,374 @@ interface BlocksExplorerProps {
     name: string;
   };
   hideChainColumn?: boolean;
-  children?: ReactNode | ReactNode[];
+  children?: React.ReactNode | React.ReactNode[];
 }
 
 export function BlocksExplorer({
   chainContext,
-  hideChainColumn = false,
   children,
 }: BlocksExplorerProps) {
+  const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const router = useRouter();
+  const [cursorHistory, setCursorHistory] = useState<(number | undefined)[]>([undefined]); // Track cursor history for pagination: [page0, page1, page2, ...]
+  const [totalCount, setTotalCount] = useState(0);
+  const [searchedChainId, setSearchedChainId] = useState<number | undefined>(undefined);
+  const getChainById = useChainsStore((state) => state.getChainById);
 
-  const chainContextId = chainContext?.id ?? null;
-  const chainContextName = chainContext?.name ?? null;
+  // Get chain_id from URL search params or chainContext
+  const chainIdFromUrl = searchParams.get("chain");
+  const chainContextId = useMemo(() => {
+    // Priority: URL param > chainContext
+    if (chainIdFromUrl) {
+      const chainIdNum = parseInt(chainIdFromUrl, 10);
+      const result = chainIdNum > 0 ? chainIdNum : undefined;
+      console.log("[BlocksExplorer] chainIdFromUrl:", chainIdFromUrl, "-> chainContextId:", result);
+      return result;
+    }
+    const result = chainContext?.id ? parseInt(chainContext.id, 10) : undefined;
+    console.log("[BlocksExplorer] Using chainContext:", result);
+    return result;
+  }, [chainIdFromUrl, chainContext?.id]);
 
-  const blockSource = useMemo(() => {
-    if (!chainContextId) {
-      return sampleBlocks;
+  // Determine if we should use search API or blocks API
+  const shouldUseSearch = searchQuery.trim().length > 0;
+  const trimmedSearchQuery = searchQuery.trim();
+
+  // Search chains when there's a search query
+  useEffect(() => {
+    if (!trimmedSearchQuery) {
+      setSearchedChainId(undefined);
+      return;
     }
 
-    const hasMatches = sampleBlocks.some(
-      (block) => block.chain.id === chainContextId
-    );
+    const searchChains = async () => {
+      try {
+        const response = await fetch(
+          `/api/chains/search?q=${encodeURIComponent(trimmedSearchQuery)}`
+        );
+        const data = await response.json();
 
-    if (hasMatches) {
-      return sampleBlocks;
+        if (data.success && data.chains && data.chains.length > 0) {
+          // Use the first matching chain's ID
+          const firstChain = data.chains[0];
+          setSearchedChainId(firstChain.id);
+        } else {
+          // No chain found, clear searched chain
+          setSearchedChainId(undefined);
+        }
+      } catch (error) {
+        console.error("Error searching chains:", error);
+        setSearchedChainId(undefined);
+      }
+    };
+
+    searchChains();
+  }, [trimmedSearchQuery]);
+
+  // Determine which chain_id to use: searched chain > context chain > undefined
+  const effectiveChainId = searchedChainId ?? chainContextId;
+
+  console.log("[BlocksExplorer] effectiveChainId:", effectiveChainId, {
+    searchedChainId,
+    chainContextId,
+    chainIdFromUrl,
+  });
+
+  // Fetch blocks using search API when there's a search query but no chain match
+  const {
+    data: searchResults,
+    isLoading: isSearching,
+  } = useExplorerSearch(trimmedSearchQuery, {
+    enabled: shouldUseSearch && !searchedChainId, // Only use explorer search if no chain was found
+  });
+
+  // Filter search results to only blocks
+  const searchBlocks = useMemo(() => {
+    if (!shouldUseSearch || !searchResults) return [];
+    return searchResults
+      .filter((result) => result.type === "block")
+      .map((result) => {
+        if (result.type === "block") {
+          return result.result as Block;
+        }
+        return null;
+      })
+      .filter((block): block is Block => block !== null);
+  }, [searchResults, shouldUseSearch]);
+
+  // Calculate cursor for current page (cursor-based pagination)
+  // Cursor history stores the cursor used to fetch each page
+  // cursorHistory[0] = undefined (page 1, no cursor)
+  // cursorHistory[1] = cursor used to fetch page 2 (next_cursor from page 1)
+  // cursorHistory[2] = cursor used to fetch page 3 (next_cursor from page 2)
+  // So to fetch page N, we use cursorHistory[N-1]
+  const currentCursor = useMemo(() => {
+    if (shouldUseSearch) return undefined; // Search doesn't use cursor
+    // Page 1 uses no cursor, page 2+ uses cursor from history
+    return currentPage > 1 ? cursorHistory[currentPage - 1] : undefined;
+  }, [currentPage, cursorHistory, shouldUseSearch]);
+
+  // Fetch blocks using blocks API when there's no search or when a chain was found
+  // Use getExplorerBlocksWithPagination to get full response with pagination
+  const {
+    data: blocksResponse,
+    isLoading: isLoadingBlocks,
+  } = useQuery<ExplorerBlocksResponse>({
+    queryKey: ["explorer", "blocks", effectiveChainId, currentCursor, ROWS_PER_PAGE, currentPage],
+    queryFn: async () => {
+      // Use getExplorerBlocksWithPagination which uses explorerApi.getBlocks internally
+      // Pass chain_id so it updates when chain changes or when a chain is searched
+      const params = {
+        ...(effectiveChainId && { chain_id: effectiveChainId }),
+        limit: ROWS_PER_PAGE,
+        cursor: currentCursor,
+        sort: "desc" as const,
+      };
+      console.log("[BlocksExplorer] Fetching blocks with params:", params);
+      return await getExplorerBlocksWithPagination(params);
+    },
+    enabled: !shouldUseSearch || searchedChainId !== undefined, // Enable if no search or if chain was found
+    staleTime: 10000, // 10 seconds
+  });
+
+  // Get blocks from API response and update cursor history
+  const blocks = useMemo(() => {
+    // If a chain was found via search, use blocks API (already filtered by chain_id)
+    if (shouldUseSearch && searchedChainId !== undefined) {
+      // Blocks are already filtered by chain_id in the API call
+      if (!blocksResponse) return [];
+      return Array.isArray(blocksResponse.data) ? blocksResponse.data : [];
     }
 
-    return sampleBlocks.map((block, index) => ({
-      ...block,
-      id: `${chainContextId}-block-${index}`,
-      chain: {
-        ...block.chain,
-        id: chainContextId,
-        name: chainContextName ?? block.chain.name,
-      },
-    }));
-  }, [chainContextId, chainContextName]);
+    // If no chain found, use explorer search API
+    if (shouldUseSearch && !searchedChainId) {
+      return searchBlocks;
+    }
 
-  const chainFilterId = chainContextId;
-  const displayChainName = chainContextName ?? "All Chains";
+    if (!blocksResponse) {
+      return [];
+    }
 
-  const filteredBlocks = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    return blockSource.filter((block) => {
-      const matchesQuery = query
-        ? [
-            block.chain.name,
-            block.hash,
-            String(block.number),
-            block.block_producer,
-          ]
-            .join(" ")
-            .toLowerCase()
-            .includes(query)
-        : true;
-      const matchesChain = chainFilterId
-        ? block.chain.id === chainFilterId
-        : true;
-      return matchesQuery && matchesChain;
-    });
-  }, [searchQuery, chainFilterId, blockSource]);
+    // Handle case where blocksResponse might be an array directly (fallback)
+    if (Array.isArray(blocksResponse)) {
+      console.warn("[BlocksExplorer] blocksResponse is an array, expected ExplorerBlocksResponse object");
+      // If it's an array, we can't get pagination info, so estimate
+      setTotalCount(blocksResponse.length);
+      return blocksResponse;
+    }
 
-  const totalEntries = filteredBlocks.length;
-  const totalPages = Math.max(1, Math.ceil(totalEntries / ROWS_PER_PAGE));
+    // The API returns { data: Block[], pagination: { limit, next_cursor } }
+    const blocksData = Array.isArray(blocksResponse.data)
+      ? blocksResponse.data
+      : [];
 
-  const paginatedBlocks = useMemo(() => {
-    const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
-    return filteredBlocks.slice(startIndex, startIndex + ROWS_PER_PAGE);
-  }, [filteredBlocks, currentPage]);
+    // Update cursor history and total count based on pagination
+    if (blocksData.length > 0) {
+      const nextCursor = blocksResponse.pagination?.next_cursor;
 
-  const paginationItems = useMemo(
-    () => buildPaginationRange(currentPage, totalPages),
-    [currentPage, totalPages]
-  );
+      // Store cursor for next page navigation
+      // next_cursor is the height of the last block in current page
+      // Store it in cursorHistory[currentPage] so we can use it to fetch page (currentPage + 1)
+      if (nextCursor !== null && nextCursor !== undefined) {
+        setCursorHistory((prev) => {
+          const newHistory = [...prev];
+          // Ensure array is long enough
+          while (newHistory.length <= currentPage) {
+            newHistory.push(undefined);
+          }
+          // Store cursor for next page (currentPage + 1)
+          newHistory[currentPage] = nextCursor;
+          return newHistory;
+        });
+      }
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, chainFilterId]);
+      // Calculate total count
+      // next_cursor is the height of the last block, which represents the total number of blocks
+      const hasMore = nextCursor !== null && nextCursor !== undefined;
+      if (hasMore) {
+        // Use next_cursor as the total count since it represents the height of the last block
+        // Height is incremental, so next_cursor is a good estimate of total blocks
+        setTotalCount(nextCursor);
+      } else {
+        // This is the last page, calculate exact total from current page data
+        setTotalCount(blocksData.length + ((currentPage - 1) * ROWS_PER_PAGE));
+      }
+    } else {
+      setTotalCount(0);
+    }
 
-  useEffect(() => {
-    setCurrentPage((previous) => Math.min(previous, totalPages));
-  }, [totalPages]);
+    return blocksData;
+  }, [shouldUseSearch, searchBlocks, blocksResponse, currentPage, searchedChainId]);
 
-  const showingStart =
-    totalEntries === 0 ? 0 : (currentPage - 1) * ROWS_PER_PAGE + 1;
-  const showingEnd = Math.min(currentPage * ROWS_PER_PAGE, totalEntries);
-  const isFirstPage = currentPage === 1;
-  const isLastPage = currentPage === totalPages;
-
-  const handleChainSelect = (chain: { id: string; chain_name: string }) => {
-    router.push(`/chains/${chain.id}/blocks`);
+  // Helper function to get chain color from chain_id
+  const getChainColor = (chainId: number): string => {
+    const chain = getChainById(chainId.toString());
+    return chain?.brand_color || getCanopyAccent(chainId.toString());
   };
 
-  return (
-    <Container type="boxed" className="space-y-6 px-6 lg:px-10">
-      <div
-        id="blocks-page-header"
-        className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
+  // Calculate pagination
+  // For search: use actual count
+  // For API: use totalCount which is updated based on pagination response
+  // If totalCount is 0 but we have blocks, use blocks.length as fallback
+  const totalEntries = shouldUseSearch
+    ? searchBlocks.length
+    : totalCount > 0
+      ? totalCount
+      : blocks.length > 0
+        ? blocks.length
+        : 0;
+
+  const paginatedBlocks = useMemo(() => {
+    if (shouldUseSearch) {
+      // For search results, paginate locally
+      const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
+      return blocks.slice(startIndex, startIndex + ROWS_PER_PAGE);
+    }
+    // For API results, blocks are already paginated by API (one page at a time)
+    return blocks;
+  }, [blocks, currentPage, shouldUseSearch]);
+
+  // Reset pagination when search or chain changes
+  useEffect(() => {
+    setCurrentPage(1);
+    setCursorHistory([undefined]);
+    setTotalCount(0);
+  }, [searchQuery, chainContextId, searchedChainId]);
+
+  const columns: TableColumn[] = [
+    { label: "Height", width: "w-32" },
+    { label: "Hash", width: "w-40" },
+    { label: "Txns", width: "w-24" },
+    { label: "Time", width: "w-32" },
+    { label: "Block Time", width: "w-32" },
+    { label: "Producer", width: "w-40" },
+    { label: "Gas", width: "w-32" },
+  ];
+
+  const rows = paginatedBlocks.map((block) => {
+    // Validate block has required fields
+    if (!block || !block.height) {
+      return null;
+    }
+
+    const chainColor = getChainColor(block.chain_id || 1);
+    const validatorName = block.proposer_address ? getValidatorName(block.proposer_address) : "—";
+    const numTxs = block.num_txs ?? (block as any).total_txs ?? 0;
+    const blockTime = (block as any).block_time;
+    const totalFees = (block as any).total_fees ?? 0;
+
+    return [
+      // Height - with green cube icon
+      <Link
+        key="height"
+        href={`/blocks/${block.height}`}
+        className="flex items-center gap-2 text-xs text-white/80 hover:opacity-80 transition-opacity hover:underline font-medium"
+        onClick={(e) => e.stopPropagation()}
       >
-        <h1 className="text-3xl font-bold tracking-tight">Blocks</h1>
-
-        <HashSearchbar
-          value={searchQuery}
-          onType={setSearchQuery}
-          placeholder="Search by height, hash"
-          wrapperClassName="max-w-[256px] ml-auto"
-        />
-
-        <div className="flex flex-wrap items-center gap-3">
-          <CommandSearchTrigger
-            explorerMode
-            displayChainName={displayChainName}
-            onChainSelect={handleChainSelect}
-          />
-
-          <Button
-            variant="outline"
-            className=" border-white/15 bg-white/5 text-white hover:bg-white/10"
-          >
-            <Filter className="size-4" />
-            Filter
-          </Button>
-
-          <Button
-            variant="outline"
-            className=" border-white/15 bg-white/5 text-white hover:bg-white/10"
-          >
-            <Download className="size-4" />
-            CSV
-          </Button>
+        <div className="flex items-center justify-center w-5 h-5 border border-[#00a63d] rounded bg-black/30">
+          <Box className={`w-3 h-3 text-[#00a63d] ${EXPLORER_ICON_GLOW}`} />
         </div>
-      </div>
-
-      {children ? <div>{children}</div> : null}
-
-    <Card className="p-6 border-primary/10 bg-gradient-to-br from-background via-background/70 to-primary/5">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground">
-              Showing{" "}
-              <span className="text-white ">
-                {totalEntries === 0 ? 0 : showingStart}
-              </span>{" "}
-              to <span className="text-white ">{showingEnd}</span> of{" "}
-              <span className="text-white ">
-                {totalEntries.toLocaleString()}
-              </span>{" "}
-              blocks
-            </p>
-          </div>
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">
-            Live updates every 12 seconds
-          </p>
-        </div>
-
-        <div className="overflow-hidden">
-          <Table>
-            <TableHeader className="">
-              <TableRow className="bg-transparent hover:bg-transparent">
-                <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">
-                  #
-                </TableHead>
-                <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Height
-                </TableHead>
-                <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Hash
-                </TableHead>
-                <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Txns
-                </TableHead>
-                <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Time
-                </TableHead>
-                <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Block Time
-                </TableHead>
-                <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Producer
-                </TableHead>
-                <TableHead className="text-right text-xs uppercase tracking-wide text-muted-foreground">
-                  Gas
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-
-            <TableBody>
-              {paginatedBlocks.map((block, idx) => (
-                <TableRow key={block.id} appearance="plain">
-                  <TableCell className="font-mono text-xs text-white/80">
-                    {(currentPage - 1) * ROWS_PER_PAGE + idx + 1}
-                  </TableCell>
-
-                  <TableCell className="font-mono text-xs text-white/80">
-                    <Link href={`/blocks/${block.number}`}>
-                      {block.number.toLocaleString()}
-                    </Link>
-                  </TableCell>
-
-                  <TableCell className="font-mono text-xs text-white/80">
-                    <Link href={`/blocks/${block.number}`}>
-                      {formatAddress(block.hash, 6, 4)}
-                    </Link>
-                  </TableCell>
-
-                  <TableCell className="text-sm text-white/80">
-                    {block.transactions}
-                  </TableCell>
-
-                  <TableCell className="text-sm text-muted-foreground">
-                    {getRelativeTime(block.timestamp)}
-                  </TableCell>
-
-                  <TableCell className="text-sm text-muted-foreground">
-                    {formatBlockTime(block.block_time)}
-                  </TableCell>
-
-                  <TableCell>
-                    <div className="inline-flex items-center gap-2">
-                      <span
-                        className="w-8 h-8 inline-flex items-center justify-center border-2 border-background rounded-full bg-muted"
+        {block.height ? block.height.toLocaleString() : "—"}
+      </Link>,
+      // Hash
+      <Link
+        key="hash"
+        href={`/blocks/${block.height}`}
+        className="text-xs font-mono text-white/80 hover:opacity-80 transition-opacity hover:underline"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {block.hash ? formatAddress(block.hash, 6, 4) : "—"}
+      </Link>,
+      // Transactions
+      <span key="txns" className="text-sm text-white/80">
+        {numTxs.toLocaleString()}
+      </span>,
+      // Time
+      <span key="time" className="text-sm text-muted-foreground">
+        {block.timestamp ? formatTimeAgo(block.timestamp) : "—"}
+      </span>,
+      // Block Time
+      <span key="block-time" className="text-sm text-muted-foreground">
+        {formatBlockTime(blockTime)}
+      </span>,
+      // Producer - with icon, validator name and address
+      <div key="producer" className="flex flex-col gap-1">
+        {block.proposer_address ? (
+          <>
+            <div className="flex items-center gap-2">
+              <div
+                className="w-4 h-4 flex items-center justify-center shrink-0"
                         dangerouslySetInnerHTML={{
-                          __html: canopyIconSvg(
-                            getCanopyAccent(block.chain?.name || block.block_producer)
-                          ),
-                        }}
-                      />
-                      <span className="inline-flex items-center rounded-md border border-[#36d26a] bg-[#36d26a]/10 text-[#7cff9d] px-3 py-1 text-xs font-semibold shadow-[0_0_14px_rgba(124,255,157,0.35)]">
-                        {block.block_producer}
-                      </span>
+                  __html: canopyIconSvg(chainColor),
+                }}
+              />
+              <Link
+                href={`/validators/${block.proposer_address}`}
+                className="text-xs font-medium text-white hover:opacity-80 transition-opacity hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {validatorName}
+              </Link>
                     </div>
-                  </TableCell>
-
-                  <TableCell className="text-right text-sm text-white/80">
-                    {block.gas_used.toLocaleString(undefined, {
+            <Link
+              href={`/accounts/${block.proposer_address}`}
+              className="text-xs font-mono text-white/60 hover:opacity-80 transition-opacity hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <CopyableText
+                text={block.proposer_address}
+                truncate={(addr) => formatAddress(addr, 5, 5)}
+                className="text-xs"
+              />
+            </Link>
+          </>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        )}
+      </div>,
+      // Gas
+      <span key="gas" className="text-sm text-white/80 text-right">
+        {totalFees.toLocaleString(undefined, {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
                     })}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+      </span>,
+    ];
+  }).filter((row) => row !== null); // Filter out null rows
 
-          <div className="flex flex-col gap-4 border-t border-white/10 pt-6 text-sm text-muted-foreground lg:flex-row lg:items-center lg:justify-between">
-            <p>
-              Showing {showingStart} to {showingEnd} of{" "}
-              {totalEntries.toLocaleString()} entries
-            </p>
+  const isLoading = shouldUseSearch
+    ? (searchedChainId !== undefined ? isLoadingBlocks : isSearching)
+    : isLoadingBlocks;
 
-            <Pagination className=" ml-auto">
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious
-                    href="#"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      if (!isFirstPage) {
-                        setCurrentPage((page) => Math.max(1, page - 1));
-                      }
-                    }}
-                    aria-disabled={isFirstPage}
-                    tabIndex={isFirstPage ? -1 : undefined}
-                    className={cn(
-                      "",
-                      isFirstPage && "pointer-events-none opacity-40"
-                    )}
-                  />
-                </PaginationItem>
 
-                {paginationItems.map((item, index) =>
-                  item === "ellipsis" ? (
-                    <PaginationItem key={`ellipsis-${index}`}>
-                      <PaginationEllipsis className="text-white/50" />
-                    </PaginationItem>
-                  ) : (
-                    <PaginationItem key={item}>
-                      <PaginationLink
-                        href="#"
-                        isActive={currentPage === item}
-                        onClick={(event) => {
-                          event.preventDefault();
-                          setCurrentPage(item);
-                        }}
-                        className={cn(
-                          currentPage === item
-                            ? "border-white/15  border bg-transparent text-white hover:text-background"
-                            : ""
-                        )}
-                      >
-                        {item}
-                      </PaginationLink>
-                    </PaginationItem>
-                  )
-                )}
+  // Handle search - use search API
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+  };
 
-                <PaginationItem>
-                  <PaginationNext
-                    href="#"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      if (!isLastPage) {
-                        setCurrentPage((page) =>
-                          Math.min(totalPages, page + 1)
-                        );
-                      }
-                    }}
-                    aria-disabled={isLastPage}
-                    tabIndex={isLastPage ? -1 : undefined}
-                    className={cn(
-                      "",
-                      isLastPage && "pointer-events-none opacity-40"
-                    )}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          </div>
+  return (
+    <div className="px-4 lg:p-6">
+      {children ? <div>{children}</div> : null}
+      <TableCard
+        id="blocks-table"
+        title="Blocks"
+        searchPlaceholder="Search by height, hash, block..."
+        onSearch={handleSearch}
+        searchValue={searchQuery}
+        live={false}
+        columns={columns}
+        rows={rows}
+        loading={isLoading}
+        paginate={true}
+        pageSize={ROWS_PER_PAGE}
+        currentEntriesPerPage={ROWS_PER_PAGE}
+        totalCount={totalEntries}
+        currentPage={currentPage}
+        onPageChange={setCurrentPage}
+        spacing={3}
+        className="gap-2 lg:gap-6"
+      />
         </div>
-      </Card>
-    </Container>
   );
 }
