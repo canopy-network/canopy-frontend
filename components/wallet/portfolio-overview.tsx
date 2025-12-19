@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,9 @@ export function PortfolioOverview({ addresses }: PortfolioOverviewProps) {
   const [performance, setPerformance] = useState<PortfolioPerformanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Memoize addresses string to prevent unnecessary re-renders
+  const addressesKey = useMemo(() => addresses.join(","), [addresses]);
 
   useEffect(() => {
     if (addresses.length === 0) {
@@ -43,7 +46,7 @@ export function PortfolioOverview({ addresses }: PortfolioOverviewProps) {
     };
 
     fetchData();
-  }, [addresses.join(",")]);
+  }, [addressesKey, addresses]);
 
   if (loading) {
     return (

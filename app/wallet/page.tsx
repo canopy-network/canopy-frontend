@@ -59,7 +59,7 @@ function WalletContent() {
       fetchTransactions(currentWallet.id);
       fetchPortfolioOverview([currentWallet.address]);
     }
-  }, [currentWallet]);
+  }, [currentWallet?.id, currentWallet?.address, fetchBalance, fetchTransactions, fetchPortfolioOverview]);
 
   // Use real balance data from the store, fallback to defaults
   const displayBalance = balance?.total || "0.00";

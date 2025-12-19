@@ -182,11 +182,27 @@ function getAuthHeaders(): Record<string, string> {
 export class ApiClient {
   private axiosInstance: AxiosInstance;
   private config: ApiConfig;
+  // Request deduplication: track pending requests by key
+  private pendingRequests = new Map<string, Promise<ApiResponse<any>>>();
 
   constructor(config: Partial<ApiConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.axiosInstance = this.createAxiosInstance();
     this.setupInterceptors();
+  }
+
+  /**
+   * Generate a unique key for request deduplication
+   */
+  private getRequestKey(
+    method: string,
+    url: string,
+    params?: Record<string, any>,
+    data?: any
+  ): string {
+    const paramsStr = params ? JSON.stringify(params) : "";
+    const dataStr = data ? JSON.stringify(data) : "";
+    return `${method}:${url}:${paramsStr}:${dataStr}`;
   }
 
   /**
@@ -293,45 +309,77 @@ export class ApiClient {
   }
 
   /**
-   * Make HTTP request with retry logic
+   * Make HTTP request with retry logic and request deduplication
    */
   private async makeRequest<T>(
     config: AxiosRequestConfig,
     attempt: number = 1
   ): Promise<ApiResponse<T>> {
-    try {
-      const response = await this.axiosInstance.request<ApiResponse<T>>(config);
-      return response.data;
-    } catch (error) {
-      const axiosError = error as AxiosError;
+    const method = config.method?.toUpperCase() || "GET";
+    const url = config.url || "";
+    const requestKey = this.getRequestKey(method, url, config.params, config.data);
 
-      // Check if we should retry
-      if (attempt < this.config.retryAttempts && isRetryableError(axiosError)) {
-        const delay = calculateRetryDelay(attempt, this.config.retryDelay);
-
-        console.warn(
-          `API Request failed (attempt ${attempt}), retrying in ${delay}ms:`,
-          {
-            url: config.url,
-            method: config.method,
-            error: axiosError.message,
-          }
-        );
-
-        // Mark as retry to skip toast during retry attempts
-        (config as any).isRetrying = true;
-
-        // Wait before retrying
-        await new Promise((resolve) => setTimeout(resolve, delay));
-
-        // Retry the request
-        return this.makeRequest<T>(config, attempt + 1);
+    // Only deduplicate on first attempt (not retries) and only for GET requests
+    // This prevents duplicate simultaneous requests while allowing retries to proceed
+    if (attempt === 1 && method === "GET" && this.pendingRequests.has(requestKey)) {
+      const pendingRequest = this.pendingRequests.get(requestKey);
+      if (pendingRequest) {
+        return pendingRequest as Promise<ApiResponse<T>>;
       }
-
-      // Don't retry, handle the error (toast will be shown in interceptor if not retrying)
-      (config as any).isRetrying = false;
-      handleApiError(axiosError);
     }
+
+    // Create the request promise
+    const requestPromise = (async () => {
+      try {
+        const response = await this.axiosInstance.request<ApiResponse<T>>(config);
+        // Remove from pending requests on success
+        if (attempt === 1 && method === "GET") {
+          this.pendingRequests.delete(requestKey);
+        }
+        return response.data;
+      } catch (error) {
+        const axiosError = error as AxiosError;
+
+        // Check if we should retry
+        if (attempt < this.config.retryAttempts && isRetryableError(axiosError)) {
+          const delay = calculateRetryDelay(attempt, this.config.retryDelay);
+
+          console.warn(
+            `API Request failed (attempt ${attempt}), retrying in ${delay}ms:`,
+            {
+              url: config.url,
+              method: config.method,
+              error: axiosError.message,
+            }
+          );
+
+          // Mark as retry to skip toast during retry attempts
+          (config as any).isRetrying = true;
+
+          // Wait before retrying
+          await new Promise((resolve) => setTimeout(resolve, delay));
+
+          // Retry the request (pass attempt + 1, won't be deduplicated)
+          return this.makeRequest<T>(config, attempt + 1);
+        }
+
+        // Remove from pending requests on final error
+        if (attempt === 1 && method === "GET") {
+          this.pendingRequests.delete(requestKey);
+        }
+
+        // Don't retry, handle the error (toast will be shown in interceptor if not retrying)
+        (config as any).isRetrying = false;
+        handleApiError(axiosError);
+      }
+    })();
+
+    // Store pending GET requests for deduplication (only on first attempt)
+    if (attempt === 1 && method === "GET") {
+      this.pendingRequests.set(requestKey, requestPromise);
+    }
+
+    return requestPromise;
   }
 
   // ============================================================================

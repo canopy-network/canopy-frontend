@@ -1,27 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, ArrowLeft, Check, Info, AlertTriangle } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import tokens from "@/data/tokens.json";
 import { walletTransactionApi, chainsApi } from "@/lib/api";
 import { useWalletStore } from "@/lib/stores/wallet-store";
@@ -71,12 +55,7 @@ function TokenAvatar({ symbol, color, size = 32 }) {
   );
 }
 
-export default function AddLiquidityDialog({
-  open,
-  onOpenChange,
-  selectedPool = null,
-  availablePools = [],
-}) {
+export default function AddLiquidityDialog({ open, onOpenChange, selectedPool = null, availablePools = [] }) {
   const [step, setStep] = useState(1);
   const [amountA, setAmountA] = useState("");
   const [amountB, setAmountB] = useState("");
@@ -126,12 +105,8 @@ export default function AddLiquidityDialog({
   };
 
   // Get token data
-  const tokenAData = activePool
-    ? tokens.find((t) => t.symbol === activePool.tokenA)
-    : null;
-  const tokenBData = activePool
-    ? tokens.find((t) => t.symbol === activePool.tokenB)
-    : null;
+  const tokenAData = activePool ? tokens.find((t) => t.symbol === activePool.tokenA) : null;
+  const tokenBData = activePool ? tokens.find((t) => t.symbol === activePool.tokenB) : null;
 
   // Get user balances (using mock data)
   const balanceA = useMemo(() => {
@@ -142,9 +117,7 @@ export default function AddLiquidityDialog({
 
   const balanceB = useMemo(() => {
     if (!activePool || !isConnected) return 0;
-    const asset = mockWalletData?.assets?.find(
-      (a) => a.symbol === activePool.tokenB
-    );
+    const asset = mockWalletData?.assets?.find((a) => a.symbol === activePool.tokenB);
     return asset?.balance || 0;
   }, [activePool, isConnected]);
 
@@ -186,9 +159,7 @@ export default function AddLiquidityDialog({
   const amountANum = parseFloat(amountA) || 0;
   const amountBNum = parseFloat(amountB) || 0;
   const totalValueUSD = amountANum * 1 + amountBNum * (tokenBData?.price || 1); // CNPY = $1
-  const shareOfPool = activePool
-    ? ((amountANum / (activePool.tokenAReserve + amountANum)) * 100).toFixed(4)
-    : 0;
+  const shareOfPool = activePool ? ((amountANum / (activePool.tokenAReserve + amountANum)) * 100).toFixed(4) : 0;
   const estimatedApr = activePool?.apr || 0;
 
   const handleContinue = async () => {
@@ -220,15 +191,11 @@ export default function AddLiquidityDialog({
         const transactionChainId = 1;
 
         // Get current height from root chain (where transaction is sent)
-        const heightResponse = await chainsApi.getChainHeight(
-          String(transactionChainId)
-        );
+        const heightResponse = await chainsApi.getChainHeight(String(transactionChainId));
         const currentHeight = heightResponse.data.height;
 
         // Create DEX liquidity deposit message
-        const { createDexLiquidityDepositMessage } = await import(
-          "@/lib/crypto/transaction"
-        );
+        const { createDexLiquidityDepositMessage } = await import("@/lib/crypto/transaction");
         const depositMsg = createDexLiquidityDepositMessage(
           poolChainId, // The pool chain you're depositing to
           amountInMicroUnits,
@@ -236,9 +203,9 @@ export default function AddLiquidityDialog({
         );
 
         // Create and sign transaction
-        const { createAndSignTransaction } = await import(
-          "@/lib/crypto/transaction"
-        );
+        const { createAndSignTransaction } = await import("@/lib/crypto/transaction");
+
+        console.log("[depositMsg]", depositMsg);
         const signedTx = createAndSignTransaction(
           {
             type: "dexLiquidityDeposit",
@@ -255,23 +222,14 @@ export default function AddLiquidityDialog({
         );
 
         // Submit transaction
-        const response = await walletTransactionApi.sendRawTransaction(
-          signedTx
-        );
+        const response = await walletTransactionApi.sendRawTransaction(signedTx);
 
-        toast.success(
-          `Transaction submitted: ${response.transaction_hash.substring(
-            0,
-            8
-          )}...`
-        );
+        toast.success(`Transaction submitted: ${response.transaction_hash.substring(0, 8)}...`);
 
         setStep(3);
       } catch (error) {
         console.error("Failed to add liquidity:", error);
-        toast.error(
-          error.message || "An error occurred while adding liquidity."
-        );
+        toast.error(error.message || "An error occurred while adding liquidity.");
       } finally {
         setIsSubmitting(false);
       }
@@ -303,31 +261,15 @@ export default function AddLiquidityDialog({
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-3">
             {step === 2 && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={handleBack}
-                disabled={isSubmitting}
-              >
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleBack} disabled={isSubmitting}>
                 <ArrowLeft className="w-4 h-4" />
               </Button>
             )}
             <DialogTitle className="text-lg font-semibold">
-              {step === 1
-                ? "Add Liquidity"
-                : step === 2
-                ? "Confirm"
-                : "Success"}
+              {step === 1 ? "Add Liquidity" : step === 2 ? "Confirm" : "Success"}
             </DialogTitle>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleClose} disabled={isSubmitting}>
             <X className="w-4 h-4" />
           </Button>
         </div>
@@ -346,23 +288,15 @@ export default function AddLiquidityDialog({
                     </SelectTrigger>
                     <SelectContent>
                       {pools.map((pool) => {
-                        const poolTokenB = tokens.find(
-                          (t) => t.symbol === pool.tokenB
-                        );
+                        const poolTokenB = tokens.find((t) => t.symbol === pool.tokenB);
                         return (
                           <SelectItem key={pool.id} value={pool.id}>
                             <div className="flex items-center gap-2">
-                              <TokenAvatar
-                                symbol={pool.tokenB}
-                                color={poolTokenB?.brandColor}
-                                size={20}
-                              />
+                              <TokenAvatar symbol={pool.tokenB} color={poolTokenB?.brandColor} size={20} />
                               <span>
                                 {pool.tokenB} / {pool.tokenA}
                               </span>
-                              <span className="text-muted-foreground text-xs">
-                                ({pool.apr}% APY)
-                              </span>
+                              <span className="text-muted-foreground text-xs">({pool.apr}% APY)</span>
                             </div>
                           </SelectItem>
                         );
@@ -378,20 +312,14 @@ export default function AddLiquidityDialog({
                   <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className="flex -space-x-2">
-                        <TokenAvatar
-                          symbol={activePool.tokenB}
-                          color={tokenBData?.brandColor}
-                          size={32}
-                        />
+                        <TokenAvatar symbol={activePool.tokenB} color={tokenBData?.brandColor} size={32} />
                         <TokenAvatar symbol={activePool.tokenA} size={32} />
                       </div>
                       <div>
                         <div className="font-medium">
                           {activePool.tokenB} / {activePool.tokenA}
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          {activePool.apr}% APY
-                        </div>
+                        <div className="text-xs text-muted-foreground">{activePool.apr}% APY</div>
                       </div>
                     </div>
                   </div>
@@ -455,8 +383,7 @@ export default function AddLiquidityDialog({
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Pool Ratio</span>
                       <span>
-                        1 {activePool.tokenA} = {(1 / poolRatio).toFixed(4)}{" "}
-                        {activePool.tokenB}
+                        1 {activePool.tokenA} = {(1 / poolRatio).toFixed(4)} {activePool.tokenB}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -464,9 +391,7 @@ export default function AddLiquidityDialog({
                       <span>${totalValueUSD.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Share of Pool
-                      </span>
+                      <span className="text-muted-foreground">Share of Pool</span>
                       <span>{shareOfPool}%</span>
                     </div>
                     <div className="flex justify-between">
@@ -494,57 +419,39 @@ export default function AddLiquidityDialog({
                 <div className="p-4 bg-muted rounded-lg space-y-3">
                   <div className="text-center">
                     <div className="flex justify-center -space-x-2 mb-2">
-                      <TokenAvatar
-                        symbol={activePool.tokenB}
-                        color={tokenBData?.brandColor}
-                        size={40}
-                      />
+                      <TokenAvatar symbol={activePool.tokenB} color={tokenBData?.brandColor} size={40} />
                       <TokenAvatar symbol={activePool.tokenA} size={40} />
                     </div>
                     <div className="text-lg font-semibold">
                       {activePool.tokenB} / {activePool.tokenA}
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      Add Liquidity
-                    </div>
+                    <div className="text-sm text-muted-foreground">Add Liquidity</div>
                   </div>
 
                   <div className="border-t border-border pt-3 space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        {activePool.tokenA} Amount
-                      </span>
+                      <span className="text-muted-foreground">{activePool.tokenA} Amount</span>
                       <span className="font-medium">
                         {amountA} {activePool.tokenA}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        {activePool.tokenB} Amount
-                      </span>
+                      <span className="text-muted-foreground">{activePool.tokenB} Amount</span>
                       <span className="font-medium">
                         {amountB} {activePool.tokenB}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Total Value</span>
-                      <span className="font-medium">
-                        ${totalValueUSD.toFixed(2)}
-                      </span>
+                      <span className="font-medium">${totalValueUSD.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Share of Pool
-                      </span>
+                      <span className="text-muted-foreground">Share of Pool</span>
                       <span className="font-medium">{shareOfPool}%</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Estimated APY
-                      </span>
-                      <span className="font-medium text-green-500">
-                        {estimatedApr}%
-                      </span>
+                      <span className="text-muted-foreground">Estimated APY</span>
+                      <span className="font-medium text-green-500">{estimatedApr}%</span>
                     </div>
                   </div>
                 </div>
@@ -552,17 +459,12 @@ export default function AddLiquidityDialog({
                 <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
                   <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
                   <p className="text-xs text-amber-500">
-                    By adding liquidity, you may be exposed to impermanent loss
-                    if token prices diverge significantly.
+                    By adding liquidity, you may be exposed to impermanent loss if token prices diverge significantly.
                   </p>
                 </div>
               </div>
 
-              <Button
-                className="w-full"
-                onClick={handleContinue}
-                disabled={isSubmitting}
-              >
+              <Button className="w-full" onClick={handleContinue} disabled={isSubmitting}>
                 {isSubmitting ? "Confirming..." : "Confirm Add Liquidity"}
               </Button>
             </>
@@ -578,8 +480,7 @@ export default function AddLiquidityDialog({
                 <div>
                   <h3 className="text-lg font-semibold">Liquidity Added!</h3>
                   <p className="text-sm text-muted-foreground mt-1">
-                    You've successfully added liquidity to the{" "}
-                    {activePool.tokenB}/{activePool.tokenA} pool
+                    You've successfully added liquidity to the {activePool.tokenB}/{activePool.tokenA} pool
                   </p>
                 </div>
 
@@ -587,8 +488,7 @@ export default function AddLiquidityDialog({
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Deposited</span>
                     <span>
-                      {amountA} {activePool.tokenA} + {amountB}{" "}
-                      {activePool.tokenB}
+                      {amountA} {activePool.tokenA} + {amountB} {activePool.tokenB}
                     </span>
                   </div>
                   <div className="flex justify-between">

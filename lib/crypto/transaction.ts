@@ -8,12 +8,7 @@
 import { signMessage } from "./signing";
 import { CurveType } from "./types";
 import { getSignBytesProtobuf } from "./protobuf";
-import type {
-  TransactionParams,
-  RawTransaction,
-  TransactionMessage,
-  TransactionSignature,
-} from "./types";
+import type { TransactionParams, RawTransaction, TransactionMessage, TransactionSignature } from "./types";
 import type { SendRawTransactionRequest } from "@/types/wallet";
 
 /**
@@ -110,11 +105,7 @@ export function createAndSignTransaction(
  * @param amount - Amount in micro units (uCNPY)
  * @returns MessageSend payload
  */
-export function createSendMessage(
-  fromAddress: string,
-  toAddress: string,
-  amount: number
-): TransactionMessage {
+export function createSendMessage(fromAddress: string, toAddress: string, amount: number): TransactionMessage {
   // Mirrors MessageSend structure from canopy/fsm/message.pb.go
   return {
     fromAddress,
@@ -237,7 +228,22 @@ export function createOrderMessage(
     requestedAmount,
     sellerReceiveAddress,
     sellersSendAddress,
-    orderId: "", // Will be populated by backend (first 20 bytes of tx hash)
+  };
+}
+
+/**
+ * Creates a DeleteOrder transaction message
+ *
+ * Mirrors fsm.NewDeleteOrderTx() from canopy/fsm/transaction.go:399-402
+ *
+ * @param orderId - Order ID to delete (hex string)
+ * @param chainId - Committee chain ID
+ * @returns MessageDeleteOrder payload
+ */
+export function createDeleteOrderMessage(orderId: string, chainId: number): TransactionMessage {
+  return {
+    orderId,
+    chainId,
   };
 }
 
@@ -313,9 +319,7 @@ export async function getTransactionHash(tx: RawTransaction): Promise<string> {
   // Use browser's SubtleCrypto for SHA-256
   const hashBuffer = await crypto.subtle.digest("SHA-256", bytes);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 
   return hashHex;
 }
@@ -330,11 +334,7 @@ export async function getTransactionHash(tx: RawTransaction): Promise<string> {
  * @param address - Hex-encoded depositor address
  * @returns MessageDexLiquidityDeposit payload
  */
-export function createDexLiquidityDepositMessage(
-  chainId: number,
-  amount: number,
-  address: string
-): TransactionMessage {
+export function createDexLiquidityDepositMessage(chainId: number, amount: number, address: string): TransactionMessage {
   return {
     chainId,
     amount,

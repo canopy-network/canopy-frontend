@@ -28,6 +28,7 @@ import { useWalletStore } from "@/lib/stores/wallet-store";
 import type { OrderBookApiOrder } from "@/types/orderbook";
 import { isOrderLocked } from "@/types/orderbook";
 import { useLockOrder } from "@/lib/hooks/use-lock-order";
+import { useCloseOrder } from "@/lib/hooks/use-close-order";
 import { useAccount, useChainId } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { USDC_ADDRESSES } from "@/lib/web3/config";
@@ -218,6 +219,9 @@ export default function OrdersTab() {
   const [orderToLock, setOrderToLock] = useState<OrderBookApiOrder | null>(
     null
   );
+  const [orderToClose, setOrderToClose] = useState<OrderBookApiOrder | null>(
+    null
+  );
   const [showPlaceholders, setShowPlaceholders] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -246,6 +250,11 @@ export default function OrdersTab() {
   const lockOrder = useLockOrder({
     order: orderToLock, // Only set when user clicks lock
     buyerCanopyAddress: currentWallet?.address || "",
+  });
+
+  // Close order hook for locked orders
+  const closeOrder = useCloseOrder({
+    order: orderToClose, // Only set when user clicks close
   });
 
   // Fetch all orders from API (both owned and non-owned)
@@ -361,6 +370,20 @@ export default function OrdersTab() {
   const isOrderReadyForClose = (orderId: string): boolean => {
     const rawOrder = getRawOrder(orderId);
     return rawOrder ? isOrderLocked(rawOrder) : false;
+  };
+
+  // Helper to check if current user is the buyer who locked this order
+  const isOrderBuyer = (order: SellOrder): boolean => {
+    if (!currentWallet?.address || !ethAddress) return false;
+    const rawOrder = getRawOrder(order.id);
+    if (!rawOrder || !rawOrder.buyerReceiveAddress) return false;
+
+    // Check if the buyer's Canopy address matches current wallet
+    const normalizedWalletAddress = normalizeAddress(currentWallet.address);
+    const normalizedBuyerAddress = normalizeAddress(
+      rawOrder.buyerReceiveAddress
+    );
+    return normalizedWalletAddress === normalizedBuyerAddress;
   };
 
   // Helper to check if current user is the owner of an order
@@ -513,6 +536,97 @@ export default function OrdersTab() {
     orderToLock?.id,
     currentLockingOrderId,
   ]);
+
+  // Handle close order for locked orders
+  const handleCloseOrder = async (order: SellOrder) => {
+    if (!currentWallet) {
+      toast.error("Please connect a Canopy wallet to close orders");
+      return;
+    }
+
+    if (!currentWallet.isUnlocked) {
+      toast.error("Please unlock your Canopy wallet to close orders");
+      return;
+    }
+
+    if (!isEthConnected || !ethAddress) {
+      toast.error("Please connect your Ethereum wallet to close orders");
+      openConnectModal?.();
+      return;
+    }
+
+    if (!usdcAddress) {
+      toast.error(
+        "USDC not supported on this network. Please switch to Ethereum Mainnet."
+      );
+      return;
+    }
+
+    // Get the raw order data
+    const rawOrder = getRawOrder(order.id);
+    if (!rawOrder) {
+      toast.error("Order not found");
+      return;
+    }
+
+    // Check if order is locked
+    if (!isOrderLocked(rawOrder)) {
+      toast.error("This order is not locked yet. Please lock it first.");
+      return;
+    }
+
+    // Verify the current user is the buyer who locked this order
+    if (!isOrderBuyer(order)) {
+      toast.error("You can only close orders that you have locked");
+      return;
+    }
+
+    // Set the order to close
+    setOrderToClose(rawOrder);
+  };
+
+  // Trigger close order when orderToClose is set
+  useEffect(() => {
+    if (orderToClose && !closeOrder.isPending && !closeOrder.isConfirming) {
+      closeOrder.sendCloseOrder().catch((err) => {
+        console.error("Failed to send close order", err);
+        setOrderToClose(null);
+      });
+    }
+    // We intentionally only depend on specific properties to prevent infinite loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderToClose?.id, closeOrder.isPending, closeOrder.isConfirming]);
+
+  // Handle close order success
+  useEffect(() => {
+    if (closeOrder.isSuccess && orderToClose) {
+      toast.success(
+        `Order closed! Payment sent. TX: ${closeOrder.txHash?.slice(0, 16)}...`
+      );
+      setOrderToClose(null);
+      closeOrder.reset();
+      // Refresh orders after a delay to allow blockchain to process
+      setTimeout(() => fetchUserOrders(), 3000);
+    }
+    // We intentionally only depend on specific properties to prevent infinite loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    closeOrder.isSuccess,
+    closeOrder.txHash,
+    orderToClose?.id,
+    fetchUserOrders,
+  ]);
+
+  // Handle close order error
+  useEffect(() => {
+    if (closeOrder.isError && closeOrder.error && orderToClose) {
+      toast.error(closeOrder.error.message || "Failed to close order");
+      setOrderToClose(null);
+      closeOrder.reset();
+    }
+    // We intentionally only depend on specific properties to prevent infinite loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [closeOrder.isError, closeOrder.error?.message, orderToClose?.id]);
 
   const handleCancel = async (order: SellOrder) => {
     if (!currentWallet) {
@@ -841,6 +955,34 @@ export default function OrdersTab() {
                         )}
                       </Button>
                     </>
+                  ) : isOrderReadyForClose(order.id) && isOrderBuyer(order) ? (
+                    // Buyer actions: Close Order (send payment)
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="bg-blue-500 hover:bg-blue-600"
+                      onClick={() => handleCloseOrder(order)}
+                      disabled={
+                        !currentWallet ||
+                        !currentWallet.isUnlocked ||
+                        !isEthConnected ||
+                        !usdcAddress ||
+                        closeOrder.isPending ||
+                        closeOrder.isConfirming
+                      }
+                    >
+                      {closeOrder.isPending || closeOrder.isConfirming ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Closing...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          Close Order
+                        </>
+                      )}
+                    </Button>
                   ) : (
                     // Non-owner actions: Lock Order (Buy)
                     <Button

@@ -5,24 +5,9 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import {
-  Droplets,
-  Search,
-  ArrowUpDown,
-  CheckCircle,
-  Plus,
-  Wallet,
-  Clock,
-} from "lucide-react";
+import { Droplets, Search, ArrowUpDown, CheckCircle, Plus, Wallet, Clock } from "lucide-react";
 import AddLiquidityDialog from "./add-liquidity-dialog";
 import WithdrawLiquidityDialog from "./withdraw-liquidity-dialog";
 import ClaimFeesDialog from "./claim-fees-dialog";
@@ -52,15 +37,7 @@ function CnpyLogo({ size = 32 }) {
 }
 
 // Token Avatar component
-function TokenAvatar({
-  symbol,
-  color,
-  size = 32,
-}: {
-  symbol: string;
-  color?: string;
-  size?: number;
-}) {
+function TokenAvatar({ symbol, color, size = 32 }: { symbol: string; color?: string; size?: number }) {
   if (symbol === "CNPY") {
     return <CnpyLogo size={size} />;
   }
@@ -144,7 +121,7 @@ export default function LiquidityClient({
 
   // Get wallet addresses for portfolio data
   const { wallets } = useWalletStore();
-  const walletAddresses = wallets.map((w) => w.address);
+  const walletAddresses = useMemo(() => wallets.map((w) => w.address), [wallets]);
 
   // Fetch portfolio overview data
   const { data: portfolioData } = usePortfolioOverview(walletAddresses, {
@@ -202,9 +179,7 @@ export default function LiquidityClient({
 
   // Combine and filter withdrawing items
   const allWithdrawingItems = [...lpWithdrawing, ...newWithdrawingItems];
-  const visibleWithdrawing = allWithdrawingItems.filter(
-    (item) => !canceledWithdrawIds.includes(item.id)
-  );
+  const visibleWithdrawing = allWithdrawingItems.filter((item) => !canceledWithdrawIds.includes(item.id));
 
   // Filter and sort pools
   const filteredPools = useMemo(() => {
@@ -228,10 +203,8 @@ export default function LiquidityClient({
     pools.sort((a, b) => {
       // Primary sort: pools with user's tokens first (if connected)
       if (isConnected && userTokens.size > 0) {
-        const aHasUserToken =
-          userTokens.has(a.tokenA) || userTokens.has(a.tokenB);
-        const bHasUserToken =
-          userTokens.has(b.tokenA) || userTokens.has(b.tokenB);
+        const aHasUserToken = userTokens.has(a.tokenA) || userTokens.has(a.tokenB);
+        const bHasUserToken = userTokens.has(b.tokenA) || userTokens.has(b.tokenB);
 
         if (aHasUserToken && !bHasUserToken) return -1;
         if (!aHasUserToken && bHasUserToken) return 1;
@@ -266,15 +239,7 @@ export default function LiquidityClient({
     });
 
     return pools;
-  }, [
-    searchQuery,
-    sortBy,
-    sortOrder,
-    isConnected,
-    userTokens,
-    liquidityPools,
-    tokens,
-  ]);
+  }, [searchQuery, sortBy, sortOrder, isConnected, userTokens, liquidityPools, tokens]);
 
   const handleSort = (column: string) => {
     if (sortBy === column) {
@@ -361,10 +326,7 @@ export default function LiquidityClient({
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {transformedPositions.map((position) => (
-                  <PositionCard
-                    key={`${position.chain_id}-${position.token_symbol}`}
-                    position={position}
-                  />
+                  <PositionCard key={`${position.chain_id}-${position.token_symbol}`} position={position} />
                 ))}
               </div>
             </div>
@@ -391,19 +353,13 @@ export default function LiquidityClient({
                   </TableHeader>
                   <TableBody>
                     {visibleWithdrawing.map((item) => {
-                      const tokenBData = tokens.find(
-                        (t) => t.symbol === item.tokenB
-                      );
+                      const tokenBData = tokens.find((t) => t.symbol === item.tokenB);
                       return (
                         <TableRow key={item.id}>
                           <TableCell>
                             <div className="flex items-center gap-3">
                               <div className="flex -space-x-2">
-                                <TokenAvatar
-                                  symbol={item.tokenB}
-                                  color={tokenBData?.brandColor}
-                                  size={32}
-                                />
+                                <TokenAvatar symbol={item.tokenB} color={tokenBData?.brandColor} size={32} />
                                 <TokenAvatar symbol={item.tokenA} size={32} />
                               </div>
                               <div className="font-medium">
@@ -420,9 +376,7 @@ export default function LiquidityClient({
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="font-medium">
-                              ${item.valueUSD.toFixed(2)}
-                            </div>
+                            <div className="font-medium">${item.valueUSD.toFixed(2)}</div>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1.5">
@@ -479,56 +433,28 @@ export default function LiquidityClient({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Market</TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:text-foreground"
-                      onClick={() => handleSort("tvl")}
-                    >
+                    <TableHead className="cursor-pointer hover:text-foreground" onClick={() => handleSort("tvl")}>
                       <div className="flex items-center gap-2">
                         TVL
-                        <ArrowUpDown
-                          className={`w-4 h-4 ${
-                            sortBy === "tvl" ? "text-foreground" : ""
-                          }`}
-                        />
+                        <ArrowUpDown className={`w-4 h-4 ${sortBy === "tvl" ? "text-foreground" : ""}`} />
                       </div>
                     </TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:text-foreground"
-                      onClick={() => handleSort("volume")}
-                    >
+                    <TableHead className="cursor-pointer hover:text-foreground" onClick={() => handleSort("volume")}>
                       <div className="flex items-center gap-2">
                         Volume (24h)
-                        <ArrowUpDown
-                          className={`w-4 h-4 ${
-                            sortBy === "volume" ? "text-foreground" : ""
-                          }`}
-                        />
+                        <ArrowUpDown className={`w-4 h-4 ${sortBy === "volume" ? "text-foreground" : ""}`} />
                       </div>
                     </TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:text-foreground"
-                      onClick={() => handleSort("fees")}
-                    >
+                    <TableHead className="cursor-pointer hover:text-foreground" onClick={() => handleSort("fees")}>
                       <div className="flex items-center gap-2">
                         Fees (24h)
-                        <ArrowUpDown
-                          className={`w-4 h-4 ${
-                            sortBy === "fees" ? "text-foreground" : ""
-                          }`}
-                        />
+                        <ArrowUpDown className={`w-4 h-4 ${sortBy === "fees" ? "text-foreground" : ""}`} />
                       </div>
                     </TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:text-foreground"
-                      onClick={() => handleSort("apr")}
-                    >
+                    <TableHead className="cursor-pointer hover:text-foreground" onClick={() => handleSort("apr")}>
                       <div className="flex items-center gap-2">
                         APY (24h)
-                        <ArrowUpDown
-                          className={`w-4 h-4 ${
-                            sortBy === "apr" ? "text-foreground" : ""
-                          }`}
-                        />
+                        <ArrowUpDown className={`w-4 h-4 ${sortBy === "apr" ? "text-foreground" : ""}`} />
                       </div>
                     </TableHead>
                   </TableRow>
@@ -536,28 +462,16 @@ export default function LiquidityClient({
                 <TableBody>
                   {filteredPools.length > 0 ? (
                     filteredPools.map((pool) => {
-                      const tokenBData = tokens.find(
-                        (t) => t.symbol === pool.tokenB
-                      );
-                      const hasUserToken =
-                        isConnected &&
-                        (userTokens.has(pool.tokenA) ||
-                          userTokens.has(pool.tokenB));
+                      const tokenBData = tokens.find((t) => t.symbol === pool.tokenB);
+                      const hasUserToken = isConnected && (userTokens.has(pool.tokenA) || userTokens.has(pool.tokenB));
                       return (
-                        <TableRow
-                          key={pool.id}
-                          className="cursor-pointer hover:bg-muted/50 transition-colors group"
-                        >
+                        <TableRow key={pool.id} className="cursor-pointer hover:bg-muted/50 transition-colors group">
                           <TableCell className="p-0">
                             <Link
                               href={`/liquidity/${pool.tokenB.toLowerCase()}-${pool.tokenA.toLowerCase()}`}
                               className="flex items-center p-4"
                             >
-                              <TokenDisplay
-                                tokenB={pool.tokenB}
-                                tokenBData={tokenBData}
-                                hasUserToken={hasUserToken}
-                              />
+                              <TokenDisplay tokenB={pool.tokenB} tokenBData={tokenBData} hasUserToken={hasUserToken} />
                             </Link>
                           </TableCell>
                           <TableCell className="p-0">
@@ -565,9 +479,7 @@ export default function LiquidityClient({
                               href={`/liquidity/${pool.tokenB.toLowerCase()}-${pool.tokenA.toLowerCase()}`}
                               className="block p-4"
                             >
-                              <div className="font-medium">
-                                {formatCurrency(pool.totalLiquidity)}
-                              </div>
+                              <div className="font-medium">{formatCurrency(pool.totalLiquidity)}</div>
                             </Link>
                           </TableCell>
                           <TableCell className="p-0">
@@ -575,9 +487,7 @@ export default function LiquidityClient({
                               href={`/liquidity/${pool.tokenB.toLowerCase()}-${pool.tokenA.toLowerCase()}`}
                               className="block p-4"
                             >
-                              <div className="font-medium">
-                                {formatCurrency(pool.volume24h)}
-                              </div>
+                              <div className="font-medium">{formatCurrency(pool.volume24h)}</div>
                             </Link>
                           </TableCell>
                           <TableCell className="p-0">
@@ -585,9 +495,7 @@ export default function LiquidityClient({
                               href={`/liquidity/${pool.tokenB.toLowerCase()}-${pool.tokenA.toLowerCase()}`}
                               className="block p-4"
                             >
-                              <div className="font-medium">
-                                {formatCurrency(pool.fees24h)}
-                              </div>
+                              <div className="font-medium">{formatCurrency(pool.fees24h)}</div>
                             </Link>
                           </TableCell>
                           <TableCell className="p-0">
@@ -595,9 +503,7 @@ export default function LiquidityClient({
                               href={`/liquidity/${pool.tokenB.toLowerCase()}-${pool.tokenA.toLowerCase()}`}
                               className="block p-4"
                             >
-                              <div className="font-medium text-green-500">
-                                {pool.apr.toFixed(2)}%
-                              </div>
+                              <div className="font-medium text-green-500">{pool.apr.toFixed(2)}%</div>
                             </Link>
                           </TableCell>
                         </TableRow>
@@ -611,12 +517,8 @@ export default function LiquidityClient({
                             <Droplets className="w-8 h-8 text-muted-foreground" />
                           </div>
                           <div className="space-y-2">
-                            <p className="text-sm font-medium text-muted-foreground">
-                              No pools found
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Try a different search term
-                            </p>
+                            <p className="text-sm font-medium text-muted-foreground">No pools found</p>
+                            <p className="text-xs text-muted-foreground">Try a different search term</p>
                           </div>
                         </div>
                       </TableCell>

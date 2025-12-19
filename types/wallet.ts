@@ -244,13 +244,13 @@ export interface MultiChainBalanceRequest {
  */
 export interface PortfolioAccount {
   address: string;
-  chain_id: number;                  // Chain ID as number
-  chain_name: string;                // Chain name
-  token_symbol: string;              // Token symbol (e.g., "CNPY", "DEFI")
-  balance: string;                   // Total balance (in micro units)
-  staked_balance: string;            // Staked balance (in micro units)
-  delegated_balance: string;         // Delegated balance (in micro units)
-  available_balance: string;         // Available/liquid balance (in micro units)
+  chain_id: number; // Chain ID as number
+  chain_name: string; // Chain name
+  token_symbol: string; // Token symbol (e.g., "CNPY", "DEFI")
+  balance: string; // Total balance (in micro units)
+  staked_balance: string; // Staked balance (in micro units)
+  delegated_balance: string; // Delegated balance (in micro units)
+  available_balance: string; // Available/liquid balance (in micro units)
 }
 
 /**
@@ -259,7 +259,6 @@ export interface PortfolioAccount {
 export interface ChainAllocationItem {
   chain_id: number;
   chain_name: string;
-  token_symbol: string; // Token symbol for this chain
   total_value_cnpy: string; // Total value in micro units
   percentage: number; // Percentage of total portfolio
 }
@@ -388,7 +387,6 @@ export interface ChainAllocation {
  * Portfolio overview response
  */
 export interface PortfolioOverviewResponse {
-
   total_value_cnpy: string;
   total_value_usd?: string;
   accounts: PortfolioAccount[];
@@ -443,20 +441,20 @@ export interface AccountBalancesResponse {
  * Portfolio performance response
  */
 export interface PortfolioPerformanceResponse {
-    period: string;
-    start_date: string;
-    end_date: string;
-    starting_value_cnpy: string;
-    ending_value_cnpy: string;
-    total_pnl_cnpy: string;
-    total_pnl_percentage: number;
-    realized_pnl_cnpy: string;
-    unrealized_pnl_cnpy: string;
-    dex_swap_pnl: DexSwapPnL;
-    lp_position_pnl: LpPositionPnL;
-    time_series: PerformanceDataPoint[];
-    transactions_summary: TransactionsSummary;
-    yield_earnings: YieldEarnings;
+  period: string;
+  start_date: string;
+  end_date: string;
+  starting_value_cnpy: string;
+  ending_value_cnpy: string;
+  total_pnl_cnpy: string;
+  total_pnl_percentage: number;
+  realized_pnl_cnpy: string;
+  unrealized_pnl_cnpy: string;
+  dex_swap_pnl: DexSwapPnL;
+  lp_position_pnl: LpPositionPnL;
+  time_series: PerformanceDataPoint[];
+  transactions_summary: TransactionsSummary;
+  yield_earnings: YieldEarnings;
 }
 
 /**
@@ -720,34 +718,4 @@ export interface ExportWalletResponse {
       keyNickname: string; // Wallet nickname (lowercase 'n')
     };
   };
-}
-
-// ============================================================================
-// AMM (Automated Market Maker) Types
-// ============================================================================
-
-/**
- * Request to deposit liquidity into a DEX pool
- * POST /api/v1/amm/deposit
- */
-export interface DepositLiquidityRequest {
-  wallet_id: string; // UUID of wallet to use
-  amount: string; // Amount in base units (string for uint64 safety)
-  committee_id: number; // Committee/pool ID
-  password: string; // Wallet password for decryption
-  fee?: number; // Optional transaction fee in base units
-  memo?: string; // Optional transaction memo
-}
-
-/**
- * Response from liquidity deposit
- */
-export interface DepositLiquidityResponse {
-  transaction_hash: string; // Hash of submitted transaction
-  status: string; // Transaction status (typically "pending")
-  amount: string; // Amount deposited (echoed from request)
-  committee_id: number; // Committee/pool ID (echoed from request)
-  fee: string; // Transaction fee in base units
-  submitted_at: string; // ISO 8601 timestamp
-  order_id?: string; // Optional order identifier
 }

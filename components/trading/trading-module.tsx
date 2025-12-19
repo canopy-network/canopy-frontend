@@ -3,13 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import {
-  ArrowUpRight,
-  ArrowDownRight,
-  RotateCcw,
-  Repeat,
-  Droplet,
-} from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, RotateCcw, Repeat, Droplet } from "lucide-react";
 import SwapTab from "@/components/trading/swap-tab";
 import LiquidityTab from "@/components/trading/liquidity-tab";
 import BuySellTab from "@/components/trading/buy-sell-tab";
@@ -89,8 +83,7 @@ export default function TradingModule({
   const [showTokenDialog, setShowTokenDialog] = useState(false);
   const [tokenDialogMode, setTokenDialogMode] = useState<TokenDialogMode>(null); // 'from', 'to', 'tokenA', 'tokenB'
   const [showConfirmation, setShowConfirmation] = useState(false);
-  const [confirmationData, setConfirmationData] =
-    useState<ConfirmationData | null>(null);
+  const [confirmationData, setConfirmationData] = useState<ConfirmationData | null>(null);
   const [showPending, setShowPending] = useState(false);
 
   // Token state for swap/liquidity
@@ -101,10 +94,7 @@ export default function TradingModule({
     }
     // For chain variant, default to CNPY
     if (variant === "chain") {
-      return (
-        (tokensData.find((t) => t.symbol === "CNPY") as Token | undefined) ||
-        null
-      );
+      return (tokensData.find((t) => t.symbol === "CNPY") as Token | undefined) || null;
     }
     return null;
   });
@@ -112,10 +102,7 @@ export default function TradingModule({
   const [toToken, setToToken] = useState<Token | null>(() => {
     // For trade variant, default to CNPY as receiving token
     if (variant === "trade") {
-      return (
-        (tokensData.find((t) => t.symbol === "CNPY") as Token | undefined) ||
-        null
-      );
+      return (tokensData.find((t) => t.symbol === "CNPY") as Token | undefined) || null;
     }
     // For chain variant, use the chain's token
     if (variant === "chain" && chainData) {
@@ -128,9 +115,7 @@ export default function TradingModule({
       } as Token;
     }
     // Default fallback to CNPY
-    return (
-      (tokensData.find((t) => t.symbol === "CNPY") as Token | undefined) || null
-    );
+    return (tokensData.find((t) => t.symbol === "CNPY") as Token | undefined) || null;
   });
 
   const [tokenA, setTokenA] = useState<Token | null>(() => {
@@ -145,16 +130,12 @@ export default function TradingModule({
     if (variant === "liquidity" && defaultTokenPair?.tokenB) {
       return defaultTokenPair.tokenB;
     }
-    return (
-      (tokensData.find((t) => t.symbol === "CNPY") as Token | undefined) || null
-    );
+    return (tokensData.find((t) => t.symbol === "CNPY") as Token | undefined) || null;
   });
 
   // Convert tab state
   const [convertAmount, setConvertAmount] = useState(0);
-  const [convertSourceToken, setConvertSourceToken] = useState<Token | null>(
-    null
-  );
+  const [convertSourceToken, setConvertSourceToken] = useState<Token | null>(null);
 
   const handleSelectToken = (mode: "from" | "to" | "tokenA" | "tokenB") => {
     setTokenDialogMode(mode);
@@ -167,22 +148,14 @@ export default function TradingModule({
         setFromToken(token);
         // For trade variant, if a non-CNPY token is selected, ensure toToken is CNPY
         if (variant === "trade" && token.symbol !== "CNPY") {
-          setToToken(
-            (tokensData.find((t) => t.symbol === "CNPY") as
-              | Token
-              | undefined) || null
-          );
+          setToToken((tokensData.find((t) => t.symbol === "CNPY") as Token | undefined) || null);
         }
         break;
       case "to":
         setToToken(token);
         // For trade variant, if a non-CNPY token is selected, ensure fromToken is CNPY
         if (variant === "trade" && token.symbol !== "CNPY") {
-          setFromToken(
-            (tokensData.find((t) => t.symbol === "CNPY") as
-              | Token
-              | undefined) || null
-          );
+          setFromToken((tokensData.find((t) => t.symbol === "CNPY") as Token | undefined) || null);
         }
         break;
       case "tokenA":
@@ -209,6 +182,8 @@ export default function TradingModule({
       toast.error("Please connect your wallet first.");
       return;
     }
+
+    console.log("[currentWallet]", currentWallet);
 
     // Check if wallet is unlocked
     if (!currentWallet.isUnlocked || !currentWallet.privateKey) {
@@ -250,8 +225,7 @@ export default function TradingModule({
       const amountForSale = Math.floor(parseFloat(fromAmount) * MICRO_UNITS);
 
       // Calculate requested amount based on exchange rate with slippage tolerance (1%)
-      const exchangeRate =
-        (fromToken.currentPrice || 0) / (toToken.currentPrice || 1);
+      const exchangeRate = (fromToken.currentPrice || 0) / (toToken.currentPrice || 1);
       const expectedReceive = parseFloat(fromAmount) * exchangeRate;
       const requestedAmount = Math.floor(expectedReceive * MICRO_UNITS * 0.99); // 1% slippage
 
@@ -264,15 +238,11 @@ export default function TradingModule({
       const transactionChainId = 1;
 
       // Get current height from root chain
-      const heightResponse = await chainsApi.getChainHeight(
-        String(transactionChainId)
-      );
+      const heightResponse = await chainsApi.getChainHeight(String(transactionChainId));
       const currentHeight = heightResponse.data.height;
 
       // Create DEX limit order message
-      const { createDexLimitOrderMessage } = await import(
-        "@/lib/crypto/transaction"
-      );
+      const { createDexLimitOrderMessage } = await import("@/lib/crypto/transaction");
 
       const limitOrderMsg = createDexLimitOrderMessage(
         toChainId, // Chain ID of token we're swapping TO
@@ -282,9 +252,7 @@ export default function TradingModule({
       );
 
       // Create and sign transaction
-      const { createAndSignTransaction } = await import(
-        "@/lib/crypto/transaction"
-      );
+      const { createAndSignTransaction } = await import("@/lib/crypto/transaction");
 
       const signedTx = createAndSignTransaction(
         {
@@ -304,12 +272,7 @@ export default function TradingModule({
       // Submit transaction
       const response = await walletTransactionApi.sendRawTransaction(signedTx);
 
-      toast.success(
-        `Swap order created! TX: ${response.transaction_hash.substring(
-          0,
-          8
-        )}...`
-      );
+      toast.success(`Swap order created! TX: ${response.transaction_hash.substring(0, 8)}...`);
 
       // Keep pending dialog open briefly to show success
       setTimeout(() => {
@@ -318,10 +281,7 @@ export default function TradingModule({
       }, 2000);
     } catch (error) {
       console.error("Failed to execute swap:", error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "An error occurred while swapping.";
+      const errorMessage = error instanceof Error ? error.message : "An error occurred while swapping.";
       toast.error(errorMessage);
       setShowPending(false);
     }
@@ -361,9 +321,7 @@ export default function TradingModule({
             key={tab}
             variant={activeTab === tab ? "default" : "ghost"}
             size="sm"
-            className={`flex-1 h-10 gap-2 ${
-              activeTab === tab ? "bg-primary text-primary-foreground" : ""
-            }`}
+            className={`flex-1 h-10 gap-2 ${activeTab === tab ? "bg-primary text-primary-foreground" : ""}`}
             onClick={() => setActiveTab(tab)}
           >
             {getTabIcon(tab)}
@@ -432,11 +390,7 @@ export default function TradingModule({
         return toToken.symbol;
       }
       // If selecting 'to' and 'from' is not CNPY, exclude it
-      if (
-        tokenDialogMode === "to" &&
-        fromToken &&
-        fromToken.symbol !== "CNPY"
-      ) {
+      if (tokenDialogMode === "to" && fromToken && fromToken.symbol !== "CNPY") {
         return fromToken.symbol;
       }
     }

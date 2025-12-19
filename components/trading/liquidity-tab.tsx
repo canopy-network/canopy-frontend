@@ -4,10 +4,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, Zap, ChevronRight, Plus } from "lucide-react";
-import {
-  useLiquidityPoolsStore,
-  type LiquidityPool,
-} from "@/lib/stores/liquidity-pools-store";
+import { useLiquidityPoolsStore, type LiquidityPool } from "@/lib/stores/liquidity-pools-store";
 import tokensData from "@/data/tokens.json";
 import LiquidityConfirmationDialog from "./liquidity-confirmation-dialog";
 import PoolSelectionDialog from "@/components/trading/pool-selection-dialog";
@@ -52,11 +49,7 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
 
   // Find and use only the DEFI pool (pool-7)
   const defiPool = useMemo<LiquidityPool | null>(() => {
-    return (
-      available_pools.find(
-        (pool) => pool.id === "pool-7" && pool.tokenB === "DEFI"
-      ) || null
-    );
+    return available_pools.find((pool) => pool.id === "pool-7" && pool.tokenB === "DEFI") || null;
   }, [available_pools]);
 
   const [selectedPool, setSelectedPool] = useState<LiquidityPool | null>(null);
@@ -89,28 +82,17 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
   }, [available_pools]);
 
   // Get token data for selected pool
-  const tokenA = selectedPool
-    ? (tokensData.find((t) => t.symbol === selectedPool.tokenB) as
-        | Token
-        | undefined)
-    : null;
-  const tokenB = selectedPool
-    ? (tokensData.find((t) => t.symbol === selectedPool.tokenA) as
-        | Token
-        | undefined)
-    : null;
+  const tokenA = selectedPool ? (tokensData.find((t) => t.symbol === selectedPool.tokenB) as Token | undefined) : null;
+  const tokenB = selectedPool ? (tokensData.find((t) => t.symbol === selectedPool.tokenA) as Token | undefined) : null;
 
   // Get real wallet balances from store
   const balanceA = useMemo(() => {
     if (!tokenA || !balance) return 0;
 
     // For other tokens, look in tokens array
-    const tokenBalance = balance.tokens?.find(
-      (t) => t.symbol === tokenA.symbol
-    );
+    const tokenBalance = balance.tokens?.find((t) => t.symbol === tokenA.symbol);
     if (tokenBalance) {
-      const availableBalance =
-        tokenBalance.distribution?.liquid || tokenBalance.balance;
+      const availableBalance = tokenBalance.distribution?.liquid || tokenBalance.balance;
       // Convert from micro units to standard units if needed
       // Check if the value is likely in micro units (very large number)
       const balanceNum = parseFloat(availableBalance) || 0;
@@ -133,8 +115,7 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
       const cnpyToken = balance.tokens?.find((t) => t.chainId === 1);
       if (cnpyToken) {
         // Use liquid balance (available) if available, otherwise total balance
-        const availableBalance =
-          cnpyToken.distribution?.liquid || cnpyToken.balance;
+        const availableBalance = cnpyToken.distribution?.liquid || cnpyToken.balance;
         // Convert from micro units to standard units if needed
         const balanceNum = parseFloat(availableBalance) || 0;
         // If balance is > 1 million, it's likely in micro units
@@ -153,12 +134,9 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
     }
 
     // For other tokens, look in tokens array
-    const tokenBalance = balance.tokens?.find(
-      (t) => t.symbol === tokenB.symbol
-    );
+    const tokenBalance = balance.tokens?.find((t) => t.symbol === tokenB.symbol);
     if (tokenBalance) {
-      const availableBalance =
-        tokenBalance.distribution?.liquid || tokenBalance.balance;
+      const availableBalance = tokenBalance.distribution?.liquid || tokenBalance.balance;
       // Convert from micro units to standard units if needed
       const balanceNum = parseFloat(availableBalance) || 0;
       // If balance is > 1 million, it's likely in micro units
@@ -172,11 +150,7 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
   }, [tokenB, balance]);
 
   // Get display values
-  const getDisplayValues = (
-    amount: string,
-    inputMode: InputMode,
-    token: Token | null | undefined
-  ): DisplayValues => {
+  const getDisplayValues = (amount: string, inputMode: InputMode, token: Token | null | undefined): DisplayValues => {
     if (!amount || amount === "" || !token) {
       return { tokenAmount: "0", usdAmount: "$0.00" };
     }
@@ -259,9 +233,7 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
       // Validate against available balance
       if (numValue > balanceA) {
         toast.error(
-          `Insufficient ${
-            tokenA?.symbol || "token"
-          } balance. You have ${balanceA.toLocaleString()} available.`
+          `Insufficient ${tokenA?.symbol || "token"} balance. You have ${balanceA.toLocaleString()} available.`
         );
         return;
       }
@@ -275,9 +247,7 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
       // Validate against available balance
       if (numValue > balanceB) {
         toast.error(
-          `Insufficient ${
-            tokenB?.symbol || "CNPY"
-          } balance. You have ${balanceB.toLocaleString()} available.`
+          `Insufficient ${tokenB?.symbol || "CNPY"} balance. You have ${balanceB.toLocaleString()} available.`
         );
         return;
       }
@@ -312,19 +282,13 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
     // Validate balances - check if amounts exceed available balances
     if (amountANum > 0 && amountANum > balanceA) {
       toast.error(
-        `Insufficient ${
-          tokenA?.symbol || "token"
-        } balance. You have ${balanceA.toLocaleString()} available.`
+        `Insufficient ${tokenA?.symbol || "token"} balance. You have ${balanceA.toLocaleString()} available.`
       );
       return;
     }
 
     if (amountBNum > 0 && amountBNum > balanceB) {
-      toast.error(
-        `Insufficient ${
-          tokenB?.symbol || "CNPY"
-        } balance. You have ${balanceB.toLocaleString()} available.`
-      );
+      toast.error(`Insufficient ${tokenB?.symbol || "CNPY"} balance. You have ${balanceB.toLocaleString()} available.`);
       return;
     }
 
@@ -343,8 +307,7 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
         // Calculate CNPY amount from DEFI amount based on pool ratio
         // Pool ratio: tokenAReserve / tokenBReserve = DEFI / CNPY
         // So: CNPY = DEFI / (tokenAReserve / tokenBReserve)
-        const poolRatio =
-          selectedPool.tokenAReserve / selectedPool.tokenBReserve;
+        const poolRatio = selectedPool.tokenAReserve / selectedPool.tokenBReserve;
         cnpyAmount = amountANum / poolRatio;
       }
 
@@ -364,15 +327,11 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
       const transactionChainId = 1;
 
       // Get current height from root chain (where transaction is sent)
-      const heightResponse = await chainsApi.getChainHeight(
-        String(transactionChainId)
-      );
+      const heightResponse = await chainsApi.getChainHeight(String(transactionChainId));
       const currentHeight = heightResponse.data.height;
 
       // Create DEX liquidity deposit message
-      const { createDexLiquidityDepositMessage } = await import(
-        "@/lib/crypto/transaction"
-      );
+      const { createDexLiquidityDepositMessage } = await import("@/lib/crypto/transaction");
       const depositMsg = createDexLiquidityDepositMessage(
         poolChainId, // The pool chain you're depositing to (chain 2 - DeFi Hub)
         amountInMicroUnits,
@@ -380,9 +339,7 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
       );
 
       // Create and sign transaction
-      const { createAndSignTransaction } = await import(
-        "@/lib/crypto/transaction"
-      );
+      const { createAndSignTransaction } = await import("@/lib/crypto/transaction");
 
       // Validate wallet is unlocked
       if (!currentWallet.privateKey || !currentWallet.isUnlocked) {
@@ -391,7 +348,7 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
         return;
       }
 
-      console.log("[currentWallet]", currentWallet);
+      console.log("[depositMsg]", depositMsg);
       const signedTx = createAndSignTransaction(
         {
           type: "dexLiquidityDeposit",
@@ -410,9 +367,7 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
       // Submit transaction
       const response = await walletTransactionApi.sendRawTransaction(signedTx);
 
-      toast.success(
-        `Liquidity added! TX: ${response.transaction_hash.substring(0, 8)}...`
-      );
+      toast.success(`Liquidity added! TX: ${response.transaction_hash.substring(0, 8)}...`);
 
       // Reset form
       setAmountA("");
@@ -420,10 +375,7 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
       setShowConfirmation(false);
     } catch (error) {
       console.error("Failed to add liquidity:", error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "An error occurred while adding liquidity.";
+      const errorMessage = error instanceof Error ? error.message : "An error occurred while adding liquidity.";
       toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -447,9 +399,7 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
                 </div>
                 <div>
                   <p className="text-base font-semibold">Select a pool</p>
-                  <p className="text-sm text-muted-foreground">
-                    Search pools to add liquidity
-                  </p>
+                  <p className="text-sm text-muted-foreground">Search pools to add liquidity</p>
                 </div>
               </div>
               <ChevronRight className="w-5 h-5 text-muted-foreground" />
@@ -458,13 +408,9 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
 
           {/* Top Pools Suggestions */}
           <div className="space-y-2">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">
-              Top pools by APY
-            </p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Top pools by APY</p>
             {topPools.map((pool) => {
-              const poolToken = tokensData.find(
-                (t) => t.symbol === pool.tokenB
-              ) as Token | undefined;
+              const poolToken = tokensData.find((t) => t.symbol === pool.tokenB) as Token | undefined;
               return (
                 <div
                   key={pool.id}
@@ -479,24 +425,18 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
                           backgroundColor: poolToken?.brandColor || "#6b7280",
                         }}
                       >
-                        <span className="text-[10px] font-bold text-white">
-                          {pool.tokenB[0]}
-                        </span>
+                        <span className="text-[10px] font-bold text-white">{pool.tokenB[0]}</span>
                       </div>
                       <div
                         className="w-6 h-6 rounded-full flex items-center justify-center border border-background"
                         style={{ backgroundColor: "#1dd13a" }}
                       >
-                        <span className="text-[10px] font-bold text-white">
-                          C
-                        </span>
+                        <span className="text-[10px] font-bold text-white">C</span>
                       </div>
                     </div>
                     <span className="text-sm">{pool.tokenB} / CNPY</span>
                   </div>
-                  <span className="text-sm font-medium text-green-500">
-                    {pool.apr}%
-                  </span>
+                  <span className="text-sm font-medium text-green-500">{pool.apr}%</span>
                 </div>
               );
             })}
@@ -504,11 +444,7 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
         </div>
 
         {/* Pool Selection Dialog */}
-        <PoolSelectionDialog
-          open={showPoolDialog}
-          onOpenChange={setShowPoolDialog}
-          onSelectPool={handleSelectPool}
-        />
+        <PoolSelectionDialog open={showPoolDialog} onOpenChange={setShowPoolDialog} onSelectPool={handleSelectPool} />
       </>
     );
   }
@@ -531,18 +467,14 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
       <div className="space-y-3">
         {/* Token A (non-CNPY token) */}
         <div className="px-4">
-          <Card
-            className={`bg-muted/30 p-4 ${balanceA === 0 ? "opacity-80" : ""}`}
-          >
+          <Card className={`bg-muted/30 p-4 ${balanceA === 0 ? "opacity-80" : ""}`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div
                   className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
                   style={{ backgroundColor: tokenA?.brandColor || "#10b981" }}
                 >
-                  <span className="text-base font-bold text-white">
-                    {tokenA?.symbol?.[0]}
-                  </span>
+                  <span className="text-base font-bold text-white">{tokenA?.symbol?.[0]}</span>
                 </div>
                 <div className="text-left">
                   <p className="text-base font-semibold">{tokenA?.symbol}</p>
@@ -552,9 +484,7 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Balance:{" "}
-                    {parseFloat(
-                      formatTokenAmount(balanceA.toFixed(6))
-                    ).toLocaleString(undefined, {
+                    {parseFloat(formatTokenAmount(balanceA.toFixed(6))).toLocaleString(undefined, {
                       maximumFractionDigits: 6,
                       minimumFractionDigits: 0,
                     })}
@@ -563,11 +493,7 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
               </div>
               <div className="flex flex-col items-end gap-0.5">
                 <div className="flex items-center gap-1">
-                  {inputModeA === "usd" && (
-                    <span className="text-base font-semibold text-muted-foreground">
-                      $
-                    </span>
-                  )}
+                  {inputModeA === "usd" && <span className="text-base font-semibold text-muted-foreground">$</span>}
                   <input
                     type="text"
                     inputMode="decimal"
@@ -583,9 +509,7 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
                   disabled={balanceA === 0}
                   className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {inputModeA === "token"
-                    ? displayValuesA.usdAmount
-                    : displayValuesA.tokenAmount}
+                  {inputModeA === "token" ? displayValuesA.usdAmount : displayValuesA.tokenAmount}
                   <Zap className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -595,18 +519,14 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
 
         {/* Token B (CNPY) */}
         <div className="px-4">
-          <Card
-            className={`bg-muted/30 p-4 ${balanceB === 0 ? "opacity-80" : ""}`}
-          >
+          <Card className={`bg-muted/30 p-4 ${balanceB === 0 ? "opacity-80" : ""}`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div
                   className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
                   style={{ backgroundColor: tokenB?.brandColor || "#1dd13a" }}
                 >
-                  <span className="text-base font-bold text-white">
-                    {tokenB?.symbol?.[0]}
-                  </span>
+                  <span className="text-base font-bold text-white">{tokenB?.symbol?.[0]}</span>
                 </div>
                 <div className="text-left">
                   <p className="text-base font-semibold">{tokenB?.symbol}</p>
@@ -616,9 +536,7 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Balance:{" "}
-                    {parseFloat(
-                      formatTokenAmount(balanceB.toFixed(6))
-                    ).toLocaleString(undefined, {
+                    {parseFloat(formatTokenAmount(balanceB.toFixed(6))).toLocaleString(undefined, {
                       maximumFractionDigits: 6,
                       minimumFractionDigits: 0,
                     })}
@@ -627,11 +545,7 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
               </div>
               <div className="flex flex-col items-end gap-0.5">
                 <div className="flex items-center gap-1">
-                  {inputModeB === "usd" && (
-                    <span className="text-base font-semibold text-muted-foreground">
-                      $
-                    </span>
-                  )}
+                  {inputModeB === "usd" && <span className="text-base font-semibold text-muted-foreground">$</span>}
                   <input
                     type="text"
                     inputMode="decimal"
@@ -647,9 +561,7 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
                   disabled={balanceB === 0}
                   className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {inputModeB === "token"
-                    ? displayValuesB.usdAmount
-                    : displayValuesB.tokenAmount}
+                  {inputModeB === "token" ? displayValuesB.usdAmount : displayValuesB.tokenAmount}
                   <Zap className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -671,12 +583,7 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
           <Button
             className="w-full h-11"
             size="lg"
-            disabled={
-              isPreview ||
-              (!amountA && !amountB) ||
-              isSubmitting ||
-              !isConnected
-            }
+            disabled={isPreview || (!amountA && !amountB) || isSubmitting || !isConnected}
             onClick={() => (amountA || amountB) && setShowConfirmation(true)}
           >
             {isPreview
@@ -693,12 +600,7 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
           <Button
             className="w-full h-11"
             size="lg"
-            disabled={
-              isPreview ||
-              (!amountA && !amountB) ||
-              isSubmitting ||
-              !isConnected
-            }
+            disabled={isPreview || (!amountA && !amountB) || isSubmitting || !isConnected}
             onClick={() => (amountA || amountB) && setShowConfirmation(true)}
           >
             {isPreview
@@ -723,26 +625,20 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
                 className="w-8 h-8 rounded-full flex items-center justify-center border-2 border-background"
                 style={{ backgroundColor: tokenA?.brandColor || "#10b981" }}
               >
-                <span className="text-xs font-bold text-white">
-                  {tokenA?.symbol?.[0]}
-                </span>
+                <span className="text-xs font-bold text-white">{tokenA?.symbol?.[0]}</span>
               </div>
               <div
                 className="w-8 h-8 rounded-full flex items-center justify-center border-2 border-background"
                 style={{ backgroundColor: tokenB?.brandColor || "#1dd13a" }}
               >
-                <span className="text-xs font-bold text-white">
-                  {tokenB?.symbol?.[0]}
-                </span>
+                <span className="text-xs font-bold text-white">{tokenB?.symbol?.[0]}</span>
               </div>
             </div>
             <div className="flex items-center justify-between flex-1">
               <span className="text-sm font-medium">
                 {tokenA?.symbol} / {tokenB?.symbol}
               </span>
-              <span className="text-sm font-semibold text-green-500">
-                {selectedPool.apr}% APY
-              </span>
+              <span className="text-sm font-semibold text-green-500">{selectedPool.apr}% APY</span>
             </div>
           </div>
 
@@ -754,15 +650,11 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
                   ? `${userPosition.share.toFixed(3)}%`
                   : (() => {
                       const depositUSD =
-                        (parseFloat(amountA) || 0) *
-                          (tokenA?.currentPrice || 0) +
-                        (parseFloat(amountB) || 0) *
-                          (tokenB?.currentPrice || 0);
+                        (parseFloat(amountA) || 0) * (tokenA?.currentPrice || 0) +
+                        (parseFloat(amountB) || 0) * (tokenB?.currentPrice || 0);
                       const share =
                         selectedPool.totalLiquidity > 0
-                          ? (depositUSD /
-                              (selectedPool.totalLiquidity + depositUSD)) *
-                            100
+                          ? (depositUSD / (selectedPool.totalLiquidity + depositUSD)) * 100
                           : 0;
                       return `${share.toFixed(4)}%`;
                     })()}
@@ -770,21 +662,14 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Deposit APY</span>
-              <span className="font-semibold text-green-500">
-                {selectedPool.apr}%
-              </span>
+              <span className="font-semibold text-green-500">{selectedPool.apr}%</span>
             </div>
             {userPosition && (
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">
-                  {tokenA?.symbol} Staked
-                </span>
+                <span className="text-muted-foreground">{tokenA?.symbol} Staked</span>
                 <span className="font-medium">
                   {userPosition.tokenBAmount.toLocaleString()} ($
-                  {(
-                    userPosition.tokenBAmount * (tokenA?.currentPrice || 0)
-                  ).toFixed(0)}
-                  )
+                  {(userPosition.tokenBAmount * (tokenA?.currentPrice || 0)).toFixed(0)})
                 </span>
               </div>
             )}
@@ -793,10 +678,7 @@ export default function LiquidityTab({ isPreview = false }: LiquidityTabProps) {
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Pool Ratio</span>
                   <span className="font-medium">
-                    1 {tokenB?.symbol} ={" "}
-                    {(
-                      selectedPool.tokenBReserve / selectedPool.tokenAReserve
-                    ).toFixed(4)}{" "}
+                    1 {tokenB?.symbol} = {(selectedPool.tokenBReserve / selectedPool.tokenAReserve).toFixed(4)}{" "}
                     {tokenA?.symbol}
                   </span>
                 </div>

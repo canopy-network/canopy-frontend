@@ -30,12 +30,9 @@ export const transactionKeys = {
   all: ["transactions"] as const,
   history: (addresses: string[], filters?: Partial<TransactionHistoryRequest>) =>
     [...transactionKeys.all, "history", addresses, filters] as const,
-  pending: (addresses: string[]) =>
-    [...transactionKeys.all, "pending", addresses] as const,
-  detail: (hash: string, chainId: number) =>
-    [...transactionKeys.all, "detail", hash, chainId] as const,
-  status: (hash: string, chainId: number) =>
-    [...transactionKeys.all, "status", hash, chainId] as const,
+  pending: (addresses: string[]) => [...transactionKeys.all, "pending", addresses] as const,
+  detail: (hash: string, chainId: number) => [...transactionKeys.all, "detail", hash, chainId] as const,
+  status: (hash: string, chainId: number) => [...transactionKeys.all, "status", hash, chainId] as const,
 };
 
 /**
@@ -162,10 +159,7 @@ export function useTransactionStatus(
     enabled: options?.enabled !== false && !!hash,
     refetchInterval: (data) => {
       // Stop polling if transaction is complete and option is set
-      if (
-        options?.stopPollingOnComplete &&
-        data?.status !== "pending"
-      ) {
+      if (options?.stopPollingOnComplete && data?.status !== "pending") {
         return false;
       }
       return options?.pollInterval ?? 5000; // Poll every 5 seconds by default
@@ -190,8 +184,7 @@ export function useSendTransaction() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: SendRawTransactionRequest) =>
-      transactionsApi.sendRawTransaction(data),
+    mutationFn: (data: SendRawTransactionRequest) => transactionsApi.sendRawTransaction(data),
     onSuccess: (response: SendRawTransactionResponse) => {
       // Invalidate transaction queries to refresh the list
       queryClient.invalidateQueries({ queryKey: transactionKeys.all });
@@ -263,8 +256,7 @@ export function useTransactions(
   const estimateFee = useEstimateFee();
 
   // Flatten all pages of history
-  const allTransactions =
-    history.data?.pages.flatMap((page) => page.transactions) ?? [];
+  const allTransactions = history.data?.pages.flatMap((page) => page.transactions) ?? [];
 
   return {
     // History data

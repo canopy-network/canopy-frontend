@@ -489,7 +489,7 @@ export function LaunchpadDashboard() {
       refreshPriceHistory();
     }
 
-    // Set up polling interval (10 seconds)
+    // Set up polling interval (30 seconds - reduced frequency to prevent excessive API calls)
     const interval = setInterval(() => {
       // Only poll if page is visible (not in background tab)
       if (
@@ -499,7 +499,7 @@ export function LaunchpadDashboard() {
         refreshChainData();
         refreshPriceHistory();
       }
-    }, 10000); // 10 seconds
+    }, 30000); // 30 seconds - increased from 10s to reduce API load
 
     // Cleanup on unmount
     return () => clearInterval(interval);
