@@ -7,10 +7,13 @@ import { Plus, ChevronRight, ChevronDown, ArrowDown, Check, Zap, Loader2, AlertC
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import BridgeTokenDialog from "@/components/trading/bridge-token-dialog";
+import DestinationCurrencyDialog from "@/components/trading/destination-currency-dialog";
+import SellOrderConfirmationDialog from "@/components/trading/sell-order-confirmation-dialog";
 import ConvertTransactionDialog from "@/components/trading/convert-transaction-dialog";
 import { orderbookApi } from "@/lib/api";
 import { useChainId } from "wagmi";
 import { USDC_ADDRESSES } from "@/lib/web3/config";
+import toast from "react-hot-toast";
 import type { ChainData, BridgeToken, ConnectedWallets, OrderBookOrder, OrderSelection } from "@/types/trading";
 import type { OrderBookApiOrder } from "@/types/orderbook";
 
@@ -243,10 +246,14 @@ export default function ConvertTab({
   // Direction state: "buy" = USDC→CNPY, "sell" = CNPY→USDC
   const [direction, setDirection] = useState<ConvertDirection>("buy");
   const [sellMode, setSellMode] = useState<SellMode>("instant");
-  const [sellPrice, setSellPrice] = useState(""); // Custom price for "create" mode
+  const [sellPrice, setSellPrice] = useState("1"); // Custom price for "create" mode, default to 1
+  const [showReceiveSection, setShowReceiveSection] = useState(false); // Collapsible "You receive" section
 
   const [showBridgeDialog, setShowBridgeDialog] = useState(false);
+  const [showDestinationDialog, setShowDestinationDialog] = useState(false);
+  const [showSellConfirmationDialog, setShowSellConfirmationDialog] = useState(false);
   const [sourceToken, setSourceToken] = useState<BridgeToken | null>(null);
+  const [destinationCurrency, setDestinationCurrency] = useState<BridgeToken | null>(null);
   const [amount, setAmount] = useState("");
   const [sortMode, setSortMode] = useState<"best_price" | "best_fill">("best_price");
   const [showOrders, setShowOrders] = useState(false);
@@ -279,14 +286,14 @@ export default function ConvertTab({
 
     if (sellMode === "instant") {
       // Instant mode: fixed price with fee
-      const pricePerCnpy = 2.0; // Mock price - in real app would come from market
+      const pricePerCnpy = 1.0; // Default price - in real app would come from market
       const gross = cnpyAmount * pricePerCnpy;
       const fee = (gross * INSTANT_FEE_PERCENT) / 100;
       const usdcReceive = gross - fee;
       return { usdcReceive, fee, pricePerCnpy, gross };
     } else {
       // Create order mode: user sets the price
-      const pricePerCnpy = parseFloat(sellPrice) || 0;
+      const pricePerCnpy = parseFloat(sellPrice) || 1.0;
       const usdcReceive = cnpyAmount * pricePerCnpy;
       return { usdcReceive, fee: 0, pricePerCnpy, gross: usdcReceive };
     }
@@ -379,7 +386,14 @@ export default function ConvertTab({
     setAmount("");
     setSubmitError(null);
     setSubmitSuccess(null);
-    setSellPrice("");
+    setSellPrice("1"); // Reset to default price of 1
+    setShowReceiveSection(false); // Collapse receive section when switching
+  };
+
+  // Handle destination currency selection
+  const handleDestinationSelected = (token: BridgeToken) => {
+    setDestinationCurrency(token);
+    setShowDestinationDialog(false);
   };
 
   // Transform real API orders to the OrderBookOrder format for display
@@ -424,6 +438,7 @@ export default function ConvertTab({
   const handleUseMax = () => {
     if (direction === "sell") {
       setAmount(cnpyBalance.toString());
+      setShowReceiveSection(true); // Show receive section when using max
     } else if (sourceToken) {
       // Use the actual balance from the selected token (fetched from wallet)
       const maxBalance = sourceToken.balance || 0;
@@ -454,6 +469,7 @@ export default function ConvertTab({
 
     // Sell mode validations
     if (direction === "sell") {
+      if (!destinationCurrency) return { disabled: true, text: "Select destination", variant: "disabled" };
       if (!amount || parseFloat(amount) <= 0) return { disabled: true, text: "Enter amount", variant: "disabled" };
       if (parseFloat(amount) > cnpyBalance)
         return {
@@ -465,10 +481,9 @@ export default function ConvertTab({
         return { disabled: true, text: "Enter price", variant: "disabled" };
       if (isSubmitting) return { disabled: true, text: "Processing...", variant: "disabled" };
 
-      const cnpyAmount = parseFloat(amount) || 0;
       return {
         disabled: false,
-        text: `Sell ${cnpyAmount.toLocaleString()} CNPY`,
+        text: sellMode === "create" ? "Create Order" : "Place Order",
         variant: "sell",
       };
     }
@@ -492,10 +507,148 @@ export default function ConvertTab({
     };
   };
 
-  // Handle the actual order creation
+  // Handle the actual order creation (for sell mode, called from confirmation dialog)
+  const handleCreateSellOrder = async () => {
+    setSubmitError(null);
+    setSubmitSuccess(null);
+
+    // Validation
+    if (!currentWallet) {
+      setSubmitError("Please connect a Canopy wallet first");
+      return;
+    }
+
+    if (!currentWallet.isUnlocked) {
+      setSubmitError("Please unlock your Canopy wallet first");
+      return;
+    }
+
+    if (!ethAddress) {
+      setSubmitError("Please sign in with Ethereum (SIWE)");
+      return;
+    }
+
+    if (!usdcAddress) {
+      setSubmitError("USDC not supported on this network");
+      return;
+    }
+
+    if (!amount || parseFloat(amount) <= 0) {
+      setSubmitError("Please enter an amount");
+      return;
+    }
+
+    if (!destinationCurrency) {
+      setSubmitError("Please select a destination currency");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const DATA_ADDRESS = USDC_CONTRACT_ADDRESS;
+      const cnpyAmount = parseFloat(amount);
+
+      if (cnpyAmount > cnpyBalance) {
+        setSubmitError("Insufficient CNPY balance");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Determine USDC amount based on mode
+      let usdcAmount: number;
+      if (sellMode === "instant") {
+        // Instant: use market price with fee already calculated
+        usdcAmount = sellCalculation.usdcReceive;
+      } else {
+        // Create order: user-specified price
+        const price = parseFloat(sellPrice);
+        if (!price || price <= 0) {
+          setSubmitError("Please enter a valid price");
+          setIsSubmitting(false);
+          return;
+        }
+        usdcAmount = cnpyAmount * price;
+      }
+
+      // Convert to micro units
+      const amountForSale = Math.round(cnpyAmount * DECIMALS);
+      const requestedAmount = Math.round(usdcAmount * DECIMALS);
+
+      // Create sell order
+      const txHash = await createOrder(
+        USDC_COMMITTEE_ID, // Committee ID 3 for USDC
+        amountForSale, // CNPY amount in micro units
+        requestedAmount, // USDC amount in micro units
+        ethAddress, // sellerReceiveAddress: Ethereum address to receive USDC
+        DATA_ADDRESS // data: USDC contract address
+      );
+
+      // Close confirmation dialog
+      setShowSellConfirmationDialog(false);
+
+      // Show success toast
+      toast.success(
+        (t) => (
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <p className="font-medium">Order created successfully</p>
+              <p className="text-sm text-muted-foreground">
+                Selling {cnpyAmount.toLocaleString()} CNPY at ${sellCalculation.pricePerCnpy.toFixed(3)}/CNPY
+              </p>
+            </div>
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="text-sm font-medium text-green-500 hover:text-green-400"
+            >
+              View Orders
+            </button>
+          </div>
+        ),
+        {
+          duration: 5000,
+          position: "bottom-center",
+          style: {
+            background: "rgba(255, 255, 255, 0.1)",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            color: "white",
+            backdropFilter: "blur(8px)",
+          },
+        }
+      );
+
+      // Reset form
+      setAmount("");
+      setSellPrice("");
+
+      // Refresh orders after delay
+      setTimeout(() => {
+        fetchOrders();
+      }, 2000);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Failed to create order");
+      setShowSellConfirmationDialog(false);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle the button click - for sell mode, show confirmation dialog
   // Buy: USDC → CNPY (filling existing sell orders)
   // Sell: CNPY → USDC (creating a sell order)
   const handleConvert = async () => {
+    // For sell mode, show confirmation dialog instead of directly creating order
+    if (direction === "sell") {
+      // Check if destination is selected
+      if (!destinationCurrency) {
+        setShowDestinationDialog(true);
+        return;
+      }
+      setShowSellConfirmationDialog(true);
+      return;
+    }
+
+    // For buy mode, continue with existing logic
     setSubmitError(null);
     setSubmitSuccess(null);
 
@@ -542,91 +695,37 @@ export default function ConvertTab({
         return;
       }
 
-      if (direction === "sell") {
-        // SELL CNPY for USDC
-        // Creates a sell order in the orderbook
-        const cnpyAmount = parseFloat(amount);
-
-        if (cnpyAmount > cnpyBalance) {
-          setSubmitError("Insufficient CNPY balance");
-          setIsSubmitting(false);
-          return;
-        }
-
-        // Determine USDC amount based on mode
-        let usdcAmount: number;
-        if (sellMode === "instant") {
-          // Instant: use market price with fee already calculated
-          usdcAmount = sellCalculation.usdcReceive;
-        } else {
-          // Create order: user-specified price
-          const price = parseFloat(sellPrice);
-          if (!price || price <= 0) {
-            setSubmitError("Please enter a valid price");
-            setIsSubmitting(false);
-            return;
-          }
-          usdcAmount = cnpyAmount * price;
-        }
-
-        // Convert to micro units
-        const amountForSale = Math.round(cnpyAmount * DECIMALS);
-        const requestedAmount = Math.round(usdcAmount * DECIMALS);
-
-        // Create sell order:
-        // - amountForSale: CNPY being sold (from Canopy wallet)
-        // - requestedAmount: USDC to receive (to Ethereum wallet)
-        // - sellerReceiveAddress: Ethereum address (receives USDC)
-        // - sellersSendAddress: Canopy address (sends CNPY)
-        // - data: USDC contract address
-
-        const txHash = await createOrder(
-          USDC_COMMITTEE_ID, // Committee ID 3 for USDC
-          amountForSale, // CNPY amount in micro units
-          requestedAmount, // USDC amount in micro units
-          ethAddress, // sellerReceiveAddress: Ethereum address to receive USDC
-          DATA_ADDRESS // data: USDC contract address
-        );
-
-        setSubmitSuccess(
-          `Sell order created! TX: ${txHash.slice(
-            0,
-            16
-          )}... | Selling ${cnpyAmount.toLocaleString()} CNPY for $${usdcAmount.toFixed(2)} USDC`
-        );
-      } else {
-        // BUY CNPY with USDC
-        if (!sourceToken) {
-          setSubmitError("Please select a token");
-          setIsSubmitting(false);
-          return;
-        }
-
-        if (selection.selectedOrders.length === 0) {
-          setSubmitError("No orders available to fill");
-          setIsSubmitting(false);
-          return;
-        }
-
-        const totalCnpyToReceive = Math.round(selection.cnpyReceived * DECIMALS);
-        const totalUsdcToSpend = Math.round(selection.totalCost * DECIMALS);
-
-        // Buy CNPY with USDC
-        const txHash = await createOrder(
-          USDC_COMMITTEE_ID, // Committee ID 3 for USDC
-          totalCnpyToReceive, // CNPY amount to receive
-          totalUsdcToSpend, // USDC amount to pay
-          currentWallet.address, // Canopy address to receive CNPY
-          DATA_ADDRESS // data: USDC contract address
-        );
-
-        setSubmitSuccess(
-          `Order created! TX: ${txHash.slice(
-            0,
-            16
-          )}... | Buying ${selection.cnpyReceived.toLocaleString()} CNPY with USDC`
-        );
+      // BUY CNPY with USDC
+      if (!sourceToken) {
+        setSubmitError("Please select a token");
+        setIsSubmitting(false);
+        return;
       }
+
+      if (selection.selectedOrders.length === 0) {
+        setSubmitError("No orders available to fill");
+        setIsSubmitting(false);
+        return;
+      }
+
+      const totalCnpyToReceive = Math.round(selection.cnpyReceived * DECIMALS);
+      const totalUsdcToSpend = Math.round(selection.totalCost * DECIMALS);
+
+      // Buy CNPY with USDC
+      const txHash = await createOrder(
+        USDC_COMMITTEE_ID, // Committee ID 3 for USDC
+        totalCnpyToReceive, // CNPY amount to receive
+        totalUsdcToSpend, // USDC amount to pay
+        currentWallet.address, // Canopy address to receive CNPY
+        DATA_ADDRESS // data: USDC contract address
+      );
+
+      setSubmitSuccess(
+        `Order created! TX: ${txHash.slice(
+          0,
+          16
+        )}... | Buying ${selection.cnpyReceived.toLocaleString()} CNPY with USDC`
+      );
 
       // Reset form
       setAmount("");
@@ -651,7 +750,7 @@ export default function ConvertTab({
       <>
         {/* Input Token Card - CNPY */}
         <div className="px-4">
-          <Card className="bg-muted/30 p-4 space-y-3">
+          <Card className="bg-muted/30 p-4 space-y-3 gap-0">
             {/* CNPY Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -678,6 +777,12 @@ export default function ConvertTab({
                   const value = e.target.value;
                   if (value === "" || /^\d*\.?\d*$/.test(value)) {
                     setAmount(value);
+                    // Show receive section when amount is entered
+                    if (parseFloat(value) > 0) {
+                      setShowReceiveSection(true);
+                    } else {
+                      setShowReceiveSection(false);
+                    }
                     if (parseFloat(value) > cnpyBalance && parseFloat(amount) <= cnpyBalance) {
                       setIsShaking(true);
                       setTimeout(() => setIsShaking(false), 400);
@@ -713,108 +818,192 @@ export default function ConvertTab({
           </Button>
         </div>
 
-        {/* Output Token Card - USDC */}
+        {/* Output Token Card - Destination Currency */}
         <div className="px-4">
-          <Card className="bg-muted/30 p-4 space-y-4">
-            {/* USDC Header */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <div className="w-9 h-9 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
-                    $
+          <Card className="bg-muted/30 p-4 gap-4">
+            {/* Destination Currency Header */}
+            {destinationCurrency ? (
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => setShowDestinationDialog(true)}
+                  className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                >
+                  <div className="relative">
+                    <div
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold"
+                      style={{ backgroundColor: destinationCurrency.color }}
+                    >
+                      {destinationCurrency.symbol === "USDC" ? "$" : destinationCurrency.symbol[0]}
+                    </div>
+                    <ChainBadge chain={destinationCurrency.chain} />
                   </div>
-                  <ChainBadge chain="ethereum" />
-                </div>
-                <div className="text-left">
-                  <div className="flex items-center gap-2">
-                    <p className="text-base font-semibold">USDC</p>
-                    <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">Ethereum</span>
+                  <div className="text-left">
+                    <div className="flex items-center gap-2">
+                      <p className="text-base font-semibold">{destinationCurrency.symbol}</p>
+                      <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">
+                        {destinationCurrency.chainName}
+                      </span>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {destinationCurrency.balance.toLocaleString()} {destinationCurrency.symbol}
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {sourceToken?.balance ? sourceToken.balance.toLocaleString() : "0"} USDC
-                  </p>
+                </button>
+                <div className="text-right">
+                  <p className="text-base font-semibold">${sellCalculation.usdcReceive.toFixed(2)}</p>
+                  <p className="text-sm text-muted-foreground">@${sellCalculation.pricePerCnpy.toFixed(3)}/CNPY</p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-base font-semibold">${sellCalculation.usdcReceive.toFixed(2)}</p>
-                <p className="text-sm text-muted-foreground">@${sellCalculation.pricePerCnpy.toFixed(3)}/CNPY</p>
-              </div>
-            </div>
+            ) : (
+              <Card
+                className="bg-muted/30 p-4 hover:bg-muted/40 transition-colors cursor-pointer"
+                onClick={() => setShowDestinationDialog(true)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-full bg-muted flex items-center justify-center">
+                      <Plus className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-base font-semibold">Select destination</p>
+                      <p className="text-sm text-muted-foreground">Choose where to receive funds</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                </div>
+              </Card>
+            )}
 
             {/* Sell Mode Toggle: Instant vs Create Order */}
             <div className="flex gap-2 p-1 bg-muted/50 rounded-lg">
               <button
                 onClick={() => setSellMode("instant")}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-all ${
+                className={`flex-col w-full flex items-center justify-center  py-2 rounded-md text-sm font-medium transition-all ${
                   sellMode === "instant"
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Zap className="w-4 h-4" />
-                Instant
+                <span className="flex items-center gap-2">
+                  <Zap className="w-4 h-4" />
+                  Instant
+                </span>
+                <span className="text-muted-foreground text-xs">-${sellCalculation.fee.toFixed(2)}</span>
               </button>
               <button
                 onClick={() => setSellMode("create")}
-                className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all ${
+                className={`flex-col  flex w-full py-2 rounded-md text-sm font-medium transition-all ${
                   sellMode === "create"
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Create Order
+                <span className="">Create Order</span>
+                <span className="text-green-500 text-xs">
+                  +$
+                  {((parseFloat(amount) || 0) * (parseFloat(sellPrice) || 1) - sellCalculation.gross).toFixed(2)}
+                </span>
               </button>
             </div>
 
             {/* Mode-specific content */}
-            {sellMode === "instant" ? (
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <div className="text-red-400">-${sellCalculation.fee.toFixed(2)}</div>
-              </div>
+            {parseFloat(amount) > 0 ? (
+              <>
+                {/* You receive section - collapsible */}
+                {sellMode === "instant" ? (
+                  <>
+                    <div className="bg-muted/30 py-3 px-4 rounded-lg">
+                      <button
+                        onClick={() => setShowReceiveSection(!showReceiveSection)}
+                        className="w-full flex items-center justify-between"
+                      >
+                        <div className="text-left">
+                          <p className="text-sm text-muted-foreground">You receive (if filled)</p>
+                          <p className="text-xl font-bold">${sellCalculation.usdcReceive.toFixed(2)} USDC</p>
+                          <p className="text-sm text-muted-foreground">
+                            Fee:{" "}
+                            <span className="text-white">
+                              {" "}
+                              {INSTANT_FEE_PERCENT}% ($
+                              {sellCalculation.fee.toFixed(2)})
+                            </span>
+                          </p>
+                        </div>
+                        <ChevronDown
+                          className={`w-5 h-5 text-white transition-transform ${
+                            showReceiveSection ? "rotate-180" : ""
+                          }`}
+                        />
+                      </button>
+                      {showReceiveSection && (
+                        <div className="mt-4 pt-4 border-t border-border space-y-3">
+                          <p className="text-sm text-muted-foreground">
+                            Rate: <span className="text-white">${sellCalculation.pricePerCnpy.toFixed(3)}/CNPY</span>
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1 text-sm">
+                              <Check className="w-4 h-4 text-green-500" />
+                              <span className="text-muted-foreground">Instant</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-sm">
+                              <Check className="w-4 h-4 text-green-500" />
+                              <span className="text-muted-foreground">Guaranteed</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="bg-muted/30 py-3 px-4 rounded-lg">
+                      <button
+                        onClick={() => setShowReceiveSection(!showReceiveSection)}
+                        className="w-full flex items-center justify-between"
+                      >
+                        <div className="text-left">
+                          <p className="text-sm text-muted-foreground">You receive (if filled)</p>
+                          <p className="text-xl font-bold">${sellCalculation.usdcReceive.toFixed(2)} USDC</p>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            Est. fill time: <span className="text-white">2-4 hours</span>
+                          </p>
+                        </div>
+                        <ChevronDown
+                          className={`w-5 h-5 text-white transition-transform ${
+                            showReceiveSection ? "rotate-180" : ""
+                          }`}
+                        />
+                      </button>
+                      {showReceiveSection && (
+                        <div className="mt-4 pt-4 border-t border-border space-y-4">
+                          {/* Custom price input for "Create Order" mode - only show when expanded */}
+                          {sellMode === "create" && (
+                            <div className="space-y-2">
+                              <label className="text-sm text-muted-foreground">Your price per CNPY (USDC)</label>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={sellPrice}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                                    setSellPrice(value);
+                                  }
+                                }}
+                                placeholder="1.00"
+                                className="w-full text-lg font-medium bg-muted/30 border border-green-500/50 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-green-500/50"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </>
             ) : (
-              <div className="space-y-2">
-                <div className="text-green-500 text-sm">
-                  +$
-                  {((parseFloat(amount) || 0) * (parseFloat(sellPrice) || 0) - sellCalculation.gross).toFixed(2)}
-                </div>
-              </div>
-            )}
-
-            {/* You receive section */}
-            <div className="border-t border-border pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">You receive</p>
-                  <p className="text-xl font-bold">${sellCalculation.usdcReceive.toFixed(2)} USDC</p>
-                  {sellMode === "instant" && (
-                    <p className="text-sm text-muted-foreground">
-                      Fee: {INSTANT_FEE_PERCENT}% ($
-                      {sellCalculation.fee.toFixed(2)})
-                    </p>
-                  )}
-                </div>
-                <ChevronDown className="w-5 h-5 text-muted-foreground" />
-              </div>
-            </div>
-
-            {/* Custom price input for "Create Order" mode */}
-            {sellMode === "create" && (
-              <div className="space-y-2 border-t border-border pt-4">
-                <label className="text-sm text-muted-foreground">Your price per CNPY (USDC)</label>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={sellPrice}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                      setSellPrice(value);
-                    }
-                  }}
-                  placeholder="2.00"
-                  className="w-full text-lg font-medium bg-muted/30 border border-border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-green-500/50"
-                />
-              </div>
+              <div className="text-sm text-muted-foreground pt-2">Enter an amount to see create order details</div>
             )}
           </Card>
         </div>
@@ -863,6 +1052,31 @@ export default function ConvertTab({
               </div>
             </div>
           </div>
+        )}
+
+        {/* Destination Currency Selection Dialog */}
+        <DestinationCurrencyDialog
+          open={showDestinationDialog}
+          onOpenChange={setShowDestinationDialog}
+          onSelectToken={handleDestinationSelected}
+          connectedWallets={connectedWallets}
+          onConnectWallet={handleConnectWallet}
+        />
+
+        {/* Sell Order Confirmation Dialog */}
+        {destinationCurrency && (
+          <SellOrderConfirmationDialog
+            open={showSellConfirmationDialog}
+            onClose={() => setShowSellConfirmationDialog(false)}
+            onConfirm={handleCreateSellOrder}
+            cnpyAmount={parseFloat(amount) || 0}
+            pricePerCnpy={sellCalculation.pricePerCnpy}
+            usdcReceive={sellCalculation.usdcReceive}
+            destinationCurrency={destinationCurrency.symbol}
+            sellMode={sellMode}
+            estimatedFillTime={sellMode === "instant" ? "Instant" : "2-4 hours"}
+            isSubmitting={isSubmitting}
+          />
         )}
       </>
     );
@@ -1169,6 +1383,31 @@ export default function ConvertTab({
         connectedWallets={connectedWallets}
         onConnectWallet={handleConnectWallet}
       />
+
+      {/* Destination Currency Selection Dialog */}
+      <DestinationCurrencyDialog
+        open={showDestinationDialog}
+        onOpenChange={setShowDestinationDialog}
+        onSelectToken={handleDestinationSelected}
+        connectedWallets={connectedWallets}
+        onConnectWallet={handleConnectWallet}
+      />
+
+      {/* Sell Order Confirmation Dialog */}
+      {destinationCurrency && (
+        <SellOrderConfirmationDialog
+          open={showSellConfirmationDialog}
+          onClose={() => setShowSellConfirmationDialog(false)}
+          onConfirm={handleCreateSellOrder}
+          cnpyAmount={parseFloat(amount) || 0}
+          pricePerCnpy={sellCalculation.pricePerCnpy}
+          usdcReceive={sellCalculation.usdcReceive}
+          destinationCurrency={destinationCurrency.symbol}
+          sellMode={sellMode}
+          estimatedFillTime={sellMode === "instant" ? "Instant" : "2-4 hours"}
+          isSubmitting={isSubmitting}
+        />
+      )}
 
       {/* Convert Transaction Progress Dialog */}
       {showTransactionDialog && sourceToken && (

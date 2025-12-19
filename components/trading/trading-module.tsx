@@ -405,7 +405,7 @@ export default function TradingModule({
 
   return (
     <>
-      <Card className="p-1 sticky top-6 overflow-visible">
+      <Card className="p-1 sticky top-6 overflow-hidden">
         <div className="space-y-4">
           {/* Tab Navigation */}
           <div className="px-3 pt-3">{renderTabButtons()}</div>
