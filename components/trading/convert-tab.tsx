@@ -1,9 +1,21 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Plus, ChevronRight, ChevronDown, ArrowDown, Check, Zap, Loader2, AlertCircle } from "lucide-react";
+import {
+  Plus,
+  ChevronRight,
+  ChevronDown,
+  ArrowDown,
+  Check,
+  Zap,
+  Loader2,
+  AlertCircle,
+  Minus,
+  AlertTriangle,
+} from "lucide-react";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import BridgeTokenDialog from "@/components/trading/bridge-token-dialog";
@@ -218,6 +230,7 @@ export default function ConvertTab({
 }: ConvertTabProps) {
   const { wallets, currentWallet, createOrder, balance } = useWalletStore();
   const { user } = useAuthStore();
+  const router = useRouter();
   const isConnected = wallets.length > 0;
   const ethAddress = user?.wallet_address; // Ethereum address from SIWE sign-in
 
@@ -246,8 +259,13 @@ export default function ConvertTab({
   // Direction state: "buy" = USDC→CNPY, "sell" = CNPY→USDC
   const [direction, setDirection] = useState<ConvertDirection>("buy");
   const [sellMode, setSellMode] = useState<SellMode>("instant");
-  const [sellPrice, setSellPrice] = useState("1"); // Custom price for "create" mode, default to 1
+  const [sellPrice, setSellPrice] = useState("2"); // Custom price for "create" mode, default to 2
+  const [priceType, setPriceType] = useState<"market" | "-1%" | "-2%" | "-5%" | "custom">("market");
+  const [showPriceDropdown, setShowPriceDropdown] = useState(false);
   const [showReceiveSection, setShowReceiveSection] = useState(false); // Collapsible "You receive" section
+
+  // Market price constant
+  const MARKET_PRICE = 2.0;
 
   const [showBridgeDialog, setShowBridgeDialog] = useState(false);
   const [showDestinationDialog, setShowDestinationDialog] = useState(false);
@@ -279,6 +297,27 @@ export default function ConvertTab({
     },
   });
 
+  // Calculate price based on price type
+  const getPriceFromType = useCallback(
+    (type: typeof priceType): number => {
+      switch (type) {
+        case "market":
+          return MARKET_PRICE;
+        case "-1%":
+          return MARKET_PRICE * 0.99;
+        case "-2%":
+          return MARKET_PRICE * 0.98;
+        case "-5%":
+          return MARKET_PRICE * 0.95;
+        case "custom":
+          return parseFloat(sellPrice) || MARKET_PRICE;
+        default:
+          return MARKET_PRICE;
+      }
+    },
+    [sellPrice]
+  );
+
   // Calculate USDC receive amount for sell mode
   const sellCalculation = useMemo(() => {
     const cnpyAmount = parseFloat(amount) || 0;
@@ -293,11 +332,11 @@ export default function ConvertTab({
       return { usdcReceive, fee, pricePerCnpy, gross };
     } else {
       // Create order mode: user sets the price
-      const pricePerCnpy = parseFloat(sellPrice) || 1.0;
+      const pricePerCnpy = getPriceFromType(priceType);
       const usdcReceive = cnpyAmount * pricePerCnpy;
       return { usdcReceive, fee: 0, pricePerCnpy, gross: usdcReceive };
     }
-  }, [amount, sellMode, sellPrice]);
+  }, [amount, sellMode, priceType, getPriceFromType]);
 
   // Fetch real orders from the orderbook API (USDC only)
   const fetchOrders = useCallback(async () => {
@@ -386,8 +425,26 @@ export default function ConvertTab({
     setAmount("");
     setSubmitError(null);
     setSubmitSuccess(null);
-    setSellPrice("1"); // Reset to default price of 1
+    setSellPrice("2"); // Reset to default price of 2
+    setPriceType("market");
     setShowReceiveSection(false); // Collapse receive section when switching
+  };
+
+  // Handle price type selection
+  const handlePriceTypeSelect = (type: typeof priceType) => {
+    setPriceType(type);
+    setShowPriceDropdown(false);
+    if (type !== "custom") {
+      setSellPrice(getPriceFromType(type).toFixed(2));
+    }
+  };
+
+  // Handle price increment/decrement
+  const handlePriceChange = (delta: number) => {
+    const currentPrice = parseFloat(sellPrice) || MARKET_PRICE;
+    const newPrice = Math.max(0.01, currentPrice + delta);
+    setSellPrice(newPrice.toFixed(2));
+    setPriceType("custom");
   };
 
   // Handle destination currency selection
@@ -557,18 +614,20 @@ export default function ConvertTab({
 
       // Determine USDC amount based on mode
       let usdcAmount: number;
+      let finalPricePerCnpy: number;
       if (sellMode === "instant") {
         // Instant: use market price with fee already calculated
         usdcAmount = sellCalculation.usdcReceive;
+        finalPricePerCnpy = sellCalculation.pricePerCnpy;
       } else {
         // Create order: user-specified price
-        const price = parseFloat(sellPrice);
-        if (!price || price <= 0) {
+        finalPricePerCnpy = getPriceFromType(priceType);
+        if (!finalPricePerCnpy || finalPricePerCnpy <= 0) {
           setSubmitError("Please enter a valid price");
           setIsSubmitting(false);
           return;
         }
-        usdcAmount = cnpyAmount * price;
+        usdcAmount = cnpyAmount * finalPricePerCnpy;
       }
 
       // Convert to micro units
@@ -590,16 +649,22 @@ export default function ConvertTab({
       // Show success toast
       toast.success(
         (t) => (
-          <div className="flex items-center gap-3">
-            <div className="flex-1">
-              <p className="font-medium">Order created successfully</p>
+          <div className="flex items-start gap-3 w-full">
+            <div className="w-5 h-5 rounded-full bg-black flex items-center justify-center flex-shrink-0 mt-0.5">
+              <Check className="w-3 h-3 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-white mb-1">Order created successfully</p>
               <p className="text-sm text-muted-foreground">
-                Selling {cnpyAmount.toLocaleString()} CNPY at ${sellCalculation.pricePerCnpy.toFixed(3)}/CNPY
+                Selling {cnpyAmount.toLocaleString()} CNPY at ${finalPricePerCnpy.toFixed(3)}/CNPY
               </p>
             </div>
             <button
-              onClick={() => toast.dismiss(t.id)}
-              className="text-sm font-medium text-green-500 hover:text-green-400"
+              onClick={() => {
+                toast.dismiss(t.id);
+                router.push("/orderbook");
+              }}
+              className="px-4 py-2 bg-white text-black text-sm font-medium rounded hover:bg-gray-100 transition-colors flex-shrink-0"
             >
               View Orders
             </button>
@@ -609,10 +674,13 @@ export default function ConvertTab({
           duration: 5000,
           position: "bottom-center",
           style: {
-            background: "rgba(255, 255, 255, 0.1)",
+            background: "rgba(0, 0, 0, 0.95)",
             border: "1px solid rgba(255, 255, 255, 0.1)",
             color: "white",
             backdropFilter: "blur(8px)",
+            borderRadius: "12px",
+            padding: "16px",
+            maxWidth: "500px",
           },
         }
       );
@@ -913,7 +981,7 @@ export default function ConvertTab({
                 {/* You receive section - collapsible */}
                 {sellMode === "instant" ? (
                   <>
-                    <div className="bg-muted/30 py-3 px-4 rounded-lg">
+                    <div className="bg-muted/30 py-3 px-3 rounded-lg">
                       <button
                         onClick={() => setShowReceiveSection(!showReceiveSection)}
                         className="w-full flex items-center justify-between"
@@ -957,7 +1025,7 @@ export default function ConvertTab({
                   </>
                 ) : (
                   <>
-                    <div className="bg-muted/30 py-3 px-4 rounded-lg">
+                    <div className="bg-muted/30 py-3 px-3 rounded-lg">
                       <button
                         onClick={() => setShowReceiveSection(!showReceiveSection)}
                         className="w-full flex items-center justify-between"
@@ -977,23 +1045,127 @@ export default function ConvertTab({
                       </button>
                       {showReceiveSection && (
                         <div className="mt-4 pt-4 border-t border-border space-y-4">
-                          {/* Custom price input for "Create Order" mode - only show when expanded */}
+                          {/* Price input for "Create Order" mode - only show when expanded */}
                           {sellMode === "create" && (
-                            <div className="space-y-2">
-                              <label className="text-sm text-muted-foreground">Your price per CNPY (USDC)</label>
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                value={sellPrice}
-                                onChange={(e) => {
-                                  const value = e.target.value;
-                                  if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                                    setSellPrice(value);
-                                  }
-                                }}
-                                placeholder="1.00"
-                                className="w-full text-lg font-medium bg-muted/30 border border-green-500/50 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-green-500/50"
-                              />
+                            <div className="space-y-3">
+                              <label className="text-sm text-muted-foreground">Set your price:</label>
+
+                              {/* Price Input Group */}
+                              <div className="flex items-center gap-2">
+                                {/* Dropdown */}
+                                <div className="relative">
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowPriceDropdown(!showPriceDropdown)}
+                                    className="flex flex-row items-center whitespace-nowrap  pl-3 py-2 pr-1 bg-muted/50 border border-border rounded-lg text-xs hover:bg-muted/70 transition-colors"
+                                  >
+                                    <span>
+                                      {priceType === "market"
+                                        ? `Market ($${MARKET_PRICE.toFixed(2)})`
+                                        : priceType === "custom"
+                                        ? "Custom"
+                                        : `${priceType} ($${getPriceFromType(priceType).toFixed(2)})`}
+                                    </span>
+                                    <ChevronDown
+                                      className={`w-4 h-4 transition-transform ${
+                                        showPriceDropdown ? "rotate-180" : ""
+                                      }`}
+                                    />
+                                  </button>
+
+                                  {/* Dropdown Menu */}
+                                  {showPriceDropdown && (
+                                    <>
+                                      <div className="fixed inset-0 z-10" onClick={() => setShowPriceDropdown(false)} />
+                                      <div className="absolute top-full left-0 mt-1 w-48 bg-background border border-border rounded-lg shadow-lg z-20 overflow-hidden">
+                                        <button
+                                          onClick={() => handlePriceTypeSelect("market")}
+                                          className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50 flex items-center justify-between"
+                                        >
+                                          <span>Market (${MARKET_PRICE.toFixed(2)})</span>
+                                          {priceType === "market" && <Check className="w-4 h-4 text-green-500" />}
+                                        </button>
+                                        <button
+                                          onClick={() => handlePriceTypeSelect("-1%")}
+                                          className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50 flex items-center justify-between"
+                                        >
+                                          <span>-1% (${getPriceFromType("-1%").toFixed(2)})</span>
+                                          {priceType === "-1%" && <Check className="w-4 h-4 text-green-500" />}
+                                        </button>
+                                        <button
+                                          onClick={() => handlePriceTypeSelect("-2%")}
+                                          className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50 flex items-center justify-between"
+                                        >
+                                          <span>-2% (${getPriceFromType("-2%").toFixed(2)})</span>
+                                          {priceType === "-2%" && <Check className="w-4 h-4 text-green-500" />}
+                                        </button>
+                                        <button
+                                          onClick={() => handlePriceTypeSelect("-5%")}
+                                          className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50 flex items-center justify-between"
+                                        >
+                                          <span>-5% (${getPriceFromType("-5%").toFixed(2)})</span>
+                                          {priceType === "-5%" && <Check className="w-4 h-4 text-green-500" />}
+                                        </button>
+                                        <button
+                                          onClick={() => handlePriceTypeSelect("custom")}
+                                          className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50 flex items-center justify-between"
+                                        >
+                                          <span>Custom</span>
+                                          {priceType === "custom" && <Check className="w-4 h-4 text-green-500" />}
+                                        </button>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+
+                                {/* Price Input with +/- buttons */}
+                                <div className="flex items-center gap-1 ">
+                                  <span className="text-muted-foreground">$</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePriceChange(-0.01)}
+                                    className="p-1 bg-black text-white hover:bg-muted/50 rounded transition-colors"
+                                  >
+                                    <Minus className="w-4 h-4" />
+                                  </button>
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={sellPrice}
+                                    onChange={(e) => {
+                                      const value = e.target.value;
+                                      if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                                        setSellPrice(value);
+                                        setPriceType("custom");
+                                      }
+                                    }}
+                                    className="flex-1 text-lg font-medium bg-transparent border-0 outline-none max-w-[80px] w-full py-2 text-center"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePriceChange(0.01)}
+                                    className="p-1 bg-black text-white hover:bg-muted/50 rounded transition-colors"
+                                  >
+                                    <Plus className="w-4 h-4" />
+                                  </button>
+                                  <span className="text-muted-foreground text-xs">/CNPY</span>
+                                </div>
+                              </div>
+
+                              {/* Rate and Fees */}
+                              <div className="flex items-center gap-4 text-sm">
+                                <span className="text-muted-foreground">
+                                  Rate:{" "}
+                                  <span className="text-white">${getPriceFromType(priceType).toFixed(3)}/CNPY</span>
+                                </span>
+                                <span className="text-green-500">No fees</span>
+                              </div>
+
+                              {/* Warning */}
+                              <div className="flex items-start gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                                <AlertTriangle className="w-4 h-4 text-yellow-500 flex-shrink-0 mt-0.5" />
+                                <span className="text-sm text-muted-foreground">May not fill immediately</span>
+                              </div>
                             </div>
                           )}
                         </div>
