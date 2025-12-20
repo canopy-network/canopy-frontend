@@ -68,7 +68,7 @@ export function WalletConnectButton({
       <Button
         variant="ghost"
         onClick={togglePopup}
-        className="bg-transparent text-white hover:bg-white/5 w-full h-auto py-3 px-2 border border-[#36d26a] rounded-md shadow-[0_0_14px_rgba(124,255,157,0.35)]"
+        className="bg-black/30 text-white hover:bg-black/40 w-full h-auto py-3 px-2 border border-[#36d26a] rounded-md shadow-[0_0_14px_rgba(124,255,157,0.4)]"
       >
         <div className={`flex ${contentAlignment} gap-2 w-full`}>
           <div className="shrink-0 h-8 w-8 rounded bg-linear-to-br from-[#0a2a12] via-[#103a1b] to-[#164c25] border border-[#36d26a] shadow-[0_0_12px_rgba(124,255,157,0.45)] flex items-center justify-center">
@@ -96,28 +96,51 @@ export function WalletConnectButton({
     );
   }
 
-  // Otherwise, show connect button (Canopy wallet)
+  // Otherwise, show connect button (Canopy wallet) with gray gradient style
+  if (isCondensed) {
+    return (
+      <Button
+        onClick={connectWallet}
+        disabled={isConnecting}
+        variant="default"
+        size="icon"
+        className="bg-black/30 text-[#7cff9d] border border-[#36d26a] shadow-[0_0_12px_2px_rgba(124,255,157,0.3)] hover:shadow-[0_0_16px_3px_rgba(124,255,157,0.45)] transition-transform hover:-translate-y-px rounded-full"
+        aria-label="Connect Wallet"
+      >
+        {isConnecting ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <img
+            src="/images/canopy-icon.svg"
+            alt="Canopy"
+            className="h-4 w-4 object-contain drop-shadow-[0_0_8px_rgba(124,255,157,0.8)]"
+          />
+        )}
+      </Button>
+    );
+  }
+
   return (
     <Button
       onClick={connectWallet}
       disabled={isConnecting}
-      className="gap-2 w-full bg-transparent border-green-600/50 text-green-500 hover:bg-green-950/30 hover:border-green-600 h-12 rounded-2xl font-medium"
-      variant="outline"
+      variant="ghost"
+      size="sm"
+      className="w-full text-sm font-semibold text-[#7cff9d] border border-[#36d26a] bg-black/30 rounded-md shadow-[0_0_14px_rgba(124,255,157,0.4)] hover:shadow-[0_0_18px_rgba(124,255,157,0.55)] transition-transform hover:-translate-y-px gap-2"
     >
       {isConnecting ? (
         <>
           <Loader2 className="h-4 w-4 animate-spin" />
-          {!isCondensed && 'Connecting...'}
+          Connecting...
         </>
       ) : (
         <>
           <img
             src="/images/canopy-icon.svg"
             alt="Canopy"
-            className="h-4 w-4 object-contain"
+            className="h-4 w-4 object-contain drop-shadow-[0_0_8px_rgba(124,255,157,0.8)]"
           />
-          {!isCondensed && 'Connect wallet'}
-
+          Connect Wallet
         </>
       )}
     </Button>

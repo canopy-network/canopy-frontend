@@ -135,6 +135,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
     // Close popup
     setIsPopupOpen(false);
+
+    // Also sign out SIWE (logout from auth store)
+    const { logout } = useAuthStore.getState();
+    logout();
   }, []);
 
   /**

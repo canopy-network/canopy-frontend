@@ -22,6 +22,8 @@ import { useConnectModal } from "@rainbow-me/rainbowkit";
 import axios from "axios";
 import { API_CONFIG } from "@/lib/config/api";
 import { toast } from "sonner";
+import { useWallet } from "@/components/wallet/wallet-provider";
+import { useWalletStore } from "@/lib/stores/wallet-store";
 
 type AuthStep = "initial" | "siwe" | "authenticated";
 
@@ -46,6 +48,10 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
   const { signMessageAsync } = useSignMessage();
   const { disconnect } = useDisconnect();
   const { openConnectModal } = useConnectModal();
+  
+  // Wallet context to trigger canopy wallet select modal
+  const { setShowSelectDialog, setShowCreateDialog } = useWallet();
+  const { fetchWallets } = useWalletStore();
 
   const handleSiweLogin = async () => {
     setIsSubmitting(true);
@@ -100,6 +106,22 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
 
       // Close the modal after successful sign-in
       onOpenChange(false);
+
+      // Trigger canopy wallet select modal after successful SIWE login
+      try {
+        await fetchWallets();
+        // Small delay to ensure state is updated, then check wallets from store
+        setTimeout(() => {
+          const currentWallets = useWalletStore.getState().wallets;
+          if (currentWallets.length === 0) {
+            setShowCreateDialog(true);
+          } else {
+            setShowSelectDialog(true);
+          }
+        }, 300);
+      } catch (error) {
+        console.error("Failed to fetch wallets after SIWE login:", error);
+      }
     } catch (error: any) {
       console.error("SIWE login error:", error);
       setLocalError(
