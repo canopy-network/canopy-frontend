@@ -22,12 +22,14 @@ import BridgeTokenDialog from "@/components/trading/bridge-token-dialog";
 import DestinationCurrencyDialog from "@/components/trading/destination-currency-dialog";
 import SellOrderConfirmationDialog from "@/components/trading/sell-order-confirmation-dialog";
 import ConvertTransactionDialog from "@/components/trading/convert-transaction-dialog";
+import UserOrders, { type UserOrder } from "@/components/trading/user-orders";
 import { orderbookApi } from "@/lib/api";
 import { useChainId } from "wagmi";
 import { USDC_ADDRESSES } from "@/lib/web3/config";
 import toast from "react-hot-toast";
 import type { ChainData, BridgeToken, ConnectedWallets, OrderBookOrder, OrderSelection } from "@/types/trading";
 import type { OrderBookApiOrder } from "@/types/orderbook";
+import { isOrderLocked } from "@/types/orderbook";
 
 // Chain IDs for cross-chain swaps:
 // Chain 1: Root chain (CNPY)
@@ -40,8 +42,20 @@ const USDC_COMMITTEE_ID = 3;
 // USDC Contract Address on Ethereum Mainnet
 const USDC_CONTRACT_ADDRESS = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
 
+// USDC address on Ethereum Mainnet (normalized for comparison)
+const USDC_ETHEREUM_ADDRESS = "a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
+
 // Fee percentage for instant sells (protocol fee)
 const INSTANT_FEE_PERCENT = 10;
+
+// Helper to normalize addresses for comparison
+function normalizeAddress(address: string): string {
+  if (!address) return "";
+  // Remove 0x prefix if present and convert to lowercase
+  return address.replace(/^0x/i, "").toLowerCase();
+}
+
+// UserOrder type is now imported from user-orders component
 
 // Direction of conversion
 type ConvertDirection = "buy" | "sell";
@@ -287,6 +301,10 @@ export default function ConvertTab({
   const [realOrders, setRealOrders] = useState<OrderBookApiOrder[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
+  // User's own orders (for display in sell mode)
+  const [userOrders, setUserOrders] = useState<UserOrder[]>([]);
+  const [isLoadingUserOrders, setIsLoadingUserOrders] = useState(false);
+
   // Connected wallets state - will be populated from BridgeTokenDialog
   // which fetches real balances using wagmi
   const [connectedWallets, setConnectedWallets] = useState<ConnectedWallets>({
@@ -365,6 +383,89 @@ export default function ConvertTab({
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  // Transform API order to UserOrder format (simplified version)
+  const transformOrderToUserOrder = useCallback((order: OrderBookApiOrder): UserOrder => {
+    const normalizedData = normalizeAddress(order.data || "");
+    const isSellingUsdcForCnpy = normalizedData === USDC_ETHEREUM_ADDRESS;
+
+    let cnpyAmount: number;
+    let expectedReceive: number;
+    let pricePerCnpy: number;
+    let destinationToken: string;
+
+    if (isSellingUsdcForCnpy) {
+      // Selling USDC for CNPY
+      const usdcAmount = order.amountForSale / DECIMALS;
+      cnpyAmount = order.requestedAmount / DECIMALS;
+      expectedReceive = cnpyAmount;
+      pricePerCnpy = order.amountForSale / order.requestedAmount;
+      destinationToken = "CNPY";
+    } else {
+      // Selling CNPY for USDC (default case)
+      cnpyAmount = order.amountForSale / DECIMALS;
+      const totalUsdc = order.requestedAmount / DECIMALS;
+      expectedReceive = totalUsdc;
+      pricePerCnpy = order.requestedAmount / order.amountForSale;
+      destinationToken = "USDC";
+    }
+
+    const orderIsLocked = isOrderLocked(order);
+    const status: "active" | "filled" | "cancelled" = orderIsLocked ? "filled" : "active";
+
+    return {
+      id: order.id,
+      cnpyAmount,
+      expectedReceive,
+      destinationToken,
+      pricePerCnpy,
+      status,
+      createdAt: new Date().toISOString(),
+      sellerAddress: order.sellersSendAddress,
+      committeeId: order.committee,
+    };
+  }, []);
+
+  // Fetch user's own orders
+  const fetchUserOrders = useCallback(async () => {
+    if (!currentWallet?.address) {
+      setUserOrders([]);
+      return;
+    }
+
+    setIsLoadingUserOrders(true);
+    try {
+      const response = await orderbookApi.getOrderBook({
+        chainId: USDC_COMMITTEE_ID,
+      });
+
+      const orderBooks = response.data || [];
+      const allRawOrders = orderBooks.flatMap((book) => book.orders || []);
+
+      // Transform and filter to only show orders owned by current user
+      const normalizedWalletAddress = normalizeAddress(currentWallet.address);
+      const ownedOrders = allRawOrders.map(transformOrderToUserOrder).filter((order) => {
+        const normalizedOrderSellerAddress = normalizeAddress(order.sellerAddress);
+        return normalizedWalletAddress === normalizedOrderSellerAddress;
+      });
+
+      setUserOrders(ownedOrders);
+    } catch (err) {
+      console.error("Failed to fetch user orders:", err);
+      setUserOrders([]);
+    } finally {
+      setIsLoadingUserOrders(false);
+    }
+  }, [currentWallet, transformOrderToUserOrder]);
+
+  // Fetch user orders when wallet changes or when entering sell mode
+  useEffect(() => {
+    if (direction === "sell" && currentWallet?.address) {
+      fetchUserOrders();
+    } else {
+      setUserOrders([]);
+    }
+  }, [direction, currentWallet?.address, fetchUserOrders]);
 
   // Fetch balance when wallet is available
   useEffect(() => {
@@ -692,6 +793,7 @@ export default function ConvertTab({
       // Refresh orders after delay
       setTimeout(() => {
         fetchOrders();
+        fetchUserOrders();
       }, 2000);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Failed to create order");
@@ -1211,6 +1313,11 @@ export default function ConvertTab({
             )}
           </Button>
         </div>
+
+        {/* Your Orders Section - Collapsible */}
+        {currentWallet?.address && (
+          <UserOrders orders={userOrders} isLoading={isLoadingUserOrders} onOrderCancelled={fetchUserOrders} />
+        )}
 
         {/* Exchange Rate Info */}
         {amount && parseFloat(amount) > 0 && (
