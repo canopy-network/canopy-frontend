@@ -704,7 +704,14 @@ export default function ConvertTab({
     setIsSubmitting(true);
 
     try {
-      const DATA_ADDRESS = USDC_CONTRACT_ADDRESS;
+      // When selling CNPY for USDC, use Base USDC address to match the working order format
+      // This ensures the transform function correctly interprets it as "Selling CNPY for USDC"
+      // rather than "Selling USDC for CNPY" (which happens when using Ethereum mainnet USDC address)
+      // The working example order (6eab465cd790963ef2780f2a3c2997ab8c71f93e) uses:
+      // 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913 (Base USDC)
+      // This matches how the orderbook-interface creates orders when orderType === "sell"
+      const BASE_USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+      const DATA_ADDRESS = BASE_USDC_ADDRESS;
       const cnpyAmount = parseFloat(amount);
 
       if (cnpyAmount > cnpyBalance) {

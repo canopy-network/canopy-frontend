@@ -24,6 +24,9 @@ import { createSendMessage, createAndSignTransaction } from "@/lib/crypto/transa
 import { CurveType } from "@/lib/crypto/types";
 import type { LockOrderData, OrderBookApiOrder } from "@/types/orderbook";
 
+// Deadline offset: ~6.7 minutes at 10s blocks = 40 blocks
+const DEADLINE_BLOCK_OFFSET = 40;
+
 const DEFAULT_BUYER_CHAIN_DEADLINE = 900000; // ~2.5 hours at 10s blocks
 
 interface UseLockOrderParams {
@@ -165,8 +168,10 @@ export function useLockOrder({ order, buyerCanopyAddress }: UseLockOrderParams):
             currentWallet.curveType as CurveType
           );
 
-          const response = await walletTransactionApi.sendRawTransaction(signedTx);
-          console.log("✅ Lock order indexed on Canopy:", response.transaction_hash);
+          // Commented out: send raw transaction for indexing
+          // const response = await walletTransactionApi.sendRawTransaction(signedTx);
+          // console.log("✅ Lock order indexed on Canopy:", response.transaction_hash);
+          console.log("✅ Lock order indexed on Canopy (skipped sendRawTransaction):", signedTx);
         } catch (err) {
           console.error("Failed to send Canopy indexing transaction:", err);
           // Don't throw - Ethereum transaction is the important one
@@ -214,7 +219,7 @@ export function useLockOrder({ order, buyerCanopyAddress }: UseLockOrderParams):
         chain_id: order.committee,
         buyerSendAddress: stripHexPrefix(buyerEthAddress),
         buyerReceiveAddress: stripHexPrefix(buyerCanopyAddress),
-        buyerChainDeadline: DEFAULT_BUYER_CHAIN_DEADLINE,
+        buyerChainDeadline: deadline,
       };
 
       // For lock order, amount is 0 (we're just signaling intent)

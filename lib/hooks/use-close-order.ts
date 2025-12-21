@@ -173,13 +173,10 @@ export function useCloseOrder({
             currentWallet.curveType as CurveType
           );
 
-          const response = await walletTransactionApi.sendRawTransaction(
-            signedTx
-          );
-          console.log(
-            "✅ Close order indexed on Canopy:",
-            response.transaction_hash
-          );
+          // Commented out: send raw transaction for indexing
+          // const response = await walletTransactionApi.sendRawTransaction(signedTx);
+          // console.log("✅ Close order indexed on Canopy:", response.transaction_hash);
+          console.log("✅ Close order indexed on Canopy (skipped sendRawTransaction):", signedTx);
         } catch (err) {
           console.error("Failed to send Canopy indexing transaction:", err);
           // Don't throw - Ethereum transaction is the important one
