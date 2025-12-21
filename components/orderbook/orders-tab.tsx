@@ -101,10 +101,13 @@ function transformApiOrderToSellOrder(order: OrderBookApiOrder): SellOrder {
   // Determine status based on close order state
   // If order is locked (has buyerReceiveAddress), it means a buyer has locked it
   // The order is considered "filled" when it has been closed (payment sent)
-  // For now, we'll mark locked orders as "active" and track close order status separately
+  // Locked orders remain "active" until payment is sent, so the Close Order button can appear
   // In a real implementation, you'd check if the close order transaction has been confirmed
   const orderIsLocked = isOrderLocked(order);
-  const status: OrderStatus = orderIsLocked ? "filled" : "active";
+  // Keep all orders as "active" for now - locked orders need to show Close Order button
+  // An order should only be "filled" after the close order transaction is confirmed
+  // TODO: Add logic to detect when close order transaction is confirmed and mark as "filled"
+  const status: OrderStatus = "active";
 
   // Hardcode fee (2% for now)
   const feePercent = 0.02;
