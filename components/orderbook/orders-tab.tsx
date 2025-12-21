@@ -14,15 +14,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import {
-  Edit2,
-  X,
-  Clock,
-  CheckCircle,
-  XCircle,
-  Filter,
-  Loader2,
-} from "lucide-react";
+import { Edit2, X, Clock, CheckCircle, XCircle, Filter, Loader2 } from "lucide-react";
 import { orderbookApi } from "@/lib/api";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import type { OrderBookApiOrder } from "@/types/orderbook";
@@ -32,10 +24,11 @@ import { useCloseOrder } from "@/lib/hooks/use-close-order";
 import { useAccount, useChainId } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { USDC_ADDRESSES } from "@/lib/web3/config";
+import { OrderCard } from "./order-card";
 
-type OrderStatus = "active" | "filled" | "cancelled";
+export type OrderStatus = "active" | "filled" | "cancelled";
 
-interface SellOrder {
+export interface SellOrder {
   id: string;
   cnpyAmount: number;
   expectedReceive: number;
@@ -122,8 +115,7 @@ function transformApiOrderToSellOrder(order: OrderBookApiOrder): SellOrder {
 
   // Map committee ID to chain name
   // Committee 3 is typically USDC on Ethereum
-  const destinationChain =
-    order.committee === 3 ? "ethereum" : `chain-${order.committee}`;
+  const destinationChain = order.committee === 3 ? "ethereum" : `chain-${order.committee}`;
 
   return {
     id: order.id,
@@ -216,22 +208,14 @@ export default function OrdersTab() {
   const [rawOrders, setRawOrders] = useState<OrderBookApiOrder[]>([]); // Store raw orders for close order tracking
   const [filter, setFilter] = useState<FilterType>("all");
   const [orderToCancel, setOrderToCancel] = useState<SellOrder | null>(null);
-  const [orderToLock, setOrderToLock] = useState<OrderBookApiOrder | null>(
-    null
-  );
-  const [orderToClose, setOrderToClose] = useState<OrderBookApiOrder | null>(
-    null
-  );
+  const [orderToLock, setOrderToLock] = useState<OrderBookApiOrder | null>(null);
+  const [orderToClose, setOrderToClose] = useState<OrderBookApiOrder | null>(null);
   const [showPlaceholders, setShowPlaceholders] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
 
-  const {
-    currentWallet,
-    deleteOrder,
-    isLoading: walletLoading,
-  } = useWalletStore();
+  const { currentWallet, deleteOrder, isLoading: walletLoading } = useWalletStore();
 
   // Ethereum wallet (wagmi)
   const { address: ethAddress, isConnected: isEthConnected } = useAccount();
@@ -241,9 +225,7 @@ export default function OrdersTab() {
 
   // Lock order hook for non-owned orders
   // Only create hook when we have an order to lock
-  const [currentLockingOrderId, setCurrentLockingOrderId] = useState<
-    string | null
-  >(null);
+  const [currentLockingOrderId, setCurrentLockingOrderId] = useState<string | null>(null);
   const isLockingRef = useRef(false); // Prevent multiple simultaneous lock attempts
   const hasSentLockRef = useRef<string | null>(null); // Track which order we've already sent lock for
 
@@ -286,15 +268,11 @@ export default function OrdersTab() {
             const stored = localStorage.getItem("userSellOrders");
             if (stored) {
               const storedOrders = JSON.parse(stored) as SellOrder[];
-              const cancelledOrders = storedOrders.filter(
-                (o) => o.status === "cancelled"
-              );
+              const cancelledOrders = storedOrders.filter((o) => o.status === "cancelled");
 
               // Merge cancelled orders that aren't in the API response
               const cancelledIds = new Set(transformedOrders.map((o) => o.id));
-              const additionalCancelled = cancelledOrders.filter(
-                (o) => !cancelledIds.has(o.id)
-              );
+              const additionalCancelled = cancelledOrders.filter((o) => !cancelledIds.has(o.id));
 
               setOrders([...transformedOrders, ...additionalCancelled]);
             } else {
@@ -327,9 +305,7 @@ export default function OrdersTab() {
       try {
         if (typeof window !== "undefined") {
           const stored = localStorage.getItem("userSellOrders");
-          const storedOrders = stored
-            ? (JSON.parse(stored) as SellOrder[])
-            : [];
+          const storedOrders = stored ? (JSON.parse(stored) as SellOrder[]) : [];
 
           if (storedOrders.length > 0) {
             setOrders(storedOrders);
@@ -380,9 +356,7 @@ export default function OrdersTab() {
 
     // Check if the buyer's Canopy address matches current wallet
     const normalizedWalletAddress = normalizeAddress(currentWallet.address);
-    const normalizedBuyerAddress = normalizeAddress(
-      rawOrder.buyerReceiveAddress
-    );
+    const normalizedBuyerAddress = normalizeAddress(rawOrder.buyerReceiveAddress);
     return normalizedWalletAddress === normalizedBuyerAddress;
   };
 
@@ -397,12 +371,7 @@ export default function OrdersTab() {
   // Handle lock order for non-owned orders
   const handleLockOrder = async (order: SellOrder) => {
     // Prevent multiple simultaneous lock attempts using ref
-    if (
-      isLockingRef.current ||
-      currentLockingOrderId ||
-      lockOrder.isPending ||
-      lockOrder.isConfirming
-    ) {
+    if (isLockingRef.current || currentLockingOrderId || lockOrder.isPending || lockOrder.isConfirming) {
       return;
     }
 
@@ -423,9 +392,7 @@ export default function OrdersTab() {
     }
 
     if (!usdcAddress) {
-      toast.error(
-        "USDC not supported on this network. Please switch to Ethereum Mainnet."
-      );
+      toast.error("USDC not supported on this network. Please switch to Ethereum Mainnet.");
       return;
     }
 
@@ -433,6 +400,12 @@ export default function OrdersTab() {
     const rawOrder = getRawOrder(order.id);
     if (!rawOrder) {
       toast.error("Order not found");
+      return;
+    }
+
+    // Check if this is the user's own order - cannot lock your own orders
+    if (isOrderOwner(order)) {
+      toast.error("You cannot lock your own orders");
       return;
     }
 
@@ -478,21 +451,11 @@ export default function OrdersTab() {
     }
     // We intentionally only depend on specific properties to prevent infinite loops
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    orderToLock?.id,
-    currentLockingOrderId,
-    lockOrder.isPending,
-    lockOrder.isConfirming,
-  ]);
+  }, [orderToLock?.id, currentLockingOrderId, lockOrder.isPending, lockOrder.isConfirming]);
 
   // Handle lock order success
   useEffect(() => {
-    if (
-      lockOrder.isSuccess &&
-      orderToLock &&
-      currentLockingOrderId &&
-      orderToLock.id === currentLockingOrderId
-    ) {
+    if (lockOrder.isSuccess && orderToLock && currentLockingOrderId && orderToLock.id === currentLockingOrderId) {
       toast.success(`Order locked! TX: ${lockOrder.txHash?.slice(0, 16)}...`);
       isLockingRef.current = false;
       hasSentLockRef.current = null;
@@ -504,13 +467,7 @@ export default function OrdersTab() {
     }
     // We intentionally only depend on specific properties to prevent infinite loops
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    lockOrder.isSuccess,
-    lockOrder.txHash,
-    orderToLock?.id,
-    currentLockingOrderId,
-    fetchUserOrders,
-  ]);
+  }, [lockOrder.isSuccess, lockOrder.txHash, orderToLock?.id, currentLockingOrderId, fetchUserOrders]);
 
   // Handle lock order error
   useEffect(() => {
@@ -530,12 +487,7 @@ export default function OrdersTab() {
     }
     // We intentionally only depend on specific properties to prevent infinite loops
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    lockOrder.isError,
-    lockOrder.error?.message,
-    orderToLock?.id,
-    currentLockingOrderId,
-  ]);
+  }, [lockOrder.isError, lockOrder.error?.message, orderToLock?.id, currentLockingOrderId]);
 
   // Handle close order for locked orders
   const handleCloseOrder = async (order: SellOrder) => {
@@ -556,9 +508,7 @@ export default function OrdersTab() {
     }
 
     if (!usdcAddress) {
-      toast.error(
-        "USDC not supported on this network. Please switch to Ethereum Mainnet."
-      );
+      toast.error("USDC not supported on this network. Please switch to Ethereum Mainnet.");
       return;
     }
 
@@ -600,9 +550,7 @@ export default function OrdersTab() {
   // Handle close order success
   useEffect(() => {
     if (closeOrder.isSuccess && orderToClose) {
-      toast.success(
-        `Order closed! Payment sent. TX: ${closeOrder.txHash?.slice(0, 16)}...`
-      );
+      toast.success(`Order closed! Payment sent. TX: ${closeOrder.txHash?.slice(0, 16)}...`);
       setOrderToClose(null);
       closeOrder.reset();
       // Refresh orders after a delay to allow blockchain to process
@@ -610,12 +558,7 @@ export default function OrdersTab() {
     }
     // We intentionally only depend on specific properties to prevent infinite loops
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    closeOrder.isSuccess,
-    closeOrder.txHash,
-    orderToClose?.id,
-    fetchUserOrders,
-  ]);
+  }, [closeOrder.isSuccess, closeOrder.txHash, orderToClose?.id, fetchUserOrders]);
 
   // Handle close order error
   useEffect(() => {
@@ -656,9 +599,7 @@ export default function OrdersTab() {
       toast.success(`Order cancelled! TX: ${txHash.slice(0, 16)}...`);
 
       // Update local state
-      const updatedOrders = orders.map((o) =>
-        o.id === order.id ? { ...o, status: "cancelled" as OrderStatus } : o
-      );
+      const updatedOrders = orders.map((o) => (o.id === order.id ? { ...o, status: "cancelled" as OrderStatus } : o));
       setOrders(updatedOrders);
 
       // Save to localStorage
@@ -670,8 +611,7 @@ export default function OrdersTab() {
       setTimeout(() => fetchUserOrders(), 3000);
     } catch (e) {
       console.error("Failed to cancel order", e);
-      const errorMessage =
-        e instanceof Error ? e.message : "Failed to cancel order";
+      const errorMessage = e instanceof Error ? e.message : "Failed to cancel order";
       toast.error(errorMessage);
     } finally {
       setIsCancelling(false);
@@ -684,32 +624,6 @@ export default function OrdersTab() {
     toast.info("Edit functionality coming soon");
   };
 
-  const getStatusIcon = (status: OrderStatus) => {
-    switch (status) {
-      case "active":
-        return <Clock className="w-4 h-4 text-yellow-500" />;
-      case "filled":
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case "cancelled":
-        return <XCircle className="w-4 h-4 text-red-500" />;
-      default:
-        return <Clock className="w-4 h-4 text-muted-foreground" />;
-    }
-  };
-
-  const getStatusColor = (status: OrderStatus) => {
-    switch (status) {
-      case "active":
-        return "text-yellow-500 bg-yellow-500/10";
-      case "filled":
-        return "text-green-500 bg-green-500/10";
-      case "cancelled":
-        return "text-red-500 bg-red-500/10";
-      default:
-        return "text-muted-foreground bg-muted";
-    }
-  };
-
   if (isLoading) {
     return (
       <Card className="p-8">
@@ -719,9 +633,7 @@ export default function OrdersTab() {
           </div>
           <div>
             <h3 className="text-lg font-semibold mb-2">Loading orders...</h3>
-            <p className="text-sm text-muted-foreground">
-              Fetching your orders from the orderbook
-            </p>
+            <p className="text-sm text-muted-foreground">Fetching your orders from the orderbook</p>
           </div>
         </div>
       </Card>
@@ -736,9 +648,7 @@ export default function OrdersTab() {
             <XCircle className="w-8 h-8 text-red-500" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold mb-2">
-              Failed to load orders
-            </h3>
+            <h3 className="text-lg font-semibold mb-2">Failed to load orders</h3>
             <p className="text-sm text-muted-foreground mb-4">{error}</p>
             <Button onClick={fetchUserOrders} variant="outline">
               Retry
@@ -802,231 +712,52 @@ export default function OrdersTab() {
       <div className="flex items-center gap-2">
         <Filter className="w-4 h-4 text-muted-foreground" />
         <div className="flex gap-2">
-          {(["all", "active", "filled", "cancelled"] as FilterType[]).map(
-            (status) => (
-              <Button
-                key={status}
-                variant={filter === status ? "default" : "outline"}
-                size="sm"
-                onClick={() => setFilter(status)}
-                className="capitalize"
-              >
-                {status}
-              </Button>
-            )
-          )}
+          {(["all", "active", "filled", "cancelled"] as FilterType[]).map((status) => (
+            <Button
+              key={status}
+              variant={filter === status ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilter(status)}
+              className="capitalize"
+            >
+              {status}
+            </Button>
+          ))}
         </div>
         <div className="ml-auto text-sm text-muted-foreground">
-          {filteredOrders.length}{" "}
-          {filteredOrders.length === 1 ? "order" : "orders"}
+          {filteredOrders.length} {filteredOrders.length === 1 ? "order" : "orders"}
         </div>
       </div>
 
       {/* Orders List */}
       <div className="space-y-3">
         {filteredOrders.map((order) => (
-          <Card key={order.id} className="p-4">
-            <div className="flex items-start justify-between">
-              <div className="flex-1 space-y-3">
-                {/* Header */}
-                <div className="flex items-center gap-3">
-                  {getStatusIcon(order.status)}
-                  <div>
-                    <div className="flex items-center gap-2">
-                      {order.isSellingUsdcForCnpy ? (
-                        <>
-                          <span className="text-base font-semibold">
-                            ${order.amountSelling?.toFixed(2) || "0.00"} USDC
-                          </span>
-                          <span className="text-muted-foreground">→</span>
-                          <span className="text-base font-medium">
-                            {order.expectedReceive.toLocaleString()} CNPY
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="text-base font-semibold">
-                            {order.cnpyAmount.toLocaleString()} CNPY
-                          </span>
-                          <span className="text-muted-foreground">→</span>
-                          <span className="text-base font-medium">
-                            ${order.expectedReceive.toFixed(2)}{" "}
-                            {order.destinationToken}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                      <span>Price: ${order.pricePerCnpy.toFixed(3)}/CNPY</span>
-                      <span className="w-1 h-1 rounded-full bg-muted-foreground" />
-                      <span className="capitalize">
-                        {order.destinationChain}
-                      </span>
-                      <span className="w-1 h-1 rounded-full bg-muted-foreground" />
-                      <span>
-                        {new Date(order.createdAt).toLocaleDateString()}{" "}
-                        {new Date(order.createdAt).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                      {isOrderReadyForClose(order.id) && (
-                        <>
-                          <span className="w-1 h-1 rounded-full bg-muted-foreground" />
-                          <span className="text-yellow-500 font-medium">
-                            Locked - Awaiting payment
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <span
-                    className={`px-2 py-1 rounded text-xs font-medium capitalize ${getStatusColor(
-                      order.status
-                    )}`}
-                  >
-                    {order.status}
-                  </span>
-                </div>
-
-                {/* Details */}
-                <div className="grid grid-cols-3 gap-4 pt-2 border-t border-border text-sm">
-                  <div>
-                    <p className="text-muted-foreground mb-1">Fee</p>
-                    <p className="font-medium">
-                      ${order.feeAmount.toFixed(2)} (
-                      {(order.fee * 100).toFixed(1)}%)
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground mb-1">
-                      Expected Receive
-                    </p>
-                    <p className="font-medium">
-                      ${order.expectedReceive.toFixed(2)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground mb-1">Order ID</p>
-                    <p className="font-mono text-xs">{order.id.slice(-8)}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Actions */}
-              {order.status === "active" && (
-                <div className="flex items-center gap-2 ml-4">
-                  {isOrderOwner(order) ? (
-                    // Owner actions: Edit and Cancel
-                    <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(order)}
-                        disabled={showPlaceholders}
-                      >
-                        <Edit2 className="w-4 h-4 mr-2" />
-                        Edit
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                        onClick={() => setOrderToCancel(order)}
-                        disabled={
-                          showPlaceholders ||
-                          isCancelling ||
-                          walletLoading ||
-                          !currentWallet ||
-                          normalizeAddress(currentWallet?.address || "") !==
-                            normalizeAddress(order.sellerAddress)
-                        }
-                      >
-                        {isCancelling || walletLoading ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Cancelling...
-                          </>
-                        ) : (
-                          <>
-                            <X className="w-4 h-4 mr-2" />
-                            Cancel
-                          </>
-                        )}
-                      </Button>
-                    </>
-                  ) : isOrderReadyForClose(order.id) && isOrderBuyer(order) ? (
-                    // Buyer actions: Close Order (send payment)
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="bg-blue-500 hover:bg-blue-600"
-                      onClick={() => handleCloseOrder(order)}
-                      disabled={
-                        !currentWallet ||
-                        !currentWallet.isUnlocked ||
-                        !isEthConnected ||
-                        !usdcAddress ||
-                        closeOrder.isPending ||
-                        closeOrder.isConfirming
-                      }
-                    >
-                      {closeOrder.isPending || closeOrder.isConfirming ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Closing...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                          Close Order
-                        </>
-                      )}
-                    </Button>
-                  ) : (
-                    // Non-owner actions: Lock Order (Buy)
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="bg-green-500 hover:bg-green-600"
-                      onClick={() => handleLockOrder(order)}
-                      disabled={
-                        !currentWallet ||
-                        !currentWallet.isUnlocked ||
-                        !isEthConnected ||
-                        !usdcAddress ||
-                        isOrderReadyForClose(order.id) ||
-                        lockOrder.isPending ||
-                        lockOrder.isConfirming ||
-                        currentLockingOrderId !== null
-                      }
-                    >
-                      {(lockOrder.isPending || lockOrder.isConfirming) &&
-                      currentLockingOrderId === order.id ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Locking...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                          Lock Order
-                        </>
-                      )}
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
-          </Card>
+          <OrderCard
+            key={order.id}
+            order={order}
+            showPlaceholders={showPlaceholders}
+            isCancelling={isCancelling}
+            walletLoading={walletLoading}
+            currentWallet={currentWallet}
+            isEthConnected={isEthConnected}
+            usdcAddress={usdcAddress}
+            closeOrder={closeOrder}
+            lockOrder={lockOrder}
+            currentLockingOrderId={currentLockingOrderId}
+            isOrderReadyForClose={isOrderReadyForClose}
+            isOrderOwner={isOrderOwner}
+            isOrderBuyer={isOrderBuyer}
+            normalizeAddress={normalizeAddress}
+            handleEdit={handleEdit}
+            setOrderToCancel={setOrderToCancel}
+            handleCloseOrder={handleCloseOrder}
+            handleLockOrder={handleLockOrder}
+          />
         ))}
       </div>
 
       {/* Cancel Confirmation Dialog */}
-      <AlertDialog
-        open={!!orderToCancel}
-        onOpenChange={(open) => !open && setOrderToCancel(null)}
-      >
+      <AlertDialog open={!!orderToCancel} onOpenChange={(open) => !open && setOrderToCancel(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Cancel Order</AlertDialogTitle>
