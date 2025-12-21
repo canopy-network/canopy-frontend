@@ -1,3 +1,5 @@
+"use client";
+
 import { Container } from "@/components/layout/container";
 import { OrderBookDashboard } from "@/components/orderbook/orderbook-dashboard";
 

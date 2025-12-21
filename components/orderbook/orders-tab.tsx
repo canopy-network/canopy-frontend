@@ -242,8 +242,19 @@ export default function OrdersTab() {
     order: orderToClose, // Only set when user clicks close
   });
 
+  // Ref to track if the request is still valid (not cancelled)
+  const requestIdRef = useRef(0);
+
   // Fetch all orders from API (both owned and non-owned)
   const fetchUserOrders = useCallback(async () => {
+    // Only run on client side
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    // Increment request ID to cancel previous request handling
+    const currentRequestId = ++requestIdRef.current;
+
     setIsLoading(true);
     setError(null);
 
@@ -251,6 +262,11 @@ export default function OrdersTab() {
       const response = await orderbookApi.getOrderBook({
         chainId: ORDER_COMMITTEE_ID,
       });
+
+      // Check if this request was superseded by a newer one
+      if (currentRequestId !== requestIdRef.current) {
+        return;
+      }
 
       // response.data is an array of ChainOrderBook
       const orderBooks = response.data || [];
@@ -301,6 +317,11 @@ export default function OrdersTab() {
         }
       }
     } catch (err) {
+      // Check if this request was superseded by a newer one
+      if (currentRequestId !== requestIdRef.current) {
+        return;
+      }
+
       console.error("Failed to fetch orders from API", err);
       setError(err instanceof Error ? err.message : "Failed to fetch orders");
 
@@ -327,12 +348,27 @@ export default function OrdersTab() {
         setShowPlaceholders(true);
       }
     } finally {
-      setIsLoading(false);
+      // Only update loading state if this request is still current
+      if (currentRequestId === requestIdRef.current) {
+        setIsLoading(false);
+      }
     }
-  }, [currentWallet]);
+  }, [currentWallet?.address]);
 
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === "undefined") {
+      return;
+    }
+
     fetchUserOrders();
+
+    return () => {
+      // Invalidate any pending request by incrementing the request ID
+      // This ensures state updates from cancelled requests are ignored
+      const currentId = requestIdRef.current;
+      requestIdRef.current = currentId + 1;
+    };
   }, [fetchUserOrders]);
 
   const filteredOrders = orders.filter((order) => {

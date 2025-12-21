@@ -339,13 +339,8 @@ export function Header() {
     }
   }, [pathname, breadcrumbs, current_explorer_selected_chain]);
 
-  // Early return for launchpad and orderbook pages - after all hooks
-  // Orderbook has its own header matching the wireframe design
-  if (pathname.includes("/launchpad") || pathname.includes("/orderbook")) {
-    return null;
-  }
-
   // Chain search filter - Memoized for performance
+  // MUST be called before any early returns to satisfy React hooks rules
   const filteredChains = useMemo(() => {
     if (!searchQuery.trim()) return [];
 
@@ -354,12 +349,19 @@ export function Header() {
   }, [searchQuery, chains]);
 
   // Mobile chain search filter - Memoized for performance
+  // MUST be called before any early returns to satisfy React hooks rules
   const mobileFilteredChains = useMemo(() => {
     if (!mobileSearchQuery.trim()) return [];
 
     const query = mobileSearchQuery.toLowerCase();
     return chains.filter((chain) => chain.chain_name.toLowerCase().includes(query)).slice(0, 10);
   }, [mobileSearchQuery, chains]);
+
+  // Early return for launchpad and orderbook pages - after all hooks
+  // Orderbook has its own header matching the wireframe design
+  if (pathname.includes("/launchpad") || pathname.includes("/orderbook")) {
+    return null;
+  }
 
   const handleChainSelect = (chainId: string) => {
     setIsSearchOpen(false);
