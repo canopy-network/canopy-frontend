@@ -16,20 +16,12 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import {
-  useAccount,
-  useChainId,
-  useSendTransaction,
-  useWaitForTransactionReceipt,
-} from "wagmi";
+import { useAccount, useChainId, useSendTransaction, useWaitForTransactionReceipt } from "wagmi";
 import { encodeFunctionData, toHex } from "viem";
 import { USDC_ADDRESSES, ERC20_TRANSFER_ABI } from "@/lib/web3/config";
 import { chainsApi, walletTransactionApi } from "@/lib/api";
 import { useWalletStore } from "@/lib/stores/wallet-store";
-import {
-  createSendMessage,
-  createAndSignTransaction,
-} from "@/lib/crypto/transaction";
+import { createSendMessage, createAndSignTransaction } from "@/lib/crypto/transaction";
 import { CurveType } from "@/lib/crypto/types";
 import type { CloseOrderData, OrderBookApiOrder } from "@/types/orderbook";
 
@@ -73,9 +65,7 @@ function createCloseOrderCallData(
   return `${transferData}${jsonHex}` as `0x${string}`;
 }
 
-export function useCloseOrder({
-  order,
-}: UseCloseOrderParams): UseCloseOrderReturn {
+export function useCloseOrder({ order }: UseCloseOrderParams): UseCloseOrderReturn {
   const { address: buyerEthAddress } = useAccount();
   const chainId = useChainId();
   const [error, setError] = useState<Error | null>(null);
@@ -122,9 +112,7 @@ export function useCloseOrder({
 
           // Fetch current Canopy block height
           const CANOPY_CHAIN_ID = 1;
-          const heightResponse = await chainsApi.getChainHeight(
-            String(CANOPY_CHAIN_ID)
-          );
+          const heightResponse = await chainsApi.getChainHeight(String(CANOPY_CHAIN_ID));
           const currentHeight = heightResponse.data.height;
 
           // Get seller's address (remove 0x prefix if present)
@@ -155,14 +143,8 @@ export function useCloseOrder({
           };
 
           // Sign and send to Canopy
-          if (
-            !currentWallet.privateKey ||
-            !currentWallet.public_key ||
-            !currentWallet.curveType
-          ) {
-            console.warn(
-              "Cannot send Canopy indexing transaction: wallet not fully unlocked"
-            );
+          if (!currentWallet.privateKey || !currentWallet.public_key || !currentWallet.curveType) {
+            console.warn("Cannot send Canopy indexing transaction: wallet not fully unlocked");
             return;
           }
 
@@ -233,11 +215,7 @@ export function useCloseOrder({
         ? order.sellerReceiveAddress
         : `0x${order.sellerReceiveAddress}`;
 
-      const callData = createCloseOrderCallData(
-        sellerEthAddress as `0x${string}`,
-        usdcAmount,
-        closeOrderData
-      );
+      const callData = createCloseOrderCallData(sellerEthAddress as `0x${string}`, usdcAmount, closeOrderData);
 
       // Send transaction to USDC contract
       sendTransaction({
@@ -245,9 +223,7 @@ export function useCloseOrder({
         data: callData,
       });
     } catch (err) {
-      setError(
-        err instanceof Error ? err : new Error("Failed to send close order")
-      );
+      setError(err instanceof Error ? err : new Error("Failed to send close order"));
     }
   }, [order, buyerEthAddress, chainId, sendTransaction]);
 

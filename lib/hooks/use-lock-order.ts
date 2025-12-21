@@ -100,6 +100,15 @@ export function useLockOrder({ order, buyerCanopyAddress }: UseLockOrderParams):
     hash: txHash,
   });
 
+  // Reset hook state when order changes (only if no transaction in progress)
+  useEffect(() => {
+    if (order && !isPending && !isConfirming && !txHash) {
+      setError(null);
+      canopyTxSentRef.current = null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order?.id]);
+
   // Send Canopy indexing transaction after Ethereum transaction succeeds
   useEffect(() => {
     if (

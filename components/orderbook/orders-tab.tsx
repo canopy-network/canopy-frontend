@@ -474,7 +474,9 @@ export default function OrdersTab() {
       isLockingRef.current &&
       hasSentLockRef.current !== orderToLock.id &&
       !lockOrder.isPending &&
-      !lockOrder.isConfirming
+      !lockOrder.isConfirming &&
+      !lockOrder.isSuccess &&
+      !lockOrder.isError
     ) {
       // Mark that we've sent the lock for this order
       hasSentLockRef.current = orderToLock.id;
@@ -490,7 +492,15 @@ export default function OrdersTab() {
     }
     // We intentionally only depend on specific properties to prevent infinite loops
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderToLock?.id, currentLockingOrderId, lockOrder.isPending, lockOrder.isConfirming]);
+  }, [
+    orderToLock?.id,
+    currentLockingOrderId,
+    lockOrder.isPending,
+    lockOrder.isConfirming,
+    lockOrder.isSuccess,
+    lockOrder.isError,
+    lockOrder.sendLockOrder,
+  ]);
 
   // Handle lock order success
   useEffect(() => {
