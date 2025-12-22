@@ -1,18 +1,13 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Wallet, ChevronRight, Loader2 } from "lucide-react";
 import { useAccount, useChainId, useReadContract } from "wagmi";
 import { formatUnits } from "viem";
-import { USDC_ADDRESSES } from "@/lib/web3/config";
+import { USDC_ADDRESS } from "@/lib/web3/config";
 import type { BridgeToken, ConnectedWallets } from "@/types/trading";
 
 // Chain configuration
@@ -76,9 +71,9 @@ export default function BridgeTokenDialog({
   const [connectingChain, setConnectingChain] = useState<string | null>(null);
   const { address: ethAddress, isConnected: isWagmiConnected } = useAccount();
   const chainId = useChainId();
-  
-  // Get USDC contract address for current chain
-  const usdcAddress = chainId ? USDC_ADDRESSES[chainId] : undefined;
+
+  // Only use Ethereum mainnet (chain ID 1) for USDC
+  const usdcAddress = USDC_ADDRESS;
 
   // Fetch USDC balance using wagmi
   const { data: usdcBalance, isLoading: isLoadingBalance } = useReadContract({
@@ -122,16 +117,18 @@ export default function BridgeTokenDialog({
       };
     }
     // Fallback to provided connectedWallets if wagmi is not connected
-    return connectedWallets || {
-      ethereum: {
-        connected: false,
-        address: null,
-        balances: {
-          USDC: 0,
-          USDT: 0,
+    return (
+      connectedWallets || {
+        ethereum: {
+          connected: false,
+          address: null,
+          balances: {
+            USDC: 0,
+            USDT: 0,
+          },
         },
-      },
-    };
+      }
+    );
   }, [isWagmiConnected, ethAddress, actualUsdcBalance, connectedWallets]);
 
   const handleConnectWallet = async (chainId: string) => {
@@ -186,8 +183,7 @@ export default function BridgeTokenDialog({
         <div className="px-6 pb-6 space-y-4">
           {chains.map((chain) => {
             // Only ethereum is supported
-            const wallet =
-              chain.id === "ethereum" ? effectiveConnectedWallets?.ethereum : undefined;
+            const wallet = chain.id === "ethereum" ? effectiveConnectedWallets?.ethereum : undefined;
             const isConnected = wallet?.connected;
             const isConnecting = connectingChain === chain.id;
 
@@ -209,14 +205,10 @@ export default function BridgeTokenDialog({
                   {isConnected ? (
                     <div className="flex items-center gap-1.5 text-xs text-green-500">
                       <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                      <span className="font-medium">
-                        {formatAddress(wallet.address)}
-                      </span>
+                      <span className="font-medium">{formatAddress(wallet.address)}</span>
                     </div>
                   ) : (
-                    <span className="text-xs text-muted-foreground">
-                      Not connected
-                    </span>
+                    <span className="text-xs text-muted-foreground">Not connected</span>
                   )}
                 </div>
 
@@ -231,9 +223,7 @@ export default function BridgeTokenDialog({
                       return (
                         <button
                           key={token.symbol}
-                          onClick={() =>
-                            handleSelectToken(chain.id, token.symbol)
-                          }
+                          onClick={() => handleSelectToken(chain.id, token.symbol)}
                           disabled={!hasBalance || isLoading}
                           className={`w-full p-3 flex items-center justify-between transition-colors ${
                             hasBalance && !isLoading
@@ -249,12 +239,8 @@ export default function BridgeTokenDialog({
                               {token.icon}
                             </div>
                             <div className="text-left">
-                              <p className="font-medium text-sm">
-                                {token.symbol}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {token.name}
-                              </p>
+                              <p className="font-medium text-sm">{token.symbol}</p>
+                              <p className="text-xs text-muted-foreground">{token.name}</p>
                             </div>
                           </div>
                           <div className="text-right">
@@ -262,19 +248,19 @@ export default function BridgeTokenDialog({
                               <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
                             ) : (
                               <>
-                            <p className="font-medium text-sm">
-                              {balance.toLocaleString("en-US", {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              $
-                              {balance.toLocaleString("en-US", {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}
-                            </p>
+                                <p className="font-medium text-sm">
+                                  {balance.toLocaleString("en-US", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  $
+                                  {balance.toLocaleString("en-US", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                </p>
                               </>
                             )}
                           </div>
@@ -291,11 +277,7 @@ export default function BridgeTokenDialog({
                   >
                     <div className="flex items-center gap-2">
                       <Wallet className="w-4 h-4" />
-                      <span>
-                        {isConnecting
-                          ? "Connecting..."
-                          : `Connect ${chain.name} Wallet`}
-                      </span>
+                      <span>{isConnecting ? "Connecting..." : `Connect ${chain.name} Wallet`}</span>
                     </div>
                     <ChevronRight className="w-4 h-4" />
                   </Button>

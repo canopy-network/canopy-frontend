@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Wallet, ChevronRight, Loader2 } from "lucide-react";
 import { useAccount, useChainId, useReadContract } from "wagmi";
 import { formatUnits } from "viem";
-import { USDC_ADDRESSES } from "@/lib/web3/config";
+import { USDC_ADDRESS } from "@/lib/web3/config";
 import type { BridgeToken, ConnectedWallets } from "@/types/trading";
 
 // Chain configuration
@@ -72,8 +72,8 @@ export default function DestinationCurrencyDialog({
   const { address: ethAddress, isConnected: isWagmiConnected } = useAccount();
   const chainId = useChainId();
 
-  // Get USDC contract address for current chain
-  const usdcAddress = chainId ? USDC_ADDRESSES[chainId] : undefined;
+  // Only use Ethereum mainnet (chain ID 1) for USDC
+  const usdcAddress = USDC_ADDRESS;
 
   // Fetch USDC balance using wagmi
   const { data: usdcBalance, isLoading: isLoadingBalance } = useReadContract({

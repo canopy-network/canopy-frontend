@@ -25,7 +25,7 @@ import ConvertTransactionDialog from "@/components/trading/convert-transaction-d
 import UserOrders, { type UserOrder } from "@/components/trading/user-orders";
 import { orderbookApi } from "@/lib/api";
 import { useChainId } from "wagmi";
-import { USDC_ADDRESSES } from "@/lib/web3/config";
+import { USDC_ADDRESS } from "@/lib/web3/config";
 import toast from "react-hot-toast";
 import type { ChainData, BridgeToken, ConnectedWallets, OrderBookOrder, OrderSelection } from "@/types/trading";
 import type { OrderBookApiOrder } from "@/types/orderbook";
@@ -252,7 +252,8 @@ export default function ConvertTab({
 
   // Get chain ID for USDC contract address lookup
   const chainId = useChainId();
-  const usdcAddress = chainId ? USDC_ADDRESSES[chainId] : undefined;
+  // Only use Ethereum mainnet (chain ID 1) for USDC
+  const usdcAddress = USDC_ADDRESS;
 
   // Get actual CNPY balance from wallet store
   // CNPY is on chain 1, look for token with chainId === 1 or symbol "C001"
@@ -704,14 +705,9 @@ export default function ConvertTab({
     setIsSubmitting(true);
 
     try {
-      // When selling CNPY for USDC, use Base USDC address to match the working order format
+      // When selling CNPY for USDC, use Ethereum mainnet USDC address
       // This ensures the transform function correctly interprets it as "Selling CNPY for USDC"
-      // rather than "Selling USDC for CNPY" (which happens when using Ethereum mainnet USDC address)
-      // The working example order (6eab465cd790963ef2780f2a3c2997ab8c71f93e) uses:
-      // 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913 (Base USDC)
-      // This matches how the orderbook-interface creates orders when orderType === "sell"
-      const BASE_USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
-      const DATA_ADDRESS = BASE_USDC_ADDRESS;
+      const DATA_ADDRESS = USDC_ADDRESS;
       const cnpyAmount = parseFloat(amount);
 
       if (cnpyAmount > cnpyBalance) {

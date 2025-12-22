@@ -23,7 +23,7 @@ import { useLockOrder } from "@/lib/hooks/use-lock-order";
 import { useCloseOrder } from "@/lib/hooks/use-close-order";
 import { useAccount, useChainId } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { USDC_ADDRESSES } from "@/lib/web3/config";
+import { USDC_ADDRESS } from "@/lib/web3/config";
 import { OrderCard } from "./order-card";
 
 export type OrderStatus = "active" | "filled" | "cancelled";
@@ -226,7 +226,8 @@ export default function OrdersTab() {
   const { address: ethAddress, isConnected: isEthConnected } = useAccount();
   const chainId = useChainId();
   const { openConnectModal } = useConnectModal();
-  const usdcAddress = chainId ? USDC_ADDRESSES[chainId] : undefined;
+  // Only use Ethereum mainnet (chain ID 1) for USDC
+  const usdcAddress = USDC_ADDRESS;
 
   // Lock order hook for non-owned orders
   // Only create hook when we have an order to lock

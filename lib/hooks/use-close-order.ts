@@ -18,7 +18,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useAccount, useChainId, useSendTransaction, useWaitForTransactionReceipt } from "wagmi";
 import { encodeFunctionData, toHex } from "viem";
-import { USDC_ADDRESSES, ERC20_TRANSFER_ABI } from "@/lib/web3/config";
+import { USDC_ADDRESS, ERC20_TRANSFER_ABI } from "@/lib/web3/config";
 import { chainsApi, walletTransactionApi } from "@/lib/api";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { createSendMessage, createAndSignTransaction } from "@/lib/crypto/transaction";
@@ -190,11 +190,12 @@ export function useCloseOrder({ order }: UseCloseOrderParams): UseCloseOrderRetu
       return;
     }
 
-    const usdcAddress = USDC_ADDRESSES[chainId];
-    if (!usdcAddress) {
-      setError(new Error(`USDC not supported on chain ${chainId}`));
+    // Only use Ethereum mainnet (chain ID 1) for USDC
+    if (chainId !== 1) {
+      setError(new Error("USDC is only supported on Ethereum Mainnet. Please switch to Ethereum Mainnet."));
       return;
     }
+    const usdcAddress = USDC_ADDRESS;
 
     setError(null);
 
