@@ -376,6 +376,12 @@ export default function OrdersTab() {
 
   const filteredOrders = orders
     .filter((order) => {
+      // Always exclude canceled orders from the UI
+      if (order.status === "cancelled") {
+        return false;
+      }
+
+      // Apply the selected filter
       if (filter === "all") return true;
       return order.status === filter;
     })
@@ -774,7 +780,7 @@ export default function OrdersTab() {
       <div className="flex items-center gap-2">
         <Filter className="w-4 h-4 text-muted-foreground" />
         <div className="flex gap-2">
-          {(["all", "active", "filled", "cancelled"] as FilterType[]).map((status) => (
+          {(["all", "active", "filled"] as FilterType[]).map((status) => (
             <Button
               key={status}
               variant={filter === status ? "default" : "outline"}
@@ -786,17 +792,8 @@ export default function OrdersTab() {
             </Button>
           ))}
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={toggleSortDirection}
-          className="flex items-center gap-1"
-        >
-          {sortDirection === "desc" ? (
-            <ArrowDown className="w-4 h-4" />
-          ) : (
-            <ArrowUp className="w-4 h-4" />
-          )}
+        <Button variant="outline" size="sm" onClick={toggleSortDirection} className="flex items-center gap-1">
+          {sortDirection === "desc" ? <ArrowDown className="w-4 h-4" /> : <ArrowUp className="w-4 h-4" />}
           {sortDirection === "desc" ? "Newest" : "Oldest"}
         </Button>
         <div className="ml-auto text-sm text-muted-foreground">
