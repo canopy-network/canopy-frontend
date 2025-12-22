@@ -46,6 +46,7 @@ function generateChainSymbol(chainId: number): string {
 import {
   createSendMessage,
   createOrderMessage,
+  createDeleteOrderMessage,
   createAndSignTransaction,
   validateTransactionParams,
 } from "@/lib/crypto/transaction";
@@ -104,6 +105,12 @@ export interface WalletState {
     requestedAmount: number,
     sellerEthAddress: string, // Ethereum address to receive USDC
     usdcContractAddress: string // USDC contract address (with 0x prefix)
+  ) => Promise<string>;
+
+  // Actions - Delete Order (MessageDeleteOrder)
+  deleteOrder: (
+    orderId: string, // Order ID to delete
+    committeeId: number // Committee chain ID
   ) => Promise<string>;
 
   // Actions - Utilities
@@ -1002,6 +1009,81 @@ export const useWalletStore = create<WalletState>()(
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : "Failed to create order";
           console.error("❌ Failed to create order:", error);
+          set({ error: errorMessage, isLoading: false });
+          throw error;
+        }
+      },
+
+      // Delete an order using send-raw endpoint (MessageDeleteOrder)
+      deleteOrder: async (orderId: string, committeeId: number): Promise<string> => {
+        try {
+          set({ isLoading: true, error: null });
+
+          // Get current wallet
+          const { currentWallet } = get();
+
+          if (!currentWallet) {
+            throw new Error("No wallet selected. Please select a wallet first.");
+          }
+
+          if (!currentWallet.privateKey || !currentWallet.isUnlocked) {
+            throw new Error("Wallet is locked. Please unlock the wallet first.");
+          }
+
+          if (!currentWallet.curveType) {
+            throw new Error("Wallet curve type not detected. Please refresh your wallets.");
+          }
+
+          // Get current blockchain height (always use chain 1 for the main chain)
+          const BLOCKCHAIN_CHAIN_ID = 1;
+          const currentHeight = await chainsApi.getChainHeight(String(BLOCKCHAIN_CHAIN_ID));
+
+          // Fetch fee params for deleteOrder transaction
+          const feeParams = await get().fetchFeeParams();
+
+          // Create delete order message
+          const msg = createDeleteOrderMessage(orderId, committeeId);
+
+          // Build transaction parameters
+          const txParams = {
+            type: "deleteOrder",
+            msg,
+            fee: feeParams.deleteOrderFee,
+            memo: "",
+            networkID: 1,
+            chainID: BLOCKCHAIN_CHAIN_ID,
+            height: currentHeight.data.height,
+          };
+
+          try {
+            validateTransactionParams(txParams);
+          } catch (validationError) {
+            console.error("❌ Transaction validation failed:", validationError);
+            throw validationError;
+          }
+
+          // Create and sign the transaction
+          console.log("🔐 Signing deleteOrder transaction with protobuf...");
+          const signedTx = createAndSignTransaction(
+            txParams,
+            currentWallet.privateKey,
+            currentWallet.public_key,
+            currentWallet.curveType as CurveType
+          );
+
+          console.log("✅ Delete order transaction signed locally with", currentWallet.curveType);
+          console.log("📤 Submitting raw transaction to backend...");
+
+          // Submit the raw transaction to the backend
+          const response = await walletTransactionApi.sendRawTransaction(signedTx);
+
+          console.log("✅ Order deleted:", response.transaction_hash);
+
+          set({ isLoading: false });
+          return response.transaction_hash;
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Failed to delete order";
+          console.error("❌ Failed to delete order:", error);
           set({ error: errorMessage, isLoading: false });
           throw error;
         }
