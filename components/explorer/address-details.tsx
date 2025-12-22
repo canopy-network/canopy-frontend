@@ -275,8 +275,10 @@ export function AddressDetails({ address }: AddressDetailsProps) {
   // Only use real LP positions data
   const lpPositions = addressData.lp_positions || [];
 
-  // Calculate portfolio value in USD (assuming 1 CNPY = 1 USD for now)
-  const portfolioValueUSD = parseFloat(summary.total_portfolio_value_fmt || "0");
+  // Calculate portfolio value in USD (use formatted value from API if available)
+  const portfolioValueUSD = summary.total_portfolio_value_usd 
+    ? summary.total_portfolio_value_usd 
+    : parseFloat(summary.total_portfolio_value_fmt || "0");
 
   // Calculate staked vs free percentages
   const totalValue = summary.total_portfolio_value_cnpy;
@@ -318,7 +320,9 @@ export function AddressDetails({ address }: AddressDetailsProps) {
   // Prepare token list for Portfolio tab
   const tokenList = balances.map((balance, idx) => {
     const balanceValue = parseFloat(balance.balance_fmt || "0");
-    const usdValue = balanceValue; // Assuming 1 CNPY = 1 USD
+    const usdValue = balance.balance_usd 
+      ? balance.balance_usd 
+      : parseFloat(balance.balance_usd_fmt?.replace(/,/g, "") || "0") || balanceValue; // Fallback to CNPY value if USD not available
     const tokenSymbol = getChainToken(balance.chain_id);
     const chainName = getChainName(balance.chain_id);
     const chainColor = getChainColor(balance.chain_id);
@@ -330,6 +334,7 @@ export function AddressDetails({ address }: AddressDetailsProps) {
       token: tokenSymbol,
       balance: balanceValue,
       usdValue,
+      balanceUsdFmt: balance.balance_usd_fmt,
     };
   });
 
@@ -461,17 +466,37 @@ export function AddressDetails({ address }: AddressDetailsProps) {
         <Card className="px-6">
           <div className="flex flex-col gap-2 justify-center items-start h-full">
             <p className="text-sm text-muted-foreground">Portfolio Value</p>
-            <p className="text-2xl font-bold">${formatUSD(portfolioValueUSD)} USD</p>
+            <p className="text-2xl font-bold">
+              ${summary.total_portfolio_value_usd_fmt || formatUSD(portfolioValueUSD)} USD
+            </p>
+            {summary.total_portfolio_value_fmt && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {summary.total_portfolio_value_fmt} CNPY
+              </p>
+            )}
           </div>
         </Card>
 
         {/* 24h Change - Only show if we have real data */}
-        {summary && (
+        {summary && summary.portfolio_change_24h_usd_fmt && (
           <Card className="px-6">
             <div className="flex flex-col gap-2 justify-center items-start h-full">
               <p className="text-sm text-muted-foreground mb-2">24h Change</p>
-              <p className="text-2xl font-bold text-[#00a63d]">+$0.00</p>
-              <p className="text-xs text-[#00a63d] mt-1">↑+0.0% last 24h</p>
+              <p className={`text-2xl font-bold ${
+                (summary.portfolio_change_24h_usd || 0) >= 0 
+                  ? "text-[#00a63d]" 
+                  : "text-red-500"
+              }`}>
+                {summary.portfolio_change_24h_usd_fmt}
+              </p>
+              <p className={`text-xs mt-1 ${
+                (summary.portfolio_change_24h_percent || 0) >= 0 
+                  ? "text-[#00a63d]" 
+                  : "text-red-500"
+              }`}>
+                {(summary.portfolio_change_24h_percent || 0) >= 0 ? "↑" : "↓"}
+                {summary.portfolio_change_24h_percent_fmt || "0.00%"} last 24h
+              </p>
             </div>
           </Card>
         )}
@@ -570,7 +595,7 @@ export function AddressDetails({ address }: AddressDetailsProps) {
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <div className="text-center">
                       <p className="text-2xl font-bold text-white">
-                        {formatUSD(portfolioValueUSD)}
+                        {summary.total_portfolio_value_usd_fmt || formatUSD(portfolioValueUSD)}
                       </p>
                       <p className="text-sm text-muted-foreground">USD</p>
                     </div>
@@ -628,7 +653,7 @@ export function AddressDetails({ address }: AddressDetailsProps) {
                     {formatCNPY(token.balance)} {token.token}
                   </span>,
                   <span key="usd" className="text-sm text-white text-right">
-                    ${formatUSD(token.usdValue)}
+                    ${token.balanceUsdFmt || formatUSD(token.usdValue)}
                   </span>,
                 ])}
                 loading={loading}

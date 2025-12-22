@@ -19,9 +19,27 @@
 export interface AddressSummary {
   total_portfolio_value_cnpy: number;
   total_portfolio_value_fmt: string;
+  total_portfolio_value_usd?: number;
+  total_portfolio_value_usd_fmt?: string;
   liquid_balance_cnpy: number;
+  liquid_balance_usd?: number;
+  liquid_balance_usd_fmt?: string;
   staked_balance_cnpy: number;
+  staked_balance_usd?: number;
+  staked_balance_usd_fmt?: string;
   lp_balance_cnpy: number;
+  lp_balance_usd?: number;
+  lp_balance_usd_fmt?: string;
+  portfolio_value_24h_ago_cnpy?: number;
+  portfolio_value_24h_ago_fmt?: string;
+  portfolio_value_24h_ago_usd?: number;
+  portfolio_value_24h_ago_usd_fmt?: string;
+  portfolio_change_24h_cnpy?: number;
+  portfolio_change_24h_fmt?: string;
+  portfolio_change_24h_usd?: number;
+  portfolio_change_24h_usd_fmt?: string;
+  portfolio_change_24h_percent?: number;
+  portfolio_change_24h_percent_fmt?: string;
   chain_count: number;
   lp_position_count: number;
   is_validator: boolean;
@@ -36,6 +54,10 @@ export interface AddressBalance {
   chain_name: string;
   balance: number;
   balance_fmt: string;
+  balance_usd?: number;
+  balance_usd_fmt?: string;
+  price?: number;
+  price_fmt?: string;
   height: number;
   updated_at: string;
 }
