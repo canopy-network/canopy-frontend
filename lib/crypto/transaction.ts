@@ -55,20 +55,9 @@ export function createAndSignTransaction(
     chainID: params.chainID,
   };
 
-  // Get PROTOBUF sign bytes (transaction without signature)
-  // Mirrors lib.Transaction.GetSignBytes() from canopy/lib/tx.go:149-162
-  // This MUST produce the EXACT same bytes as the Go implementation!
   const signBytes = getSignBytesProtobuf(unsignedTx);
 
-  // DEBUG: Log the sign bytes for comparison with backend
-  // console.log('🔍 DEBUG - Sign Bytes Info:');
-  // console.log('  Transaction type:', unsignedTx.type);
-  // console.log('  Message:', JSON.stringify(unsignedTx.msg, null, 2));
-  // console.log('  Sign bytes length:', signBytes.length);
-  // console.log('  Sign bytes (hex):', Array.from(signBytes).map(b => b.toString(16).padStart(2, '0')).join(''));
-  // console.log('  Sign bytes (base64):', btoa(String.fromCharCode(...signBytes)));
 
-  // Sign the canonical bytes with the correct curve algorithm
   const signatureHex = signMessage(signBytes, privateKeyHex, curveType);
 
   // Create signature structure
@@ -217,16 +206,19 @@ export function createEditStakeMessage(
 }
 
 /**
- * Creates a CreateOrder transaction message (DEX)
+ * Creates a CreateOrder transaction message (cross-chain atomic swaps)
+ *
+ * NOTE: This is for cross-chain atomic swap orders, NOT for DEX v2 limit orders.
+ * For DEX v2 limit orders, use createDexLimitOrderMessage() instead.
  *
  * Mirrors fsm.NewCreateOrderTx() from canopy/fsm/transaction.go:366-375
  *
- * @param chainId - Chain ID for the order
- * @param data - Additional order data
- * @param amountForSale - Amount selling
- * @param requestedAmount - Amount requesting
- * @param sellerReceiveAddress - Address to receive payment
- * @param sellersSendAddress - Address sending tokens
+ * @param committeeId - Committee ID responsible for the counter-asset swap
+ * @param data - Additional order data (hex string, can be empty)
+ * @param amountForSale - Amount selling (in micro units)
+ * @param requestedAmount - Amount requesting (in micro units)
+ * @param sellerReceiveAddress - Address to receive payment (hex)
+ * @param sellersSendAddress - Address sending tokens (hex)
  * @returns MessageCreateOrder payload
  */
 export function createOrderMessage(
@@ -237,6 +229,8 @@ export function createOrderMessage(
   sellerReceiveAddress: string,
   sellersSendAddress: string
 ): TransactionMessage {
+  // NOTE: Do NOT include orderId - it's auto-populated by the backend
+  // from the first 20 bytes of the transaction hash
   return {
     chainId,
     data,
@@ -244,7 +238,35 @@ export function createOrderMessage(
     requestedAmount,
     sellerReceiveAddress,
     sellersSendAddress,
-    orderId: '', // Will be populated by backend (first 20 bytes of tx hash)
+  };
+}
+
+/**
+ * Creates a DexLimitOrder transaction message (DEX v2 automated matching)
+ *
+ * NOTE: This is for DEX v2 limit orders with automated order matching.
+ * For cross-chain atomic swap orders, use createOrderMessage() instead.
+ *
+ * Mirrors fsm.NewDexLimitOrderTx() from canopy/fsm/transaction.go
+ *
+ * @param chainId - Chain ID for the DEX pool
+ * @param amountForSale - Amount selling (in micro units)
+ * @param requestedAmount - Minimum amount requesting (in micro units)
+ * @param address - Seller's address (hex)
+ * @returns MessageDexLimitOrder payload
+ */
+export function createDexLimitOrderMessage(
+  chainId: number,
+  amountForSale: number,
+  requestedAmount: number,
+  address: string
+): TransactionMessage {
+  // NOTE: Do NOT include orderId - it's auto-populated by the backend
+  return {
+    chainId,
+    amountForSale,
+    requestedAmount,
+    address,
   };
 }
 

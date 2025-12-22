@@ -56,7 +56,6 @@ export function LatestUpdated({
           <span className="text-sm font-medium text-green-500">Live</span>
         </div>
       )}
-
     </div>
   );
 }

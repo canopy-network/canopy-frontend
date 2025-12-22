@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { LocalWallet } from "@/types/wallet";
@@ -102,7 +102,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
    * 3. If no wallets, show create dialog
    * 4. If has wallets, show select dialog
    */
-  const connectWallet = async () => {
+  const connectWallet = useCallback(async () => {
     try {
       setIsConnecting(true);
 
@@ -132,12 +132,12 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsConnecting(false);
     }
-  };
+  }, [isAuthenticated, fetchWallets, wallets.length]);
 
   /**
    * Disconnect wallet
    */
-  const disconnectWallet = () => {
+  const disconnectWallet = useCallback(() => {
     // Lock all wallets (remove private keys from memory)
     useWalletStore.getState().lockAllWallets();
 
@@ -146,48 +146,63 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
     // Close popup
     setIsPopupOpen(false);
-  };
+  }, []);
 
   /**
    * Switch to a different wallet
    */
-  const switchWallet = (walletId: string) => {
+  const switchWallet = useCallback((walletId: string) => {
     selectWallet(walletId);
-  };
+  }, [selectWallet]);
 
-  const openPopup = () => setIsPopupOpen(true);
-  const closePopup = () => setIsPopupOpen(false);
-  const togglePopup = () => setIsPopupOpen((prev) => !prev);
+  const openPopup = useCallback(() => setIsPopupOpen(true), []);
+  const closePopup = useCallback(() => setIsPopupOpen(false), []);
+  const togglePopup = useCallback(() => setIsPopupOpen((prev) => !prev), []);
 
-  const handleSelectSuccess = () => {
+  const handleSelectSuccess = useCallback(() => {
     setShowSelectDialog(false);
-  };
+  }, []);
 
-  const handleCreateSuccess = () => {
+  const handleCreateSuccess = useCallback(() => {
     setShowCreateDialog(false);
     // Fetch wallets to update the list
     fetchWallets();
-  };
+  }, [fetchWallets]);
+
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    currentWallet,
+    wallets,
+    isConnecting: isConnecting || isLoading,
+    isPopupOpen,
+    connectWallet,
+    disconnectWallet,
+    switchWallet,
+    openPopup,
+    closePopup,
+    togglePopup,
+    showSelectDialog,
+    showCreateDialog,
+    setShowSelectDialog,
+    setShowCreateDialog,
+  }), [
+    currentWallet,
+    wallets,
+    isConnecting,
+    isLoading,
+    isPopupOpen,
+    connectWallet,
+    disconnectWallet,
+    switchWallet,
+    openPopup,
+    closePopup,
+    togglePopup,
+    showSelectDialog,
+    showCreateDialog,
+  ]);
 
   return (
-    <WalletContext.Provider
-      value={{
-        currentWallet,
-        wallets,
-        isConnecting: isConnecting || isLoading,
-        isPopupOpen,
-        connectWallet,
-        disconnectWallet,
-        switchWallet,
-        openPopup,
-        closePopup,
-        togglePopup,
-        showSelectDialog,
-        showCreateDialog,
-        setShowSelectDialog,
-        setShowCreateDialog,
-      }}
-    >
+    <WalletContext.Provider value={contextValue}>
       {children}
 
       {/* Wallet Dialogs */}

@@ -172,7 +172,6 @@ export function TrendingChains({ chains }: TrendingChainsProps) {
           }}
         />
         <div
-
           className="flex flex-col hover:text-primary transition-colors"
         >
           <span className="font-medium text-white text-sm">{chain.name}</span>

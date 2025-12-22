@@ -3,7 +3,7 @@
 // Force SSR for this page
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent, CardDescription,
@@ -23,6 +23,8 @@ import { AssetsTab } from "@/components/wallet/assets-tab";
 import { ActivityTab } from "@/components/wallet/activity-tab";
 import { StakingTab } from "@/components/wallet/staking-tab";
 import { GovernanceTab } from "@/components/wallet/governance-tab";
+import { RewardsActivity } from "@/components/wallet/rewards-activity";
+import { useStaking } from "@/lib/hooks/use-staking";
 import {
   Copy,
   Send,
@@ -47,12 +49,20 @@ function WalletContent() {
     fetchTransactions,
     fetchPortfolioOverview,
   } = useWalletStore();
+  const { positions } = useStaking(currentWallet?.address);
 
   const [showSendDialog, setShowSendDialog] = useState(false);
   const [showReceiveDialog, setShowReceiveDialog] = useState(false);
   const [showStakeDialog, setShowStakeDialog] = useState(false);
   const [showQuickActionsSheet, setShowQuickActionsSheet] = useState(false);
   const [activeTab, setActiveTab] = useState("assets");
+
+  // Memoize addresses array to prevent recreation on every render
+  // This is critical to prevent infinite loops in child components
+  const addresses = useMemo(
+    () => (currentWallet ? [currentWallet.address] : []),
+    [currentWallet?.address]
+  );
 
   // Fetch data when wallet changes
   useEffect(() => {
@@ -61,7 +71,7 @@ function WalletContent() {
       fetchTransactions(currentWallet.id);
       fetchPortfolioOverview([currentWallet.address]);
     }
-  }, [currentWallet]);
+  }, [currentWallet?.id, currentWallet?.address, fetchBalance, fetchTransactions, fetchPortfolioOverview]);
 
   const copyAddress = () => {
     if (currentWallet) {
@@ -99,6 +109,9 @@ function WalletContent() {
 
   const displayUSDValue = `$${totalUSDValue.toFixed(2)}`;
   const displayTransactions = transactions.length > 0 ? transactions : [];
+  const disallowChainIds = positions
+    .filter((p) => p.status !== "unstaking")
+    .map((p) => p.chain_id);
 
   if (!isAuthenticated) {
     return (
@@ -231,6 +244,12 @@ function WalletContent() {
                     Staking
                   </TabsTrigger>
                   <TabsTrigger
+                    value="rewards"
+                    className="py-3 sm:py-4 px-0 mr-4 sm:mr-8 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent text-sm sm:text-base shrink-0"
+                  >
+                    Rewards
+                  </TabsTrigger>
+                  <TabsTrigger
                     value="activity"
                     className="py-3 sm:py-4 px-0 mr-4 sm:mr-8 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent text-sm sm:text-base shrink-0"
                   >
@@ -246,19 +265,25 @@ function WalletContent() {
 
                 {/* Assets Tab */}
                 <TabsContent value="assets" className="mt-4 sm:mt-6">
-                  <AssetsTab
-                    addresses={currentWallet ? [currentWallet.address] : []}
-                  />
+                  <AssetsTab addresses={addresses} />
                 </TabsContent>
 
                 {/* Staking Tab */}
                 <TabsContent value="staking" className="mt-4 sm:mt-6">
-                  <StakingTab addresses={currentWallet ? [currentWallet.address] : []} />
+                  <StakingTab addresses={addresses} />
+                </TabsContent>
+
+                {/* Rewards Tab */}
+                <TabsContent value="rewards" className="mt-4 sm:mt-6">
+                  <RewardsActivity
+                    addresses={addresses}
+                    limit={10}
+                  />
                 </TabsContent>
 
                 {/* Activity Tab */}
                 <TabsContent value="activity" className="mt-4 sm:mt-6">
-                  <ActivityTab addresses={currentWallet ? [currentWallet.address] : []} compact />
+                  <ActivityTab addresses={addresses} compact />
                 </TabsContent>
 
                 {/* Governance Tab */}
@@ -288,7 +313,7 @@ function WalletContent() {
                   <Button
                     variant="outline"
                     className="h-auto py-4 flex-col gap-2"
-                    disabled
+                    onClick={() => setShowReceiveDialog(true)}
                   >
                     <Download className="h-5 w-5" />
                     <span className="text-xs">Buy</span>
@@ -296,19 +321,19 @@ function WalletContent() {
                   <Button
                     variant="outline"
                     className="h-auto py-4 flex-col gap-2"
-                    disabled
+                    onClick={() => toast.info("Swap coming soon")}
                   >
                     <Repeat className="h-5 w-5" />
                     <span className="text-xs">Swap</span>
                   </Button>
                   <Button
-                    variant="outline"
-                    className="h-auto py-4 flex-col gap-2"
-                    onClick={() => setShowStakeDialog(true)}
-                  >
-                    <Coins className="h-5 w-5" />
-                    <span className="text-xs">Stake</span>
-                  </Button>
+        variant="outline"
+        className="h-auto py-4 flex-col gap-2"
+        onClick={() => setShowStakeDialog(true)}
+      >
+        <Coins className="h-5 w-5" />
+        <span className="text-xs">Stake</span>
+      </Button>
                 </div>
               </CardContent>
             </Card>
@@ -346,7 +371,10 @@ function WalletContent() {
                     <Button
                       variant="outline"
                       className="h-auto py-4 flex-col gap-2"
-                      disabled
+                      onClick={() => {
+                        setShowReceiveDialog(true);
+                        setShowQuickActionsSheet(false);
+                      }}
                     >
                       <Download className="h-5 w-5" />
                       <span className="text-xs">Buy</span>
@@ -354,7 +382,10 @@ function WalletContent() {
                     <Button
                       variant="outline"
                       className="h-auto py-4 flex-col gap-2"
-                      disabled
+                      onClick={() => {
+                        toast.info("Swap coming soon");
+                        setShowQuickActionsSheet(false);
+                      }}
                     >
                       <Repeat className="h-5 w-5" />
                       <span className="text-xs">Swap</span>
@@ -390,6 +421,7 @@ function WalletContent() {
       <StakeDialog
         open={showStakeDialog}
         onOpenChange={setShowStakeDialog}
+        disallowChainIds={disallowChainIds}
       />
     </div>
   );

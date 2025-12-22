@@ -630,8 +630,6 @@ export function ValidatorDetailClient({ validator }: ValidatorDetailClientProps)
           </div>
         </Card>
       )}
-
-
     </div>
   );
 }

@@ -40,7 +40,6 @@ interface Validator {
   originalStatus?: string;
 }
 
-
 // Helper function to format metrics from API data
 const formatOverviewMetrics = (data: ExplorerOverview | null) => {
   // Return empty array if no data - component will handle empty state
@@ -141,7 +140,6 @@ const formatOverviewMetrics = (data: ExplorerOverview | null) => {
 
   return metrics;
 };
-
 
 const formatTrendingValue = (value?: number | null) => {
   if (value === undefined || value === null) return "-";

@@ -75,11 +75,11 @@ export function ValidatorsExplorer({ chainContext }: ValidatorsExplorerProps) {
 
   const formatStakeUSD = (stake: number): string => {
     if (stake >= 1000000) {
-      return `$${(stake / 1000000).toFixed(1)}M`;
+      return `${(stake / 1000000).toFixed(1)}M CNPY`;
     } else if (stake >= 1000) {
-      return `$${(stake / 1000).toFixed(1)}K`;
+      return `${(stake / 1000).toFixed(1)}K CNPY`;
     }
-    return `$${stake.toFixed(0)}`;
+    return `${stake.toFixed(0)} CNPY`;
   };
 
   const aggregatedValidators = useMemo<AggregatedValidator[]>(() => {
