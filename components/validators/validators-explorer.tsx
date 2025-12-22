@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import Link from "next/link";
 import { TableCard, TableColumn } from "@/components/explorer/table-card";
-import { useValidators } from "@/lib/api/validators";
+import { useValidators, useValidator } from "@/lib/api/validators";
 import { canopyIconSvg, getCanopyAccent } from "@/lib/utils/brand";
+import { chainsApi } from "@/lib/api/chains";
 
 const ROWS_PER_PAGE = 12;
 
@@ -36,6 +37,8 @@ export function ValidatorsExplorer({ chainContext }: ValidatorsExplorerProps) {
   const searchParams = useSearchParams();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  const [chainNames, setChainNames] = useState<Record<number, string>>({});
 
   // Get chain_id from URL search params or chainContext
   const chainIdFromUrl = searchParams.get("chain");
@@ -177,6 +180,157 @@ export function ValidatorsExplorer({ chainContext }: ValidatorsExplorerProps) {
     })}%`;
   };
 
+  // Handle row expansion
+  const handleRowExpand = (rowIndex: number) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(rowIndex)) {
+      newExpanded.delete(rowIndex);
+    } else {
+      newExpanded.add(rowIndex);
+    }
+    setExpandedRows(newExpanded);
+  };
+
+  // Fetch chain names for cross-chain display
+  useEffect(() => {
+    const fetchChainNames = async () => {
+      const names: Record<number, string> = {};
+      const chainIds = new Set<number>();
+
+      // Collect all unique chain IDs from expanded validators
+      filteredValidators.forEach((validator, idx) => {
+        if (expandedRows.has(idx)) {
+          validator.chains.forEach((chainId) => chainIds.add(chainId));
+        }
+      });
+
+      await Promise.all(
+        Array.from(chainIds).map(async (chainId) => {
+          try {
+            const response = await chainsApi.getChain(chainId.toString()).catch(() => null);
+            if (response?.data) {
+              names[chainId] = response.data.chain_name || `Chain ${chainId}`;
+            } else {
+              names[chainId] = `Chain ${chainId}`;
+            }
+          } catch (error) {
+            names[chainId] = `Chain ${chainId}`;
+          }
+        })
+      );
+
+      setChainNames((prev) => ({ ...prev, ...names }));
+    };
+
+    if (expandedRows.size > 0) {
+      fetchChainNames();
+    }
+  }, [expandedRows, filteredValidators]);
+
+  // Component for expanded content (needs to be separate to use hooks)
+  const ExpandedValidatorContent = ({ validatorAddress }: { validatorAddress: string }) => {
+    const { data: validatorDetail, isLoading } = useValidator(validatorAddress);
+
+    if (isLoading) {
+      return (
+        <div className="flex items-center justify-center py-8">
+          <div className="text-sm text-muted-foreground">Loading validator details...</div>
+        </div>
+      );
+    }
+
+    if (!validatorDetail?.cross_chain || validatorDetail.cross_chain.length === 0) {
+      return (
+        <div className="flex items-center justify-center py-8">
+          <div className="text-sm text-muted-foreground">No cross-chain data available</div>
+        </div>
+      );
+    }
+
+    // Calculate total staked for voting power calculation
+    const totalStaked = validatorDetail.cross_chain.reduce((total, c) => {
+      return total + parseFloat(c.staked_cnpy?.replace(/,/g, "") || "0");
+    }, 0);
+
+    return (
+      <div className="w-full">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="border-b border-white/10">
+              <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">Chain</th>
+              <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">Voting Power</th>
+              <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">Value</th>
+              <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">Current Rewards</th>
+              <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">Rewards (30d)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {validatorDetail.cross_chain.map((chain) => {
+              const chainName = chainNames[chain.chain_id] || `Chain ${chain.chain_id}`;
+              const chainColor = getCanopyAccent(chain.chain_id.toString());
+              const stakedUSD = parseFloat(chain.staked_usd?.replace(/,/g, "") || "0");
+              const currentRewards = parseFloat(chain.rewards_cnpy?.replace(/,/g, "") || "0");
+              const rewards30d = currentRewards * 30;
+              // Calculate voting power percentage
+              const chainStaked = parseFloat(chain.staked_cnpy?.replace(/,/g, "") || "0");
+              const votingPowerPercent = totalStaked > 0
+                ? ((chainStaked / totalStaked) * 100).toFixed(1)
+                : "0.0";
+
+              return (
+                <tr key={chain.chain_id} className="border-b border-white/5 hover:bg-white/5">
+                  <td className="py-3 px-4">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+                        dangerouslySetInnerHTML={{
+                          __html: canopyIconSvg(chainColor),
+                        }}
+                      />
+                      <span className="text-sm text-white font-medium">{chainName}</span>
+                    </div>
+                  </td>
+                  <td className="py-3 px-4">
+                    <span className="text-sm text-white">{votingPowerPercent}%</span>
+                  </td>
+                  <td className="py-3 px-4">
+                    <span className="text-sm text-white">{formatStakeUSD(stakedUSD)}</span>
+                  </td>
+                  <td className="py-3 px-4">
+                    <span className="text-sm font-medium text-[#00a63d]">
+                      {currentRewards.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}{" "}
+                      CNPY
+                    </span>
+                  </td>
+                  <td className="py-3 px-4">
+                    <span className="text-sm font-medium text-[#00a63d]">
+                      {rewards30d.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}{" "}
+                      CNPY
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  // Render expanded content for a row
+  const renderExpandedContent = (rowIndex: number) => {
+    const validator = filteredValidators[rowIndex];
+    if (!validator) return null;
+
+    return <ExpandedValidatorContent validatorAddress={validator.address} />;
+  };
+
   const columns: TableColumn[] = [
     { label: "Validator Name", width: "w-[200px]" },
     { label: "Stake", width: "w-32" },
@@ -187,9 +341,10 @@ export function ValidatorsExplorer({ chainContext }: ValidatorsExplorerProps) {
     { label: "Staking", width: "w-40" },
     { label: "Rewards (30d)", width: "w-40" },
     { label: "Status", width: "w-32" },
+    { label: "", width: "w-10" },
   ];
 
-  const rows = filteredValidators.map((validator: AggregatedValidator) => {
+  const rows = filteredValidators.map((validator: AggregatedValidator, idx: number) => {
     const getUptimeColor = (uptime: number) => {
       if (uptime >= 99) return "bg-[#00a63d]/10 text-[#00a63d] border border-[#00a63d]/50";
       if (uptime >= 97) return "bg-yellow-500/10 text-yellow-500 border border-yellow-500/50";
@@ -280,13 +435,21 @@ export function ValidatorsExplorer({ chainContext }: ValidatorsExplorerProps) {
         className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${getStatusColor(validator.status)}`}
       >
         {validator.status}
-        <ChevronDown className="w-3 h-3" />
+
       </span>,
+      <div key={`expanded-${validator.address}`}>
+        {expandedRows.has(filteredValidators.indexOf(validator)) ? (
+          <ChevronUp className="w-5 h-5 text-white/40" />
+        ) : (
+          <ChevronDown className="w-5 h-5 text-white/40" />
+        )
+        }
+      </div>
     ];
   });
 
   return (
-    <div className="px-4 lg:p-6">
+    <div className="max-w-7xl mx-auto py-6">
       <TableCard
         id="validators-table"
         title="Validators"
@@ -306,6 +469,10 @@ export function ValidatorsExplorer({ chainContext }: ValidatorsExplorerProps) {
         showCSVButton={true}
         spacing={3}
         className="gap-2 lg:gap-6"
+        expandableRows={true}
+        expandedRows={expandedRows}
+        onRowExpand={handleRowExpand}
+        renderExpandedContent={renderExpandedContent}
       />
     </div>
   );

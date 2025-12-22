@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { TableCard, TableColumn } from "./table-card";
-import { Box } from "lucide-react";
 import { Chain } from "@/types/chains";
 import { canopyIconSvg, getCanopyAccent, EXPLORER_ICON_GLOW } from "@/lib/utils/brand";
 import { ChainDetailModal } from "./chain-detail-modal";
@@ -34,7 +33,7 @@ function GraduationStatus({
     return (
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground">Graduated</span>
+          <span className="text-xs text-muted-foreground">Status</span>
           <span className="text-xs font-semibold text-[#00a63d]">Yes</span>
         </div>
         <div className="w-full bg-white/10 rounded-full h-2">
@@ -118,10 +117,9 @@ export function NewLaunches({ chains }: NewLaunchesProps) {
 
   const columns: TableColumn[] = [
     { label: "Chain", width: "w-[140px]" },
-    { label: "Token", width: "w-24" },
     { label: "Market Cap", width: "w-32" },
     { label: "Holders", width: "w-32" },
-    { label: "Graduation Status", width: "w-36" },
+    { label: "Graduation", width: "w-32" },
   ];
 
   const rows = chains.slice(0, 5).map((chain) => {
@@ -142,14 +140,9 @@ export function NewLaunches({ chains }: NewLaunchesProps) {
         <div className="flex flex-col">
           <span className="font-medium text-white text-sm">{chain.chain_name}</span>
           <span className="text-xs text-muted-foreground">
-            {chain.status.replace("_", " ")}
+            {chain.token_symbol}
           </span>
         </div>
-      </div>,
-      // Token
-      <div key="token" className="flex items-center gap-2">
-        <Box className={`w-4 h-4 text-muted-foreground ${EXPLORER_ICON_GLOW}`} />
-        <span className="font-mono text-white text-sm">${chain.token_symbol}</span>
       </div>,
       // Market Cap
       <span key="market-cap" className="text-white font-medium text-sm">

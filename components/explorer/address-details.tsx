@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Upload, Heart, ChevronRight } from "lucide-react";
+import { Upload, Heart } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,6 +13,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { getCanopyAccent, canopyIconSvg } from "@/lib/utils/brand";
 import { chainsApi } from "@/lib/api/chains";
 import type { Chain } from "@/types/chains";
+import { useState } from "react";
 
 // Format time ago from timestamp (e.g., "204d ago")
 const formatTimeAgo = (timestamp: string): string => {
@@ -86,11 +87,14 @@ interface AddressDetailsProps {
 
 export function AddressDetails({ address }: AddressDetailsProps) {
   const { data: addressData, isLoading: loading, error: queryError } = useExplorerAddress(address, true, 20);
-  
+
   // States for chain information
   const [chainNames, setChainNames] = React.useState<Record<number, string>>({});
   const [chainColors, setChainColors] = React.useState<Record<number, string>>({});
   const [chainTokens, setChainTokens] = React.useState<Record<number, string>>({}); // token_symbol for each chain
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedChainId, setSelectedChainId] = useState<string>("0"); // "0" means "All Chains"
 
   // Memoize balances and transactions to avoid dependency issues
   const balances = React.useMemo(() => addressData?.balances || [], [addressData?.balances]);
@@ -198,6 +202,55 @@ export function AddressDetails({ address }: AddressDetailsProps) {
     [chainTokens]
   );
 
+  // Prepare transactions for TableCard (before early returns to avoid hook order issues)
+  const allTransactions = React.useMemo(() =>
+    (transactions || []).flatMap((chainTxs) =>
+      chainTxs.transactions.map((tx) => ({
+        ...tx,
+        chain_id: chainTxs.chain_id,
+        chain_name: chainTxs.chain_name,
+      }))
+    ),
+    [transactions]
+  );
+
+  // Filter transactions based on search query and selected chain
+  const filteredTransactions = React.useMemo(() => {
+    let filtered = allTransactions;
+
+    // Filter by chain if a specific chain is selected
+    if (selectedChainId && selectedChainId !== "0") {
+      const chainIdNum = parseInt(selectedChainId, 10);
+      filtered = filtered.filter((tx) => tx.chain_id === chainIdNum);
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.trim().toLowerCase();
+      filtered = filtered.filter((tx) => {
+        const chainName = getChainName(tx.chain_id).toLowerCase();
+        const hash = tx.tx_hash?.toLowerCase() || "";
+        const type = tx.type?.toLowerCase() || "";
+        const to = tx.to?.toLowerCase() || "";
+        const from = tx.from?.toLowerCase() || "";
+        const height = tx.height?.toString() || "";
+        const amount = tx.amount?.toString() || "";
+
+        return (
+          chainName.includes(query) ||
+          hash.includes(query) ||
+          type.includes(query) ||
+          to.includes(query) ||
+          from.includes(query) ||
+          height.includes(query) ||
+          amount.includes(query)
+        );
+      });
+    }
+
+    return filtered;
+  }, [allTransactions, searchQuery, selectedChainId, getChainName]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -218,7 +271,7 @@ export function AddressDetails({ address }: AddressDetailsProps) {
   }
 
   const summary = addressData.summary;
-  
+
   // Only use real LP positions data
   const lpPositions = addressData.lp_positions || [];
 
@@ -231,8 +284,8 @@ export function AddressDetails({ address }: AddressDetailsProps) {
   const freePercent = totalValue > 0 ? (summary.liquid_balance_cnpy / totalValue) * 100 : 0;
 
   // Get account creation date (from first balance or mock)
-  const accountCreationDate = balances.length > 0 
-    ? balances[0].updated_at 
+  const accountCreationDate = balances.length > 0
+    ? balances[0].updated_at
     : new Date().toISOString();
   const createdAgo = formatTimeAgo(accountCreationDate);
 
@@ -280,65 +333,56 @@ export function AddressDetails({ address }: AddressDetailsProps) {
     };
   });
 
-  // Prepare transactions for TableCard
-  const allTransactions = transactions.flatMap((chainTxs) =>
-    chainTxs.transactions.map((tx) => ({
-      ...tx,
-      chain_id: chainTxs.chain_id,
-      chain_name: chainTxs.chain_name,
-    }))
-  );
-
-  const transactionRows = allTransactions.map((tx) => {
+  const transactionRows = filteredTransactions.map((tx) => {
     const chainName = getChainName(tx.chain_id);
     const chainColor = getChainColor(tx.chain_id);
-    
+
     return [
-    <div key="chain" className="flex items-center gap-3">
-      <div
-        className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-        dangerouslySetInnerHTML={{
-          __html: canopyIconSvg(chainColor),
-        }}
-      />
+      <div key="chain" className="flex items-center gap-3">
+        <div
+          className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+          dangerouslySetInnerHTML={{
+            __html: canopyIconSvg(chainColor),
+          }}
+        />
+        <Link
+          href={`/chains/${tx.chain_id}/transactions`}
+          className="flex flex-col hover:text-primary transition-colors"
+        >
+          <span className="font-medium text-white text-sm">{chainName}</span>
+        </Link>
+      </div>,
       <Link
-        href={`/chains/${tx.chain_id}/transactions`}
-        className="flex flex-col hover:text-primary transition-colors"
+        key="hash"
+        href={`/transactions/${encodeURIComponent(tx.tx_hash)}`}
+        className="text-sm font-mono text-primary hover:underline"
       >
-        <span className="font-medium text-white text-sm">{chainName}</span>
-      </Link>
-    </div>,
-    <Link
-      key="hash"
-      href={`/transactions/${encodeURIComponent(tx.tx_hash)}`}
-      className="text-sm font-mono text-primary hover:underline"
-    >
-      {formatAddress(tx.tx_hash, 6, 4)}
-    </Link>,
-    <Link
-      key="height"
-      href={`/blocks/${tx.height}`}
-      className="text-sm hover:text-primary"
-    >
-      {tx.height.toLocaleString()}
-    </Link>,
-    <span key="method" className="text-sm">{tx.type || "Transfer"}</span>,
-    <span key="to" className="text-sm font-mono text-muted-foreground">
-      {formatAddress(tx.to, 5, 5)}
-    </span>,
-    <span key="time" className="text-sm text-muted-foreground">
-      {formatTimeAgoShort(tx.timestamp)}
-    </span>,
-    <div key="amount" className="flex flex-col items-end">
-      <span className="text-sm text-[#00a63d] font-medium">
-        {formatCNPY(tx.amount)} CNPY
-      </span>
-      {tx.fee > 0 && (
-        <span className="text-xs text-muted-foreground">
-          {formatCNPY(tx.fee)} CNPY
+        {formatAddress(tx.tx_hash, 6, 4)}
+      </Link>,
+      <Link
+        key="height"
+        href={`/blocks/${tx.height}`}
+        className="text-sm hover:text-primary"
+      >
+        {tx.height.toLocaleString()}
+      </Link>,
+      <span key="method" className="text-sm">{tx.type || "Transfer"}</span>,
+      <span key="to" className="text-sm font-mono text-muted-foreground">
+        {formatAddress(tx.to, 5, 5)}
+      </span>,
+      <span key="time" className="text-sm text-muted-foreground">
+        {formatTimeAgoShort(tx.timestamp)}
+      </span>,
+      <div key="amount" className="flex flex-col items-end">
+        <span className="text-sm text-[#00a63d] font-medium">
+          {formatCNPY(tx.amount)} CNPY
         </span>
-      )}
-    </div>,
+        {tx.fee > 0 && (
+          <span className="text-xs text-muted-foreground">
+            Gas: {formatCNPY(tx.fee)} CNPY
+          </span>
+        )}
+      </div>,
     ];
   });
 
@@ -377,17 +421,9 @@ export function AddressDetails({ address }: AddressDetailsProps) {
     </span>,
   ]);
 
+
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Link href="/explorer" className="hover:text-white transition-colors">
-          Explorer
-        </Link>
-        <ChevronRight className="w-4 h-4" />
-        <span className="text-white">Account {formatAddress(address, 5, 5)}</span>
-      </div>
-
       {/* Account Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -403,7 +439,7 @@ export function AddressDetails({ address }: AddressDetailsProps) {
               <span className="text-sm text-muted-foreground font-mono">
                 {formatAddress(address, 5, 5)}
               </span>
-              <CopyableText text={address} showFull={false} textClassName="text-sm text-muted-foreground" />
+              <CopyableText text={address} showFull={false} textClassName="text-sm text-muted-foreground hidden" />
               <span className="text-sm text-muted-foreground">•</span>
               <span className="text-sm text-muted-foreground">created {createdAgo}</span>
             </div>
@@ -420,29 +456,44 @@ export function AddressDetails({ address }: AddressDetailsProps) {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Portfolio Value */}
-        <Card className="p-6">
-          <p className="text-sm text-muted-foreground mb-2">Portfolio Value</p>
-          <p className="text-2xl font-bold">${formatUSD(portfolioValueUSD)} USD</p>
+        <Card className="px-6">
+          <div className="flex flex-col gap-2 justify-center items-start h-full">
+            <p className="text-sm text-muted-foreground">Portfolio Value</p>
+            <p className="text-2xl font-bold">${formatUSD(portfolioValueUSD)} USD</p>
+          </div>
         </Card>
 
+        {/* 24h Change - Only show if we have real data */}
+        {summary && (
+          <Card className="px-6">
+            <div className="flex flex-col gap-2 justify-center items-start h-full">
+              <p className="text-sm text-muted-foreground mb-2">24h Change</p>
+              <p className="text-2xl font-bold text-[#00a63d]">+$0.00</p>
+              <p className="text-xs text-[#00a63d] mt-1">↑+0.0% last 24h</p>
+            </div>
+          </Card>
+        )}
+
         {/* Staked vs Free */}
-        <Card className="p-6">
-          <p className="text-sm text-muted-foreground mb-2">Staked vs Free</p>
-          <div className="relative h-2 bg-white/10 rounded-full mb-2">
-            <div
-              className="absolute left-0 top-0 h-full bg-[#00a63d] rounded-full"
-              style={{ width: `${stakedPercent}%` }}
-            />
-            <div
-              className="absolute left-0 top-0 h-full bg-white/20 rounded-full"
-              style={{ width: `${freePercent}%`, left: `${stakedPercent}%` }}
-            />
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-[#00a63d]">Staked: {stakedPercent.toFixed(0)}%</span>
-            <span className="text-muted-foreground">Free: {freePercent.toFixed(0)}%</span>
+        <Card className="px-6 py-0">
+          <div className="flex flex-col justify-center h-full gap-2">
+            <p className="text-sm text-muted-foreground mb-2">Staked vs Free</p>
+            <div className="relative flex flex-col h-2 bg-white/10 rounded-full mb-2">
+              <div
+                className="absolute left-0 top-0 h-full bg-[#00a63d] rounded-full"
+                style={{ width: `${stakedPercent}%` }}
+              />
+              <div
+                className="absolute left-0 top-0 h-full bg-white/20 rounded-full"
+                style={{ width: `${freePercent}%`, left: `${stakedPercent}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-[#00a63d]">Staked: {stakedPercent.toFixed(0)}%</span>
+              <span className="text-muted-foreground">Free: {freePercent.toFixed(0)}%</span>
+            </div>
           </div>
         </Card>
       </div>
@@ -472,109 +523,120 @@ export function AddressDetails({ address }: AddressDetailsProps) {
 
         {/* Portfolio Tab */}
         <TabsContent value="portfolio" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Donut Chart */}
-            <Card className="p-6">
-              <div className="relative h-64 mb-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={portfolioChartData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={2}
-                      dataKey="value"
-                      stroke="none"
-                    >
-                      {portfolioChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length > 0) {
-                          const data = payload[0];
-                          const name = data.name || "";
-                          const value = data.value || 0;
-                          const totalValue = portfolioValueUSD;
-                          const segmentValue = (value / 100) * totalValue;
-                          return (
-                            <div className="bg-black/90 border border-white/20 rounded-lg p-3 shadow-lg">
-                              <p className="text-sm font-medium text-white mb-1">{name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {value.toFixed(2)}% • ${formatUSD(segmentValue)} USD
-                              </p>
-                            </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-white">
-                      {formatUSD(portfolioValueUSD)}
-                    </p>
-                    <p className="text-sm text-muted-foreground">USD</p>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
+            {/* Donut Chart - Right side (4/12) */}
+            <div className="lg:col-span-4">
+              <Card className="p-3">
+                <div className="relative h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={portfolioChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={2}
+                        dataKey="value"
+                        stroke="none"
+                      >
+                        {portfolioChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length > 0) {
+                            const data = payload[0];
+                            const name = data.name || "";
+                            const value = data.value || 0;
+                            const totalValue = portfolioValueUSD;
+                            const segmentValue = (value / 100) * totalValue;
+                            return (
+                              <div className="bg-black/90 border border-white/20 rounded-lg p-3 shadow-lg z-999">
+                                <p className="text-sm font-medium text-white mb-1">{name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {value.toFixed(2)}% • ${formatUSD(segmentValue)} USD
+                                </p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                        wrapperStyle={{ zIndex: 9999 }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-white">
+                        {formatUSD(portfolioValueUSD)}
+                      </p>
+                      <p className="text-sm text-muted-foreground">USD</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-              {/* Legend */}
-              <div className="space-y-2">
-                {portfolioChartData.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: item.color }}
-                      />
-                      <span className="text-sm">{item.name}</span>
+                {/* Legend */}
+                <div className="space-y-2 border border-white/10 p-4 rounded-lg">
+                  {portfolioChartData.map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <span className="text-sm">{item.name}</span>
+                      </div>
+                      <span className="text-sm font-medium">{item.value.toFixed(0)}%</span>
                     </div>
-                    <span className="text-sm font-medium">{item.value.toFixed(0)}%</span>
-                  </div>
-                ))}
-              </div>
-            </Card>
+                  ))}
+                </div>
+              </Card>
+            </div>
 
-            {/* Token List */}
-            <Card className="p-6">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left text-sm text-muted-foreground pb-2">#</th>
-                      <th className="text-left text-sm text-muted-foreground pb-2">Token</th>
-                      <th className="text-left text-sm text-muted-foreground pb-2">Balance</th>
-                      <th className="text-right text-sm text-muted-foreground pb-2">USD Value</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tokenList.map((token) => (
-                      <tr key={token.id} className="border-b border-border">
-                        <td className="py-3 text-sm">{token.id}</td>
-                        <td className="py-3">
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-                              dangerouslySetInnerHTML={{
-                                __html: canopyIconSvg(token.chainColor || getCanopyAccent(token.chainId.toString())),
-                              }}
-                            />
-                            <span className="text-sm font-medium">{token.token}</span>
-                          </div>
-                        </td>
-                        <td className="py-3 text-sm">{formatCNPY(token.balance)} {token.token}</td>
-                        <td className="py-3 text-sm text-right">${formatUSD(token.usdValue)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
+            {/* Token List Table - Left side (8/12) */}
+            <div className="lg:col-span-8 h-full">
+              <TableCard
+                columns={[
+                  { label: "#", width: "w-12" },
+                  { label: "Token", width: "w-48" },
+                  { label: "Balance", width: "w-32" },
+                  { label: "USD Value", width: "w-32" },
+                ]}
+                live={false}
+                rows={tokenList.map((token, idx) => [
+                  <div key="index" className="text-sm text-muted-foreground flex items-center justify-start">
+                    <div className="flex items-center justify-center bg-white/10 rounded-full h-8 w-8">
+                      <span className="text-sm text-muted-foreground">
+                        {idx + 1}
+                      </span>
+                    </div>
+                  </div>,
+                  <div key="token" className="flex items-center gap-2">
+                    <div
+                      className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+                      dangerouslySetInnerHTML={{
+                        __html: canopyIconSvg(token.chainColor || getCanopyAccent(token.chainId.toString())),
+                      }}
+                    />
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-white">{token.token}</span>
+                      <span className="text-xs text-muted-foreground">{token.chainName}</span>
+                    </div>
+                  </div>,
+                  <span key="balance" className="text-sm text-white">
+                    {formatCNPY(token.balance)} {token.token}
+                  </span>,
+                  <span key="usd" className="text-sm text-white text-right">
+                    ${formatUSD(token.usdValue)}
+                  </span>,
+                ])}
+                loading={loading}
+                paginate={false}
+                spacing={3}
+                className="gap-2 lg:gap-6"
+              />
+            </div>
           </div>
         </TabsContent>
 
@@ -585,10 +647,25 @@ export function AddressDetails({ address }: AddressDetailsProps) {
             columns={transactionColumns}
             rows={transactionRows}
             loading={loading}
-            paginate={true}
+            paginate={false}
+            live={false}
             pageSize={10}
-            totalCount={allTransactions.length}
+            spacing={3}
+            totalCount={filteredTransactions.length}
             searchPlaceholder="Search transactions..."
+            searchValue={searchQuery}
+            onSearch={setSearchQuery}
+            showCSVButton={true}
+            showChainSelect={true}
+            chainSelectValue={selectedChainId}
+            onChainSelectChange={setSelectedChainId}
+            onCSVExport={() => {
+              const csvContent = "data:text/csv;charset=utf-8," + encodeURIComponent(filteredTransactions.map((tx) => [tx.chain_name, tx.tx_hash, tx.height, tx.type, tx.to, tx.timestamp, tx.amount, tx.fee].join(",")).join("\n"));
+              const link = document.createElement("a");
+              link.setAttribute("href", csvContent);
+              link.setAttribute("download", "transactions.csv");
+              link.click();
+            }}
           />
         </TabsContent>
 

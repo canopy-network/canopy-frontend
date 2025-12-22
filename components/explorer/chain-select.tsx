@@ -152,7 +152,7 @@ export function ChainSelect({ value, onValueChange, className }: ChainSelectProp
       ...provided,
       minHeight: "38px",
       height: "38px",
-      backgroundColor: "#000000",
+      backgroundColor: "transparent",
       borderColor: selectedBrandColor,
       borderRadius: "12px",
       boxShadow: state.isFocused
@@ -317,7 +317,7 @@ export function ChainSelect({ value, onValueChange, className }: ChainSelectProp
   }
 
   return (
-    <div className={cn("w-full min-w-[400px]", className)}>
+    <div className={cn("w-full min-w-[200px]", className)}>
       <Select<ChainOption, false>
         value={exactSelectedOption}
         onChange={(option) => {

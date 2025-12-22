@@ -72,6 +72,12 @@ export interface ExplorerTransactionsResponse {
 /**
  * Explorer trending chains item
  */
+export interface VolumeHistoryEntry {
+  date: string;
+  volume: number;
+  volume_fmt?: string;
+}
+
 export interface ExplorerTrendingChain {
   rank: number;
   chain_id: number;
@@ -84,6 +90,7 @@ export interface ExplorerTrendingChain {
   risk?: string | null;
   liquidity?: number | null;
   change_24h?: number | null;
+  volume_history?: VolumeHistoryEntry[];
 }
 
 /**

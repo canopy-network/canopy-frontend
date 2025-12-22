@@ -2,16 +2,21 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Copy, ArrowUpRight, Search } from "lucide-react";
+import { Copy } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useExplorerBlock } from "@/lib/api/explorer";
 import type { Block as ApiBlock } from "@/types/blocks";
 import { CopyableText } from "../ui/copyable-text";
+import { TableCard, TableColumn } from "./table-card";
+import { canopyIconSvg, getCanopyAccent } from "@/lib/utils/brand";
+import type { Transaction } from "@/lib/api/explorer";
+import { TableArrow } from "@/components/icons";
 
 // Extended block type to include all API response fields
 type ExtendedApiBlock = ApiBlock & {
+  // Transactions array
+  transactions?: Transaction[];
   // Transaction counts by type
   num_txs_send?: number;
   num_txs_stake?: number;
@@ -73,9 +78,8 @@ const formatTimeAgo = (timestamp: number): string => {
     if (remainingMinutes === 0) {
       return `${hours} hr ago`;
     }
-    return `${hours} hr ${remainingMinutes} min${
-      remainingMinutes === 1 ? "" : "s"
-    } ago`;
+    return `${hours} hr ${remainingMinutes} min${remainingMinutes === 1 ? "" : "s"
+      } ago`;
   }
 
   const days = Math.floor(seconds / 86400);
@@ -124,8 +128,6 @@ interface BlockDetailsProps {
 }
 
 export function BlockDetails({ blockId }: BlockDetailsProps) {
-  const [searchQuery, setSearchQuery] = React.useState("");
-
   // Parse block ID
   const blockNumber = React.useMemo(() => {
     const parsed = parseInt(blockId, 10);
@@ -180,16 +182,6 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <h1 className="text-2xl font-bold">Block #{block.height}</h1>
         <div className="w-full flex-1 max-w-[532px]">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="text"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search by address, tx hash, block..."
-              className="w-full pl-12 pr-4 py-6 bg-[#1a1a1a] border-[#2a2a2a] text-white placeholder:text-muted-foreground"
-            />
-          </div>
         </div>
       </div>
 
@@ -281,51 +273,6 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
         </div>
       </Card>
 
-      {/* Transaction Types Breakdown */}
-      {(() => {
-        const extendedBlock = block as ExtendedApiBlock;
-        const txTypes = [
-          { key: 'num_txs_send', label: 'Send' },
-          { key: 'num_txs_stake', label: 'Stake' },
-          { key: 'num_txs_edit_stake', label: 'Edit Stake' },
-          { key: 'num_txs_unstake', label: 'Unstake' },
-          { key: 'num_txs_pause', label: 'Pause' },
-          { key: 'num_txs_unpause', label: 'Unpause' },
-          { key: 'num_txs_change_parameter', label: 'Change Parameter' },
-          { key: 'num_txs_dao_transfer', label: 'DAO Transfer' },
-          { key: 'num_txs_certificate_result', label: 'Certificate Result' },
-          { key: 'num_txs_subsidy', label: 'Subsidy' },
-          { key: 'num_txs_create_order', label: 'Create Order' },
-          { key: 'num_txs_edit_order', label: 'Edit Order' },
-          { key: 'num_txs_delete_order', label: 'Delete Order' },
-          { key: 'num_txs_dex_deposit', label: 'DEX Deposit' },
-          { key: 'num_txs_dex_withdraw', label: 'DEX Withdraw' },
-          { key: 'num_txs_dex_limit_order', label: 'DEX Limit Order' },
-        ];
-        const activeTxTypes = txTypes.filter(tx => {
-          const value = extendedBlock[tx.key as keyof ExtendedApiBlock] as number | undefined;
-          return value !== undefined && value > 0;
-        });
-        
-        if (activeTxTypes.length === 0) return null;
-        
-        return (
-          <Card className="w-full">
-            <h4 className="text-lg mb-4">Transaction Types</h4>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {activeTxTypes.map(tx => (
-                <div key={tx.key} className="flex flex-col">
-                  <p className="text-xs text-muted-foreground">{tx.label}</p>
-                  <p className="text-sm font-semibold">
-                    {extendedBlock[tx.key as keyof ExtendedApiBlock] as number}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </Card>
-        );
-      })()}
-
       {/* Event Types Breakdown */}
       {(() => {
         const extendedBlock = block as ExtendedApiBlock;
@@ -351,9 +298,9 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
           const value = extendedBlock[evt.key as keyof ExtendedApiBlock] as number | undefined;
           return value !== undefined && value > 0;
         });
-        
+
         if (activeEventTypes.length === 0) return null;
-        
+
         return (
           <Card className="w-full">
             <h4 className="text-lg mb-4">Event Types</h4>
@@ -371,28 +318,196 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
         );
       })()}
 
-      {/* Transactions Summary */}
-      <Card className="w-full gap-4">
-        <h4 className="text-lg">
-          <b>{(block as ExtendedApiBlock).total_txs ?? block.num_txs ?? 0}</b>{" "}
-          Transactions
-        </h4>
-        <div className="py-8 text-center">
-          <p className="text-sm text-muted-foreground mb-4">
-            Transaction details are not available in the block endpoint.
-          </p>
-          <Link href="/transactions">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-foreground gap-1"
+      {/* Transactions Table */}
+      {(() => {
+        const extendedBlock = block as ExtendedApiBlock;
+        const transactions = extendedBlock.transactions || [];
+        const totalTxs = extendedBlock.total_txs ?? block.num_txs ?? 0;
+
+        // Format address helper
+        const formatAddress = (address: string, start: number = 6, end: number = 4): string => {
+          if (!address || address.length <= start + end) return address;
+          return `${address.slice(0, start)}...${address.slice(-end)}`;
+        };
+
+        // Format method name
+        const formatMethod = (method: string) => {
+          if (!method) return "-";
+          return method
+            .replace(/([A-Z])/g, " $1")
+            .replace(/_/g, " ")
+            .replace(/^\w/, (c) => c.toUpperCase())
+            .trim();
+        };
+
+        // Get method badge color
+        const getMethodColor = (method: string) => {
+          const methodLower = method.toLowerCase();
+          if (methodLower.includes("transfer")) {
+            return "border-emerald-500/40 bg-emerald-500/10 text-emerald-300";
+          }
+          if (methodLower.includes("swap")) {
+            return "border-sky-500/40 bg-sky-500/10 text-sky-300";
+          }
+          if (methodLower.includes("stake")) {
+            return "border-purple-500/40 bg-purple-500/10 text-purple-300";
+          }
+          if (methodLower.includes("contract")) {
+            return "border-amber-400/40 bg-amber-500/10 text-amber-200";
+          }
+          return "border-white/20 bg-white/5 text-white/80";
+        };
+
+        // Get chain name and color
+        const getChainName = (chainId: number): string => {
+          // You can expand this with actual chain names if needed
+          return `Chain ${chainId}`;
+        };
+
+        const getChainColor = (chainId: number): string => {
+          return getCanopyAccent(chainId.toString());
+        };
+
+        const columns: TableColumn[] = [
+          { label: "Chain Name", width: "w-[180px]" },
+          { label: "Hash", width: "w-32" },
+          { label: "Block Height", width: "w-32" },
+          { label: "Method", width: "w-32" },
+          { label: "From", width: "w-32" },
+          { label: "", width: "w-10" }, // Arrow column
+          { label: "To", width: "w-32" },
+          { label: "Time", width: "w-32" },
+          { label: "Amount", width: "w-40" },
+        ];
+
+        const rows = transactions.map((tx) => {
+          const chainName = getChainName(tx.chain_id);
+          const chainColor = getChainColor(tx.chain_id);
+
+          return [
+            // Chain Name
+            <div key="chain" className="flex items-center gap-3">
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                dangerouslySetInnerHTML={{
+                  __html: canopyIconSvg(chainColor),
+                }}
+              />
+              <Link
+                href={`/transactions/${encodeURIComponent(tx.tx_hash)}`}
+                className="flex flex-col hover:text-primary transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="font-medium text-white text-sm">{chainName}</span>
+              </Link>
+            </div>,
+            // Hash
+            <Link
+              key="hash"
+              href={`/transactions/${encodeURIComponent(tx.tx_hash)}`}
+              className="text-xs text-white/80 hover:opacity-80 transition-opacity hover:underline font-mono"
+              onClick={(e) => e.stopPropagation()}
             >
-              View All Transactions
-              <ArrowUpRight className="w-4 h-4" />
-            </Button>
-          </Link>
-        </div>
-      </Card>
+              {formatAddress(tx.tx_hash, 6, 6)}
+            </Link>,
+            // Block Height
+            <Link
+              key="block"
+              href={`/blocks/${tx.height}`}
+              className="text-xs text-white/80 hover:opacity-80 transition-opacity hover:underline font-mono"
+              onClick={(e) => e.stopPropagation()}
+            >
+              #{tx.height.toLocaleString()}
+            </Link>,
+            // Method
+            <div key="method">
+              <span
+                className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${getMethodColor(tx.message_type)}`}
+              >
+                {formatMethod(tx.message_type)}
+              </span>
+            </div>,
+            // From
+            <div key="from">
+              {tx.signer && tx.signer.trim() !== "" ? (
+                <Link
+                  href={`/accounts/${tx.signer}`}
+                  className="text-xs text-white hover:opacity-80 transition-opacity hover:underline font-mono"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {formatAddress(tx.signer, 6, 6)}
+                </Link>
+              ) : (
+                <span className="text-xs text-muted-foreground">-</span>
+              )}
+            </div>,
+            // Arrow
+            <div key="arrow" className="flex items-center justify-center">
+              <TableArrow className="" />
+            </div>,
+            // To
+            <div key="to">
+              {tx.counterparty && tx.counterparty.trim() !== "" ? (
+                <Link
+                  href={`/accounts/${tx.counterparty}`}
+                  className="text-xs text-white hover:opacity-80 transition-opacity hover:underline font-mono"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {formatAddress(tx.counterparty, 6, 6)}
+                </Link>
+              ) : (
+                <span className="text-xs text-muted-foreground">-</span>
+              )}
+            </div>,
+            // Time
+            <span key="time" className="text-sm text-muted-foreground">
+              {formatTimeAgo(new Date(tx.timestamp).getTime())}
+            </span>,
+            // Amount
+            <div key="amount" className="text-right">
+              {tx.amount != null ? (
+                <div className="flex flex-col items-end">
+                  <span className="font-semibold text-sm text-[#00a63d]">
+                    {tx.amount.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{" "}
+                    CNPY
+                  </span>
+                  {tx.fee != null && tx.fee > 0 && (
+                    <span className="text-xs text-muted-foreground mt-0.5">
+                      Gas {tx.fee.toLocaleString(undefined, {
+                        minimumFractionDigits: 3,
+                        maximumFractionDigits: 3,
+                      })}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <span className="text-muted-foreground text-sm">-</span>
+              )}
+            </div>,
+          ];
+        });
+
+        return (
+          <TableCard
+            title={
+              <>
+                <b>{totalTxs}</b> Transactions
+              </>
+            }
+            columns={columns}
+            rows={rows}
+            loading={false}
+            paginate={false}
+            spacing={3}
+            className="gap-2 lg:gap-6"
+            viewAllPath="/transactions"
+            viewAllText="View All Transactions"
+          />
+        );
+      })()}
     </>
   );
 }

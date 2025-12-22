@@ -15,6 +15,12 @@ const formatCNPYValue = (value?: number | null) => {
   });
 };
 
+export interface VolumeHistoryEntry {
+  date: string;
+  volume: number;
+  volume_fmt?: string;
+}
+
 export interface ChainSummary {
   id: string;
   chainId?: number;
@@ -33,6 +39,7 @@ export interface ChainSummary {
   validators: number;
   holders: number;
   chartData?: number[]; // 24 data points for the chart
+  volume_history?: VolumeHistoryEntry[]; // 7-day volume history
   // Graduation data (optional, fetched when needed)
   graduation?: {
     threshold_cnpy: number;
@@ -48,69 +55,59 @@ interface TrendingChainsProps {
   chains: ChainSummary[];
 }
 
-// Graduation Status component - compact version for table
-function GraduationStatus({
-  graduation,
-  isGraduated,
-  graduationTime
-}: {
-  graduation?: ChainSummary['graduation'];
-  isGraduated?: boolean;
-  graduationTime?: string | null;
-}) {
-  if (isGraduated && graduationTime) {
-    const date = new Date(graduationTime);
-    const formattedDate = date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-
+// Mini chart component for Last 7 days
+function MiniVolumeChart({ volumeHistory }: { volumeHistory?: VolumeHistoryEntry[] }) {
+  if (!volumeHistory || volumeHistory.length === 0) {
     return (
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground">Graduated</span>
-          <span className="text-xs font-semibold text-[#00a63d]">Yes</span>
-        </div>
-        <div className="w-full bg-white/10 rounded-full h-2">
-          <div className="bg-[#00a63d] h-2 rounded-full" style={{ width: "100%" }} />
-        </div>
-        <span className="text-xs text-muted-foreground">{formattedDate}</span>
+      <div className="w-20 h-8 flex items-center justify-center">
+        <span className="text-xs text-muted-foreground">No data</span>
       </div>
     );
   }
 
-  if (!graduation) {
-    return (
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground">Progress</span>
-          <span className="text-xs font-semibold text-[#00a63d]">0%</span>
-        </div>
-        <div className="w-full bg-white/10 rounded-full h-2">
-          <div className="bg-[#00a63d] h-2 rounded-full" style={{ width: "0%" }} />
-        </div>
-      </div>
-    );
-  }
+  // Extract volumes and normalize for chart
+  const volumes = volumeHistory.map((entry) => entry.volume || 0);
+  const maxVolume = Math.max(...volumes, 1); // Avoid division by zero
+  const minVolume = Math.min(...volumes);
+  const range = maxVolume - minVolume || 1; // Avoid division by zero
 
-  const percentage = Math.min(Math.max(graduation.completion_percentage, 0), 100);
+  // Calculate if trend is positive or negative
+  const firstVolume = volumes[0] || 0;
+  const lastVolume = volumes[volumes.length - 1] || 0;
+  const isPositive = lastVolume >= firstVolume;
+  const color = isPositive ? "#00a63d" : "#ef4444"; // Green for positive, red for negative
+
+  // Normalize values to 0-1 range for chart height
+  const normalizedValues = volumes.map((vol) =>
+    range > 0 ? (vol - minVolume) / range : 0.5
+  );
+
+  const width = 80;
+  const height = 32;
+  const padding = 2;
+  const chartWidth = width - padding * 2;
+  const chartHeight = height - padding * 2;
+  const pointSpacing = chartWidth / (normalizedValues.length - 1 || 1);
+
+  // Generate path for line
+  const pathPoints = normalizedValues.map((value, index) => {
+    const x = padding + index * pointSpacing;
+    const y = padding + chartHeight - (value * chartHeight);
+    return `${index === 0 ? "M" : "L"} ${x} ${y}`;
+  }).join(" ");
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-muted-foreground">Progress</span>
-        <span className="text-xs font-semibold text-[#00a63d]">{percentage}%</span>
-      </div>
-      <div className="w-full bg-white/10 rounded-full h-2">
-        <div
-          className="bg-[#00a63d] h-2 rounded-full transition-all"
-          style={{ width: `${percentage}%` }}
+    <div className="w-20 h-8">
+      <svg width={width} height={height} className="overflow-visible">
+        <path
+          d={pathPoints}
+          fill="none"
+          stroke={color}
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         />
-      </div>
-      <div className="text-xs text-muted-foreground">
-        {formatCNPYValue(graduation.current_cnpy_reserve)} / {formatCNPYValue(graduation.threshold_cnpy)} CNPY
-      </div>
+      </svg>
     </div>
   );
 }
@@ -151,9 +148,10 @@ export function TrendingChains({ chains }: TrendingChainsProps) {
     { label: "Market Cap", width: "w-32" },
     { label: "TVL", width: "w-36" },
     { label: "Liquidity", width: "w-36" },
+    { label: "Volume 24H", width: "w-36" },
     { label: "Validators", width: "w-24" },
     { label: "Holders", width: "w-32" },
-    { label: "Graduation Status", width: "w-36" },
+    { label: "Last 7 days", width: "w-24" },
   ];
 
   const rows = chains.map((chain, index) => {
@@ -212,6 +210,23 @@ export function TrendingChains({ chains }: TrendingChainsProps) {
           </span>
         )}
       </div>,
+      // Volume 24H
+      <div key="volume-24h" className="flex flex-col">
+        <div className="flex items-center gap-2">
+          <span className="text-white font-medium text-sm">{chain.volume_24h}</span>
+          {chain.change_24h !== undefined && chain.change_24h !== null && (
+            <span
+              className={`text-xs font-semibold px-1.5 py-0.5 rounded ${chain.change_24h >= 0
+                  ? "text-[#00a63d] bg-[#00a63d]/10"
+                  : "text-[#ef4444] bg-[#ef4444]/10"
+                }`}
+            >
+              {chain.change_24h >= 0 ? "↑" : "↓"}
+              {Math.abs(chain.change_24h).toFixed(1)}%
+            </span>
+          )}
+        </div>
+      </div>,
       // Validators
       <span key="validators" className="text-white font-medium text-sm">
         {chain.validators.toLocaleString()}
@@ -238,13 +253,9 @@ export function TrendingChains({ chains }: TrendingChainsProps) {
           </span>
         </div>
       </div>,
-      // Graduation Status
-      <div key="graduation" className="flex justify-start">
-        <GraduationStatus
-          graduation={chain.graduation}
-          isGraduated={chain.is_graduated}
-          graduationTime={chain.graduation_time}
-        />
+      // Last 7 days chart
+      <div key="last-7-days" className="flex justify-center">
+        <MiniVolumeChart volumeHistory={chain.volume_history} />
       </div>,
     ];
   });

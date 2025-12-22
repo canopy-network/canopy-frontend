@@ -7,6 +7,7 @@ import { ArrowUpRight, Download } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { LatestUpdated } from "./latest-updated";
 import { HashSearchbar } from "@/components/hash-searchbar";
+import { ChainSelect } from "./chain-select";
 
 export interface TableColumn {
   label: string;
@@ -47,6 +48,13 @@ export interface TableCardProps {
   searchValue?: string; // Current search value
   showCSVButton?: boolean; // Show CSV export button
   onCSVExport?: () => void; // Custom CSV export handler (optional, will use default if not provided)
+  showChainSelect?: boolean; // Show chain selector
+  chainSelectValue?: string; // Current chain select value
+  onChainSelectChange?: (value: string) => void; // Callback when chain selection changes
+  expandableRows?: boolean; // Enable expandable rows
+  expandedRows?: Set<number>; // Set of expanded row indices
+  onRowExpand?: (rowIndex: number) => void; // Callback when a row is expanded/collapsed
+  renderExpandedContent?: (rowIndex: number) => React.ReactNode; // Function to render expanded content
 }
 
 export function TableCard({
@@ -77,6 +85,13 @@ export function TableCard({
   searchValue,
   showCSVButton = false,
   onCSVExport,
+  showChainSelect = false,
+  chainSelectValue,
+  onChainSelectChange,
+  expandableRows = false,
+  expandedRows,
+  onRowExpand,
+  renderExpandedContent,
 }: TableCardProps) {
   // Internal pagination for when external pagination is not provided
   const [internalPage, setInternalPage] = React.useState(1);
@@ -166,8 +181,8 @@ export function TableCard({
       return String(node);
     }
     if (React.isValidElement(node)) {
-      if (node.props.children) {
-        return React.Children.toArray(node.props.children)
+      if ((node.props as any).children) {
+        return React.Children.toArray((node.props as any).children)
           .map(extractTextFromNode)
           .join(" ");
       }
@@ -218,6 +233,7 @@ export function TableCard({
 
   return (
     <Card padding="explorer" id={id} className={`gap-2 lg:gap-6 ${className || ""}`}>
+
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 leading-none">
         {title && (
           <div className="flex items-center gap-3">
@@ -233,6 +249,13 @@ export function TableCard({
               onType={onSearch}
               placeholder={searchPlaceholder}
               wrapperClassName="min-w-[400px]"
+            />
+          )}
+          {showChainSelect && chainSelectValue !== undefined && onChainSelectChange && (
+            <ChainSelect
+              value={chainSelectValue}
+              onValueChange={onChainSelectChange}
+              className="min-w-[200px]"
             />
           )}
           {showCSVButton && (
@@ -314,33 +337,54 @@ export function TableCard({
                   </td>
                 </tr>
               ) : (
-                pageRows.map((cells, i) => (
-                  <tr
-                    key={i + startIdx}
-                    className={`hover:bg-white/[0.07] transition-colors ${onRowClick ? "cursor-pointer" : ""}`}
-                    onClick={() => onRowClick?.(i + startIdx)}
-                  >
-                    {cells.map((node, j) => (
-                      <td
-                        key={j}
-                        className={`px-2 sm:px-3 lg:px-4 text-xs sm:text-sm ${j === 0 ? "border-l border-t border-b border-white/10" : "border-t border-b border-white/10"} ${j === cells.length - 1 ? "border-r border-t border-b border-white/10" : ""} text-white whitespace-nowrap ${spacingClasses[spacing] || "py-4"
-                          } ${columns[j]?.width || ""}`}
-                        style={{
-                          ...(j === 0 && {
-                            borderTopLeftRadius: "12px",
-                            borderBottomLeftRadius: "12px",
-                          }),
-                          ...(j === cells.length - 1 && {
-                            borderTopRightRadius: "12px",
-                            borderBottomRightRadius: "12px",
-                          }),
+                pageRows.map((cells, i) => {
+                  const rowIndex = i + startIdx;
+                  const isExpanded = expandableRows && expandedRows?.has(rowIndex);
+                  
+                  return (
+                    <React.Fragment key={rowIndex}>
+                      <tr
+                        className={`hover:bg-white/[0.07] transition-colors ${(onRowClick || expandableRows) ? "cursor-pointer" : ""}`}
+                        onClick={() => {
+                          if (expandableRows && onRowExpand) {
+                            onRowExpand(rowIndex);
+                          } else {
+                            onRowClick?.(rowIndex);
+                          }
                         }}
                       >
-                        {node}
-                      </td>
-                    ))}
-                  </tr>
-                ))
+                        {cells.map((node, j) => (
+                          <td
+                            key={j}
+                            className={`px-2 sm:px-3 lg:px-4 text-xs sm:text-sm ${j === 0 ? "border-l border-t border-b border-white/10" : "border-t border-b border-white/10"} ${j === cells.length - 1 ? "border-r border-t border-b border-white/10" : ""} text-white whitespace-nowrap ${spacingClasses[spacing] || "py-4"
+                              } ${columns[j]?.width || ""}`}
+                            style={{
+                              ...(j === 0 && {
+                                borderTopLeftRadius: "12px",
+                                borderBottomLeftRadius: isExpanded ? "0" : "12px",
+                              }),
+                              ...(j === cells.length - 1 && {
+                                borderTopRightRadius: "12px",
+                                borderBottomRightRadius: isExpanded ? "0" : "12px",
+                              }),
+                            }}
+                          >
+                            {node}
+                          </td>
+                        ))}
+                      </tr>
+                      {isExpanded && renderExpandedContent && (
+                        <tr>
+                          <td colSpan={columns.length} className="px-0 py-0 border-x border-b border-white/10">
+                            <div className="bg-white/5 p-4">
+                              {renderExpandedContent(rowIndex)}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })
               )}
             </tbody>
           </table>

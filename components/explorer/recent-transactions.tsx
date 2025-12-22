@@ -105,10 +105,38 @@ export function RecentTransactions({ transactions, isLoading = false }: RecentTr
     { label: "Amount", width: "w-32" },
   ];
 
+  // Format method name
+  const formatMethod = (method: string) => {
+    if (!method) return "-";
+    // Convert camelCase or snake_case to Title Case
+    return method
+      .replace(/([A-Z])/g, " $1")
+      .replace(/_/g, " ")
+      .replace(/^\w/, (c) => c.toUpperCase())
+      .trim();
+  };
+
+  // Get method badge color
+  const getMethodColor = (method: string) => {
+    const methodLower = method.toLowerCase();
+    if (methodLower.includes("transfer")) {
+      return "border-emerald-500/40 bg-emerald-500/10 text-emerald-300";
+    }
+    if (methodLower.includes("swap")) {
+      return "border-sky-500/40 bg-sky-500/10 text-sky-300";
+    }
+    if (methodLower.includes("stake")) {
+      return "border-purple-500/40 bg-purple-500/10 text-purple-300";
+    }
+    if (methodLower.includes("contract")) {
+      return "border-amber-400/40 bg-amber-500/10 text-amber-200";
+    }
+    return "border-white/20 bg-white/5 text-white/80";
+  };
+
   const rows = transactions.map((tx) => {
     const chainName = getChainName(tx.chain_id);
     const chainColor = getChainColor(tx.chain_id);
-    const isCertificateResult = tx.message_type === "certificateResults";
 
     return [
       // Chain Name
@@ -136,15 +164,13 @@ export function RecentTransactions({ transactions, isLoading = false }: RecentTr
       >
         {formatAddress(tx.tx_hash, 6, 6)}
       </Link>,
-      // Status
+      // Status (Method)
       <div key="status">
-        {isCertificateResult ? (
-          <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30">
-            Certificate
-          </span>
-        ) : (
-          <span className="text-xs text-muted-foreground">-</span>
-        )}
+        <span
+          className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${getMethodColor(tx.message_type)}`}
+        >
+          {formatMethod(tx.message_type)}
+        </span>
       </div>,
       // From
       <div key="from">

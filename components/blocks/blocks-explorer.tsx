@@ -353,7 +353,7 @@ export function BlocksExplorer({
             <div className="flex items-center gap-2">
               <div
                 className="w-4 h-4 flex items-center justify-center shrink-0"
-                        dangerouslySetInnerHTML={{
+                dangerouslySetInnerHTML={{
                   __html: canopyIconSvg(chainColor),
                 }}
               />
@@ -364,7 +364,7 @@ export function BlocksExplorer({
               >
                 {validatorName}
               </Link>
-                    </div>
+            </div>
             <Link
               href={`/accounts/${block.proposer_address}`}
               className="text-xs font-mono text-white/60 hover:opacity-80 transition-opacity hover:underline"
@@ -384,9 +384,9 @@ export function BlocksExplorer({
       // Gas
       <span key="gas" className="text-sm text-white/80 text-right">
         {totalFees.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}
       </span>,
     ];
   }).filter((row) => row !== null); // Filter out null rows
@@ -402,7 +402,7 @@ export function BlocksExplorer({
   };
 
   return (
-    <div className="px-4 lg:p-6">
+    <div className="max-w-7xl mx-auto py-6">
       {children ? <div>{children}</div> : null}
       <TableCard
         id="blocks-table"
@@ -424,6 +424,6 @@ export function BlocksExplorer({
         spacing={3}
         className="gap-2 lg:gap-6"
       />
-        </div>
+    </div>
   );
 }

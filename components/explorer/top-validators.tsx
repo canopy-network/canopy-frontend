@@ -64,6 +64,13 @@ function UptimeTrend({ data, color }: { data: number[]; color: string }) {
 export function TopValidators({ validators }: TopValidatorsProps) {
   const router = useRouter();
 
+  // Helper function to get validator name from address (like in blocks table)
+  const getValidatorName = (address: string): string => {
+    if (!address || address.length < 6) return "—";
+    const shortAddr = address.slice(0, 6);
+    return `Val-${shortAddr.slice(-2)}`;
+  };
+
   // Determine uptime color based on percentage
   const getUptimeColor = (uptime: number) => {
     if (uptime >= 99)
@@ -247,11 +254,13 @@ export function TopValidators({ validators }: TopValidatorsProps) {
         <div
           className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
           dangerouslySetInnerHTML={{
-            __html: canopyIconSvg(getCanopyAccent(validator.name)),
+            __html: canopyIconSvg(getCanopyAccent(validator.address)),
           }}
         />
         <div className="flex flex-col">
-          <span className="font-medium text-white text-sm">{validator.name}</span>
+          <span className="font-medium text-white text-sm">
+            {getValidatorName(validator.address)}
+          </span>
           <span className="text-xs text-muted-foreground font-mono truncate max-w-[130px]">
             {validator.address}
           </span>

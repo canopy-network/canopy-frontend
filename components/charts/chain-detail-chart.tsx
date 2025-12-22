@@ -212,11 +212,27 @@ export const ChainDetailChart = ({
     const series = chart.addSeries(LineSeries, areaSeriesOptions);
 
     if (data && data.length > 0) {
-      // Ensure data is properly formatted
-      const formattedData = data.map((item) => ({
-        time: item.time,
-        value: typeof item.value === 'number' ? item.value : parseFloat(String(item.value || 0)),
-      }));
+      // Ensure data is properly formatted and sorted
+      const formattedData = data
+        .map((item) => ({
+          time: typeof item.time === 'string' ? parseInt(item.time, 10) : item.time,
+          value: typeof item.value === 'number' ? item.value : parseFloat(String(item.value || 0)),
+        }))
+        .filter((item) => !isNaN(item.time) && !isNaN(item.value))
+        // Sort by time ascending
+        .sort((a, b) => (a.time as number) - (b.time as number))
+        // Remove duplicates by keeping the last value for each timestamp
+        .reduce((acc, current) => {
+          const lastIndex = acc.length - 1;
+          if (lastIndex >= 0 && acc[lastIndex].time === current.time) {
+            // If same timestamp, replace with current (keeps last value)
+            acc[lastIndex] = current;
+          } else {
+            acc.push(current);
+          }
+          return acc;
+        }, [] as Array<{ time: number; value: number }>);
+      
       series.setData(formattedData as any);
     }
 

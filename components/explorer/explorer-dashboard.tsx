@@ -182,6 +182,7 @@ const mapTrendingChainsToSummary = (
       validators: chain.validators ?? 0,
       holders: chain.holders ?? 0,
       chartData, // 7-day chart data
+      volume_history: chain.volume_history, // 7-day volume history from API
     };
   });
 
@@ -192,7 +193,7 @@ interface ExplorerDashboardProps {
 export function ExplorerDashboard({ overviewData: initialOverviewData }: ExplorerDashboardProps) {
   const [newChains, setNewChains] = useState<Chain[]>([]);
   const searchParams = useSearchParams();
-  
+
   // Get selected chain from URL parameter
   const selectedChainId = useMemo(() => {
     const chainParam = searchParams.get("chain");
@@ -209,8 +210,8 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
     data: recentTransactions = [],
     isLoading: isLoadingTransactions,
   } = useExplorerTransactions(
-    { 
-      limit: 5, 
+    {
+      limit: 5,
       sort: "desc",
       ...(selectedChainId && { chain_id: selectedChainId }),
     },
@@ -221,7 +222,7 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
     data: recentBlocks = [],
     isLoading: isLoadingBlocks,
   } = useExplorerBlocks(
-    { 
+    {
       limit: 5,
       ...(selectedChainId && { chain_id: selectedChainId }),
     },
@@ -279,15 +280,15 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
   } = useExplorerHistorical(
     selectedChainId
       ? {
-          chain_id: selectedChainId,
-          range,
-          interval,
-        }
+        chain_id: selectedChainId,
+        range,
+        interval,
+      }
       : {
-          // When no chain selected, use selected timeframe without chain_id
-          range,
-          interval,
-        },
+        // When no chain selected, use selected timeframe without chain_id
+        range,
+        interval,
+      },
     {
       refetchInterval: 60000, // Refetch every 60 seconds
     }
@@ -296,8 +297,8 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
   const {
     data: validatorsResponse,
   } = useValidators(
-    { 
-      status: "active", 
+    {
+      status: "active",
       limit: 20,
       ...(selectedChainId && { chain_id: selectedChainId }),
     }, // Get more validators to ensure we have 8 unique after aggregation
@@ -422,25 +423,22 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
 
   return (
     <>
-      <Container
-        tag="section"
-        type="2xl"
-        className="bg-background sticky top-0 lg:py-2 z-99 mb-4 lg:mb-0"
-      >
-        <ExplorerSearchBar />
-      </Container>
-      <Container tag="section" type="2xl" className="space-y-4 lg:space-y-6">
+      <div className="space-y-6 max-w-7xl mx-auto relative py-6">
         {/* Search Bar */}
-
+        <div
+          className="bg-background sticky top-0 left-0 right-0 z-99"
+        >
+          <ExplorerSearchBar />
+        </div>
         <NetworkOverview
           metrics={overviewMetrics}
           historicData={
             historicalData
               ? {
-                  tvl: historicalData.tvl || [],
-                  volume: historicalData.volume || [],
-                  transactions: historicalData.transactions,
-                }
+                tvl: historicalData.tvl || [],
+                volume: historicalData.volume || [],
+                transactions: historicalData.transactions,
+              }
               : undefined
           }
           selectedTimeframe={selectedTimeframe}
@@ -452,13 +450,17 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
           }}
         />
 
-        <TrendingChains chains={trendingChains} />
+        {!selectedChainId && <TrendingChains chains={trendingChains} />}
 
         {/* Bottom Grid: New Launches, Top Validators */}
-        <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6 lg:mb-8 ">
-          <NewLaunches chains={newChains} />
+        {selectedChainId ? (
           <TopValidators validators={topValidators} />
-        </div>
+        ) : (
+          <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6 lg:mb-8 ">
+            <NewLaunches chains={newChains} />
+            <TopValidators validators={topValidators} />
+          </div>
+        )}
 
         <RecentTransactions
           transactions={recentTransactions}
@@ -470,7 +472,7 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
           isLoading={isLoadingBlocks}
         />
 
-      </Container>
+      </div>
     </>
   );
 }

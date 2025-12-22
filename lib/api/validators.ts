@@ -183,14 +183,21 @@ export interface RewardsByChain {
  */
 export interface ValidatorRewardsResponse {
   data: {
-    rewards_by_chain: RewardsByChain[];
+    events_by_chain?: RewardsByChain[]; // Backend now returns events_by_chain
+    rewards_by_chain?: RewardsByChain[]; // Keep for backward compatibility
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      pages: number;
+    };
   };
   pagination: {
     page: number;
     limit: number;
     total: number;
     pages: number;
-  };
+  } | null;
 }
 
 /**
@@ -199,6 +206,68 @@ export interface ValidatorRewardsResponse {
 export interface ValidatorRewardsRequest {
   chain_id?: number;
   addresses: string[]; // Array of validator addresses
+}
+
+/**
+ * Slash event detail from validator slashes endpoint
+ */
+export interface SlashEventDetail {
+  height: number;
+  chain_id: number;
+  chain_name?: string | null;
+  chain_symbol?: string | null;
+  type: string;
+  address: string;
+  reference: string;
+  amount?: string | null; // Slash Amount in native token units
+  cnpy_amount?: string | null; // Amount in CNPY (string, fixed decimals)
+  usd_amount?: string | null; // USD equivalent value (string, fixed decimals)
+  success?: boolean | null;
+  timestamp: string;
+}
+
+/**
+ * Slashes by chain from validator slashes endpoint
+ */
+export interface SlashesByChain {
+  source_chain_id: number;
+  chain_name?: string | null;
+  events: SlashEventDetail[];
+}
+
+/**
+ * Validator slashes API response
+ */
+export interface ValidatorSlashesResponse {
+  data: {
+    events_by_chain: SlashesByChain[];
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      pages: number;
+    };
+  };
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  } | null;
+}
+
+/**
+ * Validator slashes API query parameters
+ */
+export interface ValidatorSlashesRequest {
+  addresses?: string[]; // Array of validator addresses (comma-separated or repeated)
+  address?: string; // Single address filter (convenience)
+  chain_ids?: string | number | number[]; // Filters by source chain DB (supports multiple aliases)
+  start_date?: string; // ISO 8601 lower bound
+  end_date?: string; // ISO 8601 upper bound
+  page?: number; // Page number (default: 1)
+  limit?: number; // Results per page (default: 50)
+  sort?: "asc" | "desc"; // Sort order (default: desc)
 }
 
 /**
@@ -321,21 +390,113 @@ export const validatorsApi = {
     const responseData = response.data as any;
     
     // Handle both wrapped and unwrapped responses
-    if (responseData?.data?.rewards_by_chain) {
-      // Already in correct format
-      return responseData as ValidatorRewardsResponse;
-    } else if (responseData?.rewards_by_chain) {
-      // Unwrapped format, wrap it
+    // Backend now returns events_by_chain, but we normalize it to rewards_by_chain for consistency
+    const eventsByChain = responseData?.data?.events_by_chain || responseData?.events_by_chain;
+    const rewardsByChain = responseData?.data?.rewards_by_chain || responseData?.rewards_by_chain;
+    
+    if (eventsByChain) {
+      // New format with events_by_chain
       return {
         data: {
-          rewards_by_chain: responseData.rewards_by_chain,
+          rewards_by_chain: eventsByChain, // Normalize to rewards_by_chain for component compatibility
+          events_by_chain: eventsByChain,
+          pagination: responseData?.data?.pagination || responseData?.pagination || null,
+        },
+        pagination: responseData?.pagination || null,
+      };
+    } else if (rewardsByChain) {
+      // Old format with rewards_by_chain
+      return {
+        data: {
+          rewards_by_chain: rewardsByChain,
+          pagination: responseData?.data?.pagination || responseData?.pagination || null,
+        },
+        pagination: responseData?.pagination || null,
+      };
+    }
+    
+    // Fallback
+    return responseData as ValidatorRewardsResponse;
+  },
+
+  /**
+   * Get validator slash history
+   * GET /api/v1/validator/slashes
+   *
+   * @param params - Query parameters (addresses, chain_ids, dates, pagination)
+   * @returns Slash history data grouped by chain
+   */
+  getValidatorSlashes: async (
+    params: ValidatorSlashesRequest
+  ): Promise<ValidatorSlashesResponse> => {
+    // Build query parameters
+    const queryParams: Record<string, string> = {};
+    
+    // Handle addresses
+    if (params.address) {
+      queryParams.address = params.address;
+    } else if (params.addresses && params.addresses.length > 0) {
+      queryParams.addresses = params.addresses.join(",");
+    }
+    
+    // Handle chain_ids (convert array to comma-separated string if needed)
+    if (params.chain_ids !== undefined) {
+      if (Array.isArray(params.chain_ids)) {
+        queryParams.chain_ids = params.chain_ids.join(",");
+      } else {
+        queryParams.chain_ids = String(params.chain_ids);
+      }
+    }
+    
+    // Handle date range
+    if (params.start_date) {
+      queryParams.start_date = params.start_date;
+    }
+    if (params.end_date) {
+      queryParams.end_date = params.end_date;
+    }
+    
+    // Handle pagination
+    if (params.page !== undefined) {
+      queryParams.page = String(params.page);
+    }
+    if (params.limit !== undefined) {
+      queryParams.limit = String(params.limit);
+    }
+    if (params.sort) {
+      queryParams.sort = params.sort;
+    }
+    
+    const response = await apiClient.get<ValidatorSlashesResponse>(
+      "/validator/slashes",
+      queryParams
+    );
+    
+    // Handle response structure
+    const responseData = response.data as any;
+    
+    // Normalize response structure
+    if (responseData?.data?.events_by_chain) {
+      return {
+        data: {
+          events_by_chain: responseData.data.events_by_chain,
+          pagination: responseData.data.pagination || responseData.pagination || null,
+        },
+        pagination: responseData.pagination || null,
+      };
+    } else if (responseData?.events_by_chain) {
+      // Unwrapped format
+      return {
+        data: {
+          events_by_chain: responseData.events_by_chain,
+          pagination: responseData.pagination || null,
         },
         pagination: responseData.pagination || null,
       };
     }
     
     // Fallback
-    return responseData as ValidatorRewardsResponse;
+    return responseData as ValidatorSlashesResponse;
   },
 };
 
@@ -447,6 +608,38 @@ export function useValidatorRewards(
     queryKey: ["validators", "rewards", params],
     queryFn: () => validatorsApi.getValidatorRewards(params),
     enabled: !!params.addresses && params.addresses.length > 0,
+    staleTime: 60000, // 1 minute
+    ...options,
+  });
+}
+
+/**
+ * React Query hook for fetching validator slash history
+ * Uses /api/validator/slashes endpoint
+ * 
+ * @param params - Query parameters (addresses, chain_ids, dates, pagination)
+ * @param options - React Query options
+ * @returns UseQueryResult with slash history data
+ * 
+ * @example
+ * ```typescript
+ * const { data, isLoading } = useValidatorSlashes({
+ *   address: "validator_address_123",
+ *   chain_ids: "1,3",
+ *   page: 1,
+ *   limit: 50,
+ *   sort: "desc"
+ * });
+ * ```
+ */
+export function useValidatorSlashes(
+  params: ValidatorSlashesRequest,
+  options?: Omit<UseQueryOptions<ValidatorSlashesResponse, Error>, "queryKey" | "queryFn">
+): UseQueryResult<ValidatorSlashesResponse, Error> {
+  return useQuery({
+    queryKey: ["validators", "slashes", params],
+    queryFn: () => validatorsApi.getValidatorSlashes(params),
+    enabled: !!(params.address || (params.addresses && params.addresses.length > 0)),
     staleTime: 60000, // 1 minute
     ...options,
   });

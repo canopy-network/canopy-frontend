@@ -80,10 +80,10 @@ export function TransactionsExplorer({ chainContext }: TransactionsExplorerProps
 
         if (response?.data) {
           // Handle both direct array and nested data structure
-          const txData = Array.isArray(response.data) 
-            ? response.data 
+          const txData = Array.isArray(response.data)
+            ? response.data
             : (response.data as any).data || [];
-          
+
           setTransactions(txData);
 
           // Get pagination info
@@ -378,7 +378,7 @@ export function TransactionsExplorer({ chainContext }: TransactionsExplorerProps
   });
 
   return (
-    <div className="px-4 lg:p-6">
+    <div className="max-w-7xl mx-auto py-6">
       <TableCard
         id="transactions-table"
         title="Transactions"
