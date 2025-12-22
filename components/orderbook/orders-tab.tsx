@@ -14,7 +14,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Edit2, X, Clock, CheckCircle, XCircle, Filter, Loader2 } from "lucide-react";
+import { Edit2, X, Clock, CheckCircle, XCircle, Filter, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { orderbookApi } from "@/lib/api";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import type { OrderBookApiOrder } from "@/types/orderbook";
@@ -50,6 +50,7 @@ export interface SellOrder {
 }
 
 type FilterType = "all" | OrderStatus;
+type SortDirection = "desc" | "asc"; // desc = newest first, asc = oldest first
 
 const DECIMALS = 1_000_000; // 6 decimals
 const ORDER_COMMITTEE_ID = 3; // Committee responsible for counter-asset swaps
@@ -210,6 +211,7 @@ export default function OrdersTab() {
   const [orders, setOrders] = useState<SellOrder[]>([]);
   const [rawOrders, setRawOrders] = useState<OrderBookApiOrder[]>([]); // Store raw orders for close order tracking
   const [filter, setFilter] = useState<FilterType>("all");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [orderToCancel, setOrderToCancel] = useState<SellOrder | null>(null);
   const [orderToLock, setOrderToLock] = useState<OrderBookApiOrder | null>(null);
   const [orderToClose, setOrderToClose] = useState<OrderBookApiOrder | null>(null);
@@ -371,10 +373,20 @@ export default function OrdersTab() {
     };
   }, [fetchUserOrders]);
 
-  const filteredOrders = orders.filter((order) => {
-    if (filter === "all") return true;
-    return order.status === filter;
-  });
+  const filteredOrders = orders
+    .filter((order) => {
+      if (filter === "all") return true;
+      return order.status === filter;
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return sortDirection === "desc" ? dateB - dateA : dateA - dateB;
+    });
+
+  const toggleSortDirection = () => {
+    setSortDirection((prev) => (prev === "desc" ? "asc" : "desc"));
+  };
 
   // Helper to get raw order data for close order tracking
   const getRawOrder = (orderId: string): OrderBookApiOrder | undefined => {
@@ -757,7 +769,7 @@ export default function OrdersTab() {
         </Card>
       )}
 
-      {/* Filter Buttons */}
+      {/* Filter and Sort Buttons */}
       <div className="flex items-center gap-2">
         <Filter className="w-4 h-4 text-muted-foreground" />
         <div className="flex gap-2">
@@ -773,6 +785,19 @@ export default function OrdersTab() {
             </Button>
           ))}
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={toggleSortDirection}
+          className="flex items-center gap-1"
+        >
+          {sortDirection === "desc" ? (
+            <ArrowDown className="w-4 h-4" />
+          ) : (
+            <ArrowUp className="w-4 h-4" />
+          )}
+          {sortDirection === "desc" ? "Newest" : "Oldest"}
+        </Button>
         <div className="ml-auto text-sm text-muted-foreground">
           {filteredOrders.length} {filteredOrders.length === 1 ? "order" : "orders"}
         </div>
