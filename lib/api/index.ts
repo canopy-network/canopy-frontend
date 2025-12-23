@@ -124,6 +124,11 @@ export { governanceApi } from "./governance";
 // Validators API
 export {
   validatorsApi,
+  // React Query hooks
+  useValidators,
+  useValidator,
+  useValidatorExport,
+  // Types
   type ValidatorData,
   type ValidatorsResponse,
   type ValidatorsRequest,
@@ -170,12 +175,29 @@ export {
   getExplorerTransaction,
   getExplorerBlocks,
   getExplorerBlock,
+  getExplorerOverview,
+  getExplorerTrendingChains,
+  getExplorerAddress,
+  searchExplorerEntities,
+  // React Query hooks
+  useExplorerTransactions,
+  useExplorerTransaction,
+  useExplorerBlocks,
+  useExplorerBlock,
+  useExplorerOverview,
+  useExplorerTrendingChains,
+  useExplorerAddress,
+  useExplorerSearch,
+  // Types
   type Transaction as ExplorerTransaction,
   type ExplorerTransactionsResponse,
   type GetExplorerTransactionsParams,
   type Block as ExplorerBlock,
   type ExplorerBlocksResponse,
   type GetExplorerBlocksParams,
+  type ExplorerOverview,
+  type ExplorerTrendingChain,
+  type ExplorerSearchResult,
 } from "./explorer";
 
 export type {
@@ -193,8 +215,6 @@ export type {
   WalletTransaction,
 } from "@/types/wallet";
 
-// AMM API
-export { ammApi } from "./amm";
 export type { OrderBookApiOrder, ChainOrderBook, OrderBookResponse, DisplayOrder } from "@/types/orderbook";
 
 export type { FeeParams } from "@/types/params";

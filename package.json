@@ -25,7 +25,7 @@
     "security:check-build": "npm audit --audit-level=high --production || (echo '❌ Build blocked: Critical or high severity vulnerabilities detected!' && echo 'Run: npm run security:audit to see details' && echo 'Run: npm run security:fix to attempt automatic fixes' && exit 1)"
   },
   "dependencies": {
-    "@auth/core": "^0.34.2",
+    "@auth/core": "^0.41.1",
     "@aws-sdk/client-dynamodb": "^3.922.0",
     "@aws-sdk/client-s3": "^3.705.0",
     "@aws-sdk/util-dynamodb": "^3.922.0",
@@ -89,6 +89,7 @@
     "react-hook-form": "^7.60.0",
     "react-hot-toast": "^2.6.0",
     "react-resizable-panels": "^2.1.7",
+    "react-select": "^5.10.2",
     "recharts": "latest",
     "siwe": "^2.3.2",
     "sonner": "^1.7.4",
@@ -107,6 +108,7 @@
     "@types/node": "^24",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
+    "@types/react-select": "^5.0.0",
     "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "^15.1.6",

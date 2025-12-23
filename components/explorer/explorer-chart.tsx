@@ -2,18 +2,10 @@
 
 import { useState } from "react";
 import { ChainDetailChart } from "@/components/charts/chain-detail-chart";
-import {
-  TimeframeButton,
-  TimeframeButtonLayout,
-} from "@/components/charts/timeframe-button";
+import { TimeframeButton, TimeframeButtonLayout } from "@/components/charts/timeframe-button";
 
-const timeframes = ["1H", "1D", "1W", "1M", "1Y", "ALL"];
-
-const formatCurrency = (value: number) =>
-  `$${value.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+// Only show timeframes supported by the backend: 1h, 1d, 7d, 1m
+const timeframes = ["1H", "1D", "1W", "1M"];
 
 interface HistoricDataPoint {
   time: number;
@@ -23,57 +15,65 @@ interface HistoricDataPoint {
 interface HistoricData {
   tvl: HistoricDataPoint[];
   volume: HistoricDataPoint[];
+  transactions?: HistoricDataPoint[];
 }
 
 interface ExplorerChartProps {
   historicData?: HistoricData;
+  selectedTimeframe?: string;
+  onTimeframeChange?: (timeframe: string) => void;
+  isLoadingHistorical?: boolean;
 }
 
-const buildSampleSeries = (base: number, amplitude: number) => {
-  const now = Math.floor(Date.now() / 1000);
-  return Array.from({ length: 48 }, (_, index) => {
-    const time = now - (48 - index) * 30 * 60;
-    const noise =
-      Math.sin(index / 3) * amplitude + Math.random() * amplitude * 0.4;
-    return {
-      time,
-      value: Math.max(base + noise, 0),
-    };
-  });
-};
-
-const defaultChartData = {
-  tvl: buildSampleSeries(45_000_000, 1_500_000),
-  volume: buildSampleSeries(8_500_000, 600_000),
-};
-
 const chartMetricConfig = {
-  tvl: { label: "TVL (Overtime)", color: "#7cff9d" },
-  volume: { label: "Volume", color: "#7cff9d" },
+  tvl: { label: "TVL", color: "#9ca3af" }, // Gray line for chart
+  volume: { label: "Volume", color: "#9ca3af" },
+  transactions: { label: "Transactions", color: "#9ca3af" },
 };
 
-export function ExplorerChart({ historicData }: ExplorerChartProps) {
-  const [chartMetric, setChartMetric] = useState<"tvl" | "volume">("tvl");
-  const [selectedTimeframe, setSelectedTimeframe] = useState("1D");
+export function ExplorerChart({
+  historicData,
+  selectedTimeframe: externalTimeframe,
+  onTimeframeChange,
+  isLoadingHistorical = false,
+}: ExplorerChartProps) {
+  const [chartMetric, setChartMetric] = useState<"tvl" | "volume" | "transactions">("tvl");
+  const [internalTimeframe, setInternalTimeframe] = useState("1D");
 
-  // Use historic data if provided, otherwise use default sample data
-  const chartData = historicData || defaultChartData;
-  const latestPoint = chartData[chartMetric][chartData[chartMetric].length - 1];
+  // Use external timeframe if provided, otherwise use internal state
+  const selectedTimeframe = externalTimeframe ?? internalTimeframe;
+  const setSelectedTimeframe = (timeframe: string) => {
+    if (onTimeframeChange) {
+      onTimeframeChange(timeframe);
+    } else {
+      setInternalTimeframe(timeframe);
+    }
+  };
+
+  // Only use real historic data - no mockup data
+  const currentData = historicData?.[chartMetric];
+  const hasData = currentData && Array.isArray(currentData) && currentData.length > 0;
+
+  // Ensure data is in correct format (time as number, value as number)
+  const formattedData = hasData
+    ? currentData.map((point) => ({
+        time: typeof point.time === "number" ? point.time : parseInt(String(point.time)),
+        value: typeof point.value === "number" ? point.value : parseFloat(String(point.value)),
+      }))
+    : null;
 
   return (
     <div className="" id="network-overview-chart">
-      <div className="flex items-center justify-between lg:mb-6 mb-3 ">
+      <div className="flex items-center justify-between lg:mb-6 mb-3">
         <div className="flex items-center gap-3">
-          {(["tvl", "volume"] as const).map((metric) => {
+          {(["tvl", "volume", "transactions"] as const).map((metric) => {
             const active = chartMetric === metric;
             return (
               <button
                 key={metric}
                 onClick={() => setChartMetric(metric)}
-                className={`rounded-full px-5 py-2 text-sm font-semibold transition-all ${
-                  active
-                    ? "bg-[#36d26a]/10 text-white border border-[#36d26a] shadow-[0_8px_30px_rgba(124,255,157,0.35)]"
-                    : "bg-[#111] text-gray-400 hover:text-white"
+                className={`rounded-lg px-5 py-2 text-sm font-semibold transition-all ${
+                  active ? "border border-green-500  text-green-500" : "bg-white/5 text-gray-400 hover:text-white"
                 }`}
               >
                 {chartMetricConfig[metric].label}
@@ -91,19 +91,40 @@ export function ExplorerChart({ historicData }: ExplorerChartProps) {
               timeframe={tf}
               selectedTimeframe={selectedTimeframe}
               setSelectedTimeframe={setSelectedTimeframe}
-              loadingChart={false}
+              loadingChart={isLoadingHistorical}
             >
               {tf}
             </TimeframeButton>
           ))}
         </TimeframeButtonLayout>
-        <div className="h-full pt-12 p-3 lg:px-4">
-          <ChainDetailChart
-            height={324 - 64}
-            data={chartData[chartMetric]}
-            timeframe={selectedTimeframe}
-            lineColor={chartMetricConfig[chartMetric].color}
-          />
+        <div className="h-full pt-12 p-3 lg:px-4 relative">
+          {isLoadingHistorical ? (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+              <div className="text-center">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#00a63d] mb-3"></div>
+                <p className="text-sm font-medium mb-1">Loading historical data...</p>
+                <p className="text-xs text-muted-foreground">
+                  Fetching {chartMetricConfig[chartMetric].label} data for {selectedTimeframe}
+                </p>
+              </div>
+            </div>
+          ) : hasData && formattedData ? (
+            <ChainDetailChart
+              height={324 - 64}
+              data={formattedData}
+              timeframe={selectedTimeframe}
+              lineColor={chartMetricConfig[chartMetric].color}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+              <div className="text-center">
+                <p className="text-sm font-medium mb-1">Historical data not available</p>
+                <p className="text-xs text-muted-foreground">
+                  Historical {chartMetricConfig[chartMetric].label} data is not currently available from the API.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -4,8 +4,6 @@ import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-type HashSearchbarSize = "default" | "md";
-
 interface HashSearchbarProps
   extends Omit<ComponentProps<typeof Input>, "size" | "onChange"> {
   size?: ComponentProps<typeof Input>["size"];
@@ -38,8 +36,7 @@ export function HashSearchbar({
         {...props}
         size={size}
         className={cn(
-          "pl-11 bg-white/5 border-white/10 text-sm",
-          size === "md" && "text-base",
+          "pl-11 bg-white/5 border-white/10 text-sm h-10",
           className
         )}
         onChange={handleChange}

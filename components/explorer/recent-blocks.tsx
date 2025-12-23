@@ -7,22 +7,11 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { LatestUpdated } from "./latest-updated";
 import type { Block } from "@/types/blocks";
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from "@/components/ui/table";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { EXPLORER_ICON_GLOW } from "@/lib/utils/brand";
 
 // Function to truncate hash: first chars + ... + last chars
-const truncateHash = (
-  hash: string,
-  start: number = 8,
-  end: number = 4
-): string => {
+const truncateHash = (hash: string, start: number = 8, end: number = 4): string => {
   if (!hash) return "";
   if (hash.length <= start + end) return hash;
   return `${hash.slice(0, start)}...${hash.slice(-end)}`;
@@ -67,16 +56,7 @@ export function RecentBlocks({
     return blocks[0].timestamp; // Blocks are sorted newest first
   }, [blocks]);
 
-  if (isLoading && blocks.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <span className="ml-2 text-sm text-muted-foreground">
-          Loading blocks...
-        </span>
-      </div>
-    );
-  }
+  // Always show the component, even when loading or empty
 
   if (error) {
     return (
@@ -111,94 +91,67 @@ export function RecentBlocks({
                 {/* Column 1 - Block Height - No header */}
                 <div className="block lg:hidden">Height</div>
               </TableHead>
-              <TableHead
-                id="timestamp-header"
-                className="text-left p-4 text-sm font-medium text-muted-foreground"
-              >
+              <TableHead id="timestamp-header" className="text-left p-4 text-sm font-medium text-muted-foreground">
                 Timestamp
               </TableHead>
-              <TableHead
-                id="age-header"
-                className="text-left p-4 text-sm font-medium text-muted-foreground"
-              >
+              <TableHead id="age-header" className="text-left p-4 text-sm font-medium text-muted-foreground">
                 Age
               </TableHead>
-              <TableHead
-                id="block-hash-header"
-                className="text-left p-4 text-sm font-medium text-muted-foreground"
-              >
+              <TableHead id="block-hash-header" className="text-left p-4 text-sm font-medium text-muted-foreground">
                 Block Hash
               </TableHead>
-              <TableHead
-                id="block-producer-header"
-                className="text-left p-4 text-sm font-medium text-muted-foreground"
-              >
+              <TableHead id="block-producer-header" className="text-left p-4 text-sm font-medium text-muted-foreground">
                 Block Producer
               </TableHead>
-              <TableHead
-                id="transactions-header"
-                className="text-left p-4 text-sm font-medium text-muted-foreground"
-              >
+              <TableHead id="transactions-header" className="text-left p-4 text-sm font-medium text-muted-foreground">
                 Transactions
               </TableHead>
-              <TableHead
-                id="reward-header"
-                className="text-left p-4 text-sm font-medium text-muted-foreground"
-              >
+              <TableHead id="reward-header" className="text-left p-4 text-sm font-medium text-muted-foreground">
                 Reward
               </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {blocks.length > 0 ? (
+            {isLoading && blocks.length === 0 ? (
+              <TableRow appearance="plain">
+                <TableCell colSpan={7} className="text-center py-12">
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <span className="ml-2 text-sm text-muted-foreground">Loading blocks...</span>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : blocks.length > 0 ? (
               blocks.map((block) => (
-                <TableRow
-                  key={block.height}
-                  appearance="plain"
-                  className="px-0"
-                >
+                <TableRow key={block.height} appearance="plain" className="px-0">
                   {/* Column 1: Block Height */}
                   <TableCell className="py-3 pl-0 lg:pl-4">
-                    <Link
-                      href={`/blocks/${block.height}`}
-                      className="hover:underline"
-                    >
+                    <Link href={`/blocks/${block.height}`} className="hover:underline">
                       <div
                         data-column="1"
                         className="flex items-center gap-4 flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
                       >
-                        <div className="flex items-center justify-center w-10 h-10 bg-black/30 border border-[#36d26a] rounded-lg flex-shrink-0 px-0 shadow-[0_0_14px_rgba(124,255,157,0.3)]">
+                        <div className="flex items-center justify-center w-10 h-10 bg-black/30 border border-[#00a63d] rounded-lg flex-shrink-0 px-0 shadow-[0_0_14px_rgba(0,166,61,0.3)]">
                           <Box className={`w-5 h-5 ${EXPLORER_ICON_GLOW}`} />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="font-semibold text-sm">
-                            Block #{block.height}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {block.height.toLocaleString()}
-                          </p>
+                          <p className="font-semibold text-sm">Block #{block.height}</p>
+                          <p className="text-xs text-muted-foreground">{block.height.toLocaleString()}</p>
                         </div>
                       </div>
                     </Link>
                   </TableCell>
                   {/* Column 2: Timestamp */}
                   <TableCell className="p-4">
-                    <span className="text-sm text-muted-foreground">
-                      {formatTimestamp(block.timestamp)}
-                    </span>
+                    <span className="text-sm text-muted-foreground">{formatTimestamp(block.timestamp)}</span>
                   </TableCell>
                   {/* Column 3: Age */}
                   <TableCell className="p-4">
-                    <span className="text-sm text-muted-foreground">
-                      {formatTimeAgo(block.timestamp)}
-                    </span>
+                    <span className="text-sm text-muted-foreground">{formatTimeAgo(block.timestamp)}</span>
                   </TableCell>
                   {/* Column 4: Block Hash */}
                   <TableCell className="p-4">
-                    <Link
-                      href={`/blocks/${block.height}`}
-                      className="hover:underline"
-                    >
+                    <Link href={`/blocks/${block.height}`} className="hover:underline">
                       <span className=" text-sm cursor-pointer hover:opacity-80 transition-opacity">
                         {truncateHash(block.hash, 12, 4)}
                       </span>
@@ -223,10 +176,7 @@ export function RecentBlocks({
                   </TableCell>
                   {/* Column 7: Reward (sample data) */}
                   <TableCell className="p-4">
-                    <span
-                      className="text-sm text-muted-foreground"
-                      data-sample="block-reward"
-                    >
+                    <span className="text-sm text-muted-foreground" data-sample="block-reward">
                       {(Math.random() * 100 + 50).toFixed(2)} CNPY
                     </span>
                   </TableCell>
@@ -240,12 +190,8 @@ export function RecentBlocks({
                       <Search className={`w-6 h-6 text-muted-foreground ${EXPLORER_ICON_GLOW}`} />
                     </div>
                   </div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">
-                    No blocks found
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    No blocks available
-                  </p>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">No blocks found</p>
+                  <p className="text-xs text-muted-foreground">No blocks available</p>
                 </TableCell>
               </TableRow>
             )}
@@ -254,18 +200,14 @@ export function RecentBlocks({
       </div>
 
       {/* View All Blocks Button */}
-        <div className="flex items-center justify-start pt-4 border-t border-border">
-          <Link href="/blocks">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-foreground gap-1"
-            >
-              View All Blocks
-              <ArrowUpRight className={`w-4 h-4 ${EXPLORER_ICON_GLOW}`} />
-            </Button>
-          </Link>
-        </div>
-      </Card>
+      <div className="flex items-center justify-start pt-4 border-t border-border">
+        <Link href="/blocks">
+          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground gap-1">
+            View All Blocks
+            <ArrowUpRight className={`w-4 h-4 ${EXPLORER_ICON_GLOW}`} />
+          </Button>
+        </Link>
+      </div>
+    </Card>
   );
 }

@@ -16,24 +16,34 @@ const Table = React.forwardRef<
 ));
 Table.displayName = "Table";
 
-const TableHeader = React.forwardRef<
-  HTMLTableSectionElement,
-  React.HTMLAttributes<HTMLTableSectionElement>
->(({ className, ...props }, ref) => (
-  <thead ref={ref} className={cn("[&_tr]:border-b", className)} {...props} />
-));
+type TableHeaderProps = React.HTMLAttributes<HTMLTableSectionElement> & {
+  noBorder?: boolean;
+};
+
+const TableHeader = React.forwardRef<HTMLTableSectionElement, TableHeaderProps>(
+  ({ className, noBorder = false, ...props }, ref) => (
+    <thead 
+      ref={ref} 
+      className={cn(noBorder ? "" : "[&_tr]:border-b", className)} 
+      {...props} 
+    />
+  )
+);
 TableHeader.displayName = "TableHeader";
 
-const TableBody = React.forwardRef<
-  HTMLTableSectionElement,
-  React.HTMLAttributes<HTMLTableSectionElement>
->(({ className, ...props }, ref) => (
-  <tbody
-    ref={ref}
-    className={cn("[&_tr:last-child]:border-0", className)}
-    {...props}
-  />
-));
+type TableBodyProps = React.HTMLAttributes<HTMLTableSectionElement> & {
+  noBorder?: boolean;
+};
+
+const TableBody = React.forwardRef<HTMLTableSectionElement, TableBodyProps>(
+  ({ className, noBorder = false, ...props }, ref) => (
+    <tbody
+      ref={ref}
+      className={cn(noBorder ? "" : "[&_tr:last-child]:border-0", className)}
+      {...props}
+    />
+  )
+);
 TableBody.displayName = "TableBody";
 
 const TableFooter = React.forwardRef<
@@ -52,7 +62,7 @@ const TableFooter = React.forwardRef<
 TableFooter.displayName = "TableFooter";
 
 type TableRowProps = React.HTMLAttributes<HTMLTableRowElement> & {
-  appearance?: "rich" | "plain";
+  appearance?: "rich" | "plain" | "noBorder";
 };
 
 const tableRowAppearances: Record<
@@ -62,6 +72,7 @@ const tableRowAppearances: Record<
   rich: "rounded-xl px-4 py-3 bg-background hover:bg-background/75 transition-colors cursor-pointer",
   plain:
     "border-b border-border transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
+  noBorder: "border-0 rounded-none",
 };
 
 const TableRow = React.forwardRef<HTMLTableRowElement, TableRowProps>(

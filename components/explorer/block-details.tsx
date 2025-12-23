@@ -2,44 +2,65 @@
 
 import * as React from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { Copy, ArrowUpRight, Search } from "lucide-react";
+import { Copy } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { TableArrow } from "@/components/icons";
-import {
-  getSampleTransactions,
-  SampleTransaction,
-} from "@/lib/demo-data/sample-transactions";
-import { getExplorerBlock } from "@/lib/api/explorer";
+import { useExplorerBlock } from "@/lib/api/explorer";
 import type { Block as ApiBlock } from "@/types/blocks";
 import { CopyableText } from "../ui/copyable-text";
+import { TableCard, TableColumn } from "./table-card";
+import { canopyIconSvg, getCanopyAccent } from "@/lib/utils/brand";
+import type { Transaction } from "@/lib/api/explorer";
+import { TableArrow } from "@/components/icons";
 
 // Extended block type to include all API response fields
 type ExtendedApiBlock = ApiBlock & {
+  // Transactions array
+  transactions?: Transaction[];
+  // Transaction counts by type
+  num_txs_send?: number;
+  num_txs_stake?: number;
+  num_txs_edit_stake?: number;
+  num_txs_unstake?: number;
+  num_txs_pause?: number;
+  num_txs_unpause?: number;
+  num_txs_change_parameter?: number;
+  num_txs_dao_transfer?: number;
+  num_txs_certificate_result?: number;
+  num_txs_subsidy?: number;
+  num_txs_create_order?: number;
+  num_txs_edit_order?: number;
+  num_txs_delete_order?: number;
+  num_txs_dex_deposit?: number;
+  num_txs_dex_withdraw?: number;
+  num_txs_dex_limit_order?: number;
+  // Event counts by type
+  num_events_reward?: number;
+  num_events_slash?: number;
+  num_events_double_sign?: number;
+  num_events_unstake_ready?: number;
+  num_events_order_book_swap?: number;
+  num_events_order_created?: number;
+  num_events_order_edited?: number;
+  num_events_order_deleted?: number;
+  num_events_order_filled?: number;
+  num_events_dex_deposit?: number;
+  num_events_dex_withdraw?: number;
+  num_events_dex_swap?: number;
+  num_events_pool_created?: number;
+  num_events_pool_points_created?: number;
+  num_events_pool_points_redeemed?: number;
+  num_events_pool_points_transfered?: number;
+  // Order counts
+  num_orders_created?: number;
+  num_orders_edited?: number;
+  num_orders_deleted?: number;
+  // Totals
   total_txs?: number;
   total_events?: number;
+  total_rewards?: number;
+  reward_events?: number;
 };
-
-// Transaction interface
-interface Transaction {
-  chain_name: string;
-  hash: string;
-  from: string;
-  to: string;
-  timestamp: number;
-  amount: string;
-  chain_id?: string;
-}
 
 // Format time ago from timestamp (e.g., "1 hr 22 mins ago")
 const formatTimeAgo = (timestamp: number): string => {
@@ -57,48 +78,17 @@ const formatTimeAgo = (timestamp: number): string => {
     if (remainingMinutes === 0) {
       return `${hours} hr ago`;
     }
-    return `${hours} hr ${remainingMinutes} min${
-      remainingMinutes === 1 ? "" : "s"
-    } ago`;
+    return `${hours} hr ${remainingMinutes} min${remainingMinutes === 1 ? "" : "s"} ago`;
   }
 
   const days = Math.floor(seconds / 86400);
   return `${days} day${days === 1 ? "" : "s"} ago`;
 };
 
-// Format address for display (similar to transactions-explorer)
-const formatAddress = (value: string, prefix = 6, suffix = 6) =>
-  `${value.slice(0, prefix)}...${value.slice(-suffix)}`;
-
-// Get relative time from timestamp string (for consistency with transactions-explorer)
-const getRelativeTime = (timestamp: number) => {
-  const now = Date.now();
-  const time = timestamp;
-  const diff = Math.max(1, Math.round((now - time) / 60000));
-  if (diff < 60) return `${diff} min${diff > 1 ? "s" : ""} ago`;
-  const hours = Math.round(diff / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.round(hours / 24);
-  return `${days}d ago`;
-};
-
 // Format timestamp to readable format (Nov-18 2025 12:47:27PM)
 const formatTimestamp = (timestamp: number): string => {
   const date = new Date(timestamp);
-  const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const month = months[date.getMonth()];
   const day = date.getDate();
   const year = date.getFullYear();
@@ -117,32 +107,28 @@ const formatCombinedTimestamp = (timestamp: number): string => {
   return `${timeAgo} (${fullDate})`;
 };
 
-// Generate sample transactions from actual sample data
-const generateSampleTransactions = (count: number): Transaction[] => {
-  const sampleTransactions = getSampleTransactions();
-  // Use actual sample transactions so hashes match
-  return sampleTransactions.slice(0, count).map((tx: SampleTransaction) => ({
-    chain_name: tx.chain.name,
-    hash: tx.hash, // Use actual hash from sample transactions
-    from: tx.from,
-    to: tx.to,
-    timestamp: new Date(tx.timestamp).getTime(),
-    amount: tx.amountCnpy.toFixed(2),
-    chain_id: tx.chain.id, // Add chain_id for consistency
-  }));
-};
-
 interface BlockDetailsProps {
   blockId: string;
 }
 
 export function BlockDetails({ blockId }: BlockDetailsProps) {
-  const [block, setBlock] = React.useState<ExtendedApiBlock | null>(null);
-  const [transactions, setTransactions] = React.useState<Transaction[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [parentHash, setParentHash] = React.useState<string>("");
+  // Parse block ID
+  const blockNumber = React.useMemo(() => {
+    const parsed = parseInt(blockId, 10);
+    return isNaN(parsed) ? null : parsed;
+  }, [blockId]);
+
+  // Use React Query hook to fetch block data
+  const {
+    data: apiBlock,
+    isLoading: loading,
+    error: queryError,
+  } = useExplorerBlock(blockNumber || 0, undefined, {
+    enabled: !!blockNumber,
+  });
+
+  const block = apiBlock as ExtendedApiBlock | null;
+  const error = queryError ? "Failed to load block details" : null;
 
   // Copy to clipboard
   const copyToClipboard = async (text: string) => {
@@ -153,59 +139,11 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
     }
   };
 
-  // Fetch block data
-  React.useEffect(() => {
-    const fetchBlock = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const blockNumber = parseInt(blockId, 10);
-        if (isNaN(blockNumber)) {
-          setError("Invalid block ID");
-          setLoading(false);
-          return;
-        }
-
-        // Fetch block from API
-        const apiBlock = await getExplorerBlock(blockNumber);
-        setBlock(apiBlock as ExtendedApiBlock);
-
-        // Generate placeholder parent hash (not available in API)
-        const generatedParentHash = `0x${Array(64)
-          .fill(0)
-          .map(() => Math.floor(Math.random() * 16).toString(16))
-          .join("")}`;
-        setParentHash(generatedParentHash);
-
-        // Keep sample transactions as requested
-        const totalTxs =
-          (apiBlock as ExtendedApiBlock).total_txs ?? apiBlock.num_txs ?? 0;
-        const sampleTransactions = generateSampleTransactions(totalTxs || 10);
-        setTransactions(sampleTransactions);
-      } catch (err) {
-        console.error("Failed to fetch block:", err);
-        setError("Failed to load block details");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBlock();
-  }, [blockId]);
-
-  const displayedTransactions = React.useMemo(
-    () => transactions.slice(0, 10),
-    [transactions]
-  );
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <span className="ml-2 text-sm text-muted-foreground">
-          Loading block...
-        </span>
+        <span className="ml-2 text-sm text-muted-foreground">Loading block...</span>
       </div>
     );
   }
@@ -213,9 +151,7 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
   if (error || !block) {
     return (
       <div className="text-center py-12">
-        <p className="text-sm font-medium text-destructive mb-1">
-          {error || "Block not found"}
-        </p>
+        <p className="text-sm font-medium text-destructive mb-1">{error || "Block not found"}</p>
       </div>
     );
   }
@@ -225,28 +161,19 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
       {/* Header with Title and Search */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <h1 className="text-2xl font-bold">Block #{block.height}</h1>
-        <div className="w-full flex-1 max-w-[532px]">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="text"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search by address, tx hash, block..."
-              className="w-full pl-12 pr-4 py-6 bg-[#1a1a1a] border-[#2a2a2a] text-white placeholder:text-muted-foreground"
-            />
-          </div>
-        </div>
+        <div className="w-full flex-1 max-w-[532px]"></div>
       </div>
 
       {/* Block Summary Card */}
       <Card className="w-full">
         <div className="divide-y divide-border">
           <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
+            <p className="text-sm text-muted-foreground">Chain ID:</p>
+            <p className="text-sm font-medium">{block.chain_id}</p>
+          </div>
+          <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
             <p className="text-sm text-muted-foreground">Timestamp:</p>
-            <p className="text-sm font-medium">
-              {formatCombinedTimestamp(new Date(block.timestamp).getTime())}
-            </p>
+            <p className="text-sm font-medium">{formatCombinedTimestamp(new Date(block.timestamp).getTime())}</p>
           </div>
           <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
             <p className="text-sm text-muted-foreground">Proposed by:</p>
@@ -257,16 +184,17 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
             </div>
           </div>
           <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
-            <p className="text-sm text-muted-foreground">Transaction count:</p>
-            <p className="text-lg font-semibold">
-              {(block as ExtendedApiBlock).total_txs ?? block.num_txs ?? 0}{" "}
-              transactions
-            </p>
+            <p className="text-sm text-muted-foreground">Total Transactions:</p>
+            <p className="text-lg font-semibold">{(block as ExtendedApiBlock).total_txs ?? block.num_txs ?? 0}</p>
+          </div>
+          <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
+            <p className="text-sm text-muted-foreground">Total Events:</p>
+            <p className="text-lg font-semibold">{(block as ExtendedApiBlock).total_events ?? block.num_events ?? 0}</p>
           </div>
         </div>
       </Card>
 
-      {/* Reward and Recipient Card */}
+      {/* Reward and Fees Card */}
       <Card className="w-full">
         <div className="divide-y divide-border">
           <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
@@ -278,9 +206,19 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
             </div>
           </div>
           <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
-            <p className="text-sm text-muted-foreground">Block Reward:</p>
+            <p className="text-sm text-muted-foreground">Total Fees:</p>
+            <p className="text-lg font-semibold text-green-500">{((block.total_fees || 0) / 100).toFixed(2)} CNPY</p>
+          </div>
+          <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
+            <p className="text-sm text-muted-foreground">Total Rewards:</p>
             <p className="text-lg font-semibold text-green-500">
-              {((block.total_fees || 0) / 100).toFixed(2)} CNPY -[sample]
+              {((block as ExtendedApiBlock).total_rewards || 0) / 1000000} CNPY
+            </p>
+          </div>
+          <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
+            <p className="text-sm text-muted-foreground">Reward Events:</p>
+            <p className="text-lg font-semibold">
+              {(block as ExtendedApiBlock).reward_events ?? (block as ExtendedApiBlock).num_events_reward ?? 0}
             </p>
           </div>
         </div>
@@ -290,161 +228,253 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
       <Card className="w-full">
         <div className="divide-y divide-border">
           <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
-            <p className="text-sm text-muted-foreground">Gas used:</p>
-            <p className="text-sm font-medium">0 -[sample]</p>
-          </div>
-          <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
-            <p className="text-sm text-muted-foreground">Gas Limit:</p>
-            <p className="text-sm font-medium">200,000,000 -[sample]</p>
-          </div>
-          <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
             <p className="text-sm text-muted-foreground">Hash:</p>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-mono text-sm break-all">{block.hash}</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0"
-                onClick={() => copyToClipboard(block.hash)}
-              >
-                <Copy className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-          <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
-            <p className="text-sm text-muted-foreground">Parent Hash:</p>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-mono text-sm break-all">
-                {parentHash} -[sample]
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0"
-                onClick={() => copyToClipboard(parentHash)}
-              >
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => copyToClipboard(block.hash)}>
                 <Copy className="w-4 h-4" />
               </Button>
             </div>
           </div>
         </div>
       </Card>
+
+      {/* Event Types Breakdown */}
+      {(() => {
+        const extendedBlock = block as ExtendedApiBlock;
+        const eventTypes = [
+          { key: "num_events_reward", label: "Reward" },
+          { key: "num_events_slash", label: "Slash" },
+          { key: "num_events_double_sign", label: "Double Sign" },
+          { key: "num_events_unstake_ready", label: "Unstake Ready" },
+          { key: "num_events_order_book_swap", label: "Order Book Swap" },
+          { key: "num_events_order_created", label: "Order Created" },
+          { key: "num_events_order_edited", label: "Order Edited" },
+          { key: "num_events_order_deleted", label: "Order Deleted" },
+          { key: "num_events_order_filled", label: "Order Filled" },
+          { key: "num_events_dex_deposit", label: "DEX Deposit" },
+          { key: "num_events_dex_withdraw", label: "DEX Withdraw" },
+          { key: "num_events_dex_swap", label: "DEX Swap" },
+          { key: "num_events_pool_created", label: "Pool Created" },
+          { key: "num_events_pool_points_created", label: "Pool Points Created" },
+          { key: "num_events_pool_points_redeemed", label: "Pool Points Redeemed" },
+          { key: "num_events_pool_points_transfered", label: "Pool Points Transferred" },
+        ];
+        const activeEventTypes = eventTypes.filter((evt) => {
+          const value = extendedBlock[evt.key as keyof ExtendedApiBlock] as number | undefined;
+          return value !== undefined && value > 0;
+        });
+
+        if (activeEventTypes.length === 0) return null;
+
+        return (
+          <Card className="w-full">
+            <h4 className="text-lg mb-4">Event Types</h4>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {activeEventTypes.map((evt) => (
+                <div key={evt.key} className="flex flex-col">
+                  <p className="text-xs text-muted-foreground">{evt.label}</p>
+                  <p className="text-sm font-semibold">{extendedBlock[evt.key as keyof ExtendedApiBlock] as number}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+        );
+      })()}
 
       {/* Transactions Table */}
-      <Card className="w-full gap-4">
-        <h4 className="text-lg">
-          <b>{(block as ExtendedApiBlock).total_txs ?? block.num_txs ?? 0}</b>{" "}
-          Txns found
-        </h4>
+      {(() => {
+        const extendedBlock = block as ExtendedApiBlock;
+        const transactions = extendedBlock.transactions || [];
+        const totalTxs = extendedBlock.total_txs ?? block.num_txs ?? 0;
 
-        <Table>
-          <TableHeader className="">
-            <TableRow className="bg-transparent hover:bg-transparent">
-              <TableHead className="text-xs  tracking-wide text-muted-foreground">
-                Chain Name
-              </TableHead>
-              <TableHead className="text-xs  tracking-wide text-muted-foreground">
-                Hash
-              </TableHead>
-              <TableHead className="text-xs  tracking-wide text-muted-foreground">
-                From
-              </TableHead>
-              <TableHead />
-              <TableHead className="text-xs  tracking-wide text-muted-foreground">
-                To
-              </TableHead>
-              <TableHead className="text-xs  tracking-wide text-muted-foreground">
-                Time
-              </TableHead>
-              <TableHead className="text-right text-xs  tracking-wide text-muted-foreground">
-                Amount
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {displayedTransactions.length > 0 ? (
-              displayedTransactions.map((tx, index) => (
-                <TableRow key={`${tx.hash}-${index}`} appearance="plain">
-                  <TableCell className="font-mono text-xs text-white/80 flex items-center">
-                    <Link
-                      href={`/chains/${tx.chain_id}`}
-                      className="flex items-center gap-2 hover:underline"
-                    >
-                      <Image
-                        src="https://placehold.co/32/EEE/31343C"
-                        alt={tx.chain_name}
-                        width={32}
-                        height={32}
-                        className="w-8 h-8 rounded-full"
-                      />
-                      {tx.chain_name}
-                    </Link>
-                  </TableCell>
-                  <TableCell className=" text-xs text-white/80">
-                    <Link
-                      href={`/transactions/${encodeURIComponent(tx.hash)}`}
-                      className="hover:underline"
-                    >
-                      {formatAddress(tx.hash, 6, 6)}
-                    </Link>
-                  </TableCell>
+        // Format address helper
+        const formatAddress = (address: string, start: number = 6, end: number = 4): string => {
+          if (!address || address.length <= start + end) return address;
+          return `${address.slice(0, start)}...${address.slice(-end)}`;
+        };
 
-                  <TableCell className=" text-xs text-white">
-                    {formatAddress(tx.from, 6, 6)}
-                  </TableCell>
+        // Format method name
+        const formatMethod = (method: string) => {
+          if (!method) return "-";
+          return method
+            .replace(/([A-Z])/g, " $1")
+            .replace(/_/g, " ")
+            .replace(/^\w/, (c) => c.toUpperCase())
+            .trim();
+        };
 
-                  <TableCell className="w-40">
-                    <TableArrow className="text-white" />
-                  </TableCell>
+        // Get method badge color
+        const getMethodColor = (method: string) => {
+          const methodLower = method.toLowerCase();
+          if (methodLower.includes("transfer")) {
+            return "border-emerald-500/40 bg-emerald-500/10 text-emerald-300";
+          }
+          if (methodLower.includes("swap")) {
+            return "border-sky-500/40 bg-sky-500/10 text-sky-300";
+          }
+          if (methodLower.includes("stake")) {
+            return "border-purple-500/40 bg-purple-500/10 text-purple-300";
+          }
+          if (methodLower.includes("contract")) {
+            return "border-amber-400/40 bg-amber-500/10 text-amber-200";
+          }
+          return "border-white/20 bg-white/5 text-white/80";
+        };
 
-                  <TableCell className=" text-xs text-white">
-                    {formatAddress(tx.to, 6, 6)}
-                  </TableCell>
+        // Get chain name and color
+        const getChainName = (chainId: number): string => {
+          // You can expand this with actual chain names if needed
+          return `Chain ${chainId}`;
+        };
 
-                  <TableCell className="text-sm text-muted-foreground">
-                    {getRelativeTime(tx.timestamp)}
-                  </TableCell>
+        const getChainColor = (chainId: number): string => {
+          return getCanopyAccent(chainId.toString());
+        };
 
-                  <TableCell className="text-right">
-                    <span className="font-semibold text-sm text-[#7cff9d]">
-                      {parseFloat(tx.amount).toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}{" "}
-                      CNPY
-                    </span>
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-12">
-                  <p className="text-sm text-muted-foreground">
-                    No transactions found
-                  </p>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+        const columns: TableColumn[] = [
+          { label: "Chain Name", width: "w-[180px]" },
+          { label: "Hash", width: "w-32" },
+          { label: "Block Height", width: "w-32" },
+          { label: "Method", width: "w-32" },
+          { label: "From", width: "w-32" },
+          { label: "", width: "w-10" }, // Arrow column
+          { label: "To", width: "w-32" },
+          { label: "Time", width: "w-32" },
+          { label: "Amount", width: "w-40" },
+        ];
 
-        <div className="flex items-center justify-between pt-4 border-t border-border">
-          <Link href="/transactions">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-foreground gap-1"
+        const rows = transactions.map((tx) => {
+          const chainName = getChainName(tx.chain_id);
+          const chainColor = getChainColor(tx.chain_id);
+
+          return [
+            // Chain Name
+            <div key="chain" className="flex items-center gap-3">
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                dangerouslySetInnerHTML={{
+                  __html: canopyIconSvg(chainColor),
+                }}
+              />
+              <Link
+                href={`/transactions/${encodeURIComponent(tx.tx_hash)}`}
+                className="flex flex-col hover:text-primary transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="font-medium text-white text-sm">{chainName}</span>
+              </Link>
+            </div>,
+            // Hash
+            <Link
+              key="hash"
+              href={`/transactions/${encodeURIComponent(tx.tx_hash)}`}
+              className="text-xs text-white/80 hover:opacity-80 transition-opacity hover:underline font-mono"
+              onClick={(e) => e.stopPropagation()}
             >
-              View All Transactions
-              <ArrowUpRight className="w-4 h-4" />
-            </Button>
-          </Link>
+              {formatAddress(tx.tx_hash, 6, 6)}
+            </Link>,
+            // Block Height
+            <Link
+              key="block"
+              href={`/blocks/${tx.height}`}
+              className="text-xs text-white/80 hover:opacity-80 transition-opacity hover:underline font-mono"
+              onClick={(e) => e.stopPropagation()}
+            >
+              #{tx.height.toLocaleString()}
+            </Link>,
+            // Method
+            <div key="method">
+              <span
+                className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${getMethodColor(
+                  tx.message_type
+                )}`}
+              >
+                {formatMethod(tx.message_type)}
+              </span>
+            </div>,
+            // From
+            <div key="from">
+              {tx.signer && tx.signer.trim() !== "" ? (
+                <Link
+                  href={`/accounts/${tx.signer}`}
+                  className="text-xs text-white hover:opacity-80 transition-opacity hover:underline font-mono"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {formatAddress(tx.signer, 6, 6)}
+                </Link>
+              ) : (
+                <span className="text-xs text-muted-foreground">-</span>
+              )}
+            </div>,
+            // Arrow
+            <div key="arrow" className="flex items-center justify-center">
+              <TableArrow className="" />
+            </div>,
+            // To
+            <div key="to">
+              {tx.counterparty && tx.counterparty.trim() !== "" ? (
+                <Link
+                  href={`/accounts/${tx.counterparty}`}
+                  className="text-xs text-white hover:opacity-80 transition-opacity hover:underline font-mono"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {formatAddress(tx.counterparty, 6, 6)}
+                </Link>
+              ) : (
+                <span className="text-xs text-muted-foreground">-</span>
+              )}
+            </div>,
+            // Time
+            <span key="time" className="text-sm text-muted-foreground">
+              {formatTimeAgo(new Date(tx.timestamp).getTime())}
+            </span>,
+            // Amount
+            <div key="amount" className="text-right">
+              {tx.amount != null ? (
+                <div className="flex flex-col items-end">
+                  <span className="font-semibold text-sm text-[#00a63d]">
+                    {tx.amount.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{" "}
+                    CNPY
+                  </span>
+                  {tx.fee != null && tx.fee > 0 && (
+                    <span className="text-xs text-muted-foreground mt-0.5">
+                      Gas{" "}
+                      {tx.fee.toLocaleString(undefined, {
+                        minimumFractionDigits: 3,
+                        maximumFractionDigits: 3,
+                      })}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <span className="text-muted-foreground text-sm">-</span>
+              )}
+            </div>,
+          ];
+        });
 
-          <p className="text-xs text-muted-foreground">
-            Updated {formatTimeAgo(new Date(block.timestamp).getTime())}
-          </p>
-        </div>
-      </Card>
+        return (
+          <TableCard
+            title={
+              <>
+                <b>{totalTxs}</b> Transactions
+              </>
+            }
+            columns={columns}
+            rows={rows}
+            loading={false}
+            paginate={false}
+            spacing={3}
+            className="gap-2 lg:gap-6"
+            viewAllPath="/transactions"
+            viewAllText="View All Transactions"
+          />
+        );
+      })()}
     </>
   );
 }

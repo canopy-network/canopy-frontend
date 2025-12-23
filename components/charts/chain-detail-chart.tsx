@@ -1,10 +1,9 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useMemo } from "react";
 import {
   createChart,
   ColorType,
-  AreaSeries,
   LineWidth,
   LineSeries,
   IChartApi,
@@ -13,7 +12,6 @@ import { format } from "date-fns";
 
 export const ChainDetailChart = ({
   data,
-  isDark = true,
   height = 272,
   timeframe = "1D",
   lineColor = "#1dd13a",
@@ -27,64 +25,110 @@ export const ChainDetailChart = ({
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
 
-  // Reset chart to default view
-  const handleResetChart = () => {
-    if (chartRef.current) {
-      chartRef.current.timeScale().fitContent();
-    }
-  };
 
   // Dynamic time formatter based on timeframe
+  // Uses a closure to track the last formatted value and avoid duplicates
   const getTimeFormatter = (timeframe: string) => {
+    let lastFormattedValue: string | null = null;
+    let lastDateKey: string | null = null;
+
     return (time: number) => {
       const date = new Date(time * 1000);
 
       switch (timeframe) {
         case "1H":
           // For 1 hour, show time like "8:05 PM"
-          return date.toLocaleTimeString([], {
+          const hourTime = date.toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",
             hour12: true,
           });
+          if (hourTime === lastFormattedValue) {
+            return ""; // Don't repeat
+          }
+          lastFormattedValue = hourTime;
+          return hourTime;
         case "1D":
           // For 1 day, show time like "8 PM"
-          return date.toLocaleTimeString([], {
+          const dayTime = date.toLocaleTimeString([], {
             hour: "2-digit",
             hour12: true,
           });
+          if (dayTime === lastFormattedValue) {
+            return ""; // Don't repeat
+          }
+          lastFormattedValue = dayTime;
+          return dayTime;
         case "1W":
-          // For 1 week, show day like "Mon 8PM"
-          return date.toLocaleDateString([], {
+          // For 1 week, show day like "Wed" - only show when day changes
+          const weekDay = date.toLocaleDateString([], {
             weekday: "short",
           });
+          const weekDateKey = date.toLocaleDateString([], {
+            year: "numeric",
+            month: "numeric",
+            day: "numeric",
+          });
+          if (weekDateKey === lastDateKey) {
+            return ""; // Don't repeat same day
+          }
+          lastDateKey = weekDateKey;
+          lastFormattedValue = weekDay;
+          return weekDay;
         case "1M":
-          // For 1 month, show day like "Oct 15"
-          return date.toLocaleDateString([], {
+          // For 1 month, show day like "Oct 15" - only show when day changes
+          const monthDay = date.toLocaleDateString([], {
             month: "short",
             day: "numeric",
           });
+          const monthDateKey = date.toLocaleDateString([], {
+            year: "numeric",
+            month: "numeric",
+            day: "numeric",
+          });
+          if (monthDateKey === lastDateKey) {
+            return ""; // Don't repeat same day
+          }
+          lastDateKey = monthDateKey;
+          lastFormattedValue = monthDay;
+          return monthDay;
         case "1Y":
           // For 1 year, show month like "Oct 15"
-          return date.toLocaleDateString([], {
+          const yearDay = date.toLocaleDateString([], {
             month: "short",
             day: "numeric",
           });
+          const yearDateKey = date.toLocaleDateString([], {
+            year: "numeric",
+            month: "numeric",
+            day: "numeric",
+          });
+          if (yearDateKey === lastDateKey) {
+            return ""; // Don't repeat same day
+          }
+          lastDateKey = yearDateKey;
+          lastFormattedValue = yearDay;
+          return yearDay;
         default:
-          return date.toLocaleTimeString([], {
+          const defaultTime = date.toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",
             hour12: true,
           });
+          if (defaultTime === lastFormattedValue) {
+            return ""; // Don't repeat
+          }
+          lastFormattedValue = defaultTime;
+          return defaultTime;
       }
     };
   };
 
-  const globalChartOptions = {
+  const globalChartOptions = useMemo(() => ({
     layout: {
       background: {
         type: ColorType.Solid,
-        color: "transparent", // Black background
+        color: "transparent",
       },
       attributionLogo: false,
     },
@@ -93,16 +137,15 @@ export const ChainDetailChart = ({
     grid: {
       vertLines: {
         visible: true,
-        color: "#333333", // Lighter gray for black background
+        color: "rgba(255, 255, 255, 0.05)", // Very subtle white grid lines
         style: 1, // Dotted lines
       },
       horzLines: {
         visible: true,
-        color: "#333333", // Lighter gray for black background
-        style: 1, // Dotted lines
+        color: "rgba(255, 255, 255, 0.05)",
+        style: 1,
       },
     },
-
     rightPriceScale: {
       visible: false,
     },
@@ -115,25 +158,49 @@ export const ChainDetailChart = ({
       timeVisible: true,
       secondsVisible: false,
       tickMarkFormatter: getTimeFormatter(timeframe),
-      minBarSpacing: 4, // Minimum spacing between bars (limits zoom out) - prevents extreme zoom out
-      barSpacing: 8, // Initial spacing between bars
-      rightOffset: 5, // Space on the right side
+      minBarSpacing: 4,
+      barSpacing: 8,
+      rightOffset: 5,
     },
-    handleScroll: true, // Enable horizontal scrolling (pan)
-    handleScale: true, // Enable pinch-to-zoom and mouse wheel zoom
-  };
+    handleScroll: true,
+    handleScale: true,
+    attribution: {
+      visible: false,
+    },
+    // dependencies: height, timeframe, chartContainerRef
+  }), [height, timeframe,]);
 
-  const areaSeriesOptions = {
+  const areaSeriesOptions = useMemo(() => ({
     lineWidth: 2 as LineWidth,
-    relativeGradient: false,
     lastPriceAnimation: 1,
     crosshairMarkerVisible: false,
     color: lineColor,
     priceLineVisible: false,
     crosshairMarkerBorderColor: "red",
+  }), [lineColor]);
+
+  // Format large numbers for tooltip display
+  const formatTooltipValue = (value: number): string => {
+    if (value >= 1_000_000) {
+      // For millions, remove last 6 digits and show M
+      return `$${Math.floor(value / 1_000_000)}M`;
+    } else if (value >= 1_000) {
+      // For thousands, remove last 3 digits and show K
+      return `$${Math.floor(value / 1_000)}K`;
+    } else {
+      // For values less than 1000, show as is without decimals
+      return `$${Math.floor(value)}`;
+    }
   };
+
   useEffect(() => {
     if (!chartContainerRef.current) return;
+
+    const existingTooltip =
+      chartContainerRef.current.querySelector(".chart-tooltip");
+    if (existingTooltip) {
+      existingTooltip.remove();
+    }
 
     const toolTip = document.createElement("span");
     toolTip.classList.add("chart-tooltip");
@@ -145,58 +212,31 @@ export const ChainDetailChart = ({
     const series = chart.addSeries(LineSeries, areaSeriesOptions);
 
     if (data && data.length > 0) {
-      series.setData(data as any);
-    } else {
-      // Sample data with time intervals that produce the desired time labels
-      const test_data = [
-        { value: 0.015, time: 1640995200 }, // 18:00 - High start
-        { value: 0.014, time: 1641000000 }, // 19:00 - Slight decline
-        { value: 0.012, time: 1641004800 }, // 20:00 - Initial drop
-        { value: 0.01, time: 1641009600 }, // 21:00 - Continuing down
-        { value: 0.008, time: 1641014400 }, // 22:00 - Significant drop
-        { value: 0.007, time: 1641019200 }, // 23:00 - Further decline
-        { value: 0.006, time: 1641024000 }, // 00:00 - Lower point
-        { value: 0.0065, time: 1641028800 }, // 01:00 - Small bounce
-        { value: 0.007, time: 1641033600 }, // 02:00 - Small recovery
-        { value: 0.006, time: 1641038400 }, // 03:00 - Drop again
-        { value: 0.005, time: 1641043200 }, // 04:00 - Another drop
-        { value: 0.0055, time: 1641048000 }, // 05:00 - Minor recovery
-        { value: 0.008, time: 1641052800 }, // 06:00 - Upward movement
-        { value: 0.0085, time: 1641057600 }, // 07:00 - Continuing up
-        { value: 0.009, time: 1641062400 }, // 08:00 - Continuing up
-        { value: 0.0095, time: 1641067200 }, // 09:00 - Building momentum
-        { value: 0.011, time: 1641072000 }, // 10:00 - Building momentum
-        { value: 0.012, time: 1641076800 }, // 11:00 - Strong upward trend
-        { value: 0.013, time: 1641081600 }, // 12:00 - Strong upward trend
-        { value: 0.014, time: 1641086400 }, // 13:00 - Approaching peak
-        { value: 0.015, time: 1641091200 }, // 14:00 - Approaching peak
-        { value: 0.016, time: 1641096000 }, // 15:00 - Near peak
-        { value: 0.017, time: 1641100800 }, // 16:00 - Sharp peak
-        { value: 0.018, time: 1641105600 }, // 17:00 - Peak continuation
-        { value: 0.016, time: 1641110400 }, // 18:00 - Sharp drop after peak
-        { value: 0.014, time: 1641115200 }, // 19:00 - Continuing drop
-        { value: 0.012, time: 1641120000 }, // 20:00 - Sharp drop after peak
-        { value: 0.01, time: 1641124800 }, // 21:00 - Lower fluctuations
-        { value: 0.009, time: 1641129600 }, // 22:00 - Lower fluctuations
-        { value: 0.01, time: 1641134400 }, // 23:00 - Small recovery
-        { value: 0.011, time: 1641139200 }, // 00:00 - Small recovery
-        { value: 0.009, time: 1641144000 }, // 01:00 - Drop again
-        { value: 0.008, time: 1641148800 }, // 02:00 - Drop again
-        { value: 0.0085, time: 1641153600 }, // 03:00 - Minor bounce
-        { value: 0.011, time: 1641158400 }, // 04:00 - Final small peak
-        { value: 0.01, time: 1641163200 }, // 05:00 - Slight decline
-        { value: 0.009, time: 1641168000 }, // 06:00 - End lower
-        { value: 0.0095, time: 1641172800 }, // 07:00 - Final fluctuation
-        { value: 0.008, time: 1641177600 }, // 08:00 - End lower
-        { value: 0.0085, time: 1641182400 }, // 09:00 - Final small bounce
-        { value: 0.007, time: 1641187200 }, // 10:00 - Final decline
-        { value: 0.0075, time: 1641192000 }, // 11:00 - End with slight recovery
-        { value: 0.008, time: 1641196800 }, // 12:00 - Final point
-      ];
-      series.setData(test_data as any);
+      // Ensure data is properly formatted and sorted
+      const formattedData = data
+        .map((item) => ({
+          time: typeof item.time === 'string' ? parseInt(item.time, 10) : item.time,
+          value: typeof item.value === 'number' ? item.value : parseFloat(String(item.value || 0)),
+        }))
+        .filter((item) => !isNaN(item.time) && !isNaN(item.value))
+        // Sort by time ascending
+        .sort((a, b) => (a.time as number) - (b.time as number))
+        // Remove duplicates by keeping the last value for each timestamp
+        .reduce((acc, current) => {
+          const lastIndex = acc.length - 1;
+          if (lastIndex >= 0 && acc[lastIndex].time === current.time) {
+            // If same timestamp, replace with current (keeps last value)
+            acc[lastIndex] = current;
+          } else {
+            acc.push(current);
+          }
+          return acc;
+        }, [] as Array<{ time: number; value: number }>);
+      
+      series.setData(formattedData as any);
     }
 
-    const toolTipWidth = 80;
+    const toolTipWidth = 200;
     const toolTipHeight = 80;
     const toolTipMargin = 15;
 
@@ -220,9 +260,9 @@ export const ChainDetailChart = ({
         const data = param.seriesData.get(series) as any;
         const price = data?.value || data?.close || 0;
         toolTip.innerHTML = `<div class="chart-tooltip-value">
-          $${price.toFixed(6)}
+          ${formatTooltipValue(price)}
           </div><div class="chart-tooltip-date">
-          ${format(new Date(date * 1000), "MMMM do, h:mm a")}
+          ${format(new Date(date * 1000), "MMMM d, h:mm a")}
           </div>`;
 
         const coordinate = series.priceToCoordinate(price);
@@ -241,14 +281,14 @@ export const ChainDetailChart = ({
           coordinate - toolTipHeight - toolTipMargin > 0
             ? coordinate - toolTipHeight - toolTipMargin
             : Math.max(
-                0,
-                Math.min(
-                  chartContainerRef.current.clientHeight -
-                    toolTipHeight -
-                    toolTipMargin,
-                  coordinate + toolTipMargin
-                )
-              );
+              0,
+              Math.min(
+                chartContainerRef.current.clientHeight -
+                toolTipHeight -
+                toolTipMargin,
+                coordinate + toolTipMargin
+              )
+            );
         toolTip.style.left = shiftedCoordinate + "px";
         toolTip.style.top = coordinateY + "px";
       }
@@ -261,7 +301,7 @@ export const ChainDetailChart = ({
         '.tv-lightweight-charts__time-axis, .tv-lightweight-charts__time-axis *, [class*="time-axis"], [class*="time"]'
       );
       timeAxisElements?.forEach((element) => {
-        (element as HTMLElement).style.color = "#ff4444";
+        (element as HTMLElement).style.color = "rgba(255, 255, 255, 0.6)";
         (element as HTMLElement).style.fontSize = "12px";
       });
     };
@@ -319,63 +359,43 @@ export const ChainDetailChart = ({
       if (debounceTimer) {
         clearTimeout(debounceTimer);
       }
+      if (toolTip && toolTip.parentNode) {
+        toolTip.parentNode.removeChild(toolTip);
+      }
       chart.remove();
       chartRef.current = null;
     };
-  }, [data, timeframe, lineColor]);
+  }, [data, timeframe, lineColor, globalChartOptions, areaSeriesOptions]);
 
   return (
     <>
-      <button
-        id="reset-chart-button"
-        onClick={handleResetChart}
-        className="absolute z-[50] top-4 right-4 bg-white/[0.1] hover:bg-white/[0.2] text-white rounded-md p-2 transition-colors"
-        title="Reset chart view"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-          <path d="M21 3v5h-5" />
-          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-          <path d="M3 21v-5h5" />
-        </svg>
-      </button>
       <div
         className="w-full h-full relative"
         title="Use mouse wheel to zoom, click and drag to pan"
       >
         <style jsx>{`
-          /* Style the time scale labels to be red on black background */
+          /* Style the time scale labels to be white/gray on dark background */
           :global(.tv-lightweight-charts__time-axis) {
-            color: #ff4444 !important;
+            color: rgba(255, 255, 255, 0.6) !important;
             font-size: 12px !important;
           }
           :global(
               .tv-lightweight-charts__time-axis
                 .tv-lightweight-charts__time-axis__tick
             ) {
-            color: #ff4444 !important;
+            color: rgba(255, 255, 255, 0.6) !important;
           }
           :global(
               .tv-lightweight-charts__time-axis
                 .tv-lightweight-charts__time-axis__tick-text
             ) {
-            color: #ff4444 !important;
+            color: rgba(255, 255, 255, 0.6) !important;
           }
           :global([class*="time-axis"]),
           :global([class*="time-axis"] *),
           :global(div[class*="time"]),
           :global(span[class*="time"]) {
-            color: #ff4444 !important;
+            color: rgba(255, 255, 255, 0.6) !important;
             font-size: 12px !important;
           }
           /* Chart tooltip styling */
@@ -383,12 +403,13 @@ export const ChainDetailChart = ({
             position: absolute;
             z-index: 1000;
             pointer-events: none;
-            background: #1f2937;
-            border: 1px solid #374151;
+            background: rgba(31, 41, 55, 0.95);
+            border: 1px solid rgba(55, 65, 81, 0.5);
             border-radius: 8px;
-            padding: 8px;
+            padding: 8px 12px;
             color: white;
             font-size: 12px;
+            backdrop-filter: blur(8px);
           }
           .chart-tooltip-value {
             font-weight: bold;
@@ -396,8 +417,9 @@ export const ChainDetailChart = ({
             font-size: 14px;
           }
           .chart-tooltip-date {
-            color: #9ca3af;
+            color: rgba(255, 255, 255, 0.7);
             font-size: 11px;
+            margin-top: 2px;
           }
         `}</style>
         <div ref={chartContainerRef} className="w-full h-full" />

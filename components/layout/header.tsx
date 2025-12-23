@@ -25,6 +25,7 @@ import { WalletConnectButton } from "@/components/wallet/wallet-connect-button";
 import { WINDOW_BREAKPOINTS, chainStatusesLabels } from "@/lib/utils";
 import { ChainStatus } from "@/types";
 import { getSampleValidatorByAddress } from "@/lib/demo-data/sample-validators";
+import { ChainSelect } from "@/components/explorer/chain-select";
 
 // Page type definitions
 export type PageType =
@@ -86,6 +87,78 @@ export function Header() {
   const projectStatus = searchParams.get("project_status") || "new";
 
   const current_explorer_selected_chain = useChainsStore((state) => state.currentExplorerSelectedChain);
+  const getChainById = useChainsStore((state) => state.getChainById);
+
+  // Check if we're on explorer page
+  const isExplorerPage =
+    pathname.startsWith("/explorer") ||
+    pathname.startsWith("/blocks") ||
+    pathname.startsWith("/transactions") ||
+    pathname.startsWith("/validators");
+
+  // Check if we're on account/address page
+  const isAccountPage = pathname.startsWith("/accounts/") || pathname.startsWith("/address/");
+
+  // Check if we're on validator detail page (don't show chain selector here)
+  // Matches /validators/[address] with or without trailing slash
+  const isValidatorDetailPage = pathname.match(/^\/validators\/[^/]+\/?$/);
+
+  // Check if we're on block detail page
+  const isBlockDetailPage = pathname.match(/^\/blocks\/[^/]+\/?$/);
+
+  // Check if we're on transaction detail page
+  const isTransactionDetailPage = pathname.match(/^\/transactions\/[^/]+\/?$/);
+
+  // Combined check for all detail pages
+  const isDetailPage = isValidatorDetailPage || isAccountPage || isBlockDetailPage || isTransactionDetailPage;
+
+  // Get selected chain for explorer from URL or store
+  const chainIdFromUrl = searchParams.get("chain");
+  const explorerSelectedChain = useMemo(() => {
+    console.log("[Header] chainIdFromUrl:", chainIdFromUrl, "chains count:", chains.length);
+    if (chainIdFromUrl) {
+      const chainIdNum = parseInt(chainIdFromUrl, 10);
+      if (chainIdNum === 0) {
+        return { id: 0, chain_name: "All Chains" };
+      }
+      // Try to find chain by ID (both string and number formats)
+      const chain = getChainById(chainIdFromUrl) || getChainById(chainIdNum.toString());
+      console.log("[Header] Found chain:", chain ? { id: chain.id, name: chain.chain_name } : "not found");
+      if (chain) {
+        const id = typeof chain.id === "string" ? parseInt(chain.id, 10) : Number(chain.id);
+        return { id, chain_name: chain.chain_name };
+      }
+      // If chain not found in store, return a temporary object with the ID from URL
+      console.log("[Header] Chain not found in store, using URL ID:", chainIdNum);
+      return { id: chainIdNum, chain_name: `Chain ${chainIdNum}` };
+    }
+    return current_explorer_selected_chain || { id: 0, chain_name: "All Chains" };
+  }, [chainIdFromUrl, current_explorer_selected_chain, getChainById, chains.length]);
+
+  // Prepare chain options for select
+  const chainOptions = useMemo(() => {
+    return [
+      { id: "0", chain_name: "All Chains" },
+      ...chains.map((chain) => ({
+        id: chain.id.toString(),
+        chain_name: chain.chain_name,
+      })),
+    ];
+  }, [chains]);
+
+  // Handle chain select in explorer
+  const handleExplorerChainSelect = (chain: { id: number; chain_name: string }) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (chain.id === 0) {
+      // Remove chain parameter for "All Chains"
+      params.delete("chain");
+    } else {
+      params.set("chain", chain.id.toString());
+    }
+    // Only add query string if there are params, otherwise just use pathname
+    const queryString = params.toString();
+    router.push(queryString ? `${pathname}?${queryString}` : pathname);
+  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -141,7 +214,9 @@ export function Header() {
 
   // Calculate breadcrumbs when dependencies change
   useEffect(() => {
-    const segments = pathname.split("/").filter(Boolean);
+    // Remove trailing slash and split
+    const cleanPathname = pathname.replace(/\/$/, "");
+    const segments = cleanPathname.split("/").filter(Boolean);
 
     if (segments.length === 0) {
       setBreadcrumbs(null);
@@ -218,8 +293,8 @@ export function Header() {
       return;
     }
 
-    // Handle address pages: /address/{address} - show Explorer -> Account -> {address}
-    if (segments[0] === "address" && segments.length === 2) {
+    // Handle address pages: /address/{address} or /accounts/{address} - show Explorer -> Account -> {address}
+    if ((segments[0] === "address" || segments[0] === "accounts") && segments.length === 2) {
       const address = decodeURIComponent(segments[1]);
 
       breadcrumbArray.push({
@@ -355,12 +430,6 @@ export function Header() {
     return chains.filter((chain) => chain.chain_name.toLowerCase().includes(query)).slice(0, 10);
   }, [mobileSearchQuery, chains]);
 
-  // Early return for launchpad and orderbook pages - after all hooks
-  // Orderbook has its own header matching the wireframe design
-  if (pathname.includes("/launchpad") || pathname.includes("/orderbook")) {
-    return null;
-  }
-
   const handleChainSelect = (chainId: string) => {
     setIsSearchOpen(false);
     setSearchQuery("");
@@ -459,7 +528,7 @@ export function Header() {
             <Button variant="ghost" size="icon" onClick={() => setIsMobileSearchOpen(true)} className="text-white">
               <Search className="h-5 w-5" />
             </Button>
-            {isLoggedIn ? (
+            {isDetailPage ? null : isLoggedIn ? (
               <WalletConnectButton isCondensed />
             ) : (
               <Button
@@ -584,25 +653,61 @@ export function Header() {
           </div>
 
           <div className="hidden lg:flex items-center gap-4 ml-auto">
-            {shouldShowCollapsedWalletButton && (
-              <div className="w-[200px]">
-                <WalletConnectButton hideBalance />
-              </div>
-            )}
-            {!isLoggedIn && (
-              <Button
-                onClick={() => setLoginDialogOpen(true)}
-                variant="ghost"
-                size="sm"
-                className="text-[#7cff9d] text-sm font-semibold px-3 py-2 hover:bg-transparent gap-2 border border-[#36d26a] bg-black/30 rounded-md shadow-[0_0_14px_rgba(124,255,157,0.4)] hover:shadow-[0_0_18px_rgba(124,255,157,0.55)]"
-              >
-                <img
-                  src="/images/ethereum-logo.png"
-                  alt="Ethereum"
-                  className="h-4 w-4 object-contain drop-shadow-[0_0_8px_rgba(124,255,157,0.8)]"
-                />
-                Connect Wallet
-              </Button>
+            {isExplorerPage && !isDetailPage ? (
+              // Show Canopy Network selector in explorer pages (but not on detail pages)
+              <ChainSelect
+                value={chainIdFromUrl || explorerSelectedChain.id.toString()}
+                key={`${chainIdFromUrl || explorerSelectedChain.id.toString()}-${chains.length}`}
+                onValueChange={(value) => {
+                  if (value === "0") {
+                    // Handle "All Chains" selection
+                    handleExplorerChainSelect({ id: 0, chain_name: "All Chains" });
+                  } else {
+                    const chain = chainOptions.find((c) => c.id === value);
+                    if (chain) {
+                      const chainId = parseInt(value, 10);
+                      handleExplorerChainSelect({ id: chainId, chain_name: chain.chain_name });
+                    } else {
+                      // Fallback: try to get chain from store
+                      const chainFromStore = getChainById(value);
+                      if (chainFromStore) {
+                        const chainId =
+                          typeof chainFromStore.id === "string"
+                            ? parseInt(chainFromStore.id, 10)
+                            : Number(chainFromStore.id);
+                        handleExplorerChainSelect({ id: chainId, chain_name: chainFromStore.chain_name });
+                      }
+                    }
+                  }
+                }}
+              />
+            ) : (
+              <>
+                {!isDetailPage && (
+                  <>
+                    {shouldShowCollapsedWalletButton && (
+                      <div className="w-[200px]">
+                        <WalletConnectButton hideBalance />
+                      </div>
+                    )}
+                    {!isLoggedIn && (
+                      <Button
+                        onClick={() => setLoginDialogOpen(true)}
+                        variant="ghost"
+                        size="sm"
+                        className="text-[#7cff9d] text-sm font-semibold px-3 py-2 hover:bg-transparent gap-2 border border-[#36d26a] bg-black/30 rounded-md shadow-[0_0_14px_rgba(124,255,157,0.4)] hover:shadow-[0_0_18px_rgba(124,255,157,0.55)]"
+                      >
+                        <img
+                          src="/images/ethereum-logo.png"
+                          alt="Ethereum"
+                          className="h-4 w-4 object-contain drop-shadow-[0_0_8px_rgba(124,255,157,0.8)]"
+                        />
+                        Connect Wallet
+                      </Button>
+                    )}
+                  </>
+                )}
+              </>
             )}
           </div>
         </div>

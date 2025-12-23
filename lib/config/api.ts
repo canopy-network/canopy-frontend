@@ -12,22 +12,24 @@
 /**
  * Get the base URL for API requests
  * 
- * In the browser (client-side), we use the Next.js proxy (/api) to avoid
- * mixed content issues when the frontend is served over HTTPS but the API
- * is HTTP. The proxy in next.config.mjs will forward requests to the actual API.
- * 
- * On the server (SSR), we use the full API URL directly.
+ * All requests go through Next.js API routes in app/api/* which proxy to the backend.
+ * - Client: baseURL = "/api" (relative path)
+ * - Server: baseURL = Next.js server URL (absolute URL to same server)
  */
 function getBaseURL(): string {
   // Check if we're in the browser
   if (typeof window !== "undefined") {
-    // Use the Next.js proxy route in the browser
-    // This avoids mixed content issues (HTTPS -> HTTP)
+    // Client-side: use relative path to Next.js API routes
     return "/api";
   }
 
-  // On the server, use the full API URL
-  return process.env.NEXT_PUBLIC_API_URL || "http://app.neochiba.net:3001";
+  // Server-side: use full URL to Next.js server with /api prefix
+  // This ensures SSR requests also go through app/api/* routes
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}/api`;
+  }
+  // In development, always use localhost:3000/api to hit Next.js API routes
+  return "http://localhost:3000/api";
 }
 
 export const API_CONFIG = {

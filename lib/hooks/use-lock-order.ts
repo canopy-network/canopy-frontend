@@ -218,6 +218,8 @@ export function useLockOrder({ order, buyerCanopyAddress }: UseLockOrderParams):
 
     try {
       // Fetch current Canopy block height to calculate deadline
+      const CANOPY_CHAIN_ID = 1;
+      const heightResponse = await chainsApi.getChainHeight(String(CANOPY_CHAIN_ID));
       const deadline = DEFAULT_BUYER_CHAIN_DEADLINE;
 
       // Build LockOrder data payload

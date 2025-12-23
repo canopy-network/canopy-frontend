@@ -116,6 +116,24 @@ export interface Chain {
 
   /** Brand color for the chain (hex color code) */
   brand_color?: string;
+
+  /** Genesis supply for the chain */
+  genesis_supply?: number;
+
+  /** Block time in seconds */
+  block_time_seconds?: number;
+
+  /** Block reward amount */
+  block_reward_amount?: number | null;
+
+  /** Halving schedule in blocks */
+  halving_schedule?: number | null;
+
+  /** Upgrade block height */
+  upgrade_block_height?: number | null;
+
+  /** Graduation progress information */
+  graduation?: GraduationProgress;
 }
 
 // ============================================================================
@@ -195,6 +213,9 @@ export interface Creator {
 
   /** Last active timestamp (ISO 8601) */
   last_active_at: string | null;
+
+  /** Email verified timestamp (ISO 8601) */
+  email_verified_at?: string | null;
 }
 
 // ============================================================================
@@ -257,6 +278,15 @@ export interface VirtualPool {
 
   /** Last update timestamp (ISO 8601) */
   updated_at: string;
+
+  /** Initial CNPY reserve in the pool */
+  initial_cnpy_reserve?: number;
+
+  /** Initial token supply in the pool */
+  initial_token_supply?: number;
+
+  /** Creator's initial CNPY purchase amount */
+  creator_initial_purchase_cnpy?: number;
 }
 
 /**

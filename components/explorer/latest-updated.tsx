@@ -1,10 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Box } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { LiveStatusComponent } from "./live-status-component";
-import { EXPLORER_ICON_GLOW } from "@/lib/utils/brand";
 
 interface LatestUpdatedProps extends React.HTMLAttributes<HTMLDivElement> {
   /**
@@ -18,10 +15,10 @@ interface LatestUpdatedProps extends React.HTMLAttributes<HTMLDivElement> {
    */
   timeAgo?: string;
   /**
-   * Whether to show the Box icon
+   * Whether to show the Live badge
    * @default true
    */
-  showIcon?: boolean;
+  showLive?: boolean;
   /**
    * Whether to use responsive text (desktop: "Latest update", mobile: "Updated")
    * @default false
@@ -30,24 +27,7 @@ interface LatestUpdatedProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 /**
- * Formats a timestamp into a human-readable "time ago" string
- */
-function formatTimeAgo(timestamp: string | Date): string {
-  const now = Date.now();
-  const time =
-    typeof timestamp === "string"
-      ? new Date(timestamp).getTime()
-      : timestamp.getTime();
-  const seconds = Math.floor((now - time) / 1000);
-
-  if (seconds < 60) return `${seconds} secs ago`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)} mins ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hrs ago`;
-  return `${Math.floor(seconds / 86400)} days ago`;
-}
-
-/**
- * Reusable component for displaying "Latest update" information
+ * Reusable component for displaying "Latest update" information with Live badge
  *
  * @example
  * // With timestamp (auto-updates)
@@ -58,69 +38,18 @@ function formatTimeAgo(timestamp: string | Date): string {
  * <LatestUpdated timeAgo="44 secs ago" />
  *
  * @example
- * // Responsive mode
- * <LatestUpdated timestamp={timestamp} responsive />
- *
- * @example
- * // Without icon
- * <LatestUpdated timeAgo="2 mins ago" showIcon={false} />
+ * // Without Live badge
+ * <LatestUpdated timeAgo="2 mins ago" showLive={false} />
  */
-export function LatestUpdated({
-  timestamp,
-  timeAgo,
-  showIcon = true,
-  responsive = false,
-  className,
-  ...props
-}: LatestUpdatedProps) {
-  const [currentTime, setCurrentTime] = React.useState(Date.now());
-
-  // Update time every second if using timestamp
-  React.useEffect(() => {
-    if (!timestamp) return;
-
-    const interval = setInterval(() => {
-      setCurrentTime(Date.now());
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [timestamp]);
-
-  // Calculate time ago from timestamp
-  const calculatedTimeAgo = React.useMemo(() => {
-    if (timeAgo) return timeAgo;
-    if (timestamp) return formatTimeAgo(timestamp);
-    return "0 secs ago";
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timestamp, timeAgo, currentTime]);
-
-  const prefix = responsive ? (
-    <>
-      <span className="text-xs lg:text-sm lg:block hidden">
-        Latest update {calculatedTimeAgo}
-      </span>
-      <span className="text-xs block lg:hidden">
-        Updated {calculatedTimeAgo}
-      </span>
-    </>
-  ) : (
-    <span>Latest update {calculatedTimeAgo}</span>
-  );
-
+export function LatestUpdated({ showLive = true, className, ...props }: LatestUpdatedProps) {
   return (
-    <div className="flex items-center gap-2 lg:gap-4">
-      <LiveStatusComponent className="lg:flex hidden" />
-      <div className="flex items-center gap-2 text-muted-foreground whitespace-nowrap text-sm bg-white/[0.05] rounded-lg px-2 lg:px-4 py-2">
-        <Box className={`w-4 h-4 lg:block hidden ${EXPLORER_ICON_GLOW}`} />
-        <LiveStatusComponent className="lg:hidden flex" />
-
-        <span className="text-xs lg:text-sm lg:block hidden whitespace-nowrap">
-          Latest update {calculatedTimeAgo}
-        </span>
-        <span className="text-xs  block lg:hidden whitespace-nowrap">
-          Updated {calculatedTimeAgo}
-        </span>
-      </div>
+    <div className={cn("flex items-center gap-2 lg:gap-4", className)} {...props}>
+      {showLive && (
+        <div className="relative inline-flex items-center gap-1.5 px-4 py-1 rounded-full bg-green-500/5">
+          <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_4px_rgba(0,166,61,0.8)]" />
+          <span className="text-sm font-medium text-green-500">Live</span>
+        </div>
+      )}
     </div>
   );
 }
