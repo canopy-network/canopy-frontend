@@ -13,8 +13,8 @@ WORKDIR /app
 
 # Install dependencies based on the preferred package manager
 COPY package.json package-lock.json* ./
-# Use npm ci including optional platform-specific binaries (lightningcss/sharp)
-RUN npm ci --include=optional
+# Use npm ci (includes optional dependencies by default)
+RUN npm ci
 
 # Rebuild the source code only when needed
 FROM base AS builder
