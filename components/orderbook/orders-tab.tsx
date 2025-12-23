@@ -39,9 +39,9 @@ export interface SellOrder {
   status: OrderStatus;
   feeAmount: number;
   fee: number; // Decimal, e.g., 0.01 for 1%
-  // If true, user is selling USDC for CNPY (reverse direction)
+  // Always false - all orders are CNPY → USDC
   isSellingUsdcForCnpy?: boolean;
-  // Amount being sold (USDC if isSellingUsdcForCnpy is true, CNPY otherwise)
+  // Amount being sold (always CNPY)
   amountSelling?: number;
   // Committee ID for the order (needed for deletion)
   committeeId: number;
@@ -67,37 +67,16 @@ function normalizeAddress(address: string): string {
 
 // Transform API order to SellOrder format
 function transformApiOrderToSellOrder(order: OrderBookApiOrder): SellOrder {
-  // Normalize the data field to check if it's USDC
-  const normalizedData = normalizeAddress(order.data || "");
-  const isSellingUsdcForCnpy = normalizedData === USDC_ETHEREUM_ADDRESS;
+  // All orders are CNPY → USDC
+  // amountForSale = CNPY amount (what the seller is selling)
+  // requestedAmount = USDC amount (what the seller wants to receive)
+  const cnpyAmount = order.amountForSale / DECIMALS;
+  const totalUsdc = order.requestedAmount / DECIMALS;
 
-  let cnpyAmount: number;
-  let expectedReceive: number;
-  let pricePerCnpy: number;
-  let destinationToken: string;
-  let amountSelling: number;
-
-  if (isSellingUsdcForCnpy) {
-    // Selling USDC for CNPY
-    // amountForSale = USDC amount
-    // requestedAmount = CNPY amount
-    const usdcAmount = order.amountForSale / DECIMALS;
-    cnpyAmount = order.requestedAmount / DECIMALS;
-    expectedReceive = cnpyAmount; // User receives CNPY
-    pricePerCnpy = order.amountForSale / order.requestedAmount; // USDC per CNPY
-    destinationToken = "CNPY";
-    amountSelling = usdcAmount; // USDC being sold
-  } else {
-    // Selling CNPY for USDC (default case)
-    // amountForSale = CNPY amount
-    // requestedAmount = USDC amount
-    cnpyAmount = order.amountForSale / DECIMALS;
-    const totalUsdc = order.requestedAmount / DECIMALS;
-    expectedReceive = totalUsdc; // User receives USDC
-    pricePerCnpy = order.requestedAmount / order.amountForSale; // USDC per CNPY
-    destinationToken = "USDC";
-    amountSelling = cnpyAmount; // CNPY being sold
-  }
+  const expectedReceive = totalUsdc; // User receives USDC
+  const pricePerCnpy = order.requestedAmount / order.amountForSale; // USDC per CNPY
+  const destinationToken = "USDC";
+  const amountSelling = cnpyAmount; // CNPY being sold
 
   // Determine status based on close order state
   // If order is locked (has buyerReceiveAddress), it means a buyer has locked it
@@ -132,7 +111,7 @@ function transformApiOrderToSellOrder(order: OrderBookApiOrder): SellOrder {
     status,
     feeAmount,
     fee: feePercent,
-    isSellingUsdcForCnpy,
+    isSellingUsdcForCnpy: false, // All orders are CNPY → USDC
     amountSelling,
     committeeId: order.committee,
     sellerAddress: order.sellersSendAddress, // Store seller address for ownership verification

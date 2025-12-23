@@ -24,11 +24,15 @@ import SellOrderConfirmationDialog from "@/components/trading/sell-order-confirm
 import ConvertTransactionDialog from "@/components/trading/convert-transaction-dialog";
 import UserOrders, { type UserOrder } from "@/components/trading/user-orders";
 import { orderbookApi } from "@/lib/api";
-import { useChainId } from "wagmi";
-import { USDC_ADDRESS } from "@/lib/web3/config";
+import { useChainId, useAccount, useSendTransaction, useWaitForTransactionReceipt } from "wagmi";
+import { USDC_ADDRESS, ERC20_TRANSFER_ABI } from "@/lib/web3/config";
+import { encodeFunctionData, toHex } from "viem";
+import { chainsApi } from "@/lib/api";
+import { createSendMessage, createAndSignTransaction } from "@/lib/crypto/transaction";
+import { CurveType } from "@/lib/crypto/types";
 import toast from "react-hot-toast";
 import type { ChainData, BridgeToken, ConnectedWallets, OrderBookOrder, OrderSelection } from "@/types/trading";
-import type { OrderBookApiOrder } from "@/types/orderbook";
+import type { OrderBookApiOrder, LockOrderData, CloseOrderData } from "@/types/orderbook";
 import { isOrderLocked } from "@/types/orderbook";
 
 // Chain IDs for cross-chain swaps:
@@ -53,6 +57,43 @@ function normalizeAddress(address: string): string {
   if (!address) return "";
   // Remove 0x prefix if present and convert to lowercase
   return address.replace(/^0x/i, "").toLowerCase();
+}
+
+// Helper to strip hex prefix
+function stripHexPrefix(address: string): string {
+  return address.startsWith("0x") ? address.slice(2) : address;
+}
+
+// Helper to create lock order call data
+function createLockOrderCallData(
+  toAddress: `0x${string}`,
+  amount: bigint,
+  lockOrderData: LockOrderData
+): `0x${string}` {
+  const transferData = encodeFunctionData({
+    abi: ERC20_TRANSFER_ABI,
+    functionName: "transfer",
+    args: [toAddress, amount],
+  });
+  const jsonString = JSON.stringify(lockOrderData);
+  const jsonHex = toHex(new TextEncoder().encode(jsonString)).slice(2);
+  return `${transferData}${jsonHex}` as `0x${string}`;
+}
+
+// Helper to create close order call data
+function createCloseOrderCallData(
+  toAddress: `0x${string}`,
+  amount: bigint,
+  closeOrderData: CloseOrderData
+): `0x${string}` {
+  const transferData = encodeFunctionData({
+    abi: ERC20_TRANSFER_ABI,
+    functionName: "transfer",
+    args: [toAddress, amount],
+  });
+  const jsonString = JSON.stringify(closeOrderData);
+  const jsonHex = toHex(new TextEncoder().encode(jsonString)).slice(2);
+  return `${transferData}${jsonHex}` as `0x${string}`;
 }
 
 // UserOrder type is now imported from user-orders component
@@ -148,16 +189,28 @@ function calculateOrderSelection(
   });
 
   let remainingBudget = inputAmount;
-  const selectedOrders: (OrderBookOrder & { cost: number; savings: number })[] = [];
+  const selectedOrders: (OrderBookOrder & { cost: number; savings: number; fillPercentage: number })[] = [];
   let totalSavings = 0;
   let totalCost = 0;
   let cnpyReceived = 0;
 
   for (const order of sortedOrders) {
+    // Calculate the cost in USDC to buy this order's CNPY
+    // order.amount = CNPY available, order.price = USDC per CNPY
     const orderCost = order.amount * order.price;
+
     if (orderCost <= remainingBudget) {
+      // Calculate savings: CNPY received minus USDC spent (if CNPY > USDC, that's a discount)
+      // For example: 300 CNPY for 150 USDC = 150 CNPY savings (discount)
       const savings = order.amount - orderCost;
-      selectedOrders.push({ ...order, cost: orderCost, savings });
+      const fillPercentage = (orderCost / inputAmount) * 100;
+
+      selectedOrders.push({
+        ...order,
+        cost: orderCost,
+        savings,
+        fillPercentage,
+      });
       totalSavings += savings;
       totalCost += orderCost;
       cnpyReceived += order.amount;
@@ -177,13 +230,17 @@ function calculateOrderSelection(
 
 // Compact Order Row with fill percentage
 interface OrderRowProps {
-  order: OrderBookOrder & { cost?: number; savings?: number };
+  order: OrderBookOrder & { cost?: number; savings?: number; fillPercentage?: number };
   isSelected: boolean;
   index: number;
   percentOfBudget: number;
 }
 
 function OrderRow({ order, isSelected, index, percentOfBudget }: OrderRowProps) {
+  // Use fillPercentage if available, otherwise fall back to percentOfBudget
+  const displayPercentage =
+    order.fillPercentage !== undefined ? Math.round(order.fillPercentage) : Math.round(percentOfBudget);
+
   return (
     <div
       className={`relative flex items-center justify-between py-2 px-3 rounded-lg transition-all duration-200 overflow-hidden ${
@@ -195,7 +252,7 @@ function OrderRow({ order, isSelected, index, percentOfBudget }: OrderRowProps) 
       {isSelected && (
         <div
           className="absolute inset-0 bg-green-500/15 transition-all duration-300 ease-out"
-          style={{ width: `${percentOfBudget}%` }}
+          style={{ width: `${displayPercentage}%` }}
         />
       )}
 
@@ -207,12 +264,12 @@ function OrderRow({ order, isSelected, index, percentOfBudget }: OrderRowProps) 
         >
           {isSelected && <Check className="w-2.5 h-2.5" />}
         </div>
-        <span className="text-sm font-medium">${order.amount}</span>
-        <span className="text-xs text-green-500">{order.discount}%</span>
-        {isSelected && <span className="text-xs text-muted-foreground">({Math.round(percentOfBudget)}%)</span>}
+        <span className="text-sm font-medium">{order.amount.toLocaleString()} CNPY</span>
+        <span className="text-xs text-green-500">-{order.discount}%</span>
+        {isSelected && <span className="text-xs text-muted-foreground">({displayPercentage}%)</span>}
       </div>
-      {isSelected && order.savings !== undefined && (
-        <span className="relative text-xs text-green-500 font-medium">+${order.savings.toFixed(2)}</span>
+      {isSelected && order.cost !== undefined && (
+        <span className="relative text-xs text-muted-foreground">${order.cost.toFixed(2)}</span>
       )}
     </div>
   );
@@ -242,16 +299,34 @@ export default function ConvertTab({
   onAmountChange,
   onSourceTokenChange,
 }: ConvertTabProps) {
-  const { wallets, currentWallet, createOrder, balance } = useWalletStore();
+  const { wallets, currentWallet, createOrder, balance, fetchFeeParams } = useWalletStore();
   const { user } = useAuthStore();
   const router = useRouter();
   const isConnected = wallets.length > 0;
   const ethAddress = user?.wallet_address; // Ethereum address from SIWE sign-in
 
+  // Wagmi hooks for order processing
+  const { address: buyerEthAddress } = useAccount();
+  const chainIdForOrders = useChainId();
+  const { sendTransaction, data: txHash, isPending: isTxPending, reset: resetSend } = useSendTransaction();
+  const {
+    isLoading: isTxConfirming,
+    isSuccess: isTxSuccess,
+    isError: isTxError,
+  } = useWaitForTransactionReceipt({
+    hash: txHash,
+  });
+
   const [conversionPair, setConversionPair] = useState<ConversionPair | null>(null);
 
-  // Get chain ID for USDC contract address lookup
-  const chainId = useChainId();
+  // Multi-order processing state
+  const [processingOrders, setProcessingOrders] = useState<OrderBookApiOrder[]>([]);
+  const [currentOrderIndex, setCurrentOrderIndex] = useState(0);
+  const [currentOrderStep, setCurrentOrderStep] = useState<"lock" | "close" | null>(null);
+  const [orderProcessingStatus, setOrderProcessingStatus] = useState<
+    Record<string, "locking" | "locked" | "closing" | "closed" | "error">
+  >({});
+
   // Only use Ethereum mainnet (chain ID 1) for USDC
   const usdcAddress = USDC_ADDRESS;
 
@@ -387,29 +462,15 @@ export default function ConvertTab({
 
   // Transform API order to UserOrder format (simplified version)
   const transformOrderToUserOrder = useCallback((order: OrderBookApiOrder): UserOrder => {
-    const normalizedData = normalizeAddress(order.data || "");
-    const isSellingUsdcForCnpy = normalizedData === USDC_ETHEREUM_ADDRESS;
+    // All orders are CNPY → USDC
+    // amountForSale = CNPY amount (what the seller is selling)
+    // requestedAmount = USDC amount (what the seller wants to receive)
+    const cnpyAmount = order.amountForSale / DECIMALS;
+    const totalUsdc = order.requestedAmount / DECIMALS;
 
-    let cnpyAmount: number;
-    let expectedReceive: number;
-    let pricePerCnpy: number;
-    let destinationToken: string;
-
-    if (isSellingUsdcForCnpy) {
-      // Selling USDC for CNPY
-      const usdcAmount = order.amountForSale / DECIMALS;
-      cnpyAmount = order.requestedAmount / DECIMALS;
-      expectedReceive = cnpyAmount;
-      pricePerCnpy = order.amountForSale / order.requestedAmount;
-      destinationToken = "CNPY";
-    } else {
-      // Selling CNPY for USDC (default case)
-      cnpyAmount = order.amountForSale / DECIMALS;
-      const totalUsdc = order.requestedAmount / DECIMALS;
-      expectedReceive = totalUsdc;
-      pricePerCnpy = order.requestedAmount / order.amountForSale;
-      destinationToken = "USDC";
-    }
+    const expectedReceive = totalUsdc;
+    const pricePerCnpy = order.requestedAmount / order.amountForSale;
+    const destinationToken = "USDC";
 
     const orderIsLocked = isOrderLocked(order);
     const status: "active" | "filled" | "cancelled" = orderIsLocked ? "filled" : "active";
@@ -467,6 +528,172 @@ export default function ConvertTab({
       setUserOrders([]);
     }
   }, [direction, currentWallet?.address, fetchUserOrders]);
+
+  // Process orders sequentially - handle lock order
+  const processLockOrder = useCallback(
+    async (order: OrderBookApiOrder, buyerEthAddr: string, buyerCanopyAddr: string) => {
+      if (!currentWallet?.isUnlocked || !buyerEthAddr || !buyerCanopyAddr) {
+        throw new Error("Wallet not ready");
+      }
+
+      try {
+        // Fetch current Canopy block height for deadline
+        const CANOPY_CHAIN_ID = 1;
+        const heightResponse = await chainsApi.getChainHeight(String(CANOPY_CHAIN_ID));
+        const deadline = 900000; // Default deadline
+
+        const lockOrderData: LockOrderData = {
+          orderId: order.id,
+          chain_id: order.committee,
+          buyerSendAddress: stripHexPrefix(buyerEthAddr),
+          buyerReceiveAddress: stripHexPrefix(buyerCanopyAddr),
+          buyerChainDeadline: deadline,
+        };
+
+        const amount = BigInt(0); // Lock order uses 0 amount
+        const callData = createLockOrderCallData(buyerEthAddr as `0x${string}`, amount, lockOrderData);
+
+        sendTransaction({
+          to: usdcAddress,
+          data: callData,
+        });
+      } catch (err) {
+        console.error("Failed to send lock order:", err);
+        throw err;
+      }
+    },
+    [currentWallet, usdcAddress, sendTransaction]
+  );
+
+  // Process close order
+  const processCloseOrder = useCallback(
+    async (order: OrderBookApiOrder) => {
+      if (!buyerEthAddress) {
+        throw new Error("Ethereum wallet not connected");
+      }
+
+      if (!order.buyerReceiveAddress) {
+        throw new Error("Order is not locked yet");
+      }
+
+      try {
+        const closeOrderData: CloseOrderData = {
+          orderId: order.id,
+          closeOrder: true,
+          chain_id: order.committee,
+        };
+
+        const usdcAmount = BigInt(order.requestedAmount);
+        const sellerEthAddress = order.sellerReceiveAddress.startsWith("0x")
+          ? order.sellerReceiveAddress
+          : `0x${order.sellerReceiveAddress}`;
+
+        const callData = createCloseOrderCallData(sellerEthAddress as `0x${string}`, usdcAmount, closeOrderData);
+
+        sendTransaction({
+          to: usdcAddress,
+          data: callData,
+        });
+      } catch (err) {
+        console.error("Failed to send close order:", err);
+        throw err;
+      }
+    },
+    [buyerEthAddress, usdcAddress, sendTransaction]
+  );
+
+  // Handle transaction success and move to next step
+  useEffect(() => {
+    if (!isTxSuccess || !txHash || processingOrders.length === 0) return;
+
+    const currentOrder = processingOrders[currentOrderIndex];
+    if (!currentOrder) return;
+
+    const orderId = currentOrder.id;
+
+    if (currentOrderStep === "lock") {
+      // Lock successful, mark as locked and proceed to close
+      setOrderProcessingStatus((prev) => ({ ...prev, [orderId]: "locked" }));
+      setCurrentOrderStep("close");
+
+      // Wait a bit for the order to be updated on the backend, then close
+      setTimeout(() => {
+        processCloseOrder(currentOrder).catch((err) => {
+          console.error("Failed to close order:", err);
+          setOrderProcessingStatus((prev) => ({ ...prev, [orderId]: "error" }));
+          setSubmitError(`Failed to close order ${orderId}: ${err.message}`);
+          setIsSubmitting(false);
+        });
+      }, 2000);
+    } else if (currentOrderStep === "close") {
+      // Close successful, mark as closed and move to next order
+      setOrderProcessingStatus((prev) => ({ ...prev, [orderId]: "closed" }));
+
+      // Move to next order
+      if (currentOrderIndex < processingOrders.length - 1) {
+        const nextIndex = currentOrderIndex + 1;
+        setCurrentOrderIndex(nextIndex);
+        setCurrentOrderStep("lock");
+
+        // Process next order
+        setTimeout(() => {
+          processLockOrder(processingOrders[nextIndex], buyerEthAddress!, currentWallet!.address).catch((err) => {
+            console.error("Failed to lock order:", err);
+            setOrderProcessingStatus((prev) => ({ ...prev, [processingOrders[nextIndex].id]: "error" }));
+            setSubmitError(`Failed to lock order: ${err.message}`);
+            setIsSubmitting(false);
+          });
+        }, 1000);
+      } else {
+        // All orders processed - calculate total CNPY received from orders
+        const totalCnpyReceived = processingOrders.reduce((sum, order) => {
+          return sum + order.amountForSale / DECIMALS;
+        }, 0);
+        setSubmitSuccess(
+          `Successfully processed ${processingOrders.length} order${
+            processingOrders.length !== 1 ? "s" : ""
+          }! Received ${totalCnpyReceived.toLocaleString()} CNPY`
+        );
+        setAmount("");
+        setProcessingOrders([]);
+        setCurrentOrderIndex(0);
+        setCurrentOrderStep(null);
+        setIsSubmitting(false);
+
+        // Refresh orders
+        setTimeout(() => {
+          fetchOrders();
+        }, 2000);
+      }
+
+      resetSend();
+    }
+  }, [
+    isTxSuccess,
+    txHash,
+    currentOrderStep,
+    currentOrderIndex,
+    processingOrders,
+    processLockOrder,
+    processCloseOrder,
+    buyerEthAddress,
+    currentWallet,
+    fetchOrders,
+    resetSend,
+  ]);
+
+  // Handle transaction errors
+  useEffect(() => {
+    if (isTxError && processingOrders.length > 0) {
+      const currentOrder = processingOrders[currentOrderIndex];
+      if (currentOrder) {
+        setOrderProcessingStatus((prev) => ({ ...prev, [currentOrder.id]: "error" }));
+        setSubmitError(`Transaction failed for order ${currentOrder.id}`);
+        setIsSubmitting(false);
+        resetSend();
+      }
+    }
+  }, [isTxError, currentOrderIndex, processingOrders, resetSend]);
 
   // Fetch balance when wallet is available
   useEffect(() => {
@@ -881,33 +1108,41 @@ export default function ConvertTab({
         return;
       }
 
-      const totalCnpyToReceive = Math.round(selection.cnpyReceived * DECIMALS);
-      const totalUsdcToSpend = Math.round(selection.totalCost * DECIMALS);
+      // Get the original API orders for processing
+      const ordersToProcess = selection.selectedOrders
+        .map((order) => {
+          const orderWithOriginal = order as OrderBookOrder & { _original: OrderBookApiOrder };
+          return orderWithOriginal._original;
+        })
+        .filter((order): order is OrderBookApiOrder => order !== undefined);
 
-      // Buy CNPY with USDC
-      const txHash = await createOrder(
-        USDC_COMMITTEE_ID, // Committee ID 3 for USDC
-        totalCnpyToReceive, // CNPY amount to receive
-        totalUsdcToSpend, // USDC amount to pay
-        currentWallet.address, // Canopy address to receive CNPY
-        DATA_ADDRESS // data: USDC contract address
-      );
+      if (ordersToProcess.length === 0) {
+        setSubmitError("Unable to process orders");
+        setIsSubmitting(false);
+        return;
+      }
 
-      setSubmitSuccess(
-        `Order created! TX: ${txHash.slice(
-          0,
-          16
-        )}... | Buying ${selection.cnpyReceived.toLocaleString()} CNPY with USDC`
-      );
+      // Validate Ethereum connection
+      if (!buyerEthAddress) {
+        setSubmitError("Ethereum wallet not connected");
+        setIsSubmitting(false);
+        return;
+      }
 
-      // Reset form
-      setAmount("");
-      setSellPrice("");
+      if (chainIdForOrders !== 1) {
+        setSubmitError("USDC is only supported on Ethereum Mainnet. Please switch to Ethereum Mainnet.");
+        setIsSubmitting(false);
+        return;
+      }
 
-      // Refresh orders after delay
-      setTimeout(() => {
-        fetchOrders();
-      }, 2000);
+      // Start processing orders sequentially
+      setProcessingOrders(ordersToProcess);
+      setCurrentOrderIndex(0);
+      setCurrentOrderStep("lock");
+      setOrderProcessingStatus({});
+
+      // Process first order
+      await processLockOrder(ordersToProcess[0], buyerEthAddress, currentWallet.address);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Failed to create order");
     } finally {
@@ -1555,6 +1790,33 @@ export default function ConvertTab({
                   </button>
                 </div>
               </div>
+
+              {/* Orders Fulfillment Message */}
+              {selection.selectedOrders.length > 0 && parseFloat(amount) > 0 && (
+                <div className="mb-3 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                  <p className="text-sm font-medium text-green-500 mb-1">
+                    These {selection.selectedOrders.length} order{selection.selectedOrders.length !== 1 ? "s" : ""}{" "}
+                    fulfill your search
+                  </p>
+                  <div className="space-y-1.5 mt-2">
+                    {selection.selectedOrders.map((order, index) => {
+                      const orderWithFill = order as OrderBookOrder & { fillPercentage?: number; cost?: number };
+                      const fillPct =
+                        orderWithFill.fillPercentage !== undefined
+                          ? Math.round(orderWithFill.fillPercentage)
+                          : Math.round(((orderWithFill.cost || 0) / (parseFloat(amount) || 1)) * 100);
+                      return (
+                        <div key={order.id} className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">
+                            {index + 1}. {order.amount.toLocaleString()} CNPY
+                          </span>
+                          <span className="text-green-500 font-medium">fills {fillPct}%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Order List */}
               {showOrders && (
