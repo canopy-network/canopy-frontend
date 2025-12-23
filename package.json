@@ -25,7 +25,7 @@
     "security:check-build": "npm audit --audit-level=high --production || (echo '❌ Build blocked: Critical or high severity vulnerabilities detected!' && echo 'Run: npm run security:audit to see details' && echo 'Run: npm run security:fix to attempt automatic fixes' && exit 1)"
   },
   "dependencies": {
-    "@auth/core": "^0.34.2",
+    "@auth/core": "^0.41.1",
     "@aws-sdk/client-dynamodb": "^3.922.0",
     "@aws-sdk/client-s3": "^3.705.0",
     "@aws-sdk/util-dynamodb": "^3.922.0",
