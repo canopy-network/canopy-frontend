@@ -35,14 +35,7 @@ const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
-  const {
-    currentWallet,
-    wallets,
-    isLoading,
-    fetchWallets,
-    selectWallet,
-    resetWalletState,
-  } = useWalletStore();
+  const { currentWallet, wallets, isLoading, fetchWallets, selectWallet, resetWalletState } = useWalletStore();
 
   const [isConnecting, setIsConnecting] = useState(false);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
@@ -52,13 +45,13 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   // Rehydrate wallet store on mount (restore persisted state)
   useEffect(() => {
-    console.log('🔄 Rehydrating wallet store from localStorage...');
+    console.log("🔄 Rehydrating wallet store from localStorage...");
     useWalletStore.persist.rehydrate();
     setHasHydrated(true);
 
     // Log rehydrated state
     const state = useWalletStore.getState();
-    console.log('✅ Wallet store rehydrated:', {
+    console.log("✅ Wallet store rehydrated:", {
       walletsCount: state.wallets.length,
       currentWallet: state.currentWallet?.address,
       hasCurrentWallet: !!state.currentWallet,
@@ -68,17 +61,17 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   // Fetch wallets when user is authenticated and store is hydrated
   useEffect(() => {
     if (!hasHydrated) {
-      console.log('⏳ Waiting for wallet store hydration...');
+      console.log("⏳ Waiting for wallet store hydration...");
       return; // Wait for hydration
     }
 
     if (isAuthenticated) {
-      console.log('🔐 User authenticated, fetching wallets from API...');
+      console.log("🔐 User authenticated, fetching wallets from API...");
       fetchWallets().catch((error) => {
         console.error("Failed to fetch wallets:", error);
       });
     } else {
-      console.log('🔓 User not authenticated, resetting wallet state...');
+      console.log("🔓 User not authenticated, resetting wallet state...");
       // Reset wallet state when user logs out
       resetWalletState();
     }
@@ -97,10 +90,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
       // Check if user is authenticated
       if (!isAuthenticated) {
-        showErrorToast(
-          new Error("Please log in first to connect your wallet"),
-          "Authentication Required"
-        );
+        showErrorToast(new Error("Please log in first to connect your wallet"), "Authentication Required");
         setIsConnecting(false);
         return;
       }
@@ -144,9 +134,12 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   /**
    * Switch to a different wallet
    */
-  const switchWallet = useCallback((walletId: string) => {
-    selectWallet(walletId);
-  }, [selectWallet]);
+  const switchWallet = useCallback(
+    (walletId: string) => {
+      selectWallet(walletId);
+    },
+    [selectWallet]
+  );
 
   const openPopup = useCallback(() => setIsPopupOpen(true), []);
   const closePopup = useCallback(() => setIsPopupOpen(false), []);
@@ -163,47 +156,46 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }, [fetchWallets]);
 
   // Memoize context value to prevent unnecessary re-renders
-  const contextValue = useMemo(() => ({
-    currentWallet,
-    wallets,
-    isConnecting: isConnecting || isLoading,
-    isPopupOpen,
-    connectWallet,
-    disconnectWallet,
-    switchWallet,
-    openPopup,
-    closePopup,
-    togglePopup,
-    showSelectDialog,
-    showCreateDialog,
-    setShowSelectDialog,
-    setShowCreateDialog,
-  }), [
-    currentWallet,
-    wallets,
-    isConnecting,
-    isLoading,
-    isPopupOpen,
-    connectWallet,
-    disconnectWallet,
-    switchWallet,
-    openPopup,
-    closePopup,
-    togglePopup,
-    showSelectDialog,
-    showCreateDialog,
-  ]);
+  const contextValue = useMemo(
+    () => ({
+      currentWallet,
+      wallets,
+      isConnecting: isConnecting || isLoading,
+      isPopupOpen,
+      connectWallet,
+      disconnectWallet,
+      switchWallet,
+      openPopup,
+      closePopup,
+      togglePopup,
+      showSelectDialog,
+      showCreateDialog,
+      setShowSelectDialog,
+      setShowCreateDialog,
+    }),
+    [
+      currentWallet,
+      wallets,
+      isConnecting,
+      isLoading,
+      isPopupOpen,
+      connectWallet,
+      disconnectWallet,
+      switchWallet,
+      openPopup,
+      closePopup,
+      togglePopup,
+      showSelectDialog,
+      showCreateDialog,
+    ]
+  );
 
   return (
     <WalletContext.Provider value={contextValue}>
       {children}
 
       {/* Wallet Dialogs */}
-      <SelectWalletDialog
-        open={showSelectDialog}
-        onOpenChange={setShowSelectDialog}
-        onSuccess={handleSelectSuccess}
-      />
+      <SelectWalletDialog open={showSelectDialog} onOpenChange={setShowSelectDialog} onSuccess={handleSelectSuccess} />
 
       <WalletConnectionDialog
         open={showCreateDialog}

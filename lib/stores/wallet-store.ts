@@ -73,6 +73,9 @@ export interface WalletState {
   // Fee parameters (cached from blockchain)
   feeParams: FeeParams | null;
 
+  // Fee parameters (cached from blockchain)
+  feeParams: FeeParams | null;
+
   // Actions - Wallet Management
   fetchWallets: () => Promise<void>;
   selectWallet: (walletId: string) => void;

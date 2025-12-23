@@ -340,7 +340,6 @@ export function Header() {
   }, [pathname, breadcrumbs, current_explorer_selected_chain]);
 
   // Chain search filter - Memoized for performance
-  // MUST be called before any early returns to satisfy React hooks rules
   const filteredChains = useMemo(() => {
     if (!searchQuery.trim()) return [];
 
@@ -349,7 +348,6 @@ export function Header() {
   }, [searchQuery, chains]);
 
   // Mobile chain search filter - Memoized for performance
-  // MUST be called before any early returns to satisfy React hooks rules
   const mobileFilteredChains = useMemo(() => {
     if (!mobileSearchQuery.trim()) return [];
 
