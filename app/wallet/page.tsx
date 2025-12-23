@@ -71,13 +71,6 @@ function WalletContent() {
     [currentWallet?.address]
   );
 
-  // Memoize addresses array to prevent recreation on every render
-  // This is critical to prevent infinite loops in child components
-  const addresses = useMemo(
-    () => (currentWallet ? [currentWallet.address] : []),
-    [currentWallet?.address]
-  );
-
   // Fetch data when wallet changes
   useEffect(() => {
     if (currentWallet) {
