@@ -335,6 +335,8 @@ export function AddressDetails({ address }: AddressDetailsProps) {
       balance: balanceValue,
       usdValue,
       balanceUsdFmt: balance.balance_usd_fmt,
+      price: balance.price,
+      priceFmt: balance.price_fmt,
     };
   });
 
@@ -625,6 +627,7 @@ export function AddressDetails({ address }: AddressDetailsProps) {
                 columns={[
                   { label: "#", width: "w-12" },
                   { label: "Token", width: "w-48" },
+                  { label: "Price", width: "w-32" },
                   { label: "Balance", width: "w-32" },
                   { label: "USD Value", width: "w-32" },
                 ]}
@@ -649,6 +652,9 @@ export function AddressDetails({ address }: AddressDetailsProps) {
                       <span className="text-xs text-muted-foreground">{token.chainName}</span>
                     </div>
                   </div>,
+                  <span key="price" className="text-sm text-white">
+                    ${token.priceFmt || (token.price !== undefined ? formatUSD(token.price) : "-")}
+                  </span>,
                   <span key="balance" className="text-sm text-white">
                     {formatCNPY(token.balance)} {token.token}
                   </span>,
