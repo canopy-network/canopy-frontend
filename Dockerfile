@@ -13,8 +13,9 @@ WORKDIR /app
 
 # Install dependencies based on the preferred package manager
 COPY package.json package-lock.json* ./
-# Use npm ci (includes optional dependencies by default)
-RUN npm ci
+# Use npm install to ensure platform-specific optional dependencies are installed
+# Install all dependencies (including dev) as they're needed for the build stage
+RUN npm install
 
 # Rebuild the source code only when needed
 FROM base AS builder
