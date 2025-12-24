@@ -136,6 +136,13 @@ interface ConvertTransactionDialogProps {
   totalSavings?: number;
   ordersMatched?: number;
   conversionPair?: ConversionPair;
+  // Real-time state props
+  currentStep?: 1 | 2 | 3; // Override auto-stepping
+  isLocking?: boolean;
+  isClosing?: boolean;
+  lockedOrdersCount?: number;
+  totalOrdersCount?: number;
+  networkFees?: number;
 }
 
 export default function ConvertTransactionDialog({
@@ -147,45 +154,56 @@ export default function ConvertTransactionDialog({
   totalSavings = 0,
   ordersMatched = 0,
   conversionPair,
+  currentStep: externalStep,
+  isLocking = false,
+  isClosing = false,
+  lockedOrdersCount = 0,
+  totalOrdersCount = 0,
+  networkFees = 0,
 }: ConvertTransactionDialogProps) {
   const [isAnimating, setIsAnimating] = useState(false);
-  const [currentStep, setCurrentStep] = useState(1);
+  const [internalStep, setInternalStep] = useState(1);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  // Step timing configuration (realistic 5-8 seconds total)
-  const stepDurations: Record<number, number> = {
-    1: 2000, // Submitting
-    2: 2000, // Matching Orders
-    3: 2000, // Confirming
-  };
+  // Use external step if provided, otherwise use internal
+  const currentStep = externalStep ?? internalStep;
 
   useEffect(() => {
     if (open) {
       setIsAnimating(true);
-      setCurrentStep(1);
+      if (!externalStep) {
+        setInternalStep(1);
+      }
       setShowSuccess(false);
     } else {
       setIsAnimating(false);
     }
-  }, [open]);
+  }, [open, externalStep]);
 
-  // Progress through steps
+  // Progress through steps only if not controlled externally
   useEffect(() => {
-    if (!open || showSuccess) return;
+    if (!open || showSuccess || externalStep !== undefined) return;
 
-    if (currentStep <= 3) {
+    if (internalStep <= 3) {
       const timer = setTimeout(() => {
-        if (currentStep === 3) {
+        if (internalStep === 3) {
           setShowSuccess(true);
-          setCurrentStep(4);
+          setInternalStep(4);
         } else {
-          setCurrentStep((prev) => prev + 1);
+          setInternalStep((prev) => prev + 1);
         }
-      }, stepDurations[currentStep]);
+      }, 2000);
 
       return () => clearTimeout(timer);
     }
-  }, [open, currentStep, showSuccess]);
+  }, [open, internalStep, showSuccess, externalStep]);
+
+  // Show success when all orders are closed
+  useEffect(() => {
+    if (externalStep === 3 && !isClosing && !isLocking && totalOrdersCount > 0 && lockedOrdersCount === totalOrdersCount) {
+      setShowSuccess(true);
+    }
+  }, [externalStep, isClosing, isLocking, totalOrdersCount, lockedOrdersCount]);
 
   const getStepSublabel = (step: number): string => {
     switch (step) {
@@ -194,12 +212,18 @@ export default function ConvertTransactionDialog({
           ? "Initiating transaction..."
           : "Transaction submitted";
       case 2:
+        if (isLocking) {
+          return `Locking ${lockedOrdersCount} of ${totalOrdersCount} orders...`;
+        }
         return currentStep === 2
           ? `Finding ${ordersMatched} best orders...`
           : currentStep > 2
           ? `${ordersMatched} orders matched`
           : "Waiting...";
       case 3:
+        if (isClosing) {
+          return `Closing ${lockedOrdersCount} of ${totalOrdersCount} orders...`;
+        }
         return currentStep === 3
           ? "Confirming on chain..."
           : currentStep > 3
@@ -348,7 +372,9 @@ export default function ConvertTransactionDialog({
                   <span className="text-sm text-muted-foreground">
                     Network Fee
                   </span>
-                  <span className="text-sm font-semibold">$0.12</span>
+                  <span className="text-sm font-semibold">
+                    ${networkFees > 0 ? networkFees.toFixed(2) : "0.12"}
+                  </span>
                 </div>
               </div>
 
