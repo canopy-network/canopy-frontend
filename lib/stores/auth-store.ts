@@ -103,6 +103,8 @@ const createAuthStore = () => {
           // Store token in localStorage if provided
           if (token && typeof window !== "undefined") {
             localStorage.setItem("auth_token", token);
+            // Also set as cookie for WebSocket authentication
+            document.cookie = `auth_token=${token}; path=/; max-age=2592000; SameSite=Lax`;
             console.log("🔑 Authorization token stored");
           }
 
@@ -148,6 +150,7 @@ const createAuthStore = () => {
             // Clear authentication cookies
             document.cookie = "canopy_auth=; path=/; max-age=0";
             document.cookie = "canopy_user_id=; path=/; max-age=0";
+            document.cookie = "auth_token=; path=/; max-age=0";
           }
           set({
             user: null,
@@ -173,6 +176,7 @@ const createAuthStore = () => {
             // Clear authentication cookies
             document.cookie = "canopy_auth=; path=/; max-age=0";
             document.cookie = "canopy_user_id=; path=/; max-age=0";
+            document.cookie = "auth_token=; path=/; max-age=0";
           }
           set({
             user: null,
@@ -202,12 +206,14 @@ const createAuthStore = () => {
                 setUserId(state.user.id);
               }
 
-              // Restore token to localStorage if it exists
+              // Restore token to localStorage and cookie if it exists
               if (state.token && typeof window !== "undefined") {
                 const storedToken = localStorage.getItem("auth_token");
                 if (!storedToken) {
                   localStorage.setItem("auth_token", state.token);
                 }
+                // Also restore auth_token cookie for WebSocket authentication
+                document.cookie = `auth_token=${state.token}; path=/; max-age=2592000; SameSite=Lax`;
               }
 
               // Restore authentication cookies for middleware access
