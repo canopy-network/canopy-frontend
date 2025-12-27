@@ -53,7 +53,8 @@ type FilterType = "all" | OrderStatus;
 type SortDirection = "desc" | "asc"; // desc = newest first, asc = oldest first
 
 const DECIMALS = 1_000_000; // 6 decimals
-const ORDER_COMMITTEE_ID = 3; // Committee responsible for counter-asset swaps
+const ORDER_COMMITTEE_ID = 6; // Committee responsible for counter-asset swaps
+const POLLING_INTERVAL_MS = 10_000; // Poll every 10 seconds to catch lock status changes
 
 // USDC address on Ethereum Mainnet (normalized for comparison)
 const USDC_ETHEREUM_ADDRESS = "a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
@@ -98,7 +99,7 @@ function transformApiOrderToSellOrder(order: OrderBookApiOrder): SellOrder {
 
   // Map committee ID to chain name
   // Committee 3 is typically USDC on Ethereum
-  const destinationChain = order.committee === 3 ? "ethereum" : `chain-${order.committee}`;
+  const destinationChain = order.committee === 6 ? "ethereum" : `chain-${order.committee}`;
 
   return {
     id: order.id,
@@ -133,7 +134,7 @@ const PLACEHOLDER_ORDERS: SellOrder[] = [
     fee: 0.02,
     isSellingUsdcForCnpy: false,
     amountSelling: 1000,
-    committeeId: 3,
+    committeeId: 6,
     sellerAddress: "", // Placeholder - will be set when wallet is connected
   },
   {
@@ -149,7 +150,7 @@ const PLACEHOLDER_ORDERS: SellOrder[] = [
     fee: 0.03,
     isSellingUsdcForCnpy: false,
     amountSelling: 2500,
-    committeeId: 3,
+    committeeId: 6,
     sellerAddress: "", // Placeholder - will be set when wallet is connected
   },
   {
@@ -165,7 +166,7 @@ const PLACEHOLDER_ORDERS: SellOrder[] = [
     fee: 0.02,
     isSellingUsdcForCnpy: false,
     amountSelling: 500,
-    committeeId: 3,
+    committeeId: 6,
     sellerAddress: "", // Placeholder - will be set when wallet is connected
   },
   {
@@ -181,7 +182,7 @@ const PLACEHOLDER_ORDERS: SellOrder[] = [
     fee: 0.02,
     isSellingUsdcForCnpy: false,
     amountSelling: 750,
-    committeeId: 3,
+    committeeId: 6,
     sellerAddress: "", // Placeholder - will be set when wallet is connected
   },
 ];
@@ -226,6 +227,10 @@ export default function OrdersTab() {
 
   // Ref to track if the request is still valid (not cancelled)
   const requestIdRef = useRef(0);
+  // Ref to track if initial load has completed (to avoid loading flicker on polls)
+  const hasInitiallyLoadedRef = useRef(false);
+  // Ref to store previous order IDs for comparison (to avoid unnecessary re-renders)
+  const previousOrdersRef = useRef<string>("");
 
   // Fetch all orders from API (both owned and non-owned)
   const fetchUserOrders = useCallback(async () => {
@@ -237,7 +242,10 @@ export default function OrdersTab() {
     // Increment request ID to cancel previous request handling
     const currentRequestId = ++requestIdRef.current;
 
-    setIsLoading(true);
+    // Only show loading on initial load, not during polling
+    if (!hasInitiallyLoadedRef.current) {
+      setIsLoading(true);
+    }
     setError(null);
 
     try {
@@ -255,13 +263,25 @@ export default function OrdersTab() {
       // Flatten all raw orders from all chains
       const allRawOrders = orderBooks.flatMap((book) => book.orders || []);
 
-      // Store all raw orders for close order tracking and ownership checks
-      setRawOrders(allRawOrders);
+      // Create a fingerprint of raw orders to detect changes (includes lock status)
+      const rawOrdersFingerprint = allRawOrders
+        .map((o) => `${o.id}:${o.buyerReceiveAddress || "unlocked"}`)
+        .sort()
+        .join("|");
+
+      // Only update rawOrders if they changed
+      const rawOrdersChanged = rawOrdersFingerprint !== previousOrdersRef.current;
+      if (rawOrdersChanged) {
+        previousOrdersRef.current = rawOrdersFingerprint;
+        // Store all raw orders for close order tracking and ownership checks
+        setRawOrders(allRawOrders);
+      }
 
       // Transform all API orders to SellOrder format
       const transformedOrders = allRawOrders.map(transformApiOrderToSellOrder);
 
       // Load cancelled orders from localStorage and merge (for user's orders)
+      let finalOrders = transformedOrders;
       if (currentWallet?.address) {
         // Load cancelled orders from localStorage and merge
         try {
@@ -275,28 +295,30 @@ export default function OrdersTab() {
               const cancelledIds = new Set(transformedOrders.map((o) => o.id));
               const additionalCancelled = cancelledOrders.filter((o) => !cancelledIds.has(o.id));
 
-              setOrders([...transformedOrders, ...additionalCancelled]);
-            } else {
-              setOrders(transformedOrders);
+              finalOrders = [...transformedOrders, ...additionalCancelled];
             }
-          } else {
-            setOrders(transformedOrders);
           }
         } catch (e) {
           console.error("Failed to load cancelled orders from localStorage", e);
-          setOrders(transformedOrders);
         }
 
+        // Only update orders state if data changed
+        if (rawOrdersChanged) {
+          setOrders(finalOrders);
+        }
         setShowPlaceholders(false);
       } else {
-        // No wallet connected, show all orders
-        if (transformedOrders.length > 0) {
+        // No wallet connected, show all orders (or empty state if none)
+        if (rawOrdersChanged) {
           setOrders(transformedOrders);
-          setShowPlaceholders(false);
-        } else {
-          setOrders(PLACEHOLDER_ORDERS);
-          setShowPlaceholders(true);
         }
+        setShowPlaceholders(false);
+      }
+
+      // Mark initial load as complete and stop loading
+      if (!hasInitiallyLoadedRef.current) {
+        hasInitiallyLoadedRef.current = true;
+        setIsLoading(false);
       }
     } catch (err) {
       // Check if this request was superseded by a newer one
@@ -305,35 +327,38 @@ export default function OrdersTab() {
       }
 
       console.error("Failed to fetch orders from API", err);
-      setError(err instanceof Error ? err.message : "Failed to fetch orders");
 
-      // Fallback to localStorage if API fails
-      try {
-        if (typeof window !== "undefined") {
-          const stored = localStorage.getItem("userSellOrders");
-          const storedOrders = stored ? (JSON.parse(stored) as SellOrder[]) : [];
-
-          if (storedOrders.length > 0) {
-            setOrders(storedOrders);
-            setShowPlaceholders(false);
-          } else {
-            setOrders(PLACEHOLDER_ORDERS);
-            setShowPlaceholders(true);
-          }
-        } else {
-          setOrders(PLACEHOLDER_ORDERS);
-          setShowPlaceholders(true);
-        }
-      } catch (e) {
-        console.error("Failed to load orders from localStorage", e);
-        setOrders(PLACEHOLDER_ORDERS);
-        setShowPlaceholders(true);
-      }
-    } finally {
-      // Only update loading state if this request is still current
-      if (currentRequestId === requestIdRef.current) {
+      // Only show error on initial load, not during background polling
+      if (!hasInitiallyLoadedRef.current) {
+        setError(err instanceof Error ? err.message : "Failed to fetch orders");
+        hasInitiallyLoadedRef.current = true;
         setIsLoading(false);
+
+        // Fallback to localStorage if API fails on initial load
+        try {
+          if (typeof window !== "undefined") {
+            const stored = localStorage.getItem("userSellOrders");
+            const storedOrders = stored ? (JSON.parse(stored) as SellOrder[]) : [];
+
+            if (storedOrders.length > 0) {
+              setOrders(storedOrders);
+              setShowPlaceholders(false);
+            } else {
+              // No orders - show empty state, not placeholders
+              setOrders([]);
+              setShowPlaceholders(false);
+            }
+          } else {
+            setOrders([]);
+            setShowPlaceholders(false);
+          }
+        } catch (e) {
+          console.error("Failed to load orders from localStorage", e);
+          setOrders([]);
+          setShowPlaceholders(false);
+        }
       }
+      // During polling, silently fail and keep existing data
     }
   }, [currentWallet?.address]);
 
@@ -343,9 +368,17 @@ export default function OrdersTab() {
       return;
     }
 
+    // Initial fetch
     fetchUserOrders();
 
+    // Set up polling interval to catch lock status changes
+    const intervalId = setInterval(() => {
+      fetchUserOrders();
+    }, POLLING_INTERVAL_MS);
+
     return () => {
+      // Clear the polling interval
+      clearInterval(intervalId);
       // Invalidate any pending request by incrementing the request ID
       // This ensures state updates from cancelled requests are ignored
       const currentId = requestIdRef.current;

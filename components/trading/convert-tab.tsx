@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -51,7 +51,7 @@ import { isOrderLocked } from "@/types/orderbook";
 const DECIMALS = 1_000_000; // 6 decimals
 
 // USDC Committee ID
-const USDC_COMMITTEE_ID = 3;
+const USDC_COMMITTEE_ID = 6;
 
 // USDC Contract Address on Ethereum Mainnet
 const USDC_CONTRACT_ADDRESS = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
@@ -362,7 +362,9 @@ export default function ConvertTab({
     Record<string, "locking" | "locked" | "closing" | "closed" | "error">
   >({});
   const [pollingStatus, setPollingStatus] = useState<Record<string, { isPolling: boolean; attempts: number }>>({});
-  const [orderTxHashes, setOrderTxHashes] = useState<Record<string, string>>({}); // Track tx hash for each order
+  const [orderTxHashes, setOrderTxHashes] = useState<Record<string, string>>({}); // Track lock tx hash for each order
+  const [closeTxHashes, setCloseTxHashes] = useState<Record<string, string>>({}); // Track close tx hash for each order
+  const [pendingCloseOrderId, setPendingCloseOrderId] = useState<string | null>(null); // Track which order is currently being closed
   const [rejectedOrders, setRejectedOrders] = useState<Set<string>>(new Set()); // Track orders with rejected transactions
 
   // Lock orders store
@@ -483,9 +485,16 @@ export default function ConvertTab({
     }
   }, [amount, sellMode, priceType, getPriceFromType]);
 
+  // Refs for optimizing polling (avoid flicker)
+  const hasInitiallyLoadedOrdersRef = useRef(false);
+  const previousOrdersFingerprintRef = useRef("");
+
   // Fetch real orders from the orderbook API (USDC only)
   const fetchOrders = useCallback(async () => {
-    setIsLoadingOrders(true);
+    // Only show loading on initial load
+    if (!hasInitiallyLoadedOrdersRef.current) {
+      setIsLoadingOrders(true);
+    }
     try {
       // Fetch orders for USDC committee
       const response = await orderbookApi.getOrderBook({
@@ -499,11 +508,28 @@ export default function ConvertTab({
         const priceB = b.requestedAmount / b.amountForSale;
         return priceA - priceB;
       });
-      setRealOrders(allOrders);
+
+      // Create fingerprint to detect changes
+      const fingerprint = allOrders.map((o) => `${o.id}:${o.buyerReceiveAddress || ""}`).join("|");
+
+      // Only update state if data changed
+      if (fingerprint !== previousOrdersFingerprintRef.current) {
+        previousOrdersFingerprintRef.current = fingerprint;
+        setRealOrders(allOrders);
+      }
+
+      // Mark initial load as complete and stop loading
+      if (!hasInitiallyLoadedOrdersRef.current) {
+        hasInitiallyLoadedOrdersRef.current = true;
+        setIsLoadingOrders(false);
+      }
     } catch (err) {
       console.error("Failed to fetch orderbook:", err);
-    } finally {
-      setIsLoadingOrders(false);
+      // Mark initial load as complete even on error
+      if (!hasInitiallyLoadedOrdersRef.current) {
+        hasInitiallyLoadedOrdersRef.current = true;
+        setIsLoadingOrders(false);
+      }
     }
   }, []);
 
@@ -711,163 +737,69 @@ export default function ConvertTab({
 
         const callData = createCloseOrderCallData(sellerEthAddress as `0x${string}`, usdcAmount, closeOrderData);
 
+        // Track which order is being closed so we can match the transaction
+        console.log(`[Close] Sending close transaction for order ${order.id}`);
+        setPendingCloseOrderId(order.id);
+        setCloseTxHashes((prev) => ({ ...prev, [order.id]: "pending" }));
+
         sendTransaction({
           to: usdcAddress,
           data: callData,
         });
       } catch (err) {
         console.error("Failed to send close order:", err);
+        setPendingCloseOrderId(null);
         throw err;
       }
     },
     [buyerEthAddress, usdcAddress, sendTransaction]
   );
 
-  // Handle transaction success - match to order and process independently
+  // Handle CLOSE transaction success
   useEffect(() => {
-    if (!isTxSuccess || !txHash || processingOrders.length === 0) return;
+    if (!isTxSuccess || !txHash) return;
 
-    // Find which order this transaction belongs to
-    const pendingOrders = getPendingOrders();
+    // Check if this is a close transaction (we have a pending close order)
+    if (pendingCloseOrderId && closeTxHashes[pendingCloseOrderId] === "pending") {
+      const closeOrderId = pendingCloseOrderId;
+      console.log(`[Close Success] Transaction ${txHash} confirmed for order ${closeOrderId}`);
 
-    // First check if this tx hash is already mapped to an order
-    const mappedOrderId = Object.keys(orderTxHashes).find((id) => orderTxHashes[id] === txHash);
-    if (mappedOrderId) {
-      const order = pendingOrders.find((o) => o.orderId === mappedOrderId);
-      if (order && order.status === "locking") {
-        // This is a lock transaction for a known order - process it
-        const orderId = order.orderId;
-        const orderData = processingOrders.find((o) => o.id === orderId);
-        if (orderData && buyerEthAddress && currentWallet?.address) {
-          // Start polling for lock confirmation
-          pollOrderLockStatus(orderId, orderData.committee, (attempt, maxAttempts) => {
-            console.log(`Polling order ${orderId}: attempt ${attempt}/${maxAttempts}`);
-          }).then((lockedOrder) => {
-            if (lockedOrder) {
-              setOrderProcessingStatus((prev) => ({ ...prev, [orderId]: "locked" }));
-              updateOrderStatus(orderId, "locked");
-              updateOrderStatus(orderId, "closing");
-              setOrderProcessingStatus((prev) => ({ ...prev, [orderId]: "closing" }));
-              processCloseOrder(lockedOrder).catch((err) => {
-                console.error("Failed to close order:", err);
-                updateOrderStatus(orderId, "error", err.message);
-                setOrderProcessingStatus((prev) => ({ ...prev, [orderId]: "error" }));
-              });
-            } else {
-              setOrderProcessingStatus((prev) => ({ ...prev, [orderId]: "error" }));
-            }
-          });
-          resetSend();
-          return;
-        }
-      }
-    }
+      // Update the close tx hash
+      setCloseTxHashes((prev) => ({ ...prev, [closeOrderId]: txHash }));
+      setPendingCloseOrderId(null);
 
-    // If not mapped, find an order that's locking and doesn't have a tx hash yet
-    const orderForTx = pendingOrders.find(
-      (o) => o.status === "locking" && o.lockTxHash.startsWith("pending-") && !orderTxHashes[o.orderId]
-    );
-
-    if (!orderForTx) return;
-
-    const orderId = orderForTx.orderId;
-    const order = processingOrders.find((o) => o.id === orderId);
-    if (!order) return;
-
-    // Update store with actual tx hash
-    if (buyerEthAddress && currentWallet?.address) {
-      // Update the tx hash mapping
-      setOrderTxHashes((prev) => ({ ...prev, [orderId]: txHash }));
-
-      // Update store with actual tx hash (replace pending hash)
-      const lockedOrder = pendingOrders.find((o) => o.orderId === orderId);
-      if (lockedOrder && lockedOrder.lockTxHash.startsWith("pending-")) {
-        // Update the order in store with real tx hash
-        // We need to update the lockTxHash - but the store doesn't have a direct method for this
-        // So we'll rely on the orderTxHashes state and the polling will use the order from API
-      }
-
-      // Start polling for lock confirmation
-      pollOrderLockStatus(orderId, order.committee, (attempt, maxAttempts) => {
-        console.log(`Polling order ${orderId}: attempt ${attempt}/${maxAttempts}`);
-      }).then((lockedOrder) => {
-        if (lockedOrder) {
-          // Order is now locked, proceed to close
-          setOrderProcessingStatus((prev) => ({ ...prev, [orderId]: "locked" }));
-          updateOrderStatus(orderId, "locked");
-
-          // Close the order - wagmi will show transfer confirmation modal
-          // Track this order as ready to close
-          updateOrderStatus(orderId, "closing");
-          setOrderProcessingStatus((prev) => ({ ...prev, [orderId]: "closing" }));
-
-          processCloseOrder(lockedOrder).catch((err) => {
-            console.error("Failed to close order:", err);
-            // Check if it's a user rejection
-            if (
-              err.message?.includes("reject") ||
-              err.message?.includes("denied") ||
-              err.message?.includes("User rejected")
-            ) {
-              setRejectedOrders((prev) => new Set(prev).add(orderId));
-              updateOrderStatus(orderId, "locked"); // Keep it as locked so user can retry
-              setOrderProcessingStatus((prev) => ({ ...prev, [orderId]: "locked" }));
-            } else {
-              updateOrderStatus(orderId, "error", err.message);
-              setOrderProcessingStatus((prev) => ({ ...prev, [orderId]: "error" }));
-            }
-          });
-        } else {
-          // Polling failed or timeout
-          setOrderProcessingStatus((prev) => ({ ...prev, [orderId]: "error" }));
-        }
-      });
-    }
-
-    // Check if this is a close transaction
-    const closedOrder = pendingOrders.find((o) => o.closeTxHash === txHash || o.status === "closing");
-    if (closedOrder) {
-      // Close transaction successful - calculate fee and update store
-      const closeOrderId = closedOrder.orderId;
-      if (txReceipt && txHash && publicClient) {
-        // Calculate network fee from transaction receipt
+      // Calculate network fee from transaction receipt if available
+      if (txReceipt && publicClient) {
         const gasUsed = txReceipt.gasUsed;
-        // Use effectiveGasPrice if available (EIP-1559), otherwise estimate
         const gasPrice = (txReceipt as any).effectiveGasPrice || (txReceipt as any).gasPrice || BigInt(0);
         const feeWei = gasUsed * gasPrice;
-        // Convert to USDC (assuming 1 ETH = ~$2000, 1 USDC = $1, 18 decimals for ETH, 6 for USDC)
         const feeEth = Number(feeWei) / 1e18;
         const estimatedEthPrice = 2000;
         const feeUsdc = feeEth * estimatedEthPrice;
 
         setCloseTxHash(closeOrderId, txHash);
         setNetworkFee(closeOrderId, feeUsdc);
-        updateOrderStatus(closeOrderId, "closed");
       } else {
-        updateOrderStatus(closeOrderId, "closed");
+        setCloseTxHash(closeOrderId, txHash);
       }
 
+      // Mark as closed
+      updateOrderStatus(closeOrderId, "closed");
       setOrderProcessingStatus((prev) => ({ ...prev, [closeOrderId]: "closed" }));
 
-      // Check if all orders are closed
+      // Check if all orders are now closed
+      const updatedStatus = { ...orderProcessingStatus, [closeOrderId]: "closed" as const };
       const allClosed = processingOrders.every((order) => {
-        const status = orderProcessingStatus[order.id];
+        const status = updatedStatus[order.id];
         return status === "closed" || status === "error";
       });
 
-      if (allClosed) {
-        // All orders processed - calculate totals
+      if (allClosed && processingOrders.length > 0) {
+        console.log("[Close Success] All orders closed!");
         const totalCnpyReceived = processingOrders.reduce((sum, order) => {
           return sum + order.amountForSale / DECIMALS;
         }, 0);
 
-        // Calculate total network fees from store
-        const allLockedOrders = getPendingOrders();
-        const totalNetworkFees = allLockedOrders
-          .filter((o) => o.status === "closed" && o.networkFee)
-          .reduce((sum, o) => sum + (o.networkFee || 0), 0);
-
-        // Show transaction dialog with completion summary
         setShowTransactionDialog(true);
         setSubmitSuccess(
           `Successfully processed ${processingOrders.length} order${
@@ -875,32 +807,55 @@ export default function ConvertTab({
           }! Received ${totalCnpyReceived.toLocaleString()} CNPY`
         );
         setAmount("");
-        setProcessingOrders([]);
-        setCurrentOrderIndex(0);
-        setCurrentOrderStep(null);
         setIsSubmitting(false);
 
-        // Clean up completed orders from store after a delay
+        // Clean up after delay
         setTimeout(() => {
           processingOrders.forEach((order) => {
             removeOrder(order.id);
           });
+          setProcessingOrders([]);
+          setCurrentOrderIndex(0);
+          setCurrentOrderStep(null);
+          setOrderProcessingStatus({});
+          setCloseTxHashes({});
+          setOrderTxHashes({});
         }, 5000);
 
-        // Refresh orders
         setTimeout(() => {
           fetchOrders();
         }, 2000);
       }
 
       resetSend();
+      return;
+    }
+
+    // Check if this is a LOCK transaction
+    if (processingOrders.length > 0) {
+      const pendingOrders = getPendingOrders();
+
+      // Find order with pending lock tx
+      const orderForTx = pendingOrders.find(
+        (o) => o.status === "locking" && o.lockTxHash.startsWith("pending-") && !orderTxHashes[o.orderId]
+      );
+
+      if (orderForTx && buyerEthAddress && currentWallet?.address) {
+        const orderId = orderForTx.orderId;
+        console.log(`[Lock Success] Transaction ${txHash} confirmed for order ${orderId}`);
+
+        setOrderTxHashes((prev) => ({ ...prev, [orderId]: txHash }));
+        // Note: The polling effect will detect when the order is locked and trigger close
+        resetSend();
+      }
     }
   }, [
     isTxSuccess,
     txHash,
     txReceipt,
+    pendingCloseOrderId,
+    closeTxHashes,
     processingOrders,
-    processCloseOrder,
     buyerEthAddress,
     currentWallet,
     fetchOrders,
@@ -910,7 +865,6 @@ export default function ConvertTab({
     setNetworkFee,
     removeOrder,
     getPendingOrders,
-    pollOrderLockStatus,
     publicClient,
     orderTxHashes,
     orderProcessingStatus,
@@ -918,43 +872,79 @@ export default function ConvertTab({
 
   // Handle transaction errors (including user rejections)
   useEffect(() => {
-    if ((isSendError || isTxError) && processingOrders.length > 0) {
-      // Find which order this error belongs to
+    if (!isSendError && !isTxError) return;
+
+    const errorMessage =
+      (sendError as any)?.message || (sendError as any)?.shortMessage || (sendError as any)?.cause?.message || "";
+    const isUserRejection =
+      errorMessage.includes("reject") ||
+      errorMessage.includes("denied") ||
+      errorMessage.includes("User rejected") ||
+      errorMessage.includes("user rejected") ||
+      errorMessage.includes("User denied");
+
+    console.log(`[Tx Error] Error: ${errorMessage}, isUserRejection: ${isUserRejection}`);
+
+    // Check if this was a close transaction error
+    if (pendingCloseOrderId) {
+      const orderId = pendingCloseOrderId;
+      console.log(`[Close Error] Error for order ${orderId}: ${errorMessage}`);
+
+      // Clear the pending close tx
+      setCloseTxHashes((prev) => {
+        const updated = { ...prev };
+        delete updated[orderId];
+        return updated;
+      });
+      setPendingCloseOrderId(null);
+
+      if (isUserRejection) {
+        // User rejected - keep order as locked so they can retry
+        setRejectedOrders((prev) => new Set(prev).add(orderId));
+        updateOrderStatus(orderId, "locked");
+        setOrderProcessingStatus((prev) => ({ ...prev, [orderId]: "locked" }));
+      } else {
+        // Actual error
+        updateOrderStatus(orderId, "error", errorMessage || "Close transaction failed");
+        setOrderProcessingStatus((prev) => ({ ...prev, [orderId]: "error" }));
+      }
+
+      setIsSubmitting(false);
+      resetSend();
+      return;
+    }
+
+    // Check if this was a lock transaction error
+    if (processingOrders.length > 0) {
       const pendingOrders = getPendingOrders();
-      const orderForError = pendingOrders.find((o) => o.status === "closing" || o.status === "locking");
+      const orderForError = pendingOrders.find((o) => o.status === "locking");
 
       if (orderForError) {
         const orderId = orderForError.orderId;
-        // Check if it's a user rejection - check both sendError and receipt error
-        const errorMessage =
-          (sendError as any)?.message || (sendError as any)?.shortMessage || (sendError as any)?.cause?.message || "";
+        console.log(`[Lock Error] Error for order ${orderId}: ${errorMessage}`);
 
-        if (
-          errorMessage.includes("reject") ||
-          errorMessage.includes("denied") ||
-          errorMessage.includes("User rejected") ||
-          errorMessage.includes("user rejected") ||
-          errorMessage.includes("User denied")
-        ) {
-          setRejectedOrders((prev) => new Set(prev).add(orderId));
-          // If it was a close transaction that was rejected, keep order as locked
-          if (orderForError.status === "closing") {
-            updateOrderStatus(orderId, "locked");
-            setOrderProcessingStatus((prev) => ({ ...prev, [orderId]: "locked" }));
-          } else {
-            // If it was a lock transaction, mark as error
-            updateOrderStatus(orderId, "error", "Transaction rejected");
-            setOrderProcessingStatus((prev) => ({ ...prev, [orderId]: "error" }));
-          }
+        if (isUserRejection) {
+          updateOrderStatus(orderId, "error", "Transaction rejected");
+          setOrderProcessingStatus((prev) => ({ ...prev, [orderId]: "error" }));
         } else {
-          updateOrderStatus(orderId, "error", errorMessage || "Transaction failed");
+          updateOrderStatus(orderId, "error", errorMessage || "Lock transaction failed");
           setOrderProcessingStatus((prev) => ({ ...prev, [orderId]: "error" }));
         }
+
         setIsSubmitting(false);
         resetSend();
       }
     }
-  }, [isSendError, isTxError, sendError, processingOrders, resetSend, getPendingOrders, updateOrderStatus]);
+  }, [
+    isSendError,
+    isTxError,
+    sendError,
+    pendingCloseOrderId,
+    processingOrders,
+    resetSend,
+    getPendingOrders,
+    updateOrderStatus,
+  ]);
 
   // Fetch balance when wallet is available
   useEffect(() => {
@@ -964,63 +954,194 @@ export default function ConvertTab({
     }
   }, [currentWallet]);
 
-  // Resume processing pending orders on mount
+  // Continuous polling to detect locked/closed orders and auto-trigger close
+  // This runs every 10 seconds to catch status changes from the oracle
   useEffect(() => {
     if (!buyerEthAddress || !currentWallet?.address || !currentWallet?.isUnlocked) {
       return;
     }
 
-    const pendingOrders = getPendingOrders();
-    if (pendingOrders.length === 0) return;
+    const LOCK_STATUS_POLL_INTERVAL = 10_000; // 10 seconds - matches oracle cycle
 
-    // Check for orders that are locked and ready to close
-    const lockedOrders = getLockedOrders();
-    const lockingOrders = getLockingOrders();
+    const checkAndProcessOrders = async () => {
+      const pendingOrders = getPendingOrders();
+      if (pendingOrders.length === 0) return;
 
-    // Resume polling for orders that are still locking
-    lockingOrders.forEach((lockedOrder) => {
-      const orderId = lockedOrder.orderId;
-      // Check if we're already processing this order
-      if (processingOrders.find((o) => o.id === orderId)) return;
+      const lockingOrders = pendingOrders.filter((o) => o.status === "locking");
+      const closingOrders = pendingOrders.filter((o) => o.status === "closing");
+      const lockedOrders = pendingOrders.filter((o) => o.status === "locked");
 
-      // Resume polling
-      pollOrderLockStatus(orderId, lockedOrder.orderData.committee, (attempt, maxAttempts) => {
-        console.log(`Resuming poll for order ${orderId}: attempt ${attempt}/${maxAttempts}`);
-      }).then((lockedOrderData) => {
-        if (lockedOrderData) {
-          // Order is now locked, proceed to close
-          updateOrderStatus(orderId, "locked");
-          processCloseOrder(lockedOrderData).catch((err) => {
-            console.error("Failed to close order on resume:", err);
-            updateOrderStatus(orderId, "error", err.message);
-          });
+      if (lockingOrders.length === 0 && closingOrders.length === 0 && lockedOrders.length === 0) return;
+
+      console.log(
+        `[Order Poll] Checking orders: ${lockingOrders.length} locking, ${lockedOrders.length} locked, ${closingOrders.length} closing`
+      );
+
+      try {
+        // Fetch all orders from the API once
+        const response = await orderbookApi.getOrderBook({
+          chainId: USDC_COMMITTEE_ID,
+        });
+        const orderBooks = response.data || [];
+        const allApiOrders = orderBooks.flatMap((book) => book.orders || []);
+
+        // Check locking orders → if locked, update status (but don't trigger close here)
+        // Close will be triggered by the lockedOrders check below (one at a time)
+        for (const storeOrder of lockingOrders) {
+          const orderId = storeOrder.orderId;
+          const apiOrder = allApiOrders.find((o) => o.id === orderId);
+
+          if (apiOrder && isOrderLocked(apiOrder)) {
+            console.log(`[Order Poll] Order ${orderId} is now LOCKED!`);
+
+            // Update store with locked status and order data
+            updateOrderData(orderId, apiOrder);
+            updateOrderStatus(orderId, "locked");
+            setOrderProcessingStatus((prev) => ({ ...prev, [orderId]: "locked" }));
+            // Close will be triggered by the lockedOrders section below
+          }
         }
-      });
-    });
 
-    // Process orders that are locked and ready to close
-    lockedOrders.forEach((lockedOrder) => {
-      const orderId = lockedOrder.orderId;
-      // Check if we're already processing this order
-      if (processingOrders.find((o) => o.id === orderId)) return;
+        // Check closing orders → if order is gone from API, it's been closed successfully
+        for (const storeOrder of closingOrders) {
+          const orderId = storeOrder.orderId;
+          const apiOrder = allApiOrders.find((o) => o.id === orderId);
 
-      // Close the order
-      processCloseOrder(lockedOrder.orderData).catch((err) => {
-        console.error("Failed to close order on resume:", err);
-        updateOrderStatus(orderId, "error", err.message);
-      });
-    });
+          // If order is no longer in the orderbook, it means the close was successful
+          if (!apiOrder) {
+            console.log(`[Order Poll] Order ${orderId} is no longer in orderbook - CLOSED successfully!`);
+
+            updateOrderStatus(orderId, "closed");
+            setOrderProcessingStatus((prev) => ({ ...prev, [orderId]: "closed" }));
+
+            // Check if all orders are now closed
+            const updatedStatus = { ...orderProcessingStatus, [orderId]: "closed" as const };
+            const allClosed = processingOrders.every((order) => {
+              const status = updatedStatus[order.id];
+              return status === "closed" || status === "error";
+            });
+
+            if (allClosed && processingOrders.length > 0) {
+              console.log("[Order Poll] All orders closed!");
+              const totalCnpyReceived = processingOrders.reduce((sum, order) => {
+                return sum + order.amountForSale / DECIMALS;
+              }, 0);
+
+              setShowTransactionDialog(true);
+              setSubmitSuccess(
+                `Successfully processed ${processingOrders.length} order${
+                  processingOrders.length !== 1 ? "s" : ""
+                }! Received ${totalCnpyReceived.toLocaleString()} CNPY`
+              );
+              setAmount("");
+              setIsSubmitting(false);
+
+              // Clean up after delay
+              setTimeout(() => {
+                processingOrders.forEach((order) => {
+                  removeOrder(order.id);
+                });
+                setProcessingOrders([]);
+                setCurrentOrderIndex(0);
+                setCurrentOrderStep(null);
+                setOrderProcessingStatus({});
+                setCloseTxHashes({});
+                setOrderTxHashes({});
+              }, 5000);
+
+              setTimeout(() => {
+                fetchOrders();
+              }, 2000);
+            }
+          }
+        }
+
+        // Check locked orders that aren't currently being closed → trigger close (ONE at a time)
+        // Skip if there's already a close transaction pending for ANY order
+        const hasAnyPendingClose = pendingCloseOrderId !== null;
+        const hasAnyClosing = closingOrders.length > 0;
+
+        if (!hasAnyPendingClose && !hasAnyClosing) {
+          // Find the first locked order that needs closing
+          const allLockedOrders = [...lockedOrders];
+          // Also include newly locked orders from this poll cycle
+          for (const storeOrder of lockingOrders) {
+            const orderId = storeOrder.orderId;
+            const apiOrder = allApiOrders.find((o) => o.id === orderId);
+            if (apiOrder && isOrderLocked(apiOrder)) {
+              // This order just became locked, add it to candidates
+              if (!allLockedOrders.find((o) => o.orderId === orderId)) {
+                allLockedOrders.push({ ...storeOrder, orderData: apiOrder });
+              }
+            }
+          }
+
+          for (const storeOrder of allLockedOrders) {
+            const orderId = storeOrder.orderId;
+            const apiOrder = allApiOrders.find((o) => o.id === orderId) || storeOrder.orderData;
+
+            // Skip if we have a close tx hash (completed)
+            if (closeTxHashes[orderId] && closeTxHashes[orderId] !== "pending") continue;
+
+            // Skip if rejected (user needs to manually retry)
+            if (rejectedOrders.has(orderId)) continue;
+
+            if (apiOrder && isOrderLocked(apiOrder)) {
+              console.log(`[Order Poll] Order ${orderId} is locked and ready to close, triggering...`);
+
+              updateOrderStatus(orderId, "closing");
+              setOrderProcessingStatus((prev) => ({ ...prev, [orderId]: "closing" }));
+
+              processCloseOrder(apiOrder).catch((err) => {
+                console.error(`[Order Poll] Failed to close order ${orderId}:`, err);
+                if (err.message?.includes("reject") || err.message?.includes("denied")) {
+                  setRejectedOrders((prev) => new Set(prev).add(orderId));
+                  updateOrderStatus(orderId, "locked");
+                  setOrderProcessingStatus((prev) => ({ ...prev, [orderId]: "locked" }));
+                } else {
+                  updateOrderStatus(orderId, "error", err.message);
+                  setOrderProcessingStatus((prev) => ({ ...prev, [orderId]: "error" }));
+                }
+              });
+
+              // Only process ONE order at a time - break after triggering the first
+              break;
+            }
+          }
+        }
+      } catch (err) {
+        console.error("[Order Poll] Failed to check order status:", err);
+      }
+    };
+
+    // Run immediately on mount/change
+    checkAndProcessOrders();
+
+    // Set up polling interval
+    const intervalId = setInterval(checkAndProcessOrders, LOCK_STATUS_POLL_INTERVAL);
+
+    return () => {
+      clearInterval(intervalId);
+    };
   }, [
     buyerEthAddress,
-    currentWallet,
+    currentWallet?.address,
+    currentWallet?.isUnlocked,
     getPendingOrders,
-    getLockingOrders,
-    getLockedOrders,
-    pollOrderLockStatus,
-    processCloseOrder,
+    updateOrderData,
     updateOrderStatus,
+    processCloseOrder,
     processingOrders,
+    orderProcessingStatus,
+    pendingCloseOrderId,
+    closeTxHashes,
+    fetchOrders,
+    removeOrder,
+    rejectedOrders,
   ]);
+
+  // Note: The continuous polling effect above handles detecting locked orders
+  // and triggering close automatically, so no separate resume effect is needed.
 
   // Update connected wallets when ethAddress changes
   useEffect(() => {
@@ -1113,7 +1234,7 @@ export default function ConvertTab({
         id: order.id,
         amount: cnpyAmount,
         price,
-        token: "USDC", // These are USDC orders from committee 3
+        token: "USDC", // These are USDC orders from committee 6
         discount: Math.round(discount * 10) / 10,
         // Keep reference to original order
         _original: order,
@@ -1993,23 +2114,60 @@ export default function ConvertTab({
                     const order = lockedOrder.orderData;
                     const status = lockedOrder.status;
                     const isRejected = rejectedOrders.has(lockedOrder.orderId);
+                    const hasError = status === "error";
+                    // Check if closing is stuck (no pending close tx)
+                    const isClosingStuck =
+                      status === "closing" && !pendingCloseOrderId && !closeTxHashes[lockedOrder.orderId];
+                    // Show retry button for rejected, error, or stuck closing
+                    const canRetry =
+                      (isRejected && (status === "locked" || status === "closing")) || hasError || isClosingStuck;
+
+                    const handleRetry = (e: React.MouseEvent) => {
+                      e.stopPropagation();
+                      const orderData = lockedOrder.orderData;
+                      if (!orderData) return;
+
+                      // Clear rejected state
+                      setRejectedOrders((prev) => {
+                        const newSet = new Set(prev);
+                        newSet.delete(lockedOrder.orderId);
+                        return newSet;
+                      });
+
+                      // For locked orders or errors, retry the close
+                      if (isOrderLocked(orderData)) {
+                        console.log(`[Retry] Retrying close for order ${lockedOrder.orderId}`);
+                        updateOrderStatus(lockedOrder.orderId, "closing");
+                        setOrderProcessingStatus((prev) => ({ ...prev, [lockedOrder.orderId]: "closing" }));
+                        processCloseOrder(orderData).catch((err) => {
+                          console.error("Failed to close order:", err);
+                          if (err.message?.includes("reject") || err.message?.includes("denied")) {
+                            setRejectedOrders((prev) => new Set(prev).add(lockedOrder.orderId));
+                            updateOrderStatus(lockedOrder.orderId, "locked");
+                            setOrderProcessingStatus((prev) => ({ ...prev, [lockedOrder.orderId]: "locked" }));
+                          } else {
+                            updateOrderStatus(lockedOrder.orderId, "error", err.message);
+                            setOrderProcessingStatus((prev) => ({ ...prev, [lockedOrder.orderId]: "error" }));
+                          }
+                        });
+                      }
+                    };
+
                     return (
                       <DropdownMenuItem
                         key={lockedOrder.orderId}
                         onClick={() => {
                           setShowTransactionDialog(true);
-                          // If this order was rejected and is locked, show option to retry
-                          if (isRejected && status === "locked") {
-                            // The dialog will show the status, user can retry from there
-                          }
                         }}
                         className="flex flex-col items-start gap-1 py-2"
                       >
                         <div className="flex items-center justify-between w-full">
                           <span className="text-xs font-medium">Order {lockedOrder.orderId.slice(0, 8)}...</span>
                           <div className="flex items-center gap-1">
-                            {isRejected && (
-                              <span className="text-xs bg-red-500/20 text-red-500 px-1.5 py-0.5 rounded">Rejected</span>
+                            {(isRejected || hasError) && (
+                              <span className="text-xs bg-red-500/20 text-red-500 px-1.5 py-0.5 rounded">
+                                {hasError ? "Failed" : "Rejected"}
+                              </span>
                             )}
                             <span
                               className={`text-xs px-1.5 py-0.5 rounded ${
@@ -2019,6 +2177,10 @@ export default function ConvertTab({
                                   ? "bg-green-500/20 text-green-500"
                                   : status === "closing"
                                   ? "bg-yellow-500/20 text-yellow-500"
+                                  : status === "closed"
+                                  ? "bg-green-500/20 text-green-500"
+                                  : status === "error"
+                                  ? "bg-red-500/20 text-red-500"
                                   : "bg-muted text-muted-foreground"
                               }`}
                             >
@@ -2029,34 +2191,10 @@ export default function ConvertTab({
                         <div className="text-xs text-muted-foreground">
                           {order.amountForSale / DECIMALS} CNPY for ${(order.requestedAmount / DECIMALS).toFixed(2)}
                         </div>
-                        {isRejected && status === "locked" && (
+                        {canRetry && (
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              // Retry closing this order
-                              const orderData = lockedOrder.orderData;
-                              if (orderData && isOrderLocked(orderData)) {
-                                setRejectedOrders((prev) => {
-                                  const newSet = new Set(prev);
-                                  newSet.delete(lockedOrder.orderId);
-                                  return newSet;
-                                });
-                                updateOrderStatus(lockedOrder.orderId, "closing");
-                                setOrderProcessingStatus((prev) => ({ ...prev, [lockedOrder.orderId]: "closing" }));
-                                processCloseOrder(orderData).catch((err) => {
-                                  console.error("Failed to close order:", err);
-                                  if (err.message?.includes("reject") || err.message?.includes("denied")) {
-                                    setRejectedOrders((prev) => new Set(prev).add(lockedOrder.orderId));
-                                    updateOrderStatus(lockedOrder.orderId, "locked");
-                                    setOrderProcessingStatus((prev) => ({ ...prev, [lockedOrder.orderId]: "locked" }));
-                                  } else {
-                                    updateOrderStatus(lockedOrder.orderId, "error", err.message);
-                                    setOrderProcessingStatus((prev) => ({ ...prev, [lockedOrder.orderId]: "error" }));
-                                  }
-                                });
-                              }
-                            }}
-                            className="text-xs text-blue-500 hover:text-blue-400 mt-1"
+                            onClick={handleRetry}
+                            className="text-xs bg-blue-500/20 text-blue-500 hover:bg-blue-500/30 px-2 py-1 rounded mt-1 transition-colors"
                           >
                             Retry Close
                           </button>
@@ -2363,35 +2501,100 @@ export default function ConvertTab({
 
         {/* Locked orders status indicator */}
         {(() => {
-          const pendingCount = getPendingOrders().length;
+          const pendingOrders = getPendingOrders();
+          const pendingCount = pendingOrders.length;
           const lockingCount = getLockingOrders().length;
           const lockedCount = getLockedOrders().length;
+          const errorCount = pendingOrders.filter((o) => o.status === "error").length;
+          const rejectedCount = pendingOrders.filter((o) => rejectedOrders.has(o.orderId)).length;
+          const closingCount = pendingOrders.filter((o) => o.status === "closing").length;
+          const needsRetry = errorCount > 0 || rejectedCount > 0;
+
           if (pendingCount > 0 && direction === "buy") {
             return (
-              <button
-                onClick={() => setShowTransactionDialog(true)}
-                className="mb-3 w-full p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg hover:bg-blue-500/15 transition-colors cursor-pointer text-left"
-              >
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-blue-500 font-medium">
-                    {pendingCount} order{pendingCount !== 1 ? "s" : ""} in progress
-                  </span>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    {lockingCount > 0 && (
-                      <span className="flex items-center gap-1">
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        {lockingCount} locking
-                      </span>
-                    )}
-                    {lockedCount > 0 && (
-                      <span className="flex items-center gap-1">
-                        <Check className="w-3 h-3" />
-                        {lockedCount} ready to close
-                      </span>
-                    )}
+              <div className="mb-3 space-y-2">
+                <button
+                  onClick={() => setShowTransactionDialog(true)}
+                  className={`w-full p-3 rounded-lg transition-colors cursor-pointer text-left ${
+                    needsRetry
+                      ? "bg-red-500/10 border border-red-500/20 hover:bg-red-500/15"
+                      : "bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/15"
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-sm">
+                    <span className={`font-medium ${needsRetry ? "text-red-500" : "text-blue-500"}`}>
+                      {pendingCount} order{pendingCount !== 1 ? "s" : ""} in progress
+                    </span>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      {lockingCount > 0 && (
+                        <span className="flex items-center gap-1">
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          {lockingCount} locking
+                        </span>
+                      )}
+                      {closingCount > 0 && (
+                        <span className="flex items-center gap-1 text-yellow-500">
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          {closingCount} closing
+                        </span>
+                      )}
+                      {lockedCount > 0 && (
+                        <span className="flex items-center gap-1 text-green-500">
+                          <Check className="w-3 h-3" />
+                          {lockedCount} ready
+                        </span>
+                      )}
+                      {(errorCount > 0 || rejectedCount > 0) && (
+                        <span className="flex items-center gap-1 text-red-500">
+                          <AlertCircle className="w-3 h-3" />
+                          {errorCount + rejectedCount} failed
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </button>
+                </button>
+
+                {/* Retry All button when there are failed orders */}
+                {needsRetry && (
+                  <button
+                    onClick={() => {
+                      // Retry all failed/rejected orders
+                      pendingOrders.forEach((lockedOrder) => {
+                        const isRejected = rejectedOrders.has(lockedOrder.orderId);
+                        const hasError = lockedOrder.status === "error";
+                        const orderData = lockedOrder.orderData;
+
+                        if ((isRejected || hasError) && orderData && isOrderLocked(orderData)) {
+                          // Clear rejected state
+                          setRejectedOrders((prev) => {
+                            const newSet = new Set(prev);
+                            newSet.delete(lockedOrder.orderId);
+                            return newSet;
+                          });
+
+                          // Retry close
+                          updateOrderStatus(lockedOrder.orderId, "closing");
+                          setOrderProcessingStatus((prev) => ({ ...prev, [lockedOrder.orderId]: "closing" }));
+                          processCloseOrder(orderData).catch((err) => {
+                            console.error("Failed to close order:", err);
+                            if (err.message?.includes("reject") || err.message?.includes("denied")) {
+                              setRejectedOrders((prev) => new Set(prev).add(lockedOrder.orderId));
+                              updateOrderStatus(lockedOrder.orderId, "locked");
+                              setOrderProcessingStatus((prev) => ({ ...prev, [lockedOrder.orderId]: "locked" }));
+                            } else {
+                              updateOrderStatus(lockedOrder.orderId, "error", err.message);
+                              setOrderProcessingStatus((prev) => ({ ...prev, [lockedOrder.orderId]: "error" }));
+                            }
+                          });
+                        }
+                      });
+                    }}
+                    className="w-full p-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors"
+                  >
+                    Retry Failed Transactions ({errorCount + rejectedCount})
+                  </button>
+                )}
+              </div>
             );
           }
           return null;

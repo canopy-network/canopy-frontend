@@ -9,6 +9,7 @@ import { useWallet } from "@/components/wallet/wallet-provider";
 import { formatAddress } from "@/lib/utils/wallet-helpers";
 import { toast } from "sonner";
 import { SwitchWalletDialog } from "@/components/wallet/switch-wallet-dialog";
+import { OrderTracker } from "@/components/trading/order-tracker";
 
 export function WalletHeader() {
   const router = useRouter();
@@ -49,9 +50,7 @@ export function WalletHeader() {
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             {/* Avatar */}
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[#1dd13a] flex items-center justify-center shrink-0">
-              <span className="text-base sm:text-lg font-bold text-white">
-                {avatarLetter}
-              </span>
+              <span className="text-base sm:text-lg font-bold text-white">{avatarLetter}</span>
             </div>
 
             {/* Wallet Info */}
@@ -60,12 +59,7 @@ export function WalletHeader() {
                 <div className="text-sm sm:text-base font-semibold text-foreground truncate">
                   {formatAddress(currentWallet.address)}
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 shrink-0 hover:bg-muted"
-                  onClick={copyAddress}
-                >
+                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 hover:bg-muted" onClick={copyAddress}>
                   <Copy className="w-3 h-3" />
                 </Button>
               </div>
@@ -79,10 +73,7 @@ export function WalletHeader() {
                   {walletName}
                 </button>
                 <span className="text-muted-foreground">•</span>
-                <button
-                  onClick={() => setShowSwitchDialog(true)}
-                  className="hover:text-foreground transition-colors"
-                >
+                <button onClick={() => setShowSwitchDialog(true)} className="hover:text-foreground transition-colors">
                   Switch Wallet
                 </button>
               </div>
@@ -91,6 +82,9 @@ export function WalletHeader() {
 
           {/* Actions */}
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            {/* Order Tracker */}
+            <OrderTracker />
+
             <Button
               variant="outline"
               size="icon"
