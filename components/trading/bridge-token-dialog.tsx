@@ -2,8 +2,6 @@
 
 import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Wallet, ChevronRight, Loader2 } from "lucide-react";
 import { useAccount, useChainId, useReadContract } from "wagmi";
 import { formatUnits } from "viem";
@@ -214,7 +212,7 @@ export default function BridgeTokenDialog({
 
                 {/* Token List or Connect Button */}
                 {isConnected ? (
-                  <Card className="bg-muted/30 divide-y divide-border/50">
+                  <div className="space-y-2">
                     {stablecoins.map((token) => {
                       const balance = wallet.balances[token.symbol] || 0;
                       const hasBalance = balance > 0;
@@ -225,21 +223,21 @@ export default function BridgeTokenDialog({
                           key={token.symbol}
                           onClick={() => handleSelectToken(chain.id, token.symbol)}
                           disabled={!hasBalance || isLoading}
-                          className={`w-full p-3 flex items-center justify-between transition-colors ${
+                          className={`w-full px-4 py-3 flex items-center justify-between rounded-lg bg-muted/50 border border-border transition-all ${
                             hasBalance && !isLoading
-                              ? "hover:bg-muted/50 cursor-pointer"
+                              ? "hover:bg-muted hover:border-muted-foreground/30 cursor-pointer"
                               : "opacity-50 cursor-not-allowed"
                           }`}
                         >
                           <div className="flex items-center gap-3">
                             <div
-                              className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white"
+                              className="w-10 h-10 rounded-full flex items-center justify-center text-base font-bold text-white shadow-md"
                               style={{ backgroundColor: token.color }}
                             >
                               {token.icon}
                             </div>
                             <div className="text-left">
-                              <p className="font-medium text-sm">{token.symbol}</p>
+                              <p className="font-semibold text-sm text-foreground">{token.symbol}</p>
                               <p className="text-xs text-muted-foreground">{token.name}</p>
                             </div>
                           </div>
@@ -248,7 +246,7 @@ export default function BridgeTokenDialog({
                               <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
                             ) : (
                               <>
-                                <p className="font-medium text-sm">
+                                <p className="font-semibold text-sm text-foreground">
                                   {balance.toLocaleString("en-US", {
                                     minimumFractionDigits: 2,
                                     maximumFractionDigits: 2,
@@ -267,20 +265,21 @@ export default function BridgeTokenDialog({
                         </button>
                       );
                     })}
-                  </Card>
+                  </div>
                 ) : (
-                  <Button
-                    variant="outline"
-                    className="w-full h-12 justify-between"
+                  <button
+                    className="w-full px-4 py-3 flex items-center justify-between rounded-lg bg-muted/50 border border-border hover:bg-muted hover:border-muted-foreground/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() => handleConnectWallet(chain.id)}
                     disabled={isConnecting}
                   >
-                    <div className="flex items-center gap-2">
-                      <Wallet className="w-4 h-4" />
-                      <span>{isConnecting ? "Connecting..." : `Connect ${chain.name} Wallet`}</span>
+                    <div className="flex items-center gap-3">
+                      <Wallet className="w-5 h-5 text-muted-foreground" />
+                      <span className="font-semibold text-sm text-foreground">
+                        {isConnecting ? "Connecting..." : `Connect ${chain.name} Wallet`}
+                      </span>
                     </div>
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
+                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                  </button>
                 )}
               </div>
             );
