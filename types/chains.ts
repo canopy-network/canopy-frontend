@@ -351,25 +351,50 @@ export interface Transaction {
 
 /**
  * Create chain request payload
+ * Creates a chain in draft status with an inactive virtual pool
  */
 export interface CreateChainRequest {
+  /** Chain name (required, 1-100 chars) */
   chain_name: string;
-  token_name: string;
+  /** Token symbol (required, 1-20 chars, uppercase) */
   token_symbol: string;
-  chain_description?: string;
-  template_id?: string;
-  token_total_supply?: number;
-  graduation_threshold?: number;
-  creation_fee_cnpy?: number;
-  initial_cnpy_reserve?: number;
-  initial_token_supply?: number;
-  bonding_curve_slope?: number;
-  validator_min_stake?: number;
-  creator_initial_purchase_cnpy?: number;
+  /** Brand color in hex format (e.g., #3b82f6) */
   brand_color?: string;
+  /** Chain description (max 5000 chars) */
+  chain_description?: string;
+  /** Template ID for pre-configured defaults */
+  template_id?: string;
+  /** Genesis supply (1M-1T, default: 1000000000) */
+  genesis_supply?: number;
+  /** Block time in seconds (valid: 5, 10, 20, 30, 60, 120, 300, 600, 1800) */
   block_time_seconds?: number;
-  halving_schedule?: number;
+  /** Upgrade block height (min 1) */
+  upgrade_block_height?: number;
+  /** Block reward amount (min 0, default: 50.0) */
   block_reward_amount?: number;
+  /** Halving schedule in blocks (min 1000) */
+  halving_schedule?: number;
+  /** Graduation threshold in CNPY (1K-10M, default: 50000.00) */
+  graduation_threshold?: number;
+  /** Initial CNPY reserve (min 1000, default: 10000.00) */
+  initial_cnpy_reserve?: number;
+  /** Initial token supply (min 100K, default: 800000000) */
+  initial_token_supply?: number;
+  /** Validator minimum stake (min 100, default: 1000.00) */
+  validator_min_stake?: number;
+  /** Creator's initial CNPY purchase amount (min 0, default: 0) */
+  creator_initial_purchase_cnpy?: number;
+}
+
+/**
+ * Activate chain request payload
+ * Used to transition chain from draft to virtual_active status after payment
+ */
+export interface ActivateChainRequest {
+  /** Target status (must be "virtual_active") */
+  status: "virtual_active";
+  /** Transaction hash of the payment (64-66 chars) */
+  tx_hash: string;
 }
 
 /**

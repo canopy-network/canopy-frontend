@@ -13,6 +13,7 @@ import { apiClient } from "./client";
 import {
   Chain,
   CreateChainRequest,
+  ActivateChainRequest,
   GetChainsParams,
   GetTransactionsParams,
   VirtualPool,
@@ -20,7 +21,8 @@ import {
   CreateAssetRequest,
   ChainHolder,
   GetHoldersParams,
-  Accolade, ChainHeight,
+  Accolade,
+  ChainHeight,
 } from "@/types/chains";
 
 // ============================================================================
@@ -93,6 +95,26 @@ export const chainsApi = {
    */
   createChain: (data: CreateChainRequest) =>
     apiClient.post<Chain>("/api/v1/chains", data),
+
+  /**
+   * Activate a chain after payment verification
+   *
+   * @param id - Chain ID
+   * @param txHash - Transaction hash of the payment
+   * @returns Promise resolving to activated chain data
+   *
+   * @example
+   * ```typescript
+   * // Activate chain after payment
+   * const chain = await chainsApi.activateChain('123', 'abc123def456...');
+   * console.log(chain.status); // 'virtual_active'
+   * ```
+   */
+  activateChain: (id: string, txHash: string) =>
+    apiClient.patch<Chain>(`/api/v1/chains/${id}`, {
+      status: "virtual_active",
+      tx_hash: txHash,
+    } as ActivateChainRequest),
 
   /**
    * Delete a chain (only allowed in draft status)
