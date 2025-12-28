@@ -57,7 +57,10 @@ export function ValidatorsExplorer({ chainContext }: ValidatorsExplorerProps) {
   }, [currentPage]);
 
   // Fetch validators using React Query with pagination
-  const { data: validatorsResponse, isLoading: isLoadingValidators } = useValidators(
+  const {
+    data: validatorsResponse,
+    isLoading: isLoadingValidators,
+  } = useValidators(
     {
       ...(effectiveChainId && { chain_id: effectiveChainId }),
       limit: ROWS_PER_PAGE,
@@ -145,7 +148,10 @@ export function ValidatorsExplorer({ chainContext }: ValidatorsExplorerProps) {
     if (!query) return aggregatedValidators;
 
     return aggregatedValidators.filter((validator) => {
-      return [validator.validatorName, validator.address, validator.status].join(" ").toLowerCase().includes(query);
+      return [validator.validatorName, validator.address, validator.status]
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
     });
   }, [searchQuery, aggregatedValidators]);
 
@@ -267,7 +273,9 @@ export function ValidatorsExplorer({ chainContext }: ValidatorsExplorerProps) {
               const rewards30d = currentRewards * 30;
               // Calculate voting power percentage
               const chainStaked = parseFloat(chain.staked_cnpy?.replace(/,/g, "") || "0");
-              const votingPowerPercent = totalStaked > 0 ? ((chainStaked / totalStaked) * 100).toFixed(1) : "0.0";
+              const votingPowerPercent = totalStaked > 0
+                ? ((chainStaked / totalStaked) * 100).toFixed(1)
+                : "0.0";
 
               return (
                 <tr key={chain.chain_id} className="border-b border-white/5 hover:bg-white/5">
@@ -366,7 +374,9 @@ export function ValidatorsExplorer({ chainContext }: ValidatorsExplorerProps) {
           >
             {validator.validatorName}
           </Link>
-          <span className="text-xs text-muted-foreground">{formatAddress(validator.address)}</span>
+          <span className="text-xs text-muted-foreground">
+            {formatAddress(validator.address)}
+          </span>
         </div>
       </div>,
       // Stake
@@ -399,9 +409,7 @@ export function ValidatorsExplorer({ chainContext }: ValidatorsExplorerProps) {
       // Uptime
       <span
         key="uptime"
-        className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${getUptimeColor(
-          validator.uptime
-        )}`}
+        className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${getUptimeColor(validator.uptime)}`}
       >
         {validator.uptime.toFixed(1)}%
       </span>,
@@ -424,19 +432,19 @@ export function ValidatorsExplorer({ chainContext }: ValidatorsExplorerProps) {
       // Status
       <span
         key="status"
-        className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${getStatusColor(
-          validator.status
-        )}`}
+        className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${getStatusColor(validator.status)}`}
       >
         {validator.status}
+
       </span>,
       <div key={`expanded-${validator.address}`}>
         {expandedRows.has(filteredValidators.indexOf(validator)) ? (
           <ChevronUp className="w-5 h-5 text-white/40" />
         ) : (
           <ChevronDown className="w-5 h-5 text-white/40" />
-        )}
-      </div>,
+        )
+        }
+      </div>
     ];
   });
 

@@ -63,7 +63,10 @@ export { sendEmailCode, verifyCode } from "./auth";
 export { updateProfile, uploadUserMedia } from "./users";
 
 // Transactions API
-export { getChainTransactions, type Transaction as ApiTransaction } from "./transactions";
+export {
+  getChainTransactions,
+  type Transaction as ApiTransaction,
+} from "./transactions";
 
 // Price History API
 export {
@@ -75,7 +78,14 @@ export {
 } from "./price-history";
 
 // Health API
-export { healthApi, isApiHealthy, getApiVersion, getApiStatus, waitForApiHealth, monitorApiHealth } from "./health";
+export {
+  healthApi,
+  isApiHealthy,
+  getApiVersion,
+  getApiStatus,
+  waitForApiHealth,
+  monitorApiHealth,
+} from "./health";
 
 // Media Upload API
 export {
@@ -104,7 +114,10 @@ export { walletApi } from "./wallet";
 export { portfolioApi } from "./portfolio";
 
 // Wallet Transaction API
-export { walletTransactionApi, waitForTransactionCompletion } from "./wallet-transactions";
+export {
+  walletTransactionApi,
+  waitForTransactionCompletion,
+} from "./wallet-transactions";
 
 // Transactions API (wallet transactions)
 export { transactionsApi } from "./transactions";
@@ -137,6 +150,14 @@ export {
   type SlashingHistory,
 } from "./validators";
 
+// Orderbook API
+export { orderbookApi } from "./orderbook";
+
+// Params API (blockchain parameters)
+export { paramsApi } from "./params";
+
+// Address Book API
+export { addressBookApi } from "./address-book";
 // ============================================================================
 // CONVENIENCE RE-EXPORTS
 // ============================================================================
@@ -166,7 +187,12 @@ export type {
   AssetType,
 } from "@/types/chains";
 
-export type { Template, TemplateCategory, ComplexityLevel, GetTemplatesParams } from "@/types/templates";
+export type {
+  Template,
+  TemplateCategory,
+  ComplexityLevel,
+  GetTemplatesParams,
+} from "@/types/templates";
 
 // Explorer API
 export {
@@ -215,7 +241,12 @@ export type {
   WalletTransaction,
 } from "@/types/wallet";
 
-export type { OrderBookApiOrder, ChainOrderBook, OrderBookResponse, DisplayOrder } from "@/types/orderbook";
+export type {
+  OrderBookApiOrder,
+  ChainOrderBook,
+  OrderBookResponse,
+  DisplayOrder,
+} from "@/types/orderbook";
 
 export type { FeeParams } from "@/types/params";
 export { DEFAULT_FEE_PARAMS } from "@/types/params";
@@ -230,12 +261,3 @@ export type {
   NetworkType,
   ContactLabel,
 } from "@/types/address-book";
-
-// Orderbook API
-export { orderbookApi } from "./orderbook";
-
-// Params API (blockchain parameters)
-export { paramsApi } from "./params";
-
-// Address Book API
-export { addressBookApi } from "./address-book";

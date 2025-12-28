@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import { ChainDetailChart } from "@/components/charts/chain-detail-chart";
-import { TimeframeButton, TimeframeButtonLayout } from "@/components/charts/timeframe-button";
+import {
+  TimeframeButton,
+  TimeframeButtonLayout,
+} from "@/components/charts/timeframe-button";
 
 // Only show timeframes supported by the backend: 1h, 1d, 7d, 1m
 const timeframes = ["1H", "1D", "1W", "1M"];
@@ -31,15 +34,15 @@ const chartMetricConfig = {
   transactions: { label: "Transactions", color: "#9ca3af" },
 };
 
-export function ExplorerChart({
-  historicData,
+export function ExplorerChart({ 
+  historicData, 
   selectedTimeframe: externalTimeframe,
   onTimeframeChange,
   isLoadingHistorical = false,
 }: ExplorerChartProps) {
   const [chartMetric, setChartMetric] = useState<"tvl" | "volume" | "transactions">("tvl");
   const [internalTimeframe, setInternalTimeframe] = useState("1D");
-
+  
   // Use external timeframe if provided, otherwise use internal state
   const selectedTimeframe = externalTimeframe ?? internalTimeframe;
   const setSelectedTimeframe = (timeframe: string) => {
@@ -57,9 +60,9 @@ export function ExplorerChart({
   // Ensure data is in correct format (time as number, value as number)
   const formattedData = hasData
     ? currentData.map((point) => ({
-        time: typeof point.time === "number" ? point.time : parseInt(String(point.time)),
-        value: typeof point.value === "number" ? point.value : parseFloat(String(point.value)),
-      }))
+      time: typeof point.time === "number" ? point.time : parseInt(String(point.time)),
+      value: typeof point.value === "number" ? point.value : parseFloat(String(point.value)),
+    }))
     : null;
 
   return (
@@ -72,9 +75,10 @@ export function ExplorerChart({
               <button
                 key={metric}
                 onClick={() => setChartMetric(metric)}
-                className={`rounded-lg px-5 py-2 text-sm font-semibold transition-all ${
-                  active ? "border border-green-500  text-green-500" : "bg-white/5 text-gray-400 hover:text-white"
-                }`}
+                className={`rounded-lg px-5 py-2 text-sm font-semibold transition-all ${active
+                  ? "border border-green-500  text-green-500"
+                  : "bg-white/5 text-gray-400 hover:text-white"
+                  }`}
               >
                 {chartMetricConfig[metric].label}
               </button>

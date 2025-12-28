@@ -102,11 +102,7 @@ export function ValidatorDetailClient({ validator }: ValidatorDetailClientProps)
   }, [validator?.cross_chain]);
 
   // Fetch rewards history
-  const {
-    data: rewardsData,
-    isLoading: isLoadingRewards,
-    error: rewardsError,
-  } = useValidatorRewards(
+  const { data: rewardsData, isLoading: isLoadingRewards, error: rewardsError } = useValidatorRewards(
     {
       addresses: [validator.address],
       // Optionally filter by chain_id if needed
@@ -135,12 +131,8 @@ export function ValidatorDetailClient({ validator }: ValidatorDetailClientProps)
         hasData: !!rewardsData,
         hasRewardsByChain: !!rewardsData?.data?.rewards_by_chain,
         hasEventsByChain: !!rewardsData?.data?.events_by_chain,
-        rewardsByChainLength:
-          rewardsData?.data?.rewards_by_chain?.length || rewardsData?.data?.events_by_chain?.length || 0,
-        firstChainEvents:
-          rewardsData?.data?.rewards_by_chain?.[0]?.events?.length ||
-          rewardsData?.data?.events_by_chain?.[0]?.events?.length ||
-          0,
+        rewardsByChainLength: rewardsData?.data?.rewards_by_chain?.length || rewardsData?.data?.events_by_chain?.length || 0,
+        firstChainEvents: rewardsData?.data?.rewards_by_chain?.[0]?.events?.length || rewardsData?.data?.events_by_chain?.[0]?.events?.length || 0,
         fullStructure: rewardsData,
       });
     }
@@ -168,6 +160,7 @@ export function ValidatorDetailClient({ validator }: ValidatorDetailClientProps)
 
   // Process rewards data for chart
   const chartData = React.useMemo(() => {
+
     if (!rewardsData) {
       return [];
     }
@@ -279,6 +272,8 @@ export function ValidatorDetailClient({ validator }: ValidatorDetailClientProps)
 
   return (
     <div className="space-y-6">
+
+
       {/* Validator ID Card */}
       <div className="w-full px-4">
         <div className="flex items-center gap-4">
@@ -292,7 +287,9 @@ export function ValidatorDetailClient({ validator }: ValidatorDetailClientProps)
             <h1 className="text-3xl font-bold mb-2">{validatorName}</h1>
             <div className="flex items-center gap-4 flex-wrap">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground font-mono">{formatAddress(validator.address)}</span>
+                <span className="text-sm text-muted-foreground font-mono">
+                  {formatAddress(validator.address)}
+                </span>
                 <CopyableText text={validator.address} showFull={false} textClassName="hidden" />
               </div>
               {validator.validator_url && (
@@ -349,7 +346,9 @@ export function ValidatorDetailClient({ validator }: ValidatorDetailClientProps)
         <Card className="p-6">
           <div>
             <h3 className="text-lg font-semibold mb-2">Staking Positions</h3>
-            <p className="text-sm text-muted-foreground">Total Delegated: {formatCNPY(totalStaked)} CNPY</p>
+            <p className="text-sm text-muted-foreground">
+              Total Delegated: {formatCNPY(totalStaked)} CNPY
+            </p>
           </div>
           <div className="space-y-2">
             {validator.cross_chain && validator.cross_chain.length > 0 ? (
@@ -376,8 +375,12 @@ export function ValidatorDetailClient({ validator }: ValidatorDetailClientProps)
                     </div>
                     <Progress value={weight} variant="green" className="h-2" />
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-[#00a63d] font-medium">{formatCNPY(stakeCNPY)} CNPY</span>
-                      <span className="text-xs text-muted-foreground">${formatUSD(stakeUSD)} USD</span>
+                      <span className="text-sm text-[#00a63d] font-medium">
+                        {formatCNPY(stakeCNPY)} CNPY
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        ${formatUSD(stakeUSD)} USD
+                      </span>
                     </div>
                   </div>
                 );
@@ -398,11 +401,10 @@ export function ValidatorDetailClient({ validator }: ValidatorDetailClientProps)
               <button
                 key={tf}
                 onClick={() => setSelectedTimeframe(tf)}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  selectedTimeframe === tf
-                    ? "bg-white/20 text-mu"
-                    : "bg-white/5 text-muted-foreground hover:bg-white/20"
-                }`}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${selectedTimeframe === tf
+                  ? "bg-white/20 text-mu"
+                  : "bg-white/5 text-muted-foreground hover:bg-white/20"
+                  }`}
               >
                 {tf}
               </button>
@@ -412,10 +414,17 @@ export function ValidatorDetailClient({ validator }: ValidatorDetailClientProps)
           {/* Chart */}
           <div className="h-[272px] mb-4">
             {isLoadingRewards ? (
-              <div className="flex items-center justify-center h-full text-muted-foreground">Loading chart...</div>
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                Loading chart...
+              </div>
             ) : chartData.length > 0 ? (
-              <ChainDetailChart data={chartData} height={272} timeframe={selectedTimeframe} lineColor="#9ca3af" />
-            ) : rewardsData?.data?.events_by_chain || rewardsData?.data?.rewards_by_chain ? (
+              <ChainDetailChart
+                data={chartData}
+                height={272}
+                timeframe={selectedTimeframe}
+                lineColor="#9ca3af"
+              />
+            ) : (rewardsData?.data?.events_by_chain || rewardsData?.data?.rewards_by_chain) ? (
               <div className="flex items-center justify-center h-full text-muted-foreground">
                 Processing rewards data...
               </div>
@@ -433,8 +442,12 @@ export function ValidatorDetailClient({ validator }: ValidatorDetailClientProps)
               last5DaysRewards.map((day, idx) => (
                 <div key={idx} className="flex items-center justify-between py-2 border rounded-lg p-2 border-white/10">
                   <span className="text-sm text-muted-foreground">{day.date}</span>
-                  <span className="text-sm text-[#00a63d] font-medium">{formatCNPY(day.totalCNPY)} CNPY</span>
-                  <span className="text-xs text-muted-foreground">${formatUSD(day.totalUSD)} USD</span>
+                  <span className="text-sm text-[#00a63d] font-medium">
+                    {formatCNPY(day.totalCNPY)} CNPY
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    ${formatUSD(day.totalUSD)} USD
+                  </span>
                 </div>
               ))
             ) : (
@@ -442,6 +455,7 @@ export function ValidatorDetailClient({ validator }: ValidatorDetailClientProps)
             )}
           </div>
         </Card>
+
       </div>
 
       {/* Slashing History */}
@@ -458,45 +472,44 @@ export function ValidatorDetailClient({ validator }: ValidatorDetailClientProps)
         rows={
           slashesData?.data?.events_by_chain
             ? slashesData.data.events_by_chain.flatMap((chainGroup) =>
-                chainGroup.events.map((event) => {
-                  const chainName = chainGroup.chain_name || event.chain_name || `Chain ${chainGroup.source_chain_id}`;
-                  const chainColor =
-                    chainColors[chainGroup.source_chain_id] || getCanopyAccent(chainGroup.source_chain_id.toString());
+              chainGroup.events.map((event) => {
+                const chainName = chainGroup.chain_name || event.chain_name || `Chain ${chainGroup.source_chain_id}`;
+                const chainColor = chainColors[chainGroup.source_chain_id] || getCanopyAccent(chainGroup.source_chain_id.toString());
 
-                  return [
-                    // Chain
-                    <div key="chain" className="flex items-center gap-2">
-                      <div
-                        className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-                        dangerouslySetInnerHTML={{
-                          __html: canopyIconSvg(chainColor),
-                        }}
-                      />
-                      <span className="text-sm font-medium">{chainName}</span>
-                    </div>,
-                    // Height
-                    <span key="height" className="text-sm text-white font-medium">
-                      {event.height.toLocaleString()}
-                    </span>,
-                    // Amount (native token)
-                    <span key="amount" className="text-sm text-white">
-                      {event.amount ? formatCNPY(event.amount) : "—"}
-                    </span>,
-                    // CNPY Amount
-                    <span key="cnpy" className="text-sm text-[#00a63d] font-medium">
-                      {event.cnpy_amount ? `${formatCNPY(event.cnpy_amount)} CNPY` : "—"}
-                    </span>,
-                    // USD Amount
-                    <span key="usd" className="text-sm text-white">
-                      {event.usd_amount ? `$${formatUSD(event.usd_amount)} USD` : "—"}
-                    </span>,
-                    // Time
-                    <span key="time" className="text-sm text-muted-foreground">
-                      {formatTimeAgo(event.timestamp)}
-                    </span>,
-                  ];
-                })
-              )
+                return [
+                  // Chain
+                  <div key="chain" className="flex items-center gap-2">
+                    <div
+                      className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+                      dangerouslySetInnerHTML={{
+                        __html: canopyIconSvg(chainColor),
+                      }}
+                    />
+                    <span className="text-sm font-medium">{chainName}</span>
+                  </div>,
+                  // Height
+                  <span key="height" className="text-sm text-white font-medium">
+                    {event.height.toLocaleString()}
+                  </span>,
+                  // Amount (native token)
+                  <span key="amount" className="text-sm text-white">
+                    {event.amount ? formatCNPY(event.amount) : "—"}
+                  </span>,
+                  // CNPY Amount
+                  <span key="cnpy" className="text-sm text-[#00a63d] font-medium">
+                    {event.cnpy_amount ? `${formatCNPY(event.cnpy_amount)} CNPY` : "—"}
+                  </span>,
+                  // USD Amount
+                  <span key="usd" className="text-sm text-white">
+                    {event.usd_amount ? `$${formatUSD(event.usd_amount)} USD` : "—"}
+                  </span>,
+                  // Time
+                  <span key="time" className="text-sm text-muted-foreground">
+                    {formatTimeAgo(event.timestamp)}
+                  </span>,
+                ];
+              })
+            )
             : []
         }
         loading={isLoadingSlashes}
@@ -530,7 +543,7 @@ export function ValidatorDetailClient({ validator }: ValidatorDetailClientProps)
                   };
                 }
                 // Simulate slight variations around the uptime value
-                const variation = Math.sin(i * 0.5) * 0.3 + (Math.random() * 0.2 - 0.1);
+                const variation = (Math.sin(i * 0.5) * 0.3) + (Math.random() * 0.2 - 0.1);
                 return {
                   time: i,
                   value: Math.max(95, Math.min(100, uptime + variation)),
@@ -549,7 +562,9 @@ export function ValidatorDetailClient({ validator }: ValidatorDetailClientProps)
                             __html: canopyIconSvg(chainColor),
                           }}
                         />
-                        <button className="px-2 py-1 rounded text-xs bg-white/10 text-white">{chainName}</button>
+                        <button className="px-2 py-1 rounded text-xs bg-white/10 text-white">
+                          {chainName}
+                        </button>
                       </div>
                     </div>
 
@@ -565,27 +580,33 @@ export function ValidatorDetailClient({ validator }: ValidatorDetailClientProps)
                         {/* Grid lines */}
                         <div className="absolute inset-0 flex flex-col justify-between">
                           {[0, 0.25, 0.5, 0.75, 1].map((pos) => (
-                            <div key={pos} className="w-full h-px bg-white/5" style={{ top: `${pos * 100}%` }} />
+                            <div
+                              key={pos}
+                              className="w-full h-px bg-white/5"
+                              style={{ top: `${pos * 100}%` }}
+                            />
                           ))}
                         </div>
                         <div className="absolute inset-0 flex justify-between">
                           {[0, 0.5, 1].map((pos) => (
-                            <div key={pos} className="h-full w-px bg-white/5" style={{ left: `${pos * 100}%` }} />
+                            <div
+                              key={pos}
+                              className="h-full w-px bg-white/5"
+                              style={{ left: `${pos * 100}%` }}
+                            />
                           ))}
                         </div>
 
                         {/* Chart line */}
                         <svg className="absolute inset-0 w-full h-full" viewBox="0 0 200 80" preserveAspectRatio="none">
                           <polyline
-                            points={chartDataPoints
-                              .map((point, idx) => {
-                                const x = (idx / (chartDataPoints.length - 1)) * 200;
-                                // If uptime is 0, show line at bottom (y = 80)
-                                // Otherwise, scale from 95-100 range to 0-80 range
-                                const y = uptime === 0 ? 80 : 80 - (point.value - 95) * 16;
-                                return `${x},${y}`;
-                              })
-                              .join(" ")}
+                            points={chartDataPoints.map((point, idx) => {
+                              const x = (idx / (chartDataPoints.length - 1)) * 200;
+                              // If uptime is 0, show line at bottom (y = 80)
+                              // Otherwise, scale from 95-100 range to 0-80 range
+                              const y = uptime === 0 ? 80 : (80 - (point.value - 95) * 16);
+                              return `${x},${y}`;
+                            }).join(" ")}
                             fill="none"
                             stroke="#00a63d"
                             strokeWidth="2"

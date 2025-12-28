@@ -149,7 +149,9 @@ const formatTrendingValue = (value?: number | null) => {
   return `$${value.toLocaleString()}`;
 };
 
-const mapTrendingChainsToSummary = (chains: ExplorerTrendingChain[]): ChainSummary[] =>
+const mapTrendingChainsToSummary = (
+  chains: ExplorerTrendingChain[]
+): ChainSummary[] =>
   chains.map((chain) => {
     // Generate 7-day chart data based on chain metrics (simulated trend)
     // Use a combination of chain_id and rank to create consistent but varied trends
@@ -202,7 +204,10 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
   }, [searchParams]);
 
   // Use React Query hooks with auto-refetch every 10 seconds
-  const { data: recentTransactions = [], isLoading: isLoadingTransactions } = useExplorerTransactions(
+  const {
+    data: recentTransactions = [],
+    isLoading: isLoadingTransactions,
+  } = useExplorerTransactions(
     {
       limit: 5,
       sort: "desc",
@@ -211,7 +216,10 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
     { refetchInterval: 10000 } // Refetch every 10 seconds
   );
 
-  const { data: recentBlocks = [], isLoading: isLoadingBlocks } = useExplorerBlocks(
+  const {
+    data: recentBlocks = [],
+    isLoading: isLoadingBlocks,
+  } = useExplorerBlocks(
     {
       limit: 5,
       ...(selectedChainId && { chain_id: selectedChainId }),
@@ -219,12 +227,18 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
     { refetchInterval: 10000 } // Refetch every 10 seconds
   );
 
-  const { data: trendingChainsData = [], isLoading: isLoadingTrending } = useExplorerTrendingChains(
+  const {
+    data: trendingChainsData = [],
+    isLoading: isLoadingTrending,
+  } = useExplorerTrendingChains(
     { limit: 10 },
     { refetchInterval: 30000 } // Refetch every 30 seconds
   );
 
-  const { data: overviewData, isLoading: isLoadingOverview } = useExplorerOverview(
+  const {
+    data: overviewData,
+    isLoading: isLoadingOverview,
+  } = useExplorerOverview(
     selectedChainId ? { chain_id: selectedChainId } : undefined,
     {
       refetchInterval: 30000, // Refetch every 30 seconds
@@ -258,24 +272,29 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
   // Fetch historical data for TVL chart
   // Always use the selected timeframe (range and interval)
   // Only include chain_id if a chain is selected
-  const { data: historicalData, isLoading: isLoadingHistorical } = useExplorerHistorical(
+  const {
+    data: historicalData,
+    isLoading: isLoadingHistorical,
+  } = useExplorerHistorical(
     selectedChainId
       ? {
-          chain_id: selectedChainId,
-          range,
-          interval,
-        }
+        chain_id: selectedChainId,
+        range,
+        interval,
+      }
       : {
-          // When no chain selected, use selected timeframe without chain_id
-          range,
-          interval,
-        },
+        // When no chain selected, use selected timeframe without chain_id
+        range,
+        interval,
+      },
     {
       refetchInterval: 60000, // Refetch every 60 seconds
     }
   );
 
-  const { data: validatorsResponse } = useValidators(
+  const {
+    data: validatorsResponse,
+  } = useValidators(
     {
       status: "active",
       limit: 20,
@@ -302,7 +321,10 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
       const uptime = Number(validator.uptime ?? 0);
       const shortAddress = `${validator.address.slice(0, 6)}...${validator.address.slice(-6)}`;
 
-      const statusMap: Record<ValidatorData["status"], "healthy" | "warning" | "at_risk"> = {
+      const statusMap: Record<
+        ValidatorData["status"],
+        "healthy" | "warning" | "at_risk"
+      > = {
         active: "healthy",
         unstaking: "warning",
         paused: "at_risk",
@@ -320,7 +342,9 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
         originalStatus: validator.status,
         healthScore: undefined,
         commissionRate: validator.delegate ? 10 : 5,
-        chains: validator.committees ? validator.committees.map((id) => `Chain ${id}`) : [validator.chain_name],
+        chains: validator.committees
+          ? validator.committees.map((id) => `Chain ${id}`)
+          : [validator.chain_name],
         stakedAmount: validator.staked_amount, // Raw stake in micro units
         stakedCnp: validator.staked_cnpy, // Formatted stake
       };
@@ -338,9 +362,14 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
           limit: 8,
         });
 
-        let graduatedChains = (graduatedChainsResponse as any)?.data || graduatedChainsResponse || [];
+        let graduatedChains =
+          (graduatedChainsResponse as any)?.data || graduatedChainsResponse || [];
 
-        if (graduatedChains && typeof graduatedChains === "object" && Array.isArray((graduatedChains as any).data)) {
+        if (
+          graduatedChains &&
+          typeof graduatedChains === "object" &&
+          Array.isArray((graduatedChains as any).data)
+        ) {
           graduatedChains = (graduatedChains as any).data;
         }
 
@@ -351,8 +380,13 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
             limit: 50,
           });
 
-          graduatedChains = (allGraduated as any)?.data || allGraduated || graduatedChains;
-          if (graduatedChains && typeof graduatedChains === "object" && Array.isArray((graduatedChains as any).data)) {
+          graduatedChains =
+            (allGraduated as any)?.data || allGraduated || graduatedChains;
+          if (
+            graduatedChains &&
+            typeof graduatedChains === "object" &&
+            Array.isArray((graduatedChains as any).data)
+          ) {
             graduatedChains = (graduatedChains as any).data;
           }
         }
@@ -363,13 +397,16 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
         }
 
         const withGraduation = graduatedChains
-          .filter((chain: { graduation_time: any }) => chain.graduation_time)
+          .filter((chain: { graduation_time: any; }) => chain.graduation_time)
           .sort(
-            (a: { graduation_time: any }, b: { graduation_time: any }) =>
-              new Date(b.graduation_time || 0).getTime() - new Date(a.graduation_time || 0).getTime()
+            (a: { graduation_time: any; }, b: { graduation_time: any; }) =>
+              new Date(b.graduation_time || 0).getTime() -
+              new Date(a.graduation_time || 0).getTime()
           );
 
-        const withoutGraduation = graduatedChains.filter((chain: { graduation_time: any }) => !chain.graduation_time);
+        const withoutGraduation = graduatedChains.filter(
+          (chain: { graduation_time: any; }) => !chain.graduation_time
+        );
 
         const ordered = [...withGraduation, ...withoutGraduation];
         setNewChains(ordered.slice(0, 8));
@@ -386,7 +423,9 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
     <>
       <div className="space-y-6 max-w-7xl mx-auto relative py-6">
         {/* Search Bar */}
-        <div className="bg-background sticky top-0 left-0 right-0 z-99">
+        <div
+          className="bg-background sticky top-0 left-0 right-0 z-99"
+        >
           <ExplorerSearchBar />
         </div>
         <NetworkOverview
@@ -394,10 +433,10 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
           historicData={
             historicalData
               ? {
-                  tvl: historicalData.tvl || [],
-                  volume: historicalData.volume || [],
-                  transactions: historicalData.transactions,
-                }
+                tvl: historicalData.tvl || [],
+                volume: historicalData.volume || [],
+                transactions: historicalData.transactions,
+              }
               : undefined
           }
           selectedTimeframe={selectedTimeframe}
@@ -421,9 +460,16 @@ export function ExplorerDashboard({ overviewData: initialOverviewData }: Explore
           </div>
         )}
 
-        <RecentTransactions transactions={recentTransactions} isLoading={isLoadingTransactions} />
+        <RecentTransactions
+          transactions={recentTransactions}
+          isLoading={isLoadingTransactions}
+        />
 
-        <LatestBlocks blocks={recentBlocks} isLoading={isLoadingBlocks} />
+        <LatestBlocks
+          blocks={recentBlocks}
+          isLoading={isLoadingBlocks}
+        />
+
       </div>
     </>
   );

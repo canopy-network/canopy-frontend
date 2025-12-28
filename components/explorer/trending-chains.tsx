@@ -78,7 +78,9 @@ function MiniVolumeChart({ volumeHistory }: { volumeHistory?: VolumeHistoryEntry
   const color = isPositive ? "#00a63d" : "#ef4444"; // Green for positive, red for negative
 
   // Normalize values to 0-1 range for chart height
-  const normalizedValues = volumes.map((vol) => (range > 0 ? (vol - minVolume) / range : 0.5));
+  const normalizedValues = volumes.map((vol) =>
+    range > 0 ? (vol - minVolume) / range : 0.5
+  );
 
   const width = 80;
   const height = 32;
@@ -88,13 +90,11 @@ function MiniVolumeChart({ volumeHistory }: { volumeHistory?: VolumeHistoryEntry
   const pointSpacing = chartWidth / (normalizedValues.length - 1 || 1);
 
   // Generate path for line
-  const pathPoints = normalizedValues
-    .map((value, index) => {
-      const x = padding + index * pointSpacing;
-      const y = padding + chartHeight - value * chartHeight;
-      return `${index === 0 ? "M" : "L"} ${x} ${y}`;
-    })
-    .join(" ");
+  const pathPoints = normalizedValues.map((value, index) => {
+    const x = padding + index * pointSpacing;
+    const y = padding + chartHeight - (value * chartHeight);
+    return `${index === 0 ? "M" : "L"} ${x} ${y}`;
+  }).join(" ");
 
   return (
     <div className="w-20 h-8">
@@ -171,28 +171,42 @@ export function TrendingChains({ chains }: TrendingChainsProps) {
             __html: canopyIconSvg(getCanopyAccent(chain.id)),
           }}
         />
-        <div className="flex flex-col hover:text-primary transition-colors">
+        <div
+          className="flex flex-col hover:text-primary transition-colors"
+        >
           <span className="font-medium text-white text-sm">{chain.name}</span>
-          {chain.ticker && <span className="text-xs text-muted-foreground">{chain.ticker}</span>}
+          {chain.ticker && (
+            <span className="text-xs text-muted-foreground">
+              {chain.ticker}
+            </span>
+          )}
         </div>
       </div>,
       // Market Cap
       <div key="market-cap" className="flex flex-col">
         <span className="text-white font-medium text-sm">{chain.market_cap}</span>
         {chain.marketCapRaw && (
-          <span className="text-xs text-muted-foreground">{formatCNPYValue(chain.marketCapRaw)} CNPY</span>
+          <span className="text-xs text-muted-foreground">
+            {formatCNPYValue(chain.marketCapRaw)} CNPY
+          </span>
         )}
       </div>,
       // TVL
       <div key="tvl" className="flex flex-col">
         <span className="text-white font-medium text-sm">{chain.tvl}</span>
-        {chain.tvlRaw && <span className="text-xs text-muted-foreground">{formatCNPYValue(chain.tvlRaw)} CNPY</span>}
+        {chain.tvlRaw && (
+          <span className="text-xs text-muted-foreground">
+            {formatCNPYValue(chain.tvlRaw)} CNPY
+          </span>
+        )}
       </div>,
       // Liquidity
       <div key="liquidity" className="flex flex-col">
         <span className="text-white font-medium text-sm">{chain.liquidity}</span>
         {chain.liquidityRaw && (
-          <span className="text-xs text-muted-foreground">{formatCNPYValue(chain.liquidityRaw)} CNPY</span>
+          <span className="text-xs text-muted-foreground">
+            {formatCNPYValue(chain.liquidityRaw)} CNPY
+          </span>
         )}
       </div>,
       // Volume 24H
@@ -201,9 +215,10 @@ export function TrendingChains({ chains }: TrendingChainsProps) {
           <span className="text-white font-medium text-sm">{chain.volume_24h}</span>
           {chain.change_24h !== undefined && chain.change_24h !== null && (
             <span
-              className={`text-xs font-semibold px-1.5 py-0.5 rounded ${
-                chain.change_24h >= 0 ? "text-[#00a63d] bg-[#00a63d]/10" : "text-[#ef4444] bg-[#ef4444]/10"
-              }`}
+              className={`text-xs font-semibold px-1.5 py-0.5 rounded ${chain.change_24h >= 0
+                  ? "text-[#00a63d] bg-[#00a63d]/10"
+                  : "text-[#ef4444] bg-[#ef4444]/10"
+                }`}
             >
               {chain.change_24h >= 0 ? "↑" : "↓"}
               {Math.abs(chain.change_24h).toFixed(1)}%
@@ -232,7 +247,9 @@ export function TrendingChains({ chains }: TrendingChainsProps) {
               }}
             />
           </div>
-          <span className="text-gray-400 font-medium text-sm">+{chain.holders.toLocaleString()}</span>
+          <span className="text-gray-400 font-medium text-sm">
+            +{chain.holders.toLocaleString()}
+          </span>
         </div>
       </div>,
       // Last 7 days chart

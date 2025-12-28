@@ -4,7 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { TableCard, TableColumn } from "@/components/explorer/table-card";
-import { useExplorerSearch, getExplorerBlocksWithPagination, type Block } from "@/lib/api/explorer";
+import {
+  useExplorerSearch,
+  getExplorerBlocksWithPagination,
+  type Block,
+} from "@/lib/api/explorer";
 import type { ExplorerBlocksResponse } from "@/types/blocks";
 import { canopyIconSvg, EXPLORER_ICON_GLOW, getCanopyAccent } from "@/lib/utils/brand";
 import { useChainsStore } from "@/lib/stores/chains-store";
@@ -54,7 +58,10 @@ interface BlocksExplorerProps {
   children?: React.ReactNode | React.ReactNode[];
 }
 
-export function BlocksExplorer({ chainContext, children }: BlocksExplorerProps) {
+export function BlocksExplorer({
+  chainContext,
+  children,
+}: BlocksExplorerProps) {
   const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -91,7 +98,9 @@ export function BlocksExplorer({ chainContext, children }: BlocksExplorerProps) 
 
     const searchChains = async () => {
       try {
-        const response = await fetch(`/api/chains/search?q=${encodeURIComponent(trimmedSearchQuery)}`);
+        const response = await fetch(
+          `/api/chains/search?q=${encodeURIComponent(trimmedSearchQuery)}`
+        );
         const data = await response.json();
 
         if (data.success && data.chains && data.chains.length > 0) {
@@ -121,7 +130,10 @@ export function BlocksExplorer({ chainContext, children }: BlocksExplorerProps) 
   });
 
   // Fetch blocks using search API when there's a search query but no chain match
-  const { data: searchResults, isLoading: isSearching } = useExplorerSearch(trimmedSearchQuery, {
+  const {
+    data: searchResults,
+    isLoading: isSearching,
+  } = useExplorerSearch(trimmedSearchQuery, {
     enabled: shouldUseSearch && !searchedChainId, // Only use explorer search if no chain was found
   });
 
@@ -153,7 +165,10 @@ export function BlocksExplorer({ chainContext, children }: BlocksExplorerProps) 
 
   // Fetch blocks using blocks API when there's no search or when a chain was found
   // Use getExplorerBlocksWithPagination to get full response with pagination
-  const { data: blocksResponse, isLoading: isLoadingBlocks } = useQuery<ExplorerBlocksResponse>({
+  const {
+    data: blocksResponse,
+    isLoading: isLoadingBlocks,
+  } = useQuery<ExplorerBlocksResponse>({
     queryKey: ["explorer", "blocks", effectiveChainId, currentCursor, ROWS_PER_PAGE, currentPage],
     queryFn: async () => {
       // Use getExplorerBlocksWithPagination which uses explorerApi.getBlocks internally
@@ -198,7 +213,9 @@ export function BlocksExplorer({ chainContext, children }: BlocksExplorerProps) 
     }
 
     // The API returns { data: Block[], pagination: { limit, next_cursor } }
-    const blocksData = Array.isArray(blocksResponse.data) ? blocksResponse.data : [];
+    const blocksData = Array.isArray(blocksResponse.data)
+      ? blocksResponse.data
+      : [];
 
     // Update cursor history and total count based on pagination
     if (blocksData.length > 0) {
@@ -229,7 +246,7 @@ export function BlocksExplorer({ chainContext, children }: BlocksExplorerProps) 
         setTotalCount(nextCursor);
       } else {
         // This is the last page, calculate exact total from current page data
-        setTotalCount(blocksData.length + (currentPage - 1) * ROWS_PER_PAGE);
+        setTotalCount(blocksData.length + ((currentPage - 1) * ROWS_PER_PAGE));
       }
     } else {
       setTotalCount(0);
@@ -251,10 +268,10 @@ export function BlocksExplorer({ chainContext, children }: BlocksExplorerProps) 
   const totalEntries = shouldUseSearch
     ? searchBlocks.length
     : totalCount > 0
-    ? totalCount
-    : blocks.length > 0
-    ? blocks.length
-    : 0;
+      ? totalCount
+      : blocks.length > 0
+        ? blocks.length
+        : 0;
 
   const paginatedBlocks = useMemo(() => {
     if (shouldUseSearch) {
@@ -283,100 +300,101 @@ export function BlocksExplorer({ chainContext, children }: BlocksExplorerProps) 
     { label: "Gas", width: "w-32" },
   ];
 
-  const rows = paginatedBlocks
-    .map((block) => {
-      // Validate block has required fields
-      if (!block || !block.height) {
-        return null;
-      }
+  const rows = paginatedBlocks.map((block) => {
+    // Validate block has required fields
+    if (!block || !block.height) {
+      return null;
+    }
 
-      const chainColor = getChainColor(block.chain_id || 1);
-      const validatorName = block.proposer_address ? getValidatorName(block.proposer_address) : "—";
-      const numTxs = block.num_txs ?? (block as any).total_txs ?? 0;
-      const blockTime = (block as any).block_time;
-      const totalFees = (block as any).total_fees ?? 0;
+    const chainColor = getChainColor(block.chain_id || 1);
+    const validatorName = block.proposer_address ? getValidatorName(block.proposer_address) : "—";
+    const numTxs = block.num_txs ?? (block as any).total_txs ?? 0;
+    const blockTime = (block as any).block_time;
+    const totalFees = (block as any).total_fees ?? 0;
 
-      return [
-        // Height - with green cube icon
-        <Link
-          key="height"
-          href={`/blocks/${block.height}`}
-          className="flex items-center gap-2 text-xs text-white/80 hover:opacity-80 transition-opacity hover:underline font-medium"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-center justify-center w-5 h-5 border border-[#00a63d] rounded bg-black/30">
-            <Box className={`w-3 h-3 text-[#00a63d] ${EXPLORER_ICON_GLOW}`} />
-          </div>
-          {block.height ? block.height.toLocaleString() : "—"}
-        </Link>,
-        // Hash
-        <Link
-          key="hash"
-          href={`/blocks/${block.height}`}
-          className="text-xs font-mono text-white/80 hover:opacity-80 transition-opacity hover:underline"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {block.hash ? formatAddress(block.hash, 6, 4) : "—"}
-        </Link>,
-        // Transactions
-        <span key="txns" className="text-sm text-white/80">
-          {numTxs.toLocaleString()}
-        </span>,
-        // Time
-        <span key="time" className="text-sm text-muted-foreground">
-          {block.timestamp ? formatTimeAgo(block.timestamp) : "—"}
-        </span>,
-        // Block Time
-        <span key="block-time" className="text-sm text-muted-foreground">
-          {formatBlockTime(blockTime)}
-        </span>,
-        // Producer - with icon, validator name and address
-        <div key="producer" className="flex flex-col gap-1">
-          {block.proposer_address ? (
-            <>
-              <div className="flex items-center gap-2">
-                <div
-                  className="w-4 h-4 flex items-center justify-center shrink-0"
-                  dangerouslySetInnerHTML={{
-                    __html: canopyIconSvg(chainColor),
-                  }}
-                />
-                <Link
-                  href={`/validators/${block.proposer_address}`}
-                  className="text-xs font-medium text-white hover:opacity-80 transition-opacity hover:underline"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {validatorName}
-                </Link>
-              </div>
+    return [
+      // Height - with green cube icon
+      <Link
+        key="height"
+        href={`/blocks/${block.height}`}
+        className="flex items-center gap-2 text-xs text-white/80 hover:opacity-80 transition-opacity hover:underline font-medium"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-center w-5 h-5 border border-[#00a63d] rounded bg-black/30">
+          <Box className={`w-3 h-3 text-[#00a63d] ${EXPLORER_ICON_GLOW}`} />
+        </div>
+        {block.height ? block.height.toLocaleString() : "—"}
+      </Link>,
+      // Hash
+      <Link
+        key="hash"
+        href={`/blocks/${block.height}`}
+        className="text-xs font-mono text-white/80 hover:opacity-80 transition-opacity hover:underline"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {block.hash ? formatAddress(block.hash, 6, 4) : "—"}
+      </Link>,
+      // Transactions
+      <span key="txns" className="text-sm text-white/80">
+        {numTxs.toLocaleString()}
+      </span>,
+      // Time
+      <span key="time" className="text-sm text-muted-foreground">
+        {block.timestamp ? formatTimeAgo(block.timestamp) : "—"}
+      </span>,
+      // Block Time
+      <span key="block-time" className="text-sm text-muted-foreground">
+        {formatBlockTime(blockTime)}
+      </span>,
+      // Producer - with icon, validator name and address
+      <div key="producer" className="flex flex-col gap-1">
+        {block.proposer_address ? (
+          <>
+            <div className="flex items-center gap-2">
+              <div
+                className="w-4 h-4 flex items-center justify-center shrink-0"
+                dangerouslySetInnerHTML={{
+                  __html: canopyIconSvg(chainColor),
+                }}
+              />
               <Link
-                href={`/accounts/${block.proposer_address}`}
-                className="text-xs font-mono text-white/60 hover:opacity-80 transition-opacity hover:underline"
+                href={`/validators/${block.proposer_address}`}
+                className="text-xs font-medium text-white hover:opacity-80 transition-opacity hover:underline"
                 onClick={(e) => e.stopPropagation()}
               >
-                <CopyableText
-                  text={block.proposer_address}
-                  truncate={(addr) => formatAddress(addr, 5, 5)}
-                  className="text-xs"
-                />
+                {validatorName}
               </Link>
-            </>
-          ) : (
-            <span className="text-xs text-muted-foreground">—</span>
-          )}
-        </div>,
-        // Gas
-        <span key="gas" className="text-sm text-white/80 text-right">
-          {totalFees.toLocaleString(undefined, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}
-        </span>,
-      ];
-    })
-    .filter((row) => row !== null); // Filter out null rows
+            </div>
+            <Link
+              href={`/accounts/${block.proposer_address}`}
+              className="text-xs font-mono text-white/60 hover:opacity-80 transition-opacity hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <CopyableText
+                text={block.proposer_address}
+                truncate={(addr) => formatAddress(addr, 5, 5)}
+                className="text-xs"
+              />
+            </Link>
+          </>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        )}
+      </div>,
+      // Gas
+      <span key="gas" className="text-sm text-white/80 text-right">
+        {totalFees.toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}
+      </span>,
+    ];
+  }).filter((row) => row !== null); // Filter out null rows
 
-  const isLoading = shouldUseSearch ? (searchedChainId !== undefined ? isLoadingBlocks : isSearching) : isLoadingBlocks;
+  const isLoading = shouldUseSearch
+    ? (searchedChainId !== undefined ? isLoadingBlocks : isSearching)
+    : isLoadingBlocks;
+
 
   // Handle search - use search API
   const handleSearch = (query: string) => {

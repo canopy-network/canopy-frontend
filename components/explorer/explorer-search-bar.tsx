@@ -41,15 +41,21 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
   // Type guards
-  const isTransactionResult = (result: ExplorerSearchResult): result is ExplorerTransactionSearchResult => {
+  const isTransactionResult = (
+    result: ExplorerSearchResult
+  ): result is ExplorerTransactionSearchResult => {
     return result.type === "transaction";
   };
 
-  const isBlockResult = (result: ExplorerSearchResult): result is ExplorerBlockSearchResult => {
+  const isBlockResult = (
+    result: ExplorerSearchResult
+  ): result is ExplorerBlockSearchResult => {
     return result.type === "block";
   };
 
-  const isAddressResult = (result: ExplorerSearchResult): result is ExplorerAddressSearchResult => {
+  const isAddressResult = (
+    result: ExplorerSearchResult
+  ): result is ExplorerAddressSearchResult => {
     return result.type === "address";
   };
 
@@ -109,11 +115,11 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
               resultKeys: result.result ? Object.keys(result.result) : [],
               fullResult: result,
             });
-
+            
             // Normalize type to lowercase for comparison
             const normalizedType = String(result.type).toLowerCase().trim();
             console.log(`[ExplorerSearchBar] Normalized type: "${normalizedType}"`);
-
+            
             if (normalizedType === "transaction") {
               console.log("[ExplorerSearchBar] Adding transaction result");
               grouped.transactions.push(result);
@@ -205,7 +211,10 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
 
   // Calculate total results count
   const totalResults = useMemo(() => {
-    const total = searchResults.transactions.length + searchResults.blocks.length + searchResults.addresses.length;
+    const total =
+      searchResults.transactions.length +
+      searchResults.blocks.length +
+      searchResults.addresses.length;
     console.log("[ExplorerSearchBar] Total results:", total, {
       transactions: searchResults.transactions.length,
       blocks: searchResults.blocks.length,
@@ -216,7 +225,8 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
     return total;
   }, [searchResults, isSearching, debouncedQuery]);
 
-  const shouldShowResults = !isSearching && debouncedQuery.length > 0;
+  const shouldShowResults =
+    !isSearching && debouncedQuery.length > 0;
 
   const handleClear = () => {
     setSearchQuery("");
@@ -249,9 +259,7 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
   return (
     <div className={cn("relative pr-0", className)} ref={searchContainerRef}>
       <div id="search-input-container" className="relative">
-        <Search
-          className={`absolute left-3 lg:left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 lg:w-5 lg:h-5 text-gray-400 pointer-events-none ${EXPLORER_ICON_GLOW}`}
-        />
+        <Search className={`absolute left-3 lg:left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 lg:w-5 lg:h-5 text-gray-400 pointer-events-none ${EXPLORER_ICON_GLOW}`} />
         <Input
           type="text"
           placeholder={
@@ -321,8 +329,7 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
                         onClick={handleResultClick}
                         className="flex flex-row items-center justify-between gap-2 py-3 px-3 rounded-lg hover:bg-muted/30 transition-colors cursor-pointer border-t border-border/50 first:border-t-0"
                       >
-                        <div
-                          className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
+                        <div className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
                           dangerouslySetInnerHTML={{
                             __html: canopyIconSvg(chainColor),
                           }}
@@ -349,7 +356,9 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
                         {tx.message_type && (
                           <div className="text-xs font-medium text-muted-foreground flex flex-col items-end gap-1 shrink-0">
                             <span>TYPE</span>
-                            <span className="text-xs text-white font-normal capitalize">{tx.message_type}</span>
+                            <span className="text-xs text-white font-normal capitalize">
+                              {tx.message_type}
+                            </span>
                           </div>
                         )}
                       </Link>
@@ -383,8 +392,7 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
                         onClick={handleResultClick}
                         className="flex flex-row items-center justify-between gap-2 py-3 px-3 rounded-lg hover:bg-muted/30 transition-colors cursor-pointer border-t border-border/50 first:border-t-0"
                       >
-                        <div
-                          className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
+                        <div className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
                           dangerouslySetInnerHTML={{
                             __html: canopyIconSvg(chainColor),
                           }}
@@ -410,7 +418,9 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
                         </div>
                         <div className="flex flex-col items-end gap-1 shrink-0 min-w-[120px]">
                           {block.proposer_address && (
-                            <div className="text-xs text-muted-foreground/50 capitalize font-medium">Proposer</div>
+                            <div className="text-xs text-muted-foreground/50 capitalize font-medium">
+                              Proposer
+                            </div>
                           )}
                           {block.proposer_address && (
                             <CopyableText
@@ -419,7 +429,11 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
                               className="text-xs text-white font-mono"
                             />
                           )}
-                          {txCount > 0 && <div className="text-xs text-muted-foreground mt-1">{txCount} txs</div>}
+                          {txCount > 0 && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {txCount} txs
+                            </div>
+                          )}
                         </div>
                       </Link>
                     );
@@ -455,15 +469,16 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
                         onClick={handleResultClick}
                         className="flex flex-row items-center justify-between gap-2 py-3 px-3 rounded-lg hover:bg-muted/30 transition-colors cursor-pointer border-t border-border/50 first:border-t-0"
                       >
-                        <div
-                          className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
+                        <div className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
                           dangerouslySetInnerHTML={{
                             __html: canopyIconSvg(chainColor),
                           }}
                         />
                         <div className="flex items-start ml-2 flex-col mr-auto min-w-0 flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm text-muted-foreground capitalize font-medium">Account</span>
+                            <span className="text-sm text-muted-foreground capitalize font-medium">
+                              Account
+                            </span>
                             <span className="text-xs text-muted-foreground/50">•</span>
                             <span className="text-xs text-muted-foreground">{chainName}</span>
                           </div>
@@ -479,11 +494,15 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
                               <span className="text-xs text-muted-foreground/50 capitalize font-medium">
                                 Transactions
                               </span>
-                              <span className="text-xs text-white font-normal">{address.total_transactions}</span>
+                              <span className="text-xs text-white font-normal">
+                                {address.total_transactions}
+                              </span>
                             </>
                           )}
                           {address.recent_txs && Array.isArray(address.recent_txs) && (
-                            <span className="text-xs text-muted-foreground">{address.recent_txs.length} recent</span>
+                            <span className="text-xs text-muted-foreground">
+                              {address.recent_txs.length} recent
+                            </span>
                           )}
                         </div>
                       </Link>
@@ -496,7 +515,9 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
             {/* No results message */}
             {!isSearching && totalResults === 0 && debouncedQuery && !searchError && (
               <div className="p-4 text-center">
-                <p className="text-sm text-muted-foreground">No results found for &quot;{debouncedQuery}&quot;</p>
+                <p className="text-sm text-muted-foreground">
+                  No results found for &quot;{debouncedQuery}&quot;
+                </p>
                 <p className="text-xs text-muted-foreground/50 mt-1">
                   Try searching by transaction hash, block height, or address
                 </p>

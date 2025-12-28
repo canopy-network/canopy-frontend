@@ -41,7 +41,13 @@ interface LatestUpdatedProps extends React.HTMLAttributes<HTMLDivElement> {
  * // Without Live badge
  * <LatestUpdated timeAgo="2 mins ago" showLive={false} />
  */
-export function LatestUpdated({ showLive = true, className, ...props }: LatestUpdatedProps) {
+export function LatestUpdated({
+  showLive = true,
+  className,
+  ...props
+}: LatestUpdatedProps) {
+
+
   return (
     <div className={cn("flex items-center gap-2 lg:gap-4", className)} {...props}>
       {showLive && (

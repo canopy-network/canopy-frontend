@@ -34,12 +34,13 @@ interface WalletContextType {
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
+  const [isClient, setIsClient] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [showSelectDialog, setShowSelectDialog] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [hasHydrated, setHasHydrated] = useState(false);
-  const [isClient, setIsClient] = useState(false);
+
   // Ensure we're on the client before using stores
   useEffect(() => {
     setIsClient(true);
@@ -47,6 +48,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   const { isAuthenticated } = useAuthStore();
   const walletStore = useWalletStore();
+  
   // Safe destructure with defaults for SSR
   const currentWallet = walletStore?.currentWallet ?? null;
   const wallets = walletStore?.wallets ?? [];
@@ -58,15 +60,15 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   // Rehydrate wallet store on mount (restore persisted state)
   useEffect(() => {
     if (!isClient) return;
-
-    console.log("🔄 Rehydrating wallet store from localStorage...");
+    
+    console.log('🔄 Rehydrating wallet store from localStorage...');
     useWalletStore.persist?.rehydrate?.();
     setHasHydrated(true);
 
     // Log rehydrated state
     const state = useWalletStore.getState?.();
     if (state) {
-      console.log("✅ Wallet store rehydrated:", {
+      console.log('✅ Wallet store rehydrated:', {
         walletsCount: state.wallets.length,
         currentWallet: state.currentWallet?.address,
         hasCurrentWallet: !!state.currentWallet,
@@ -77,17 +79,17 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   // Fetch wallets when user is authenticated and store is hydrated
   useEffect(() => {
     if (!isClient || !hasHydrated) {
-      console.log("⏳ Waiting for wallet store hydration...");
+      console.log('⏳ Waiting for wallet store hydration...');
       return; // Wait for hydration
     }
 
     if (isAuthenticated) {
-      console.log("🔐 User authenticated, fetching wallets from API...");
+      console.log('🔐 User authenticated, fetching wallets from API...');
       fetchWallets().catch((error) => {
         console.error("Failed to fetch wallets:", error);
       });
     } else {
-      console.log("🔓 User not authenticated, resetting wallet state...");
+      console.log('🔓 User not authenticated, resetting wallet state...');
       // Reset wallet state when user logs out
       resetWalletState();
     }
@@ -106,7 +108,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
       // Check if user is authenticated
       if (!isAuthenticated) {
-        showErrorToast(new Error("Please log in first to connect your wallet"), "Authentication Required");
+        showErrorToast(
+          new Error("Please log in first to connect your wallet"),
+          "Authentication Required"
+        );
         setIsConnecting(false);
         return;
       }
@@ -141,21 +146,14 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
     // Close popup
     setIsPopupOpen(false);
-
-    // Also sign out SIWE (logout from auth store)
-    const { logout } = useAuthStore.getState();
-    logout();
   }, []);
 
   /**
    * Switch to a different wallet
    */
-  const switchWallet = useCallback(
-    (walletId: string) => {
-      selectWallet(walletId);
-    },
-    [selectWallet]
-  );
+  const switchWallet = useCallback((walletId: string) => {
+    selectWallet(walletId);
+  }, [selectWallet]);
 
   const openPopup = useCallback(() => setIsPopupOpen(true), []);
   const closePopup = useCallback(() => setIsPopupOpen(false), []);
@@ -172,46 +170,47 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }, [fetchWallets]);
 
   // Memoize context value to prevent unnecessary re-renders
-  const contextValue = useMemo(
-    () => ({
-      currentWallet,
-      wallets,
-      isConnecting: isConnecting || isLoading,
-      isPopupOpen,
-      connectWallet,
-      disconnectWallet,
-      switchWallet,
-      openPopup,
-      closePopup,
-      togglePopup,
-      showSelectDialog,
-      showCreateDialog,
-      setShowSelectDialog,
-      setShowCreateDialog,
-    }),
-    [
-      currentWallet,
-      wallets,
-      isConnecting,
-      isLoading,
-      isPopupOpen,
-      connectWallet,
-      disconnectWallet,
-      switchWallet,
-      openPopup,
-      closePopup,
-      togglePopup,
-      showSelectDialog,
-      showCreateDialog,
-    ]
-  );
+  const contextValue = useMemo(() => ({
+    currentWallet,
+    wallets,
+    isConnecting: isConnecting || isLoading,
+    isPopupOpen,
+    connectWallet,
+    disconnectWallet,
+    switchWallet,
+    openPopup,
+    closePopup,
+    togglePopup,
+    showSelectDialog,
+    showCreateDialog,
+    setShowSelectDialog,
+    setShowCreateDialog,
+  }), [
+    currentWallet,
+    wallets,
+    isConnecting,
+    isLoading,
+    isPopupOpen,
+    connectWallet,
+    disconnectWallet,
+    switchWallet,
+    openPopup,
+    closePopup,
+    togglePopup,
+    showSelectDialog,
+    showCreateDialog,
+  ]);
 
   return (
     <WalletContext.Provider value={contextValue}>
       {children}
 
       {/* Wallet Dialogs */}
-      <SelectWalletDialog open={showSelectDialog} onOpenChange={setShowSelectDialog} onSuccess={handleSelectSuccess} />
+      <SelectWalletDialog
+        open={showSelectDialog}
+        onOpenChange={setShowSelectDialog}
+        onSuccess={handleSelectSuccess}
+      />
 
       <WalletConnectionDialog
         open={showCreateDialog}

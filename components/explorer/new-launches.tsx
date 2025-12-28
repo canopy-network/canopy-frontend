@@ -23,9 +23,9 @@ interface NewLaunchesProps {
 function GraduationStatus({
   graduation,
   isGraduated,
-  graduationTime,
+  graduationTime
 }: {
-  graduation?: Chain["graduation"];
+  graduation?: Chain['graduation'];
   isGraduated?: boolean;
   graduationTime?: string | null;
 }) {
@@ -66,7 +66,10 @@ function GraduationStatus({
         <span className="text-xs font-semibold text-[#00a63d]">{percentage}%</span>
       </div>
       <div className="w-full bg-white/10 rounded-full h-2">
-        <div className="bg-[#00a63d] h-2 rounded-full transition-all" style={{ width: `${percentage}%` }} />
+        <div
+          className="bg-[#00a63d] h-2 rounded-full transition-all"
+          style={{ width: `${percentage}%` }}
+        />
       </div>
       <div className="text-xs text-muted-foreground">
         {formatCNPYValue(graduation.current_cnpy_reserve)} / {formatCNPYValue(graduation.threshold_cnpy)} CNPY
@@ -120,7 +123,10 @@ export function NewLaunches({ chains }: NewLaunchesProps) {
   ];
 
   const rows = chains.slice(0, 5).map((chain) => {
-    const uniqueTraders = chain.virtual_pool?.unique_traders ?? (chain as any)?.graduated_pool?.unique_traders ?? 0;
+    const uniqueTraders =
+      chain.virtual_pool?.unique_traders ??
+      (chain as any)?.graduated_pool?.unique_traders ??
+      0;
 
     return [
       // Chain
@@ -133,7 +139,9 @@ export function NewLaunches({ chains }: NewLaunchesProps) {
         />
         <div className="flex flex-col">
           <span className="font-medium text-white text-sm">{chain.chain_name}</span>
-          <span className="text-xs text-muted-foreground">{chain.token_symbol}</span>
+          <span className="text-xs text-muted-foreground">
+            {chain.token_symbol}
+          </span>
         </div>
       </div>,
       // Market Cap
@@ -157,7 +165,9 @@ export function NewLaunches({ chains }: NewLaunchesProps) {
               }}
             />
           </div>
-          <span className="text-gray-400 font-medium text-sm">+{uniqueTraders.toLocaleString()}</span>
+          <span className="text-gray-400 font-medium text-sm">
+            +{uniqueTraders.toLocaleString()}
+          </span>
         </div>
       </div>,
       // Graduation Status

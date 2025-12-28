@@ -282,8 +282,13 @@ export const validatorsApi = {
    * @param params - Query parameters for filtering validators
    * @returns List of validators with metadata
    */
-  getValidators: async (params?: ValidatorsRequest): Promise<ValidatorsResponse> => {
-    const response = await apiClient.get<ValidatorsResponseWrapper>("/validators", params);
+  getValidators: async (
+    params?: ValidatorsRequest
+  ): Promise<ValidatorsResponse> => {
+    const response = await apiClient.get<ValidatorsResponseWrapper>(
+      "/validators",
+      params
+    );
     // API returns: { data: { validators, metadata }, pagination }
     // apiClient.get returns: { data: ValidatorsResponseWrapper, pagination }
     // So response.data is ValidatorsResponseWrapper which has { data: { validators, metadata }, pagination }
@@ -326,7 +331,9 @@ export const validatorsApi = {
    * @returns Detailed validator information
    */
   getValidator: async (address: string): Promise<ValidatorDetailData> => {
-    const response = await apiClient.get<ValidatorDetailResponse>(`/validators/${address}`);
+    const response = await apiClient.get<ValidatorDetailResponse>(
+      `/validators/${address}`
+    );
     // API response structure: { data: { data: ValidatorDetailData } }
     const responseData = response.data as unknown as ValidatorDetailResponse | ValidatorDetailData;
     if (responseData && typeof responseData === "object" && "data" in responseData) {
@@ -347,7 +354,10 @@ export const validatorsApi = {
     address: string,
     format: "json" | "csv" = "json"
   ): Promise<ValidatorDetailData | string> => {
-    const response = await apiClient.get<ValidatorDetailResponse | string>(`/validators/${address}/export`, { format });
+    const response = await apiClient.get<ValidatorDetailResponse | string>(
+      `/validators/${address}/export`,
+      { format }
+    );
     return response.data as ValidatorDetailData | string;
   },
 
@@ -358,7 +368,9 @@ export const validatorsApi = {
    * @param params - Query parameters (chain_id, addresses)
    * @returns Rewards history data grouped by chain
    */
-  getValidatorRewards: async (params: ValidatorRewardsRequest): Promise<ValidatorRewardsResponse> => {
+  getValidatorRewards: async (
+    params: ValidatorRewardsRequest
+  ): Promise<ValidatorRewardsResponse> => {
     // Convert addresses array to JSON string for the API
     const queryParams: Record<string, string> = {
       addresses: JSON.stringify(params.addresses),
@@ -366,19 +378,22 @@ export const validatorsApi = {
     if (params.chain_id) {
       queryParams.chain_id = params.chain_id.toString();
     }
-
-    const response = await apiClient.get<ValidatorRewardsResponse>("/validator/rewards", queryParams);
-
+    
+    const response = await apiClient.get<ValidatorRewardsResponse>(
+      "/validator/rewards",
+      queryParams
+    );
+    
     // apiClient.get returns ApiResponse<T> which is { data: T, pagination: ... }
     // But our Next.js API route returns the backend response directly
     // So response.data might already be ValidatorRewardsResponse or wrapped
     const responseData = response.data as any;
-
+    
     // Handle both wrapped and unwrapped responses
     // Backend now returns events_by_chain, but we normalize it to rewards_by_chain for consistency
     const eventsByChain = responseData?.data?.events_by_chain || responseData?.events_by_chain;
     const rewardsByChain = responseData?.data?.rewards_by_chain || responseData?.rewards_by_chain;
-
+    
     if (eventsByChain) {
       // New format with events_by_chain
       return {
@@ -399,7 +414,7 @@ export const validatorsApi = {
         pagination: responseData?.pagination || null,
       };
     }
-
+    
     // Fallback
     return responseData as ValidatorRewardsResponse;
   },
@@ -411,17 +426,19 @@ export const validatorsApi = {
    * @param params - Query parameters (addresses, chain_ids, dates, pagination)
    * @returns Slash history data grouped by chain
    */
-  getValidatorSlashes: async (params: ValidatorSlashesRequest): Promise<ValidatorSlashesResponse> => {
+  getValidatorSlashes: async (
+    params: ValidatorSlashesRequest
+  ): Promise<ValidatorSlashesResponse> => {
     // Build query parameters
     const queryParams: Record<string, string> = {};
-
+    
     // Handle addresses
     if (params.address) {
       queryParams.address = params.address;
     } else if (params.addresses && params.addresses.length > 0) {
       queryParams.addresses = params.addresses.join(",");
     }
-
+    
     // Handle chain_ids (convert array to comma-separated string if needed)
     if (params.chain_ids !== undefined) {
       if (Array.isArray(params.chain_ids)) {
@@ -430,7 +447,7 @@ export const validatorsApi = {
         queryParams.chain_ids = String(params.chain_ids);
       }
     }
-
+    
     // Handle date range
     if (params.start_date) {
       queryParams.start_date = params.start_date;
@@ -438,7 +455,7 @@ export const validatorsApi = {
     if (params.end_date) {
       queryParams.end_date = params.end_date;
     }
-
+    
     // Handle pagination
     if (params.page !== undefined) {
       queryParams.page = String(params.page);
@@ -449,12 +466,15 @@ export const validatorsApi = {
     if (params.sort) {
       queryParams.sort = params.sort;
     }
-
-    const response = await apiClient.get<ValidatorSlashesResponse>("/validator/slashes", queryParams);
-
+    
+    const response = await apiClient.get<ValidatorSlashesResponse>(
+      "/validator/slashes",
+      queryParams
+    );
+    
     // Handle response structure
     const responseData = response.data as any;
-
+    
     // Normalize response structure
     if (responseData?.data?.events_by_chain) {
       return {
@@ -474,7 +494,7 @@ export const validatorsApi = {
         pagination: responseData.pagination || null,
       };
     }
-
+    
     // Fallback
     return responseData as ValidatorSlashesResponse;
   },
@@ -486,11 +506,11 @@ export const validatorsApi = {
 
 /**
  * React Query hook for fetching validators list
- *
+ * 
  * @param params - Query parameters for filtering validators
  * @param options - React Query options
  * @returns UseQueryResult with validators data
- *
+ * 
  * @example
  * ```typescript
  * const { data, isLoading, error } = useValidators({
@@ -513,11 +533,11 @@ export function useValidators(
 
 /**
  * React Query hook for fetching a single validator detail
- *
+ * 
  * @param address - Validator address
  * @param options - React Query options
  * @returns UseQueryResult with validator detail data
- *
+ * 
  * @example
  * ```typescript
  * const { data, isLoading } = useValidator("validator_address_123");
@@ -539,12 +559,12 @@ export function useValidator(
 /**
  * React Query hook for exporting validator data
  * Uses /api/validators/[address]/export endpoint
- *
+ * 
  * @param address - Validator address
  * @param format - Export format: "json" or "csv" (default: "json")
  * @param options - React Query options
  * @returns UseQueryResult with exported validator data
- *
+ * 
  * @example
  * ```typescript
  * const { data, isLoading } = useValidatorExport("validator_address_123", "csv");
@@ -567,11 +587,11 @@ export function useValidatorExport(
 /**
  * React Query hook for fetching validator rewards history
  * Uses /api/validator/rewards endpoint
- *
+ * 
  * @param params - Query parameters (chain_id, addresses)
  * @param options - React Query options
  * @returns UseQueryResult with rewards history data
- *
+ * 
  * @example
  * ```typescript
  * const { data, isLoading } = useValidatorRewards({
@@ -596,11 +616,11 @@ export function useValidatorRewards(
 /**
  * React Query hook for fetching validator slash history
  * Uses /api/validator/slashes endpoint
- *
+ * 
  * @param params - Query parameters (addresses, chain_ids, dates, pagination)
  * @param options - React Query options
  * @returns UseQueryResult with slash history data
- *
+ * 
  * @example
  * ```typescript
  * const { data, isLoading } = useValidatorSlashes({

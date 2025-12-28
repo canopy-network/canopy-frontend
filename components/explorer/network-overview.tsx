@@ -49,7 +49,7 @@ export function NetworkOverview({
   const calculateStats = (data: HistoricDataPoint[] | undefined) => {
     if (!data || data.length === 0) return null;
 
-    const values = data.map((d) => d.value);
+    const values = data.map(d => d.value);
     const max = Math.max(...values);
     const min = Math.min(...values);
     const avg = values.reduce((a, b) => a + b, 0) / values.length;
@@ -78,11 +78,15 @@ export function NetworkOverview({
       {/* Overview Section */}
       <div>
         <div className="flex items-center justify-between mb-3 lg:mb-6 px-3 lg:px-4">
-          <h2 className="text-xl lg:text-2xl font-bold text-white">Overview</h2>
+          <h2 className="text-xl lg:text-2xl font-bold text-white">
+            Overview
+          </h2>
         </div>
         {metrics.length === 0 ? (
           <div className="grid grid-cols-3 gap-3 lg:gap-5 min-h-[324px] items-center justify-center">
-            <div className="col-span-full text-center text-muted-foreground">Loading network overview...</div>
+            <div className="col-span-full text-center text-muted-foreground">
+              Loading network overview...
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-3 lg:gap-5">
@@ -102,34 +106,49 @@ export function NetworkOverview({
                   key={metric.id}
                   className="flex h-[120px] flex-col rounded-[16px] justify-between bg-white/5 px-3 lg:px-6 py-3 lg:py-5"
                 >
-                  <div className="text-xs font-medium uppercase tracking-[0.08em] text-white/70">{metric.label}</div>
+                  <div className="text-xs font-medium uppercase tracking-[0.08em] text-white/70">
+                    {metric.label}
+                  </div>
 
                   <div className="flex flex-col lg:mt-auto">
-                    <div className="text-xl lg:text-4xl font-semibold leading-[1.1] text-white">{metric.value}</div>
+                    <div className="text-xl lg:text-4xl font-semibold leading-[1.1] text-white">
+                      {metric.value}
+                    </div>
                     <div className="flex items-center text-xs font-medium">
                       {isZero ? (
                         <>
-                          <span className="text-white/40 text-xs font-medium">No change in 24h</span>
+                          <span className="text-white/40 text-xs font-medium">
+                            No change in 24h
+                          </span>
                         </>
                       ) : (
                         <>
                           {isPositive ? (
-                            <ArrowUpRight className="h-4 w-4" style={{ color: EXPLORER_NEON_GREEN }} />
+                            <ArrowUpRight
+                              className="h-4 w-4"
+                              style={{ color: EXPLORER_NEON_GREEN }}
+                            />
                           ) : (
                             <ArrowDownRight className="h-4 w-4 text-red-400" />
                           )}
                           <span
                             className={cn(
-                              isPositive ? "text-[--explorer-neon-green]" : "text-red-400",
+                              isPositive
+                                ? "text-[--explorer-neon-green]"
+                                : "text-red-400",
                               "text-xs font-medium mr-1"
                             )}
-                            style={isPositive ? { color: EXPLORER_NEON_GREEN } : undefined}
+                            style={
+                              isPositive
+                                ? { color: EXPLORER_NEON_GREEN }
+                                : undefined
+                            }
                           >
-                            {metric.delta.includes("%")
-                              ? `${valuePart}%`
-                              : `${numericDelta > 0 ? "+" : ""}${numericDelta}`}
+                            {metric.delta.includes("%") ? `${valuePart}%` : `${numericDelta > 0 ? "+" : ""}${numericDelta}`}
                           </span>
-                          <span className="text-muted-foreground">{suffixPart}</span>
+                          <span className="text-muted-foreground">
+                            {suffixPart}
+                          </span>
                         </>
                       )}
                     </div>
@@ -142,7 +161,7 @@ export function NetworkOverview({
       </div>
 
       {/* Chart Section */}
-      <ExplorerChart
+      <ExplorerChart 
         historicData={historicData}
         selectedTimeframe={selectedTimeframe}
         onTimeframeChange={onTimeframeChange}

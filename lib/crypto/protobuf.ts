@@ -95,8 +95,8 @@
  * ```
  */
 
-import protobuf from "protobufjs";
-import { hexToBytes } from "@noble/hashes/utils.js";
+import protobuf from 'protobufjs';
+import { hexToBytes } from '@noble/hashes/utils.js';
 
 /**
  * Helper function to check if a value should be omitted from protobuf encoding
@@ -104,11 +104,12 @@ import { hexToBytes } from "@noble/hashes/utils.js";
  */
 function shouldOmit(value: any): boolean {
   if (value === undefined || value === null) return true;
-  if (typeof value === "string" && value === "") return true;
+  if (typeof value === 'string' && value === '') return true;
   if (value instanceof Uint8Array && value.length === 0) return true;
-  if (typeof value === "number" && value === 0) return true;
-  if (typeof value === "boolean" && !value) return true;
+  if (typeof value === 'number' && value === 0) return true;
+  if (typeof value === 'boolean' && !value) return true;
   return Array.isArray(value) && value.length === 0;
+
 }
 
 /**
@@ -124,172 +125,162 @@ const root = protobuf.Root.fromJSON({
         // Transaction message (from tx.proto)
         Transaction: {
           fields: {
-            message_type: { type: "string", id: 1 },
-            msg: { type: "google.protobuf.Any", id: 2 },
-            signature: { type: "Signature", id: 3 },
-            created_height: { type: "uint64", id: 4 },
-            time: { type: "uint64", id: 5 },
-            fee: { type: "uint64", id: 6 },
-            memo: { type: "string", id: 7 },
-            network_id: { type: "uint64", id: 8 },
-            chain_id: { type: "uint64", id: 9 },
+            message_type: { type: 'string', id: 1 },
+            msg: { type: 'google.protobuf.Any', id: 2 },
+            signature: { type: 'Signature', id: 3 },
+            created_height: { type: 'uint64', id: 4 },
+            time: { type: 'uint64', id: 5 },
+            fee: { type: 'uint64', id: 6 },
+            memo: { type: 'string', id: 7 },
+            network_id: { type: 'uint64', id: 8 },
+            chain_id: { type: 'uint64', id: 9 },
           },
         },
         // Signature message (from tx.proto)
         Signature: {
           fields: {
-            public_key: { type: "bytes", id: 1 },
-            signature: { type: "bytes", id: 2 },
+            public_key: { type: 'bytes', id: 1 },
+            signature: { type: 'bytes', id: 2 },
           },
         },
         // MessageSend - Standard token transfer
         MessageSend: {
           fields: {
-            from_address: { type: "bytes", id: 1 },
-            to_address: { type: "bytes", id: 2 },
-            amount: { type: "uint64", id: 3 },
+            from_address: { type: 'bytes', id: 1 },
+            to_address: { type: 'bytes', id: 2 },
+            amount: { type: 'uint64', id: 3 },
           },
         },
         // MessageStake - Validator registration
         MessageStake: {
           fields: {
-            public_key: { type: "bytes", id: 1 },
-            amount: { type: "uint64", id: 2 },
-            committees: {
-              type: "uint64",
-              id: 3,
-              rule: "repeated",
-              options: { packed: true },
-            },
-            net_address: { type: "string", id: 4 },
-            output_address: { type: "bytes", id: 5 },
-            delegate: { type: "bool", id: 6 },
-            compound: { type: "bool", id: 7 },
-            signer: { type: "bytes", id: 8 },
+            public_key: { type: 'bytes', id: 1 },
+            amount: { type: 'uint64', id: 2 },
+            committees: { type: 'uint64', id: 3, rule: 'repeated', options: { packed: true } },
+            net_address: { type: 'string', id: 4 },
+            output_address: { type: 'bytes', id: 5 },
+            delegate: { type: 'bool', id: 6 },
+            compound: { type: 'bool', id: 7 },
+            signer: { type: 'bytes', id: 8 },
           },
         },
         // MessageEditStake - Validator modification
         MessageEditStake: {
           fields: {
-            address: { type: "bytes", id: 1 },
-            amount: { type: "uint64", id: 2 },
-            committees: {
-              type: "uint64",
-              id: 3,
-              rule: "repeated",
-              options: { packed: true },
-            },
-            net_address: { type: "string", id: 4 },
-            output_address: { type: "bytes", id: 5 },
-            compound: { type: "bool", id: 6 },
-            signer: { type: "bytes", id: 7 },
+            address: { type: 'bytes', id: 1 },
+            amount: { type: 'uint64', id: 2 },
+            committees: { type: 'uint64', id: 3, rule: 'repeated', options: { packed: true } },
+            net_address: { type: 'string', id: 4 },
+            output_address: { type: 'bytes', id: 5 },
+            compound: { type: 'bool', id: 6 },
+            signer: { type: 'bytes', id: 7 },
           },
         },
         // MessageUnstake - Validator exit
         MessageUnstake: {
           fields: {
-            address: { type: "bytes", id: 1 },
+            address: { type: 'bytes', id: 1 },
           },
         },
         // MessagePause - Validator pause
         MessagePause: {
           fields: {
-            address: { type: "bytes", id: 1 },
+            address: { type: 'bytes', id: 1 },
           },
         },
         // MessageUnpause - Validator unpause
         MessageUnpause: {
           fields: {
-            address: { type: "bytes", id: 1 },
+            address: { type: 'bytes', id: 1 },
           },
         },
         // MessageChangeParameter - Governance proposal for parameter changes
         MessageChangeParameter: {
           fields: {
-            parameter_space: { type: "string", id: 1 },
-            parameter_key: { type: "string", id: 2 },
-            parameter_value: { type: "google.protobuf.Any", id: 3 },
-            start_height: { type: "uint64", id: 4 },
-            end_height: { type: "uint64", id: 5 },
-            signer: { type: "bytes", id: 6 },
-            proposal_hash: { type: "string", id: 7 },
+            parameter_space: { type: 'string', id: 1 },
+            parameter_key: { type: 'string', id: 2 },
+            parameter_value: { type: 'google.protobuf.Any', id: 3 },
+            start_height: { type: 'uint64', id: 4 },
+            end_height: { type: 'uint64', id: 5 },
+            signer: { type: 'bytes', id: 6 },
+            proposal_hash: { type: 'string', id: 7 },
           },
         },
         // MessageDAOTransfer - DAO treasury transfer proposal
         MessageDAOTransfer: {
           fields: {
-            address: { type: "bytes", id: 1 },
-            amount: { type: "uint64", id: 2 },
-            start_height: { type: "uint64", id: 4 },
-            end_height: { type: "uint64", id: 5 },
-            proposal_hash: { type: "string", id: 6 },
+            address: { type: 'bytes', id: 1 },
+            amount: { type: 'uint64', id: 2 },
+            start_height: { type: 'uint64', id: 4 },
+            end_height: { type: 'uint64', id: 5 },
+            proposal_hash: { type: 'string', id: 6 },
           },
         },
         // MessageSubsidy - Committee subsidy transfer
         MessageSubsidy: {
           fields: {
-            address: { type: "bytes", id: 1 },
-            chain_id: { type: "uint64", id: 2 },
-            amount: { type: "uint64", id: 3 },
-            opcode: { type: "bytes", id: 4 },
+            address: { type: 'bytes', id: 1 },
+            chain_id: { type: 'uint64', id: 2 },
+            amount: { type: 'uint64', id: 3 },
+            opcode: { type: 'bytes', id: 4 },
           },
         },
         // MessageCreateOrder - DEX create sell order
         MessageCreateOrder: {
           fields: {
-            ChainId: { type: "uint64", id: 1 },
-            data: { type: "bytes", id: 2 },
-            AmountForSale: { type: "uint64", id: 3 },
-            RequestedAmount: { type: "uint64", id: 4 },
-            SellerReceiveAddress: { type: "bytes", id: 5 },
-            SellersSendAddress: { type: "bytes", id: 6 },
-            OrderId: { type: "bytes", id: 7 },
+            ChainId: { type: 'uint64', id: 1 },
+            data: { type: 'bytes', id: 2 },
+            AmountForSale: { type: 'uint64', id: 3 },
+            RequestedAmount: { type: 'uint64', id: 4 },
+            SellerReceiveAddress: { type: 'bytes', id: 5 },
+            SellersSendAddress: { type: 'bytes', id: 6 },
+            OrderId: { type: 'bytes', id: 7 },
           },
         },
         // MessageEditOrder - DEX edit sell order
         MessageEditOrder: {
           fields: {
-            OrderId: { type: "bytes", id: 1 },
-            ChainId: { type: "uint64", id: 2 },
-            data: { type: "bytes", id: 3 },
-            AmountForSale: { type: "uint64", id: 4 },
-            RequestedAmount: { type: "uint64", id: 5 },
-            SellerReceiveAddress: { type: "bytes", id: 6 },
+            OrderId: { type: 'bytes', id: 1 },
+            ChainId: { type: 'uint64', id: 2 },
+            data: { type: 'bytes', id: 3 },
+            AmountForSale: { type: 'uint64', id: 4 },
+            RequestedAmount: { type: 'uint64', id: 5 },
+            SellerReceiveAddress: { type: 'bytes', id: 6 },
           },
         },
         // MessageDeleteOrder - DEX delete sell order
         MessageDeleteOrder: {
           fields: {
-            OrderId: { type: "bytes", id: 1 },
-            ChainId: { type: "uint64", id: 2 },
+            OrderId: { type: 'bytes', id: 1 },
+            ChainId: { type: 'uint64', id: 2 },
           },
         },
         // MessageDexLimitOrder - DEX limit order
         MessageDexLimitOrder: {
           fields: {
-            chain_id: { type: "uint64", id: 1 },
-            amount_for_sale: { type: "uint64", id: 2 },
-            requested_amount: { type: "uint64", id: 3 },
-            sellerReceiveAddress: { type: "bytes", id: 4 },
-            OrderId: { type: "bytes", id: 5 },
+            chain_id: { type: 'uint64', id: 1 },
+            amount_for_sale: { type: 'uint64', id: 2 },
+            requested_amount: { type: 'uint64', id: 3 },
+            address: { type: 'bytes', id: 4 },
+            OrderId: { type: 'bytes', id: 5 },
           },
         },
         // MessageDexLiquidityDeposit - DEX liquidity deposit
         MessageDexLiquidityDeposit: {
           fields: {
-            chain_id: { type: "uint64", id: 1 },
-            amount: { type: "uint64", id: 2 },
-            address: { type: "bytes", id: 3 },
-            OrderId: { type: "bytes", id: 4 },
+            chain_id: { type: 'uint64', id: 1 },
+            amount: { type: 'uint64', id: 2 },
+            address: { type: 'bytes', id: 3 },
+            OrderId: { type: 'bytes', id: 4 },
           },
         },
         // MessageDexLiquidityWithdraw - DEX liquidity withdraw
         MessageDexLiquidityWithdraw: {
           fields: {
-            chain_id: { type: "uint64", id: 1 },
-            percent: { type: "uint64", id: 2 },
-            address: { type: "bytes", id: 3 },
-            OrderId: { type: "bytes", id: 4 },
+            chain_id: { type: 'uint64', id: 1 },
+            percent: { type: 'uint64', id: 2 },
+            address: { type: 'bytes', id: 3 },
+            OrderId: { type: 'bytes', id: 4 },
           },
         },
       },
@@ -301,8 +292,8 @@ const root = protobuf.Root.fromJSON({
             // google.protobuf.Any
             Any: {
               fields: {
-                type_url: { type: "string", id: 1 },
-                value: { type: "bytes", id: 2 },
+                type_url: { type: 'string', id: 1 },
+                value: { type: 'bytes', id: 2 },
               },
             },
           },
@@ -313,22 +304,22 @@ const root = protobuf.Root.fromJSON({
 });
 
 // Lookup all message types
-const Transaction = root.lookupType("types.Transaction");
-const MessageSend = root.lookupType("types.MessageSend");
-const MessageStake = root.lookupType("types.MessageStake");
-const MessageEditStake = root.lookupType("types.MessageEditStake");
-const MessageUnstake = root.lookupType("types.MessageUnstake");
-const MessagePause = root.lookupType("types.MessagePause");
-const MessageUnpause = root.lookupType("types.MessageUnpause");
-const MessageChangeParameter = root.lookupType("types.MessageChangeParameter");
-const MessageDAOTransfer = root.lookupType("types.MessageDAOTransfer");
-const MessageSubsidy = root.lookupType("types.MessageSubsidy");
-const MessageCreateOrder = root.lookupType("types.MessageCreateOrder");
-const MessageEditOrder = root.lookupType("types.MessageEditOrder");
-const MessageDeleteOrder = root.lookupType("types.MessageDeleteOrder");
-const MessageDexLimitOrder = root.lookupType("types.MessageDexLimitOrder");
-const MessageDexLiquidityDeposit = root.lookupType("types.MessageDexLiquidityDeposit");
-const MessageDexLiquidityWithdraw = root.lookupType("types.MessageDexLiquidityWithdraw");
+const Transaction = root.lookupType('types.Transaction');
+const MessageSend = root.lookupType('types.MessageSend');
+const MessageStake = root.lookupType('types.MessageStake');
+const MessageEditStake = root.lookupType('types.MessageEditStake');
+const MessageUnstake = root.lookupType('types.MessageUnstake');
+const MessagePause = root.lookupType('types.MessagePause');
+const MessageUnpause = root.lookupType('types.MessageUnpause');
+const MessageChangeParameter = root.lookupType('types.MessageChangeParameter');
+const MessageDAOTransfer = root.lookupType('types.MessageDAOTransfer');
+const MessageSubsidy = root.lookupType('types.MessageSubsidy');
+const MessageCreateOrder = root.lookupType('types.MessageCreateOrder');
+const MessageEditOrder = root.lookupType('types.MessageEditOrder');
+const MessageDeleteOrder = root.lookupType('types.MessageDeleteOrder');
+const MessageDexLimitOrder = root.lookupType('types.MessageDexLimitOrder');
+const MessageDexLiquidityDeposit = root.lookupType('types.MessageDexLiquidityDeposit');
+const MessageDexLiquidityWithdraw = root.lookupType('types.MessageDexLiquidityWithdraw');
 
 /**
  * Creates a google.protobuf.Any from a message
@@ -353,7 +344,11 @@ function createAny(messageTypeName: string, messageBytes: Uint8Array): any {
 /**
  * Encodes MessageSend - Standard token transfer
  */
-export function encodeMessageSend(fromAddress: string, toAddress: string, amount: number): Uint8Array {
+export function encodeMessageSend(
+  fromAddress: string,
+  toAddress: string,
+  amount: number
+): Uint8Array {
   const message = MessageSend.create({
     from_address: hexToBytes(fromAddress),
     to_address: hexToBytes(toAddress),
@@ -378,14 +373,14 @@ export function encodeMessageSend(fromAddress: string, toAddress: string, amount
  * It expects "publickey" (lowercase) instead of "publicKey" (camelCase)
  */
 export function encodeMessageStake(params: {
-  publickey: string; // REQUIRED - WORKAROUND: lowercase to match backend bug
-  amount: number; // REQUIRED
-  committees: number[]; // REQUIRED
-  netAddress: string; // REQUIRED (can be empty string for delegation)
+  publickey: string;     // REQUIRED - WORKAROUND: lowercase to match backend bug
+  amount: number;        // REQUIRED
+  committees: number[];  // REQUIRED
+  netAddress: string;    // REQUIRED (can be empty string for delegation)
   outputAddress: string; // REQUIRED
-  delegate: boolean; // REQUIRED
-  compound: boolean; // REQUIRED
-  signer?: string; // OPTIONAL - backend NEVER includes this, omit it
+  delegate: boolean;     // REQUIRED
+  compound: boolean;     // REQUIRED
+  signer?: string;       // OPTIONAL - backend NEVER includes this, omit it
 }): Uint8Array {
   const messageData: any = {
     public_key: hexToBytes(params.publickey),
@@ -414,13 +409,13 @@ export function encodeMessageStake(params: {
  * We must match this behavior by using shouldOmit() for optional fields.
  */
 export function encodeMessageEditStake(params: {
-  address: string; // REQUIRED
-  amount: number; // REQUIRED
-  committees: number[]; // REQUIRED
-  netAddress: string; // REQUIRED (can be empty)
+  address: string;       // REQUIRED
+  amount: number;        // REQUIRED
+  committees: number[];  // REQUIRED
+  netAddress: string;    // REQUIRED (can be empty)
   outputAddress: string; // REQUIRED
-  compound: boolean; // REQUIRED
-  signer?: string; // OPTIONAL - backend NEVER includes this, omit it
+  compound: boolean;     // REQUIRED
+  signer?: string;       // OPTIONAL - backend NEVER includes this, omit it
 }): Uint8Array {
   const messageData: any = {
     address: hexToBytes(params.address),
@@ -478,13 +473,13 @@ export function encodeMessageUnpause(address: string): Uint8Array {
  * Protobuf will omit other default values automatically.
  */
 export function encodeMessageChangeParameter(params: {
-  parameterSpace: string; // REQUIRED
-  parameterKey: string; // REQUIRED
-  parameterValue: { typeUrl: string; value: Uint8Array }; // REQUIRED
-  startHeight: number; // REQUIRED
-  endHeight: number; // REQUIRED
-  signer: string; // REQUIRED - backend ALWAYS includes this with address
-  proposalHash?: string; // OPTIONAL - backend NEVER includes this, omit it
+  parameterSpace: string;                                     // REQUIRED
+  parameterKey: string;                                       // REQUIRED
+  parameterValue: { typeUrl: string; value: Uint8Array };    // REQUIRED
+  startHeight: number;                                        // REQUIRED
+  endHeight: number;                                          // REQUIRED
+  signer: string;                                             // REQUIRED - backend ALWAYS includes this with address
+  proposalHash?: string;                                      // OPTIONAL - backend NEVER includes this, omit it
 }): Uint8Array {
   const messageData: any = {
     parameter_space: params.parameterSpace,
@@ -492,7 +487,7 @@ export function encodeMessageChangeParameter(params: {
     parameter_value: createAny(params.parameterValue.typeUrl, params.parameterValue.value),
     start_height: params.startHeight,
     end_height: params.endHeight,
-    signer: hexToBytes(params.signer), // Backend always sets this
+    signer: hexToBytes(params.signer),  // Backend always sets this
   };
 
   // NEVER include proposal_hash - backend never sets this field
@@ -509,10 +504,10 @@ export function encodeMessageChangeParameter(params: {
  * Fields NEVER included: ProposalHash (backend never sets this)
  */
 export function encodeMessageDAOTransfer(params: {
-  address: string; // REQUIRED
-  amount: number; // REQUIRED
-  startHeight: number; // REQUIRED
-  endHeight: number; // REQUIRED
+  address: string;       // REQUIRED
+  amount: number;        // REQUIRED
+  startHeight: number;   // REQUIRED
+  endHeight: number;     // REQUIRED
   proposalHash?: string; // OPTIONAL - backend NEVER includes this, omit it
 }): Uint8Array {
   const messageData: any = {
@@ -535,16 +530,16 @@ export function encodeMessageDAOTransfer(params: {
  * Fields included: Address, ChainId, Amount, Opcode
  */
 export function encodeMessageSubsidy(params: {
-  address: string; // REQUIRED
-  chainId: number; // REQUIRED
-  amount: number; // REQUIRED
-  opcode: string; // REQUIRED - hex string
+  address: string;  // REQUIRED
+  chainId: number;  // REQUIRED
+  amount: number;   // REQUIRED
+  opcode: string;   // REQUIRED - hex string
 }): Uint8Array {
   const messageData: any = {
     address: hexToBytes(params.address),
-    chain_id: params.chainId, // Always include
+    chain_id: params.chainId,  // Always include
     amount: params.amount,
-    opcode: hexToBytes(params.opcode), // Always include
+    opcode: hexToBytes(params.opcode),  // Always include
   };
 
   const message = MessageSubsidy.create(messageData);
@@ -559,16 +554,16 @@ export function encodeMessageSubsidy(params: {
  * Fields NEVER included: OrderId (backend never sets this, gets auto-populated)
  */
 export function encodeMessageCreateOrder(params: {
-  chainId: number; // REQUIRED
-  data: string; // REQUIRED - hex string (can be empty)
-  amountForSale: number; // REQUIRED
-  requestedAmount: number; // REQUIRED
+  chainId: number;              // REQUIRED
+  data: string;                 // REQUIRED - hex string (can be empty)
+  amountForSale: number;        // REQUIRED
+  requestedAmount: number;      // REQUIRED
   sellerReceiveAddress: string; // REQUIRED
-  sellersSendAddress: string; // REQUIRED
-  orderId?: string; // OPTIONAL - backend NEVER includes this, omit it
+  sellersSendAddress: string;   // REQUIRED
+  orderId?: string;             // OPTIONAL - backend NEVER includes this, omit it
 }): Uint8Array {
   const messageData: any = {
-    ChainId: params.chainId, // Always include
+    ChainId: params.chainId,  // Always include
     AmountForSale: params.amountForSale,
     RequestedAmount: params.requestedAmount,
     SellerReceiveAddress: hexToBytes(params.sellerReceiveAddress),
@@ -593,17 +588,17 @@ export function encodeMessageCreateOrder(params: {
  * Fields included: OrderId, ChainId, Data, AmountForSale, RequestedAmount, SellerReceiveAddress
  */
 export function encodeMessageEditOrder(params: {
-  orderId: string; // REQUIRED
-  chainId: number; // REQUIRED
-  data: string; // REQUIRED - hex string
-  amountForSale: number; // REQUIRED
-  requestedAmount: number; // REQUIRED
+  orderId: string;              // REQUIRED
+  chainId: number;              // REQUIRED
+  data: string;                 // REQUIRED - hex string
+  amountForSale: number;        // REQUIRED
+  requestedAmount: number;      // REQUIRED
   sellerReceiveAddress: string; // REQUIRED
 }): Uint8Array {
   const messageData: any = {
     OrderId: hexToBytes(params.orderId),
-    ChainId: params.chainId, // Always include
-    data: hexToBytes(params.data), // Always include
+    ChainId: params.chainId,  // Always include
+    data: hexToBytes(params.data),  // Always include
     AmountForSale: params.amountForSale,
     RequestedAmount: params.requestedAmount,
     SellerReceiveAddress: hexToBytes(params.sellerReceiveAddress),
@@ -625,7 +620,7 @@ export function encodeMessageDeleteOrder(params: {
 }): Uint8Array {
   const messageData: any = {
     OrderId: hexToBytes(params.orderId),
-    ChainId: params.chainId, // Always include
+    ChainId: params.chainId,  // Always include
   };
 
   const message = MessageDeleteOrder.create(messageData);
@@ -643,17 +638,17 @@ export function encodeMessageDeleteOrder(params: {
  * Fields NEVER included: OrderId (backend auto-populates)
  */
 export function encodeMessageDexLimitOrder(params: {
-  chainId: number; // REQUIRED
-  amountForSale: number; // REQUIRED
+  chainId: number;         // REQUIRED
+  amountForSale: number;   // REQUIRED
   requestedAmount: number; // REQUIRED (minimum amount seller will receive)
-  sellerReceiveAddress: string; // REQUIRED - seller's send address (hex)
-  orderId?: string; // OPTIONAL - backend NEVER includes this, omit it
+  address: string;         // REQUIRED - seller's send address (hex)
+  orderId?: string;        // OPTIONAL - backend NEVER includes this, omit it
 }): Uint8Array {
   const messageData: any = {
     chain_id: params.chainId,
     amount_for_sale: params.amountForSale,
     requested_amount: params.requestedAmount,
-    sellerReceiveAddress: hexToBytes(params.sellerReceiveAddress),
+    address: hexToBytes(params.address),
   };
 
   // NEVER include OrderId - backend auto-populates this field
@@ -674,7 +669,7 @@ export function encodeMessageDexLimitOrder(params: {
  */
 export function encodeMessageDexLiquidityDeposit(params: {
   chainId: number; // REQUIRED
-  amount: number; // REQUIRED
+  amount: number;  // REQUIRED
   address: string; // REQUIRED - address sending tokens (hex)
   orderId?: string; // OPTIONAL - backend NEVER includes this, omit it
 }): Uint8Array {
@@ -749,79 +744,83 @@ export function getSignBytesProtobuf(tx: {
   let msgTypeName: string;
 
   switch (tx.type) {
-    case "send":
-      msgBytes = encodeMessageSend(tx.msg.fromAddress, tx.msg.toAddress, tx.msg.amount);
-      msgTypeName = "types.MessageSend";
+    case 'send':
+      msgBytes = encodeMessageSend(
+        tx.msg.fromAddress,
+        tx.msg.toAddress,
+        tx.msg.amount
+      );
+      msgTypeName = 'types.MessageSend';
       break;
 
-    case "stake":
+    case 'stake':
       msgBytes = encodeMessageStake(tx.msg);
-      msgTypeName = "types.MessageStake";
+      msgTypeName = 'types.MessageStake';
       break;
 
-    case "editStake":
+    case 'editStake':
       msgBytes = encodeMessageEditStake(tx.msg);
-      msgTypeName = "types.MessageEditStake";
+      msgTypeName = 'types.MessageEditStake';
       break;
 
-    case "unstake":
+    case 'unstake':
       msgBytes = encodeMessageUnstake(tx.msg.address);
-      msgTypeName = "types.MessageUnstake";
+      msgTypeName = 'types.MessageUnstake';
       break;
 
-    case "pause":
+    case 'pause':
       msgBytes = encodeMessagePause(tx.msg.address);
-      msgTypeName = "types.MessagePause";
+      msgTypeName = 'types.MessagePause';
       break;
 
-    case "unpause":
+    case 'unpause':
       msgBytes = encodeMessageUnpause(tx.msg.address);
-      msgTypeName = "types.MessageUnpause";
+      msgTypeName = 'types.MessageUnpause';
       break;
 
-    case "changeParameter":
+    case 'changeParameter':
       msgBytes = encodeMessageChangeParameter(tx.msg);
-      msgTypeName = "types.MessageChangeParameter";
+      msgTypeName = 'types.MessageChangeParameter';
       break;
 
-    case "daoTransfer":
+    case 'daoTransfer':
       msgBytes = encodeMessageDAOTransfer(tx.msg);
-      msgTypeName = "types.MessageDAOTransfer";
+      msgTypeName = 'types.MessageDAOTransfer';
       break;
 
-    case "MessageSubsidy":
+    case 'MessageSubsidy':
       msgBytes = encodeMessageSubsidy(tx.msg);
-      msgTypeName = "types.MessageSubsidy";
+      msgTypeName = 'types.MessageSubsidy';
       break;
 
-    case "createOrder":
+    case 'createOrder':
       msgBytes = encodeMessageCreateOrder(tx.msg);
-      msgTypeName = "types.MessageCreateOrder";
+      msgTypeName = 'types.MessageCreateOrder';
       break;
 
-    case "editOrder":
+    case 'editOrder':
       msgBytes = encodeMessageEditOrder(tx.msg);
-      msgTypeName = "types.MessageEditOrder";
+      msgTypeName = 'types.MessageEditOrder';
       break;
 
-    case "deleteOrder":
+    case 'deleteOrder':
       msgBytes = encodeMessageDeleteOrder(tx.msg);
-      msgTypeName = "types.MessageDeleteOrder";
+      msgTypeName = 'types.MessageDeleteOrder';
       break;
 
-    case "dexLimitOrder":
+    case 'dexLimitOrder':
       msgBytes = encodeMessageDexLimitOrder(tx.msg);
-      msgTypeName = "types.MessageDexLimitOrder";
+      msgTypeName = 'types.MessageDexLimitOrder';
       break;
 
-    case "dexLiquidityDeposit":
+    case 'dexLiquidityDeposit':
       msgBytes = encodeMessageDexLiquidityDeposit(tx.msg);
-      msgTypeName = "types.MessageDexLiquidityDeposit";
+      msgTypeName = 'types.MessageDexLiquidityDeposit';
       break;
 
-    case "dexLiquidityWithdraw":
+    case 'dexLiquidityWithdraw':
       msgBytes = encodeMessageDexLiquidityWithdraw(tx.msg);
-      msgTypeName = "types.MessageDexLiquidityWithdraw";
+      msgTypeName = 'types.MessageDexLiquidityWithdraw';
       break;
 
     default:
@@ -897,9 +896,9 @@ export function encodeSignedTransaction(tx: {
   let msgTypeName: string;
 
   switch (tx.type) {
-    case "MessageSend":
+    case 'MessageSend':
       msgBytes = encodeMessageSend(tx.msg.fromAddress, tx.msg.toAddress, tx.msg.amount);
-      msgTypeName = "types.MessageSend";
+      msgTypeName = 'types.MessageSend';
       break;
     // ... (add other cases as needed)
     default:
@@ -919,7 +918,7 @@ export function encodeSignedTransaction(tx: {
     created_height: tx.createdHeight,
     time: tx.time,
     fee: tx.fee,
-    memo: tx.memo ?? "",
+    memo: tx.memo ?? '',
     network_id: tx.networkID,
     chain_id: tx.chainID,
   });
@@ -934,9 +933,9 @@ export function encodeSignedTransaction(tx: {
 export function debugProtobufEncoding(tx: any): void {
   const signBytes = getSignBytesProtobuf(tx);
 
-  console.log("=== Protobuf Encoding Debug ===");
-  console.log("Transaction:", JSON.stringify(tx, null, 2));
-  console.log("Sign bytes length:", signBytes.length);
-  console.log("Sign bytes (hex):", Buffer.from(signBytes).toString("hex"));
-  console.log("Sign bytes (base64):", Buffer.from(signBytes).toString("base64"));
+  console.log('=== Protobuf Encoding Debug ===');
+  console.log('Transaction:', JSON.stringify(tx, null, 2));
+  console.log('Sign bytes length:', signBytes.length);
+  console.log('Sign bytes (hex):', Buffer.from(signBytes).toString('hex'));
+  console.log('Sign bytes (base64):', Buffer.from(signBytes).toString('base64'));
 }

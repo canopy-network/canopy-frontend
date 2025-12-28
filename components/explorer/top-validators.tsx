@@ -51,7 +51,13 @@ function UptimeTrend({ data, color }: { data: number[]; color: string }) {
   const isUpward = lastValue > firstValue;
 
   return (
-    <div className={color}>{isUpward ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}</div>
+    <div className={color}>
+      {isUpward ? (
+        <TrendingUp className="w-3 h-3" />
+      ) : (
+        <TrendingDown className="w-3 h-3" />
+      )}
+    </div>
   );
 }
 
@@ -67,7 +73,8 @@ export function TopValidators({ validators }: TopValidatorsProps) {
 
   // Determine uptime color based on percentage
   const getUptimeColor = (uptime: number) => {
-    if (uptime >= 99) return "bg-[#00a63d]/10 text-[#00a63d] border border-[#00a63d]/50";
+    if (uptime >= 99)
+      return "bg-[#00a63d]/10 text-[#00a63d] border border-[#00a63d]/50";
     if (uptime >= 97) return "bg-yellow-500/10 text-yellow-500";
     return "bg-red-500/10 text-red-500";
   };
@@ -101,7 +108,10 @@ export function TopValidators({ validators }: TopValidatorsProps) {
     return `${cnpyAmount.toFixed(1)} CNPY`;
   };
 
-  const mergeStatus = (current?: string, next?: string) => {
+  const mergeStatus = (
+    current?: string,
+    next?: string
+  ) => {
     if (!current) return next;
     if (!next) return current;
 
@@ -126,17 +136,24 @@ export function TopValidators({ validators }: TopValidatorsProps) {
     const byAddress = new Map<string, AggregatedValidator>();
 
     validators.forEach((validator) => {
-      const chains = validator.chains && validator.chains.length > 0 ? validator.chains : [validator.name];
+      const chains =
+        validator.chains && validator.chains.length > 0
+          ? validator.chains
+          : [validator.name];
       const votingPower = Number(validator.votingPower ?? 0);
       const apy = Number(validator.apy ?? 0);
       const uptimeValue = Number(validator.uptime ?? 0);
       const statusValue = validator.originalStatus || validator.status;
       // Parse stake amount (remove commas if present, then parse)
-      const stakeAmount = validator.stakedAmount ? parseFloat(validator.stakedAmount.replace(/,/g, "")) : 0;
+      const stakeAmount = validator.stakedAmount
+        ? parseFloat(validator.stakedAmount.replace(/,/g, ''))
+        : 0;
       const existing = byAddress.get(validator.address);
 
       if (existing) {
-        const mergedChains = Array.from(new Set([...(existing.chains || []), ...chains]));
+        const mergedChains = Array.from(
+          new Set([...(existing.chains || []), ...chains])
+        );
 
         existing.chains = mergedChains;
         existing.chainCount = mergedChains.length;
@@ -168,10 +185,16 @@ export function TopValidators({ validators }: TopValidatorsProps) {
     const sorted = Array.from(byAddress.values())
       .map((validator) => ({
         ...validator,
-        votingPowerAvg: validator.entries > 0 ? validator.totalVotingPower / validator.entries : 0,
-        apyAvg: validator.entries > 0 ? validator.totalApy / validator.entries : 0,
-        uptimeAvg: validator.entries > 0 ? validator.totalUptime / validator.entries : 0,
-        uptime: validator.entries > 0 ? validator.totalUptime / validator.entries : 0,
+        votingPowerAvg:
+          validator.entries > 0
+            ? validator.totalVotingPower / validator.entries
+            : 0,
+        apyAvg:
+          validator.entries > 0 ? validator.totalApy / validator.entries : 0,
+        uptimeAvg:
+          validator.entries > 0 ? validator.totalUptime / validator.entries : 0,
+        uptime:
+          validator.entries > 0 ? validator.totalUptime / validator.entries : 0,
       }))
       .sort((a, b) => {
         // Sort by total stake (descending), then by voting power (descending) as tiebreaker
@@ -188,10 +211,15 @@ export function TopValidators({ validators }: TopValidatorsProps) {
     return sorted.slice(0, 5);
   }, [validators]);
 
-  const getChainAvatars = (chains: string[] | undefined, fallback: string, limit = 2) => {
+  const getChainAvatars = (
+    chains: string[] | undefined,
+    fallback: string,
+    limit = 2
+  ) => {
     if (!chains || chains.length === 0) return [fallback];
     return chains.slice(0, limit);
   };
+
 
   const columns: TableColumn[] = [
     { label: "Rank", width: "w-16" },
@@ -230,8 +258,12 @@ export function TopValidators({ validators }: TopValidatorsProps) {
           }}
         />
         <div className="flex flex-col">
-          <span className="font-medium text-white text-sm">{getValidatorName(validator.address)}</span>
-          <span className="text-xs text-muted-foreground font-mono truncate max-w-[130px]">{validator.address}</span>
+          <span className="font-medium text-white text-sm">
+            {getValidatorName(validator.address)}
+          </span>
+          <span className="text-xs text-muted-foreground font-mono truncate max-w-[130px]">
+            {validator.address}
+          </span>
         </div>
       </div>,
       // Chains
@@ -243,12 +275,16 @@ export function TopValidators({ validators }: TopValidatorsProps) {
                 key={`${validator.address}-${chain}-${chainIndex}`}
                 className="w-6 h-6 inline-flex items-center justify-center border border-background rounded-full bg-white/10"
                 dangerouslySetInnerHTML={{
-                  __html: canopyIconSvg(getCanopyAccent(`${chain}-${chainIndex}`)),
+                  __html: canopyIconSvg(
+                    getCanopyAccent(`${chain}-${chainIndex}`)
+                  ),
                 }}
               />
             ))}
           </div>
-          <span className="text-gray-400 font-medium text-sm">+{validator.chainCount}</span>
+          <span className="text-gray-400 font-medium text-sm">
+            +{validator.chainCount}
+          </span>
         </div>
       </div>,
       // Stake
@@ -268,7 +304,10 @@ export function TopValidators({ validators }: TopValidatorsProps) {
       >
         {validator.uptime.toFixed(1)}%
         {validator.uptimeTrend && (
-          <UptimeTrend data={validator.uptimeTrend} color={getUptimeTextColor(validator.uptime)} />
+          <UptimeTrend
+            data={validator.uptimeTrend}
+            color={getUptimeTextColor(validator.uptime)}
+          />
         )}
       </span>,
     ];

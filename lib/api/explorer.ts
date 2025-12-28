@@ -12,11 +12,20 @@
 
 import { useQuery, type UseQueryOptions, type UseQueryResult } from "@tanstack/react-query";
 import { apiClient } from "./client";
-import type { Block, ExplorerBlocksResponse, GetExplorerBlocksParams, ExplorerBlockSearchResult } from "@/types/blocks";
+import type {
+  Block,
+  ExplorerBlocksResponse,
+  GetExplorerBlocksParams,
+  ExplorerBlockSearchResult,
+} from "@/types/blocks";
 import type { AddressResponse } from "@/types/addresses";
 
 // Re-export types for backward compatibility
-export type { Block, ExplorerBlocksResponse, GetExplorerBlocksParams } from "@/types/blocks";
+export type {
+  Block,
+  ExplorerBlocksResponse,
+  GetExplorerBlocksParams,
+} from "@/types/blocks";
 export type { AddressResponse } from "@/types/addresses";
 
 // ============================================================================
@@ -147,7 +156,10 @@ export interface GetExplorerTransactionsParams {
 /**
  * Explorer search result base interface
  */
-export interface ExplorerSearchResultBase<TType extends string = string, TResult = unknown> {
+export interface ExplorerSearchResultBase<
+  TType extends string = string,
+  TResult = unknown
+> {
   type: TType;
   chain_id: number;
   result: TResult;
@@ -171,7 +183,8 @@ export interface ExplorerAddressSearchResult
 /**
  * Explorer transaction search result
  */
-export interface ExplorerTransactionSearchResult extends ExplorerSearchResultBase<"transaction", Transaction> {
+export interface ExplorerTransactionSearchResult
+  extends ExplorerSearchResultBase<"transaction", Transaction> {
   type: "transaction";
 }
 
@@ -201,7 +214,10 @@ export const explorerApi = {
    * @returns Promise resolving to transactions data with pagination
    */
   getTransactions: (params?: GetExplorerTransactionsParams) =>
-    apiClient.get<ExplorerTransactionsResponse>("/explorer/transactions", params),
+    apiClient.get<ExplorerTransactionsResponse>(
+      "/explorer/transactions",
+      params
+    ),
 
   /**
    * Get detailed information about a specific transaction
@@ -212,7 +228,10 @@ export const explorerApi = {
    * @returns Promise resolving to transaction detail data
    */
   getTransaction: (hash: string, params?: { chain_id?: number }) =>
-    apiClient.get<Transaction>(`/explorer/transactions/${hash}`, params),
+    apiClient.get<Transaction>(
+      `/explorer/transactions/${hash}`,
+      params
+    ),
 
   /**
    * Get paginated list of recent blocks
@@ -221,7 +240,11 @@ export const explorerApi = {
    * @param params - Query parameters for filtering and pagination
    * @returns Promise resolving to blocks data with pagination
    */
-  getBlocks: (params?: GetExplorerBlocksParams) => apiClient.get<ExplorerBlocksResponse>("/explorer/blocks", params),
+  getBlocks: (params?: GetExplorerBlocksParams) =>
+    apiClient.get<ExplorerBlocksResponse>(
+      "/explorer/blocks",
+      params
+    ),
 
   /**
    * Get detailed information about a specific block
@@ -245,7 +268,10 @@ export const explorerApi = {
    * @returns Promise resolving to overview data with pagination wrapper
    */
   getOverview: (params?: { chain_id?: number }) =>
-    apiClient.get<ExplorerOverviewResponse>("/explorer/overview", params),
+    apiClient.get<ExplorerOverviewResponse>(
+      "/explorer/overview",
+      params
+    ),
 
   /**
    * Get trending chains
@@ -255,16 +281,10 @@ export const explorerApi = {
    * @returns Promise resolving to trending chains data
    */
   getTrendingChains: (params?: { limit?: number }) =>
-    apiClient.get<ExplorerTrendingChainsResponse>("/explorer/trending", params),
-
-  /**
-   * Get trending chains
-   *
-   * @param params - Query parameters for pagination/filtering
-   * @returns Promise resolving to trending chains data
-   */
-  getTrendingChains: (params?: { limit?: number }) =>
-    apiClient.get<ExplorerTrendingChainsResponse>("/api/v1/explorer/trending", params),
+    apiClient.get<ExplorerTrendingChainsResponse>(
+      "/explorer/trending",
+      params
+    ),
 
   /**
    * Get comprehensive address information
@@ -280,7 +300,11 @@ export const explorerApi = {
       include_transactions?: boolean;
       transaction_limit?: number;
     }
-  ) => apiClient.get<AddressResponse>(`/explorer/addresses/${address}`, params),
+  ) =>
+    apiClient.get<AddressResponse>(
+      `/explorer/addresses/${address}`,
+      params
+    ),
 
   /**
    * Get historical data for TVL, volume, validators, and transactions
@@ -292,8 +316,13 @@ export const explorerApi = {
   getHistorical: (params: GetExplorerHistoricalParams) => {
     // Remove chain_id if it's 0 or undefined to avoid sending it
     const { chain_id, ...restParams } = params;
-    const filteredParams = chain_id && chain_id !== 0 ? { ...restParams, chain_id } : restParams;
-    return apiClient.get<ExplorerHistoricalResponse>("/explorer/historical", filteredParams);
+    const filteredParams = chain_id && chain_id !== 0 
+      ? { ...restParams, chain_id }
+      : restParams;
+    return apiClient.get<ExplorerHistoricalResponse>(
+      "/explorer/historical",
+      filteredParams
+    );
   },
 };
 
@@ -308,7 +337,9 @@ export const explorerApi = {
  * @param params - Query parameters for filtering and pagination
  * @returns Promise resolving to transactions array
  */
-export async function getExplorerTransactions(params?: GetExplorerTransactionsParams): Promise<Transaction[]> {
+export async function getExplorerTransactions(
+  params?: GetExplorerTransactionsParams
+): Promise<Transaction[]> {
   const response = await explorerApi.getTransactions(params);
   // Debug: log response structure
   console.log("[getExplorerTransactions] Response structure:", {
@@ -336,7 +367,10 @@ export async function getExplorerTransactions(params?: GetExplorerTransactionsPa
  * @param chainId - Optional chain ID
  * @returns Promise resolving to transaction data
  */
-export async function getExplorerTransaction(hash: string, chainId?: number): Promise<Transaction> {
+export async function getExplorerTransaction(
+  hash: string,
+  chainId?: number
+): Promise<Transaction> {
   const response = await explorerApi.getTransaction(hash, {
     chain_id: chainId,
   });
@@ -350,7 +384,9 @@ export async function getExplorerTransaction(hash: string, chainId?: number): Pr
  * @param params - Query parameters for filtering and pagination
  * @returns Promise resolving to blocks array
  */
-export async function getExplorerBlocks(params?: GetExplorerBlocksParams): Promise<Block[]> {
+export async function getExplorerBlocks(
+  params?: GetExplorerBlocksParams
+): Promise<Block[]> {
   const response = await explorerApi.getBlocks(params);
   // Debug: log response structure
   console.log("[getExplorerBlocks] Response structure:", {
@@ -390,16 +426,16 @@ export async function getExplorerBlocksWithPagination(
     hasPagination: !!response.data?.pagination,
     dataKeys: response.data ? Object.keys(response.data) : [],
   });
-
+  
   // apiClient.get returns ApiResponse<T> which is { data: T, pagination: ... }
   // Check if response.data is already ExplorerBlocksResponse structure
-  if (response.data && typeof response.data === "object" && !Array.isArray(response.data)) {
+  if (response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
     // response.data is ExplorerBlocksResponse = { data: Block[], pagination: {...} }
-    if ("data" in response.data && "pagination" in response.data) {
+    if ('data' in response.data && 'pagination' in response.data) {
       return response.data as ExplorerBlocksResponse;
     }
   }
-
+  
   // If response.data is an array, it means the API returned blocks directly
   // We need to construct ExplorerBlocksResponse from response
   if (Array.isArray(response.data)) {
@@ -411,20 +447,19 @@ export async function getExplorerBlocksWithPagination(
       },
     };
   }
-
+  
   // Fallback: try to extract from nested structure
   const responseData = response.data as any;
   if (responseData?.data && Array.isArray(responseData.data)) {
     return {
       data: responseData.data,
-      pagination: responseData.pagination ||
-        response.pagination || {
-          limit: params?.limit || 20,
-          next_cursor: null,
-        },
+      pagination: responseData.pagination || response.pagination || {
+        limit: params?.limit || 20,
+        next_cursor: null,
+      },
     };
   }
-
+  
   // Default empty response
   return {
     data: [],
@@ -443,7 +478,10 @@ export async function getExplorerBlocksWithPagination(
  * @param chainId - Optional chain ID
  * @returns Promise resolving to block data
  */
-export async function getExplorerBlock(height: number, chainId?: number): Promise<Block> {
+export async function getExplorerBlock(
+  height: number,
+  chainId?: number
+): Promise<Block> {
   const response = await explorerApi.getBlock(height, {
     chain_id: chainId,
   });
@@ -457,7 +495,9 @@ export async function getExplorerBlock(height: number, chainId?: number): Promis
  * @param params - Query parameters for pagination/filtering
  * @returns Promise resolving to trending chains array
  */
-export async function getExplorerTrendingChains(params?: { limit?: number }): Promise<ExplorerTrendingChain[]> {
+export async function getExplorerTrendingChains(
+  params?: { limit?: number }
+): Promise<ExplorerTrendingChain[]> {
   try {
     const response = await explorerApi.getTrendingChains(params);
     // Handle different response structures
@@ -485,7 +525,7 @@ export async function getExplorerHistorical(
   params: GetExplorerHistoricalParams
 ): Promise<ExplorerHistoricalData | null> {
   try {
-    const response = (await explorerApi.getHistorical(params)) as any;
+    const response = await explorerApi.getHistorical(params) as any;
     // Debug: log response structure
     console.log("[getExplorerHistorical] Response structure:", {
       hasData: !!response.data,
@@ -496,11 +536,7 @@ export async function getExplorerHistorical(
 
     // Handle different response structures
     // If response.data is already ExplorerHistoricalData (direct from Next.js API)
-    if (
-      response.data?.tvl !== undefined ||
-      response.data?.volume !== undefined ||
-      response.data?.transactions !== undefined
-    ) {
+    if (response.data?.tvl !== undefined || response.data?.volume !== undefined || response.data?.transactions !== undefined) {
       return response.data as ExplorerHistoricalData;
     }
     // If response.data.data exists (nested structure)
@@ -530,7 +566,9 @@ export interface ExplorerSearchResponse {
  * Search explorer entities by hash/address/height.
  * Uses /api/explorer/search endpoint
  */
-export async function searchExplorerEntities(query: string): Promise<ExplorerSearchResult[]> {
+export async function searchExplorerEntities(
+  query: string
+): Promise<ExplorerSearchResult[]> {
   const trimmedQuery = query.trim();
 
   if (!trimmedQuery) {
@@ -538,16 +576,19 @@ export async function searchExplorerEntities(query: string): Promise<ExplorerSea
   }
 
   try {
-    const response = await apiClient.get<ExplorerSearchResponse>("/explorer/search", { q: trimmedQuery });
+    const response = await apiClient.get<ExplorerSearchResponse>(
+      "/explorer/search",
+      { q: trimmedQuery }
+    );
     console.log("[searchExplorerEntities] Raw API response:", response);
-
+    
     // Based on logs, apiClient.get returns the response directly as { data: [...], pagination: null }
     // So response is already ExplorerSearchResponse, not ApiResponse<ExplorerSearchResponse>
     // Therefore we access response.data directly
     const searchResponse = response as unknown as ExplorerSearchResponse;
     console.log("[searchExplorerEntities] SearchResponse:", searchResponse);
     console.log("[searchExplorerEntities] SearchResponse.data:", searchResponse?.data);
-
+    
     const results = searchResponse?.data || [];
     console.log("[searchExplorerEntities] Extracted results:", results);
     console.log("[searchExplorerEntities] Results length:", results.length);
@@ -557,7 +598,10 @@ export async function searchExplorerEntities(query: string): Promise<ExplorerSea
     }
     return results;
   } catch (error) {
-    console.error("[searchExplorerEntities] Error fetching search results", error);
+    console.error(
+      "[searchExplorerEntities] Error fetching search results",
+      error
+    );
     return [];
   }
 }
@@ -631,11 +675,11 @@ export async function getExplorerOverview(params?: { chain_id?: number }): Promi
   try {
     const response = await explorerApi.getOverview(params);
     // Handle different response structures
-    if (response.data && !response.data.data && typeof response.data === "object" && "tvl" in response.data) {
+    if (response.data && !response.data.data && typeof response.data === 'object' && 'tvl' in response.data) {
       // Direct ExplorerOverview object
       return response.data as unknown as ExplorerOverview;
     }
-    if (response.data?.data && typeof response.data.data === "object" && "tvl" in response.data.data) {
+    if (response.data?.data && typeof response.data.data === 'object' && 'tvl' in response.data.data) {
       // Nested structure: { data: { data: ExplorerOverview } }
       return response.data.data as unknown as ExplorerOverview;
     }
@@ -679,11 +723,11 @@ export async function getExplorerAddress(
 /**
  * React Query hook for fetching explorer transactions
  * Uses /api/explorer/transactions endpoint
- *
+ * 
  * @param params - Query parameters for filtering and pagination
  * @param options - React Query options
  * @returns UseQueryResult with transactions data
- *
+ * 
  * @example
  * ```typescript
  * const { data, isLoading, error } = useExplorerTransactions({
@@ -707,12 +751,12 @@ export function useExplorerTransactions(
 /**
  * React Query hook for fetching a single transaction
  * Uses /api/explorer/transactions/[hash] endpoint
- *
+ * 
  * @param hash - Transaction hash
  * @param chainId - Optional chain ID
  * @param options - React Query options
  * @returns UseQueryResult with transaction data
- *
+ * 
  * @example
  * ```typescript
  * const { data, isLoading } = useExplorerTransaction("0xabc123...");
@@ -735,11 +779,11 @@ export function useExplorerTransaction(
 /**
  * React Query hook for fetching explorer blocks
  * Uses /api/explorer/blocks endpoint
- *
+ * 
  * @param params - Query parameters for filtering and pagination
  * @param options - React Query options
  * @returns UseQueryResult with blocks data
- *
+ * 
  * @example
  * ```typescript
  * const { data, isLoading } = useExplorerBlocks({ chain_id: 1, limit: 10 });
@@ -760,12 +804,12 @@ export function useExplorerBlocks(
 /**
  * React Query hook for fetching a single block
  * Uses /api/explorer/blocks/[height] endpoint
- *
+ * 
  * @param height - Block height
  * @param chainId - Optional chain ID
  * @param options - React Query options
  * @returns UseQueryResult with block data
- *
+ * 
  * @example
  * ```typescript
  * const { data, isLoading } = useExplorerBlock(12345);
@@ -788,11 +832,11 @@ export function useExplorerBlock(
 /**
  * React Query hook for fetching network overview
  * Uses /api/explorer/overview endpoint
- *
+ * 
  * @param params - Optional parameters including chain_id
  * @param options - React Query options
  * @returns UseQueryResult with overview data
- *
+ * 
  * @example
  * ```typescript
  * const { data, isLoading } = useExplorerOverview();
@@ -814,11 +858,11 @@ export function useExplorerOverview(
 /**
  * React Query hook for fetching trending chains
  * Uses /api/explorer/trending endpoint
- *
+ * 
  * @param params - Query parameters for pagination/filtering
  * @param options - React Query options
  * @returns UseQueryResult with trending chains data
- *
+ * 
  * @example
  * ```typescript
  * const { data, isLoading } = useExplorerTrendingChains({ limit: 10 });
@@ -839,13 +883,13 @@ export function useExplorerTrendingChains(
 /**
  * React Query hook for fetching address information
  * Uses /api/explorer/addresses/[address] endpoint
- *
+ * 
  * @param address - Address to lookup
  * @param includeTransactions - Whether to include transactions (default: true)
  * @param transactionLimit - Max transactions per chain (default: 10)
  * @param options - React Query options
  * @returns UseQueryResult with address data
- *
+ * 
  * @example
  * ```typescript
  * const { data, isLoading } = useExplorerAddress("0x1234...", true, 20);
@@ -869,11 +913,11 @@ export function useExplorerAddress(
 /**
  * React Query hook for searching explorer entities
  * Uses /api/explorer/search endpoint
- *
+ * 
  * @param query - Search query string
  * @param options - React Query options
  * @returns UseQueryResult with search results
- *
+ * 
  * @example
  * ```typescript
  * const { data, isLoading } = useExplorerSearch("0xabc123");
@@ -895,17 +939,17 @@ export function useExplorerSearch(
 /**
  * React Query hook for fetching historical data
  * Uses /api/explorer/historical endpoint
- *
+ * 
  * @param params - Query parameters (chain_id, range, interval)
  * @param options - React Query options
  * @returns UseQueryResult with historical data
- *
+ * 
  * @example
  * ```typescript
- * const { data, isLoading } = useExplorerHistorical({
- *   chain_id: 1,
- *   range: "1d",
- *   interval: "5m"
+ * const { data, isLoading } = useExplorerHistorical({ 
+ *   chain_id: 1, 
+ *   range: "1d", 
+ *   interval: "5m" 
  * });
  * ```
  */
@@ -915,7 +959,7 @@ export function useExplorerHistorical(
 ): UseQueryResult<ExplorerHistoricalData | null, Error> {
   return useQuery({
     queryKey: ["explorer", "historical", params],
-    queryFn: () => (params ? getExplorerHistorical(params) : Promise.resolve(null)),
+    queryFn: () => params ? getExplorerHistorical(params) : Promise.resolve(null),
     enabled: !!params && !!params.range && !!params.interval, // chain_id is optional
     staleTime: 60000, // 1 minute
     ...options,

@@ -34,4 +34,5 @@ export function canopyIconSvg(color: string): string {
 
 export const EXPLORER_NEON_GREEN = "#00a63d"; // Match Explorer chain selection / Connect Wallet text
 export const EXPLORER_NEON_BORDER = "#00a63d";
-export const EXPLORER_ICON_GLOW = "text-[#00a63d] drop-shadow-[0_0_12px_rgba(0,166,61,0.4)]";
+export const EXPLORER_ICON_GLOW =
+  "text-[#00a63d] drop-shadow-[0_0_12px_rgba(0,166,61,0.4)]";

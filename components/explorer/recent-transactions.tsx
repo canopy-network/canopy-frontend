@@ -9,7 +9,8 @@ import { TableArrow } from "@/components/icons";
 import { chainsApi } from "@/lib/api/chains";
 import type { Chain } from "@/types/chains";
 
-const formatAddress = (value: string, prefix = 6, suffix = 6) => `${value.slice(0, prefix)}...${value.slice(-suffix)}`;
+const formatAddress = (value: string, prefix = 6, suffix = 6) =>
+  `${value.slice(0, prefix)}...${value.slice(-suffix)}`;
 
 // Format time ago from ISO timestamp string
 const formatTimeAgo = (timestamp: string): string => {
@@ -37,7 +38,9 @@ export function RecentTransactions({ transactions, isLoading = false }: RecentTr
     const fetchChainInfo = async () => {
       if (!transactions || transactions.length === 0) return;
 
-      const uniqueChainIds = Array.from(new Set(transactions.map((tx) => tx.chain_id)));
+      const uniqueChainIds = Array.from(
+        new Set(transactions.map((tx) => tx.chain_id))
+      );
 
       const names: Record<number, string> = {};
       const colors: Record<number, string> = {};
@@ -164,9 +167,7 @@ export function RecentTransactions({ transactions, isLoading = false }: RecentTr
       // Status (Method)
       <div key="status">
         <span
-          className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${getMethodColor(
-            tx.message_type
-          )}`}
+          className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${getMethodColor(tx.message_type)}`}
         >
           {formatMethod(tx.message_type)}
         </span>
@@ -187,7 +188,7 @@ export function RecentTransactions({ transactions, isLoading = false }: RecentTr
       </div>,
       // Arrow
       <div key="arrow" className="flex items-center justify-center">
-        <TableArrow className={""} />
+        <TableArrow className={''} />
       </div>,
       // To
       <div key="to">

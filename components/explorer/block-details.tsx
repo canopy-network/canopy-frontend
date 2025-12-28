@@ -78,17 +78,32 @@ const formatTimeAgo = (timestamp: number): string => {
     if (remainingMinutes === 0) {
       return `${hours} hr ago`;
     }
-    return `${hours} hr ${remainingMinutes} min${remainingMinutes === 1 ? "" : "s"} ago`;
+    return `${hours} hr ${remainingMinutes} min${remainingMinutes === 1 ? "" : "s"
+      } ago`;
   }
 
   const days = Math.floor(seconds / 86400);
   return `${days} day${days === 1 ? "" : "s"} ago`;
 };
 
+
 // Format timestamp to readable format (Nov-18 2025 12:47:27PM)
 const formatTimestamp = (timestamp: number): string => {
   const date = new Date(timestamp);
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   const month = months[date.getMonth()];
   const day = date.getDate();
   const year = date.getFullYear();
@@ -106,6 +121,7 @@ const formatCombinedTimestamp = (timestamp: number): string => {
   const fullDate = formatTimestamp(timestamp);
   return `${timeAgo} (${fullDate})`;
 };
+
 
 interface BlockDetailsProps {
   blockId: string;
@@ -143,7 +159,9 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <span className="ml-2 text-sm text-muted-foreground">Loading block...</span>
+        <span className="ml-2 text-sm text-muted-foreground">
+          Loading block...
+        </span>
       </div>
     );
   }
@@ -151,7 +169,9 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
   if (error || !block) {
     return (
       <div className="text-center py-12">
-        <p className="text-sm font-medium text-destructive mb-1">{error || "Block not found"}</p>
+        <p className="text-sm font-medium text-destructive mb-1">
+          {error || "Block not found"}
+        </p>
       </div>
     );
   }
@@ -161,7 +181,8 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
       {/* Header with Title and Search */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <h1 className="text-2xl font-bold">Block #{block.height}</h1>
-        <div className="w-full flex-1 max-w-[532px]"></div>
+        <div className="w-full flex-1 max-w-[532px]">
+        </div>
       </div>
 
       {/* Block Summary Card */}
@@ -173,7 +194,9 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
           </div>
           <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
             <p className="text-sm text-muted-foreground">Timestamp:</p>
-            <p className="text-sm font-medium">{formatCombinedTimestamp(new Date(block.timestamp).getTime())}</p>
+            <p className="text-sm font-medium">
+              {formatCombinedTimestamp(new Date(block.timestamp).getTime())}
+            </p>
           </div>
           <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
             <p className="text-sm text-muted-foreground">Proposed by:</p>
@@ -185,11 +208,15 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
           </div>
           <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
             <p className="text-sm text-muted-foreground">Total Transactions:</p>
-            <p className="text-lg font-semibold">{(block as ExtendedApiBlock).total_txs ?? block.num_txs ?? 0}</p>
+            <p className="text-lg font-semibold">
+              {(block as ExtendedApiBlock).total_txs ?? block.num_txs ?? 0}
+            </p>
           </div>
           <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
             <p className="text-sm text-muted-foreground">Total Events:</p>
-            <p className="text-lg font-semibold">{(block as ExtendedApiBlock).total_events ?? block.num_events ?? 0}</p>
+            <p className="text-lg font-semibold">
+              {(block as ExtendedApiBlock).total_events ?? block.num_events ?? 0}
+            </p>
           </div>
         </div>
       </Card>
@@ -207,7 +234,9 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
           </div>
           <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
             <p className="text-sm text-muted-foreground">Total Fees:</p>
-            <p className="text-lg font-semibold text-green-500">{((block.total_fees || 0) / 100).toFixed(2)} CNPY</p>
+            <p className="text-lg font-semibold text-green-500">
+              {((block.total_fees || 0) / 100).toFixed(2)} CNPY
+            </p>
           </div>
           <div className="py-4 flex flex-col gap-2 lg:grid lg:grid-cols-[212px_1fr] lg:gap-6 lg:items-center">
             <p className="text-sm text-muted-foreground">Total Rewards:</p>
@@ -231,7 +260,12 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
             <p className="text-sm text-muted-foreground">Hash:</p>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-mono text-sm break-all">{block.hash}</span>
-              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => copyToClipboard(block.hash)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => copyToClipboard(block.hash)}
+              >
                 <Copy className="w-4 h-4" />
               </Button>
             </div>
@@ -243,24 +277,24 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
       {(() => {
         const extendedBlock = block as ExtendedApiBlock;
         const eventTypes = [
-          { key: "num_events_reward", label: "Reward" },
-          { key: "num_events_slash", label: "Slash" },
-          { key: "num_events_double_sign", label: "Double Sign" },
-          { key: "num_events_unstake_ready", label: "Unstake Ready" },
-          { key: "num_events_order_book_swap", label: "Order Book Swap" },
-          { key: "num_events_order_created", label: "Order Created" },
-          { key: "num_events_order_edited", label: "Order Edited" },
-          { key: "num_events_order_deleted", label: "Order Deleted" },
-          { key: "num_events_order_filled", label: "Order Filled" },
-          { key: "num_events_dex_deposit", label: "DEX Deposit" },
-          { key: "num_events_dex_withdraw", label: "DEX Withdraw" },
-          { key: "num_events_dex_swap", label: "DEX Swap" },
-          { key: "num_events_pool_created", label: "Pool Created" },
-          { key: "num_events_pool_points_created", label: "Pool Points Created" },
-          { key: "num_events_pool_points_redeemed", label: "Pool Points Redeemed" },
-          { key: "num_events_pool_points_transfered", label: "Pool Points Transferred" },
+          { key: 'num_events_reward', label: 'Reward' },
+          { key: 'num_events_slash', label: 'Slash' },
+          { key: 'num_events_double_sign', label: 'Double Sign' },
+          { key: 'num_events_unstake_ready', label: 'Unstake Ready' },
+          { key: 'num_events_order_book_swap', label: 'Order Book Swap' },
+          { key: 'num_events_order_created', label: 'Order Created' },
+          { key: 'num_events_order_edited', label: 'Order Edited' },
+          { key: 'num_events_order_deleted', label: 'Order Deleted' },
+          { key: 'num_events_order_filled', label: 'Order Filled' },
+          { key: 'num_events_dex_deposit', label: 'DEX Deposit' },
+          { key: 'num_events_dex_withdraw', label: 'DEX Withdraw' },
+          { key: 'num_events_dex_swap', label: 'DEX Swap' },
+          { key: 'num_events_pool_created', label: 'Pool Created' },
+          { key: 'num_events_pool_points_created', label: 'Pool Points Created' },
+          { key: 'num_events_pool_points_redeemed', label: 'Pool Points Redeemed' },
+          { key: 'num_events_pool_points_transfered', label: 'Pool Points Transferred' },
         ];
-        const activeEventTypes = eventTypes.filter((evt) => {
+        const activeEventTypes = eventTypes.filter(evt => {
           const value = extendedBlock[evt.key as keyof ExtendedApiBlock] as number | undefined;
           return value !== undefined && value > 0;
         });
@@ -271,10 +305,12 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
           <Card className="w-full">
             <h4 className="text-lg mb-4">Event Types</h4>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {activeEventTypes.map((evt) => (
+              {activeEventTypes.map(evt => (
                 <div key={evt.key} className="flex flex-col">
                   <p className="text-xs text-muted-foreground">{evt.label}</p>
-                  <p className="text-sm font-semibold">{extendedBlock[evt.key as keyof ExtendedApiBlock] as number}</p>
+                  <p className="text-sm font-semibold">
+                    {extendedBlock[evt.key as keyof ExtendedApiBlock] as number}
+                  </p>
                 </div>
               ))}
             </div>
@@ -386,9 +422,7 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
             // Method
             <div key="method">
               <span
-                className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${getMethodColor(
-                  tx.message_type
-                )}`}
+                className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${getMethodColor(tx.message_type)}`}
               >
                 {formatMethod(tx.message_type)}
               </span>
@@ -442,8 +476,7 @@ export function BlockDetails({ blockId }: BlockDetailsProps) {
                   </span>
                   {tx.fee != null && tx.fee > 0 && (
                     <span className="text-xs text-muted-foreground mt-0.5">
-                      Gas{" "}
-                      {tx.fee.toLocaleString(undefined, {
+                      Gas {tx.fee.toLocaleString(undefined, {
                         minimumFractionDigits: 3,
                         maximumFractionDigits: 3,
                       })}

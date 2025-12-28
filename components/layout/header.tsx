@@ -11,7 +11,12 @@ import {
   BreadcrumbSeparator,
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import Link from "next/link";
 import { useChainsStore } from "@/lib/stores/chains-store";
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -34,7 +39,6 @@ export type PageType =
   | "dashboard"
   | "explorer"
   | "graduation"
-  | "liquidity"
   | "amm"
   | "orderbook"
   | "wallet"
@@ -47,7 +51,6 @@ const routeConfig: Record<string, { label: string; href?: string }> = {
   dashboard: { label: "Dashboard", href: "/dashboard" },
   explorer: { label: "Explorer", href: "/explorer" },
   graduation: { label: "Graduation", href: "/graduation" },
-  liquidity: { label: "Liquidity", href: "/liquidity" },
   amm: { label: "AMM", href: "/amm" },
   orderbook: { label: "Order Book", href: "/orderbook" },
   wallet: { label: "Wallet", href: "/wallet" },
@@ -86,29 +89,27 @@ export function Header() {
   // Get current filter from URL
   const projectStatus = searchParams.get("project_status") || "new";
 
-  const current_explorer_selected_chain = useChainsStore((state) => state.currentExplorerSelectedChain);
+  const current_explorer_selected_chain = useChainsStore(
+    (state) => state.currentExplorerSelectedChain
+  );
   const getChainById = useChainsStore((state) => state.getChainById);
 
   // Check if we're on explorer page
-  const isExplorerPage =
-    pathname.startsWith("/explorer") ||
-    pathname.startsWith("/blocks") ||
-    pathname.startsWith("/transactions") ||
-    pathname.startsWith("/validators");
-
+  const isExplorerPage = pathname.startsWith("/explorer") || pathname.startsWith("/blocks") || pathname.startsWith("/transactions") || pathname.startsWith("/validators");
+  
   // Check if we're on account/address page
   const isAccountPage = pathname.startsWith("/accounts/") || pathname.startsWith("/address/");
-
+  
   // Check if we're on validator detail page (don't show chain selector here)
   // Matches /validators/[address] with or without trailing slash
   const isValidatorDetailPage = pathname.match(/^\/validators\/[^/]+\/?$/);
-
+  
   // Check if we're on block detail page
   const isBlockDetailPage = pathname.match(/^\/blocks\/[^/]+\/?$/);
-
+  
   // Check if we're on transaction detail page
   const isTransactionDetailPage = pathname.match(/^\/transactions\/[^/]+\/?$/);
-
+  
   // Combined check for all detail pages
   const isDetailPage = isValidatorDetailPage || isAccountPage || isBlockDetailPage || isTransactionDetailPage;
 
@@ -179,7 +180,10 @@ export function Header() {
   // Handle click outside to close search
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+      if (
+        searchRef.current &&
+        !searchRef.current.contains(event.target as Node)
+      ) {
         setIsSearchOpen(false);
         setSearchQuery("");
       }
@@ -197,7 +201,10 @@ export function Header() {
   // Handle click outside to close homepage search
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (homepageSearchRef.current && !homepageSearchRef.current.contains(event.target as Node)) {
+      if (
+        homepageSearchRef.current &&
+        !homepageSearchRef.current.contains(event.target as Node)
+      ) {
         setIsHomepageSearchOpen(false);
         setHomepageSearchQuery("");
       }
@@ -236,7 +243,11 @@ export function Header() {
     }> = [];
 
     // Handle explorer sub-pages: /transactions, /validators, /blocks
-    if (segments[0] === "transactions" || segments[0] === "validators" || segments[0] === "blocks") {
+    if (
+      segments[0] === "transactions" ||
+      segments[0] === "validators" ||
+      segments[0] === "blocks"
+    ) {
       const pageLabels: Record<string, string> = {
         transactions: "Transactions",
         validators: "Validators",
@@ -266,7 +277,8 @@ export function Header() {
           detailLabel = `#${detailId}`;
         } else if (segments[0] === "transactions") {
           // For transactions, show the hash (truncate if too long)
-          detailLabel = detailId.length > 20 ? `${detailId.substring(0, 20)}...` : detailId;
+          detailLabel =
+            detailId.length > 20 ? `${detailId.substring(0, 20)}...` : detailId;
         } else if (segments[0] === "validators") {
           // For validators, try to get the validator name, fallback to address
           const validator = getSampleValidatorByAddress(detailId);
@@ -310,7 +322,11 @@ export function Header() {
 
       // Format address: show first 6 and last 5 characters
       const formattedAddress =
-        address.length > 11 ? `${address.substring(0, 6)}...${address.substring(address.length - 5)}` : address;
+        address.length > 11
+          ? `${address.substring(0, 6)}...${address.substring(
+            address.length - 5
+          )}`
+          : address;
 
       breadcrumbArray.push({
         label: formattedAddress,
@@ -329,7 +345,7 @@ export function Header() {
 
     if (config) {
       breadcrumbArray.push({
-        label: config.label || "",
+        label: config.label,
         href: segments.length === 1 ? undefined : config.href,
         isLast: segments.length === 1,
       });
@@ -414,12 +430,19 @@ export function Header() {
     }
   }, [pathname, breadcrumbs, current_explorer_selected_chain]);
 
+  // Early return for launchpad pages - after all hooks
+  if (pathname.includes("/launchpad")) {
+    return null;
+  }
+
   // Chain search filter - Memoized for performance
   const filteredChains = useMemo(() => {
     if (!searchQuery.trim()) return [];
 
     const query = searchQuery.toLowerCase();
-    return chains.filter((chain) => chain.chain_name.toLowerCase().includes(query)).slice(0, 10);
+    return chains
+      .filter((chain) => chain.chain_name.toLowerCase().includes(query))
+      .slice(0, 10);
   }, [searchQuery, chains]);
 
   // Mobile chain search filter - Memoized for performance
@@ -427,7 +450,9 @@ export function Header() {
     if (!mobileSearchQuery.trim()) return [];
 
     const query = mobileSearchQuery.toLowerCase();
-    return chains.filter((chain) => chain.chain_name.toLowerCase().includes(query)).slice(0, 10);
+    return chains
+      .filter((chain) => chain.chain_name.toLowerCase().includes(query))
+      .slice(0, 10);
   }, [mobileSearchQuery, chains]);
 
   const handleChainSelect = (chainId: string) => {
@@ -460,7 +485,10 @@ export function Header() {
     const segments = pathname.split("/").filter(Boolean);
 
     // Home page
-    if (segments.length === 0 || (segments.length === 1 && segments[0] === "launchpad")) {
+    if (
+      segments.length === 0 ||
+      (segments.length === 1 && segments[0] === "launchpad")
+    ) {
       return "home";
     }
 
@@ -514,18 +542,32 @@ export function Header() {
         {/* Mobile Header - visible only on mobile */}
         <div className="flex lg:hidden items-center justify-between w-full relative">
           {/* Left: Menu Button */}
-          <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(true)} className="text-white">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="text-white"
+          >
             <Menu className="h-6 w-6" />
           </Button>
 
           {/* Center: Logo */}
           <Link href="/" className="block ml-4 mx-auto py-2">
-            <img src="/images/logo.svg" alt="Logo" className="h-6 w-auto object-contain" />
+            <img
+              src="/images/logo.svg"
+              alt="Logo"
+              className="h-6 w-auto object-contain"
+            />
           </Link>
 
           {/* Right: Search & Login */}
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => setIsMobileSearchOpen(true)} className="text-white">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsMobileSearchOpen(true)}
+              className="text-white"
+            >
               <Search className="h-5 w-5" />
             </Button>
             {isDetailPage ? null : isLoggedIn ? (
@@ -557,7 +599,13 @@ export function Header() {
                   {breadcrumbs.map((crumb, index) => (
                     <div key={index} className="flex items-center">
                       {index > 0 && <BreadcrumbSeparator />}
-                      <BreadcrumbItem className={crumb.isLast && pageType === "chain-detail" ? "relative" : ""}>
+                      <BreadcrumbItem
+                        className={
+                          crumb.isLast && pageType === "chain-detail"
+                            ? "relative"
+                            : ""
+                        }
+                      >
                         {crumb.isLast && pageType === "chain-detail" ? (
                           <>
                             <button
@@ -572,15 +620,17 @@ export function Header() {
                             {isSearchOpen && (
                               <div
                                 ref={searchRef}
-                                className="absolute top-full left-0 mt-2 w-[480px] bg-[#1a1a1a] border border-white/10 rounded-lg shadow-xl z-50"
+                                className="absolute top-full left-0 mt-2 w-[480px] bg-[#1a1a1a] border border-white/[0.1] rounded-lg shadow-xl z-50"
                               >
                                 <div className="p-4">
                                   <Input
                                     type="text"
                                     placeholder="Type to search for a chain"
                                     value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="bg-[#2a2a2a] border-white/10 text-white placeholder:text-white/50"
+                                    onChange={(e) =>
+                                      setSearchQuery(e.target.value)
+                                    }
+                                    className="bg-[#2a2a2a] border-white/[0.1] text-white placeholder:text-white/50"
                                     autoFocus
                                   />
                                 </div>
@@ -590,29 +640,39 @@ export function Header() {
                                     filteredChains.map((chain) => (
                                       <button
                                         key={chain.id}
-                                        onClick={() => handleChainSelect(chain.id)}
-                                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors text-left"
+                                        onClick={() =>
+                                          handleChainSelect(chain.id)
+                                        }
+                                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.05] transition-colors text-left"
                                       >
-                                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+                                        <div className="w-10 h-10 rounded-full bg-white/[0.1] flex items-center justify-center flex-shrink-0">
                                           <span className="text-white text-sm font-medium">
-                                            {chain.chain_name.charAt(0).toUpperCase()}
+                                            {chain.chain_name
+                                              .charAt(0)
+                                              .toUpperCase()}
                                           </span>
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                          <div className="text-white font-medium truncate">{chain.chain_name}</div>
-                                          <div className="text-white/50 text-sm">${chain.token_symbol}</div>
+                                          <div className="text-white font-medium truncate">
+                                            {chain.chain_name}
+                                          </div>
+                                          <div className="text-white/50 text-sm">
+                                            ${chain.token_symbol}
+                                          </div>
                                         </div>
                                       </button>
                                     ))
                                   ) : (
                                     <div className="px-4 py-8 text-center text-white/50">
-                                      {searchQuery.trim() ? "No chains found" : "Type to search for a chain"}
+                                      {searchQuery.trim()
+                                        ? "No chains found"
+                                        : "Type to search for a chain"}
                                     </div>
                                   )}
                                 </div>
 
                                 {filteredChains.length > 0 && (
-                                  <div className="border-t border-white/10 p-3">
+                                  <div className="border-t border-white/[0.1] p-3">
                                     <Link
                                       href="/"
                                       className="text-white/50 hover:text-white text-sm transition-colors"
@@ -632,14 +692,24 @@ export function Header() {
                           <BreadcrumbPage className="text-white">
                             {crumb.label}{" "}
                             {currentChain && currentChain?.status && (
-                              <Badge variant={currentChain?.status as ChainStatus} className="text-xs ml-3">
-                                {chainStatusesLabels[currentChain?.status as ChainStatus]}
+                              <Badge
+                                variant={currentChain?.status as ChainStatus}
+                                className="text-xs ml-3"
+                              >
+                                {
+                                  chainStatusesLabels[
+                                  currentChain?.status as ChainStatus
+                                  ]
+                                }
                               </Badge>
                             )}
                           </BreadcrumbPage>
                         ) : (
                           <BreadcrumbLink asChild>
-                            <Link href={crumb.href || "#"} className="text-white/50 hover:text-white">
+                            <Link
+                              href={crumb.href || "#"}
+                              className="text-white/[0.5] hover:text-white"
+                            >
                               {crumb.label}
                             </Link>
                           </BreadcrumbLink>
@@ -671,10 +741,7 @@ export function Header() {
                       // Fallback: try to get chain from store
                       const chainFromStore = getChainById(value);
                       if (chainFromStore) {
-                        const chainId =
-                          typeof chainFromStore.id === "string"
-                            ? parseInt(chainFromStore.id, 10)
-                            : Number(chainFromStore.id);
+                        const chainId = typeof chainFromStore.id === "string" ? parseInt(chainFromStore.id, 10) : Number(chainFromStore.id);
                         handleExplorerChainSelect({ id: chainId, chain_name: chainFromStore.chain_name });
                       }
                     }
@@ -715,7 +782,10 @@ export function Header() {
 
       {/* Mobile Search Sheet */}
       <Sheet open={isMobileSearchOpen} onOpenChange={setIsMobileSearchOpen}>
-        <SheetContent side="top" className="h-screen bg-[#0e0e0e] border-gray-800">
+        <SheetContent
+          side="top"
+          className="h-screen bg-[#0e0e0e] border-gray-800"
+        >
           <SheetHeader>
             <SheetTitle className="text-white">Search Chains</SheetTitle>
           </SheetHeader>
@@ -735,20 +805,28 @@ export function Header() {
                 <button
                   key={chain.id}
                   onClick={() => handleMobileChainSelect(chain.id)}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors text-left rounded-lg"
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.05] transition-colors text-left rounded-lg"
                 >
-                  <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0">
-                    <span className="text-white text-sm font-medium">{chain.chain_name.charAt(0).toUpperCase()}</span>
+                  <div className="w-10 h-10 rounded-full bg-white/[0.1] flex items-center justify-center flex-shrink-0">
+                    <span className="text-white text-sm font-medium">
+                      {chain.chain_name.charAt(0).toUpperCase()}
+                    </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-white font-medium truncate">{chain.chain_name}</div>
-                    <div className="text-white/50 text-sm">${chain.token_symbol}</div>
+                    <div className="text-white font-medium truncate">
+                      {chain.chain_name}
+                    </div>
+                    <div className="text-white/50 text-sm">
+                      ${chain.token_symbol}
+                    </div>
                   </div>
                 </button>
               ))
             ) : (
               <div className="px-4 py-8 text-center text-white/50">
-                {mobileSearchQuery.trim() ? "No chains found" : "Type to search for a chain"}
+                {mobileSearchQuery.trim()
+                  ? "No chains found"
+                  : "Type to search for a chain"}
               </div>
             )}
           </div>
@@ -757,7 +835,10 @@ export function Header() {
 
       {/* Mobile Menu Sheet */}
       <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-        <SheetContent side="left" className="w-[280px] bg-[#0e0e0e] border-gray-800 p-0">
+        <SheetContent
+          side="left"
+          className="w-[280px] bg-[#0e0e0e] border-gray-800 p-0"
+        >
           <MobileSidebar
             isLoggedIn={isLoggedIn}
             isAuthenticated={isAuthenticated}
