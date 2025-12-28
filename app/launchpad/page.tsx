@@ -14,9 +14,20 @@ import { useCreateChainStore } from "@/lib/stores/create-chain-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { chainsApi, storeChainListing } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, ArrowLeft } from "lucide-react";
-import { Template } from "@/types";
+import { ArrowRight, ArrowLeft, Loader2, Lock } from "lucide-react";
+import { Template, Chain } from "@/types";
 import { cn, WINDOW_BREAKPOINTS } from "@/lib/utils";
+import { useWalletStore } from "@/lib/stores/wallet-store";
+
+/** Submit step tracking for the payment flow */
+type SubmitStep =
+  | "idle"
+  | "creating"    // POST /api/v1/chains
+  | "paying"      // Sending transaction
+  | "activating"  // PATCH with tx_hash (with retry)
+  | "uploading"   // Media, socials, resources
+  | "success"
+  | "error";
 
 export default function LaunchpadPage() {
   // Initialize templates on mount
@@ -66,6 +77,15 @@ export default function LaunchpadPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Payment flow state
+  const [submitStep, setSubmitStep] = useState<SubmitStep>("idle");
+  const [createdChain, setCreatedChain] = useState<Chain | null>(null);
+  const [txHash, setTxHash] = useState<string | null>(null);
+
+  // Wallet state
+  const { currentWallet, sendTransaction } = useWalletStore();
+  const isWalletUnlocked = currentWallet?.isUnlocked ?? false;
 
   // Step 1: Language/Template Selection
   const handleLanguageSubmit = useCallback(
@@ -206,13 +226,47 @@ export default function LaunchpadPage() {
     }
   }, [currentStep, stepValidity, markStepCompleted, setCurrentStep]);
 
-  // Final submission
+  // Helper: Retry PATCH activation until success or timeout
+  const activateWithRetry = useCallback(
+    async (chainId: string, hash: string, timeoutMs: number): Promise<void> => {
+      const startTime = Date.now();
+      let lastError: Error | null = null;
+
+      while (Date.now() - startTime < timeoutMs) {
+        try {
+          await chainsApi.activateChain(chainId, hash);
+          return; // Success
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error("Activation failed");
+          // Wait 3 seconds before retry
+          await new Promise((resolve) => setTimeout(resolve, 3000));
+        }
+      }
+
+      throw new Error(
+        `Chain activation timed out after ${timeoutMs / 1000}s. Your payment was sent successfully. ` +
+        `Please contact support with chain ID: ${chainId} and tx hash: ${hash}`
+      );
+    },
+    []
+  );
+
+  // Final submission with payment flow
   const handleSubmit = useCallback(async () => {
+    // Validate wallet is unlocked
+    if (!currentWallet?.isUnlocked) {
+      setSubmitError("Please unlock your wallet first");
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmitError(null);
+    setSubmitStep("idle");
 
     try {
-      // Step 1: Create chain via API
+      // Step 1: Create chain in draft status
+      setSubmitStep("creating");
+
       // Calculate halving_schedule: convert halvingDays to blocks between halvings
       const blockTimeSeconds = parseInt(formData.blockTime || "10", 10);
       const halvingDays = parseFloat(formData.halvingDays || "365");
@@ -222,29 +276,50 @@ export default function LaunchpadPage() {
 
       const chainData = {
         chain_name: formData.chainName,
-        token_name: formData.tokenName,
         token_symbol: formData.ticker,
         chain_description: formData.chainDescription || formData.description,
         template_id: formData.template?.id || "",
-        token_total_supply: Number(formData.tokenSupply),
+        genesis_supply: Number(formData.tokenSupply),
         graduation_threshold: formData.graduationThreshold,
-        creation_fee_cnpy: 100.0,
         initial_cnpy_reserve: 10000.0,
         initial_token_supply: Number(formData.tokenSupply),
-        bonding_curve_slope: 0.00000001,
         validator_min_stake: 1000.0,
         creator_initial_purchase_cnpy: parseFloat(
           formData.initialPurchaseAmount || "0"
         ),
         brand_color: formData.brandColor,
-        //TODO: Sending block time seconds trows an error.
-        // block_time_seconds: blockTimeSeconds,
+        block_time_seconds: blockTimeSeconds,
         halving_schedule: halvingSchedule,
         block_reward_amount: 50.0,
       };
 
       const response = await chainsApi.createChain(chainData);
       const chain = response.data;
+      setCreatedChain(chain);
+
+      // Step 2: Send payment transaction
+      setSubmitStep("paying");
+      const paymentAmount = 100 + parseFloat(formData.initialPurchaseAmount || "0");
+
+      if (!chain.address) {
+        throw new Error("Chain created but no payment address received");
+      }
+
+      const hash = await sendTransaction({
+        from_address: currentWallet.address,
+        to_address: chain.address,
+        amount: paymentAmount.toString(),
+        network_id: 1,
+        chain_id: 1,
+      });
+      setTxHash(hash);
+
+      // Step 3: Activate chain with retry (120s timeout)
+      setSubmitStep("activating");
+      await activateWithRetry(chain.id, hash, 120000);
+
+      // Step 4: Upload assets (continue even if some fail)
+      setSubmitStep("uploading");
 
       // Chain created successfully! Now proceed with additional operations
 
@@ -409,15 +484,17 @@ export default function LaunchpadPage() {
         }
       }
 
-      // Reset form and navigate to chain page with success flag
+      // Success! Reset form and navigate to chain page
+      setSubmitStep("success");
       resetFormData();
       router.push(
-        `/chains/${chain.id}?success=true&name=${encodeURIComponent(
+        `/launchpad/${chain.id}?success=true&name=${encodeURIComponent(
           chain.chain_name
         )}`
       );
     } catch (err: unknown) {
       console.error("Error creating chain:", err);
+      setSubmitStep("error");
       setSubmitError(
         err instanceof Error
           ? err.message
@@ -426,7 +503,7 @@ export default function LaunchpadPage() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, resetFormData, router]);
+  }, [formData, resetFormData, router, currentWallet, sendTransaction, activateWithRetry]);
 
   // Show loading spinner while hydrating persisted data from localStorage
   if (!isHydrated) {
@@ -565,11 +642,27 @@ export default function LaunchpadPage() {
             ) : (
               <Button
                 onClick={handleSubmit}
-                disabled={isSubmitting}
+                disabled={isSubmitting || !isWalletUnlocked}
                 size="lg"
                 className={cn("gap-2 ml-auto", currentStep === 7 && "w-full")}
               >
-                {isSubmitting ? "Processing..." : "Connect Wallet & Pay"}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {submitStep === "creating" && "Creating chain..."}
+                    {submitStep === "paying" && `Sending ${100 + parseFloat(formData.initialPurchaseAmount || "0")} CNPY...`}
+                    {submitStep === "activating" && "Activating chain..."}
+                    {submitStep === "uploading" && "Uploading assets..."}
+                    {submitStep === "idle" && "Processing..."}
+                  </>
+                ) : !isWalletUnlocked ? (
+                  <>
+                    <Lock className="w-4 h-4" />
+                    Unlock Wallet to Pay
+                  </>
+                ) : (
+                  `Pay & Launch Chain`
+                )}
               </Button>
             )}
           </div>
