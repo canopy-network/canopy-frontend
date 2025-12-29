@@ -4,24 +4,14 @@ import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   ArrowLeft,
   Save,
@@ -83,14 +73,9 @@ export default function EditChainPage(props: EditChainPageProps) {
 
   // Asset state - track existing assets
   const [existingAssets, setExistingAssets] = useState<ChainAsset[]>([]);
-  const [existingLogoAsset, setExistingLogoAsset] = useState<ChainAsset | null>(
-    null
-  );
-  const [existingBannerAsset, setExistingBannerAsset] =
-    useState<ChainAsset | null>(null);
-  const [existingGalleryAssets, setExistingGalleryAssets] = useState<
-    ChainAsset[]
-  >([]);
+  const [existingLogoAsset, setExistingLogoAsset] = useState<ChainAsset | null>(null);
+  const [existingBannerAsset, setExistingBannerAsset] = useState<ChainAsset | null>(null);
+  const [existingGalleryAssets, setExistingGalleryAssets] = useState<ChainAsset[]>([]);
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -144,9 +129,7 @@ export default function EditChainPage(props: EditChainPageProps) {
           setExistingAssets(chainData.assets);
 
           // Find logo asset
-          const logoAsset = chainData.assets.find(
-            (asset) => asset.asset_type === "logo"
-          );
+          const logoAsset = chainData.assets.find((asset) => asset.asset_type === "logo");
           if (logoAsset) {
             setExistingLogoAsset(logoAsset);
             setLogoPreview(logoAsset.file_url);
@@ -155,9 +138,7 @@ export default function EditChainPage(props: EditChainPageProps) {
           // Find banner asset (first banner/screenshot/media)
           const bannerAsset = chainData.assets.find(
             (asset) =>
-              asset.asset_type === "banner" ||
-              asset.asset_type === "screenshot" ||
-              asset.asset_type === "media"
+              asset.asset_type === "banner" || asset.asset_type === "screenshot" || asset.asset_type === "media"
           );
           if (bannerAsset) {
             setExistingBannerAsset(bannerAsset);
@@ -166,9 +147,7 @@ export default function EditChainPage(props: EditChainPageProps) {
           // Find all gallery/media assets (media, screenshot, banner types)
           const galleryAssets = chainData.assets.filter(
             (asset) =>
-              asset.asset_type === "media" ||
-              asset.asset_type === "screenshot" ||
-              asset.asset_type === "banner"
+              asset.asset_type === "media" || asset.asset_type === "screenshot" || asset.asset_type === "banner"
           );
           setExistingGalleryAssets(galleryAssets);
 
@@ -179,9 +158,7 @@ export default function EditChainPage(props: EditChainPageProps) {
         setLoading(false);
       } catch (error) {
         console.error("Error fetching chain:", error);
-        setError(
-          error instanceof Error ? error.message : "Failed to load chain"
-        );
+        setError(error instanceof Error ? error.message : "Failed to load chain");
         setLoading(false);
       }
     };
@@ -217,11 +194,7 @@ export default function EditChainPage(props: EditChainPageProps) {
         newErrors.gallery = "Each file must be less than 30MB";
         break;
       }
-      if (
-        !["image/jpeg", "image/png", "image/gif", "video/mp4"].includes(
-          file.type
-        )
-      ) {
+      if (!["image/jpeg", "image/png", "image/gif", "video/mp4"].includes(file.type)) {
         newErrors.gallery = "Gallery files must be JPG, PNG, GIF, or MP4";
         break;
       }
@@ -273,11 +246,7 @@ export default function EditChainPage(props: EditChainPageProps) {
         if (existingLogoAsset) {
           // Update existing logo asset
           console.log("Updating existing logo asset...");
-          await chainsApi.updateAsset(
-            chainId,
-            existingLogoAsset.id,
-            logoAssetData
-          );
+          await chainsApi.updateAsset(chainId, existingLogoAsset.id, logoAssetData);
         } else {
           // Create new logo asset
           console.log("Creating new logo asset...");
@@ -288,15 +257,10 @@ export default function EditChainPage(props: EditChainPageProps) {
       // Step 2: Upload gallery files to S3 if any are selected
       if (gallery.length > 0) {
         console.log("Uploading gallery files to S3...");
-        const galleryUploadResult = await uploadGallery(
-          chain.token_symbol,
-          gallery
-        );
+        const galleryUploadResult = await uploadGallery(chain.token_symbol, gallery);
 
         if (!galleryUploadResult.success || !galleryUploadResult.urls) {
-          throw new Error(
-            galleryUploadResult.error || "Failed to upload gallery"
-          );
+          throw new Error(galleryUploadResult.error || "Failed to upload gallery");
         }
 
         console.log("Gallery uploaded successfully:", galleryUploadResult.urls);
@@ -356,9 +320,7 @@ export default function EditChainPage(props: EditChainPageProps) {
       router.push(`/launchpad/${chainId}`);
     } catch (error) {
       console.error("Error saving chain:", error);
-      setError(
-        error instanceof Error ? error.message : "Failed to save changes"
-      );
+      setError(error instanceof Error ? error.message : "Failed to save changes");
       setSaving(false);
     }
   };
@@ -400,23 +362,16 @@ export default function EditChainPage(props: EditChainPageProps) {
   return (
     <div className="p-8 max-w-5xl mx-auto">
       <div className="mb-6">
-        <Button
-          variant="ghost"
-          className="gap-2 mb-6 !px-0"
-          onClick={() => router.back()}
-        >
+        <Button variant="ghost" className="gap-2 mb-6 !px-0" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4" />
           Back to Chain
         </Button>
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">
-              {chain.chain_name}{" "}
-              <span className="text-primary">${chain.token_symbol}</span>
+              {chain.chain_name} <span className="text-primary">${chain.token_symbol}</span>
             </h1>
-            <p className="text-muted-foreground mt-2 text-lg">
-              Update your chain information
-            </p>
+            <p className="text-muted-foreground mt-2 text-lg">Update your chain information</p>
           </div>
           {!isEditMode ? (
             <Button onClick={() => setIsEditMode(true)} className="gap-2">
@@ -429,12 +384,7 @@ export default function EditChainPage(props: EditChainPageProps) {
                 <Save className="h-4 w-4" />
                 {saving ? "Saving..." : "Save Changes"}
               </Button>
-              <Button
-                onClick={handleCancel}
-                variant="outline"
-                disabled={saving}
-                className="gap-2"
-              >
+              <Button onClick={handleCancel} variant="outline" disabled={saving} className="gap-2">
                 <X className="h-4 w-4" />
                 Cancel
               </Button>
@@ -442,27 +392,19 @@ export default function EditChainPage(props: EditChainPageProps) {
           )}
         </div>
       </div>
-      {error && (
-        <div className="bg-red-500/10 border border-red-500 text-red-500 p-4 rounded-md mb-6">
-          {error}
-        </div>
-      )}
+      {error && <div className="bg-red-500/10 border border-red-500 text-red-500 p-4 rounded-md mb-6">{error}</div>}
       <div className="space-y-6">
         {/* Branding & Media */}
         <Card>
           <CardHeader>
             <CardTitle>Branding & Media</CardTitle>
-            <CardDescription>
-              Add visual identity and content for your chain
-            </CardDescription>
+            <CardDescription>Add visual identity and content for your chain</CardDescription>
           </CardHeader>
           <CardContent className="space-y-12">
             {/* Logo Section */}
             <div>
               <h3 className="text-2xl font-semibold mb-2">Logo</h3>
-              <p className="text-muted-foreground mb-6">
-                This appears in wallets, explorers, and trading interfaces.
-              </p>
+              <p className="text-muted-foreground mb-6">This appears in wallets, explorers, and trading interfaces.</p>
               <div className="flex items-start gap-6">
                 {/* Logo Upload Box */}
                 <div
@@ -472,9 +414,7 @@ export default function EditChainPage(props: EditChainPageProps) {
                       ? "border-border bg-muted/30 hover:bg-muted/50 cursor-pointer"
                       : "border-border/50 bg-muted/10 cursor-not-allowed"
                   )}
-                  onClick={() =>
-                    isEditMode && document.getElementById("logo")?.click()
-                  }
+                  onClick={() => isEditMode && document.getElementById("logo")?.click()}
                 >
                   {logo || logoPreview ? (
                     <img
@@ -503,9 +443,7 @@ export default function EditChainPage(props: EditChainPageProps) {
                 {/* Upload Instructions */}
                 <div className="flex-1">
                   <button
-                    onClick={() =>
-                      isEditMode && document.getElementById("logo")?.click()
-                    }
+                    onClick={() => isEditMode && document.getElementById("logo")?.click()}
                     className={cn(
                       "text-base font-medium underline hover:no-underline mb-2 block",
                       !isEditMode && "opacity-50 cursor-not-allowed"
@@ -515,8 +453,7 @@ export default function EditChainPage(props: EditChainPageProps) {
                     Upload from device
                   </button>
                   <p className="text-sm text-muted-foreground">
-                    1000×1000 pixels recommended. PNG, JPG, or GIF file. Maximum
-                    15MB.
+                    1000×1000 pixels recommended. PNG, JPG, or GIF file. Maximum 15MB.
                   </p>
                   {(logo || logoPreview) && isEditMode && (
                     <Button
@@ -534,21 +471,14 @@ export default function EditChainPage(props: EditChainPageProps) {
                   )}
                 </div>
               </div>
-              {errors.logo && (
-                <p className="text-xs text-destructive mt-2">{errors.logo}</p>
-              )}
+              {errors.logo && <p className="text-xs text-destructive mt-2">{errors.logo}</p>}
             </div>
 
             {/* Describe your chain Section */}
             <div>
-              <h3 className="text-2xl font-semibold mb-6">
-                Describe your chain
-              </h3>
+              <h3 className="text-2xl font-semibold mb-6">Describe your chain</h3>
               <div className="border-2 rounded-lg p-6">
-                <Label
-                  htmlFor="chainDescription"
-                  className="text-base font-semibold mb-4 block"
-                >
+                <Label htmlFor="chainDescription" className="text-base font-semibold mb-4 block">
                   What does your chain do?
                 </Label>
                 <Textarea
@@ -561,19 +491,15 @@ export default function EditChainPage(props: EditChainPageProps) {
                   disabled={!isEditMode}
                 />
               </div>
-              {errors.chainDescription && (
-                <p className="text-xs text-destructive mt-2">
-                  {errors.chainDescription}
-                </p>
-              )}
+              {errors.chainDescription && <p className="text-xs text-destructive mt-2">{errors.chainDescription}</p>}
             </div>
 
             {/* Gallery Section */}
             <div>
               <h3 className="text-2xl font-semibold mb-2">Gallery</h3>
               <p className="text-muted-foreground mb-6">
-                This will help your chain stand out and build trust among
-                others. We recommend adding at least three images or videos.
+                This will help your chain stand out and build trust among others. We recommend adding at least three
+                images or videos.
               </p>
               <div
                 className={cn(
@@ -582,14 +508,10 @@ export default function EditChainPage(props: EditChainPageProps) {
                     ? "border-border bg-muted/30 hover:bg-muted/50 cursor-pointer"
                     : "border-border/50 bg-muted/10 cursor-not-allowed"
                 )}
-                onClick={() =>
-                  isEditMode && document.getElementById("gallery")?.click()
-                }
+                onClick={() => isEditMode && document.getElementById("gallery")?.click()}
               >
                 <Upload className="h-10 w-10 text-muted-foreground mb-4" />
-                <p className="text-base text-foreground">
-                  Upload from your device.
-                </p>
+                <p className="text-base text-foreground">Upload from your device.</p>
                 <Input
                   id="gallery"
                   type="file"
@@ -614,17 +536,9 @@ export default function EditChainPage(props: EditChainPageProps) {
                       className="relative group aspect-video border-2 rounded-lg overflow-hidden"
                     >
                       {asset.mime_type.startsWith("image/") ? (
-                        <img
-                          src={asset.file_url}
-                          alt={asset.file_name}
-                          className="w-full h-full object-cover"
-                        />
+                        <img src={asset.file_url} alt={asset.file_name} className="w-full h-full object-cover" />
                       ) : asset.mime_type.startsWith("video/") ? (
-                        <video
-                          src={asset.file_url}
-                          className="w-full h-full object-cover"
-                          controls
-                        />
+                        <video src={asset.file_url} className="w-full h-full object-cover" controls />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-muted">
                           <FileText className="h-8 w-8 text-muted-foreground" />
@@ -649,11 +563,7 @@ export default function EditChainPage(props: EditChainPageProps) {
                           className="w-full h-full object-cover"
                         />
                       ) : file.type.startsWith("video/") ? (
-                        <video
-                          src={URL.createObjectURL(file)}
-                          className="w-full h-full object-cover"
-                          controls
-                        />
+                        <video src={URL.createObjectURL(file)} className="w-full h-full object-cover" controls />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-muted">
                           <FileText className="h-8 w-8 text-muted-foreground" />
@@ -666,9 +576,7 @@ export default function EditChainPage(props: EditChainPageProps) {
                           className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
                           onClick={(e) => {
                             e.stopPropagation();
-                            const newGallery = gallery.filter(
-                              (_, i) => i !== index
-                            );
+                            const newGallery = gallery.filter((_, i) => i !== index);
                             setGallery(newGallery);
                           }}
                         >
@@ -682,11 +590,7 @@ export default function EditChainPage(props: EditChainPageProps) {
                   ))}
                 </div>
               )}
-              {errors.gallery && (
-                <p className="text-xs text-destructive mt-2">
-                  {errors.gallery}
-                </p>
-              )}
+              {errors.gallery && <p className="text-xs text-destructive mt-2">{errors.gallery}</p>}
             </div>
           </CardContent>
         </Card>
@@ -698,9 +602,7 @@ export default function EditChainPage(props: EditChainPageProps) {
               <CalendarIcon className="h-5 w-5" />
               Launch Settings
             </CardTitle>
-            <CardDescription>
-              Configure when your chain will launch
-            </CardDescription>
+            <CardDescription>Configure when your chain will launch</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex items-center justify-between p-4 border border-gray-700 rounded-lg">
@@ -708,9 +610,7 @@ export default function EditChainPage(props: EditChainPageProps) {
                 <Label htmlFor="launchNow" className="text-base font-medium">
                   Launch Now
                 </Label>
-                <p className="text-sm text-muted-foreground">
-                  Immediately launch your chain and start trading
-                </p>
+                <p className="text-sm text-muted-foreground">Immediately launch your chain and start trading</p>
               </div>
               <Switch
                 id="launchNow"
@@ -723,9 +623,7 @@ export default function EditChainPage(props: EditChainPageProps) {
 
             {!launchNow && (
               <div className="space-y-2">
-                <Label className="text-base font-medium">
-                  Scheduled Launch Date
-                </Label>
+                <Label className="text-base font-medium">Scheduled Launch Date</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -738,9 +636,7 @@ export default function EditChainPage(props: EditChainPageProps) {
                     >
                       <CalendarIcon className="mr-2 h-5 w-5" />
                       {launchDate ? (
-                        <span className="text-base">
-                          {format(launchDate, "PPP")}
-                        </span>
+                        <span className="text-base">{format(launchDate, "PPP")}</span>
                       ) : (
                         <span className="text-base">Pick a launch date</span>
                       )}
@@ -751,16 +647,12 @@ export default function EditChainPage(props: EditChainPageProps) {
                       mode="single"
                       selected={launchDate}
                       onSelect={setLaunchDate}
-                      disabled={(date) =>
-                        date < new Date(new Date().setHours(0, 0, 0, 0))
-                      }
+                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                       initialFocus
                     />
                   </PopoverContent>
                 </Popover>
-                <p className="text-sm text-muted-foreground">
-                  Your chain will become active on this date
-                </p>
+                <p className="text-sm text-muted-foreground">Your chain will become active on this date</p>
               </div>
             )}
           </CardContent>
@@ -773,9 +665,7 @@ export default function EditChainPage(props: EditChainPageProps) {
               <Globe className="h-5 w-5" />
               Media & Links
             </CardTitle>
-            <CardDescription>
-              Add links to your project's website and media content
-            </CardDescription>
+            <CardDescription>Add links to your project&apos;s website and media content</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -832,9 +722,7 @@ export default function EditChainPage(props: EditChainPageProps) {
               <Twitter className="h-5 w-5" />
               Social Networks
             </CardTitle>
-            <CardDescription>
-              Connect your social media accounts to build community
-            </CardDescription>
+            <CardDescription>Connect your social media accounts to build community</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -888,9 +776,7 @@ export default function EditChainPage(props: EditChainPageProps) {
         <Card>
           <CardHeader>
             <CardTitle>Chain Details</CardTitle>
-            <CardDescription>
-              Core chain information (read-only)
-            </CardDescription>
+            <CardDescription>Core chain information (read-only)</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -908,31 +794,19 @@ export default function EditChainPage(props: EditChainPageProps) {
               </div>
               <div className="space-y-1">
                 <Label className="text-muted-foreground">Status</Label>
-                <p className="font-medium capitalize">
-                  {chain.status.replace(/_/g, " ")}
-                </p>
+                <p className="font-medium capitalize">{chain.status.replace(/_/g, " ")}</p>
               </div>
               <div className="space-y-1">
-                <Label className="text-muted-foreground">
-                  Total Token Supply
-                </Label>
-                <p className="font-medium">
-                  {chain.token_total_supply.toLocaleString()}
-                </p>
+                <Label className="text-muted-foreground">Total Token Supply</Label>
+                <p className="font-medium">{chain.token_total_supply.toLocaleString()}</p>
               </div>
               <div className="space-y-1">
-                <Label className="text-muted-foreground">
-                  Graduation Threshold
-                </Label>
-                <p className="font-medium">
-                  {chain.graduation_threshold.toLocaleString()} CNPY
-                </p>
+                <Label className="text-muted-foreground">Graduation Threshold</Label>
+                <p className="font-medium">{chain.graduation_threshold.toLocaleString()} CNPY</p>
               </div>
               <div className="space-y-1">
                 <Label className="text-muted-foreground">Created At</Label>
-                <p className="font-medium">
-                  {new Date(chain.created_at).toLocaleString()}
-                </p>
+                <p className="font-medium">{new Date(chain.created_at).toLocaleString()}</p>
               </div>
             </div>
           </CardContent>

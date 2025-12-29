@@ -17,9 +17,7 @@ export default function SelectLanguage({
 }) {
   const { getActiveTemplates } = useTemplatesStore();
   const activeTemplates = getActiveTemplates();
-  const [selectedLanguage, setSelectedLanguage] = useState<Template | null>(
-    initialTemplate || null
-  );
+  const [selectedLanguage, setSelectedLanguage] = useState<Template | null>(initialTemplate || null);
   const router = useRouter();
 
   // Update selected language when initial template changes (e.g., navigating back)
@@ -40,12 +38,8 @@ export default function SelectLanguage({
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Title */}
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold">
-            Choose Your Programming Language
-          </h1>
-          <p className="text-muted-foreground">
-            Pick the language you're most comfortable with:
-          </p>
+          <h1 className="text-3xl font-bold">Choose Your Programming Language</h1>
+          <p className="text-muted-foreground">Pick the language you&apos;re most comfortable with:</p>
         </div>
 
         {/* Language Grid */}
@@ -55,8 +49,7 @@ export default function SelectLanguage({
               key={language.id}
               className={cn(
                 "p-6 cursor-pointer transition-all hover:border-primary/50 hover:bg-accent/5",
-                selectedLanguage?.id === language.id &&
-                  "border-primary bg-primary/5"
+                selectedLanguage?.id === language.id && "border-primary bg-primary/5"
               )}
               onClick={() => setSelectedLanguage(language)}
             >
@@ -68,9 +61,7 @@ export default function SelectLanguage({
                   width={48}
                   height={48}
                 />
-                <span className="font-medium capitalize">
-                  {language.supported_language}
-                </span>
+                <span className="font-medium capitalize">{language.supported_language}</span>
               </div>
             </Card>
           ))}

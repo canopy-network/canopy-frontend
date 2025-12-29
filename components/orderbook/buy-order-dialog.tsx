@@ -51,8 +51,8 @@ export function BuyOrderDialog({ order, open, onOpenChange, onSuccess }: BuyOrde
   const { currentWallet } = useWalletStore();
   const canopyAddress = currentWallet?.address;
 
-  // Only use Ethereum mainnet (chain ID 1) for USDC
-  const usdcSupported = chainId === 1;
+  // Check if USDC is supported on this chain
+  const usdcSupported = chainId && USDC_ADDRESS;
 
   // Determine if this order needs LockOrder or CloseOrder
   const orderIsLocked = order ? isOrderLocked(order) : false;
@@ -178,7 +178,7 @@ export function BuyOrderDialog({ order, open, onOpenChange, onSuccess }: BuyOrde
 
               {orderIsLocked && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Seller's ETH Address</span>
+                  <span className="text-muted-foreground">Seller&apos;s ETH Address</span>
                   <span className="font-mono text-xs">
                     {order.sellerReceiveAddress.startsWith("0x")
                       ? `${order.sellerReceiveAddress.slice(0, 10)}...`
@@ -243,8 +243,8 @@ export function BuyOrderDialog({ order, open, onOpenChange, onSuccess }: BuyOrde
               {/* Explanation of next steps */}
               {!orderIsLocked && (
                 <div className="p-3 bg-muted/30 rounded text-sm text-muted-foreground">
-                  <strong>Step 1 of 2:</strong> Lock this order (no USDC sent yet). After locking, you'll need to send
-                  the USDC payment to complete the purchase.
+                  <strong>Step 1 of 2:</strong> Lock this order (no USDC sent yet). After locking, you&apos;ll need to
+                  send the USDC payment to complete the purchase.
                 </div>
               )}
             </div>
