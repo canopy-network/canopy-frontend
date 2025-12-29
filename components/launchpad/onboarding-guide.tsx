@@ -1,26 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import {
-  ArrowRight,
-  ArrowLeft,
-  Rocket,
-  TrendingUp,
-  Users,
-  Target,
-  CheckCircle,
-} from "lucide-react";
+import { ArrowRight, ArrowLeft, Rocket, TrendingUp, Users, Target, CheckCircle } from "lucide-react";
 
 interface OnboardingGuideProps {
   isOpen: boolean;
@@ -30,15 +16,14 @@ interface OnboardingGuideProps {
 const onboardingSteps = [
   {
     title: "Welcome to Canopy Launchpad",
-    description:
-      "Launch blockchain projects in minutes with our automated bonding curve system",
+    description: "Launch blockchain projects in minutes with our automated bonding curve system",
     content: (
       <div className="space-y-4">
         <div className="text-center">
           <Rocket className="h-16 w-16 text-primary mx-auto mb-4" />
           <p className="text-muted-foreground">
-            Canopy Launchpad makes it easy to create and invest in new
-            blockchain projects. Let's walk through how it works!
+            Canopy Launchpad makes it easy to create and invest in new blockchain projects. Let&apos;s walk through how
+            it works!
           </p>
         </div>
       </div>
@@ -67,9 +52,7 @@ const onboardingSteps = [
               <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold">
                 2
               </div>
-              <p className="text-sm">
-                Price increases as more tokens are purchased
-              </p>
+              <p className="text-sm">Price increases as more tokens are purchased</p>
             </div>
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold">
@@ -97,8 +80,7 @@ const onboardingSteps = [
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Projects raise funds through bonding curve sales. Users can
-                buy/sell tokens instantly.
+                Projects raise funds through bonding curve sales. Users can buy/sell tokens instantly.
               </p>
             </CardContent>
           </Card>
@@ -112,8 +94,7 @@ const onboardingSteps = [
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                When funding target is reached, the project becomes a full
-                blockchain with traditional trading.
+                When funding target is reached, the project becomes a full blockchain with traditional trading.
               </p>
             </CardContent>
           </Card>
@@ -147,19 +128,15 @@ const onboardingSteps = [
               <div className="flex items-start gap-3">
                 <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />
                 <div>
-                  <p className="font-medium text-sm">Click "Quick Trade"</p>
-                  <p className="text-xs text-muted-foreground">
-                    Enter the amount you want to invest
-                  </p>
+                  <p className="font-medium text-sm">Click &quot;Quick Trade&quot;</p>
+                  <p className="text-xs text-muted-foreground">Enter the amount you want to invest</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
                 <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />
                 <div>
                   <p className="font-medium text-sm">Confirm Transaction</p>
-                  <p className="text-xs text-muted-foreground">
-                    Your tokens are added to your wallet instantly
-                  </p>
+                  <p className="text-xs text-muted-foreground">Your tokens are added to your wallet instantly</p>
                 </div>
               </div>
             </div>
@@ -175,18 +152,15 @@ const onboardingSteps = [
       <div className="space-y-4 text-center">
         <Target className="h-16 w-16 text-primary mx-auto" />
         <div className="space-y-2">
-          <p className="font-medium">
-            You're ready to start exploring projects!
-          </p>
+          <p className="font-medium">You&apos;re ready to start exploring projects!</p>
           <p className="text-sm text-muted-foreground">
-            Remember: You can always hover over terms with dotted underlines to
-            see explanations.
+            Remember: You can always hover over terms with dotted underlines to see explanations.
           </p>
         </div>
         <div className="bg-muted/50 p-4 rounded-lg">
           <p className="text-xs text-muted-foreground">
-            💡 <strong>Pro tip:</strong> Start with smaller investments to get
-            familiar with the platform before making larger commitments.
+            💡 <strong>Pro tip:</strong> Start with smaller investments to get familiar with the platform before making
+            larger commitments.
           </p>
         </div>
       </div>
@@ -236,20 +210,12 @@ export function OnboardingGuide({ isOpen, onClose }: OnboardingGuideProps) {
         </DialogHeader>
 
         <div className="space-y-6">
-          <Progress
-            value={((currentStep + 1) / onboardingSteps.length) * 100}
-            className="h-2"
-          />
+          <Progress value={((currentStep + 1) / onboardingSteps.length) * 100} className="h-2" />
 
           <div className="min-h-[300px]">{step.content}</div>
 
           <div className="flex items-center justify-between pt-4 border-t">
-            <Button
-              variant="outline"
-              onClick={prevStep}
-              disabled={currentStep === 0}
-              className="gap-2 bg-transparent"
-            >
+            <Button variant="outline" onClick={prevStep} disabled={currentStep === 0} className="gap-2 bg-transparent">
               <ArrowLeft className="h-4 w-4" />
               Previous
             </Button>

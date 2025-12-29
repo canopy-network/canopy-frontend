@@ -1,24 +1,24 @@
-d"use client"
+"use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
-import { TrendingUp, Users, Shield, Activity, ExternalLink } from "lucide-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { TrendingUp, Users, Shield, Activity, ExternalLink } from "lucide-react";
 
 interface Chain {
-  id: string
-  name: string
-  description: string
-  status: "active" | "launching" | "graduated"
-  tvl: string
-  validators: number
-  uptime: number
-  transactions24h: number
-  marketCap: string
-  volume24h: string
-  chartData: { time: string; tvl: number; volume: number }[]
+  id: string;
+  name: string;
+  description: string;
+  status: "active" | "launching" | "graduated";
+  tvl: string;
+  validators: number;
+  uptime: number;
+  transactions24h: number;
+  marketCap: string;
+  volume24h: string;
+  chartData: { time: string; tvl: number; volume: number }[];
 }
 
 const chains: Chain[] = [
@@ -82,7 +82,7 @@ const chains: Chain[] = [
       { time: "20:00", tvl: 5400000, volume: 890000 },
     ],
   },
-]
+];
 
 export function ChainOverview() {
   return (
@@ -197,5 +197,5 @@ export function ChainOverview() {
         ))}
       </div>
     </div>
-  )
+  );
 }

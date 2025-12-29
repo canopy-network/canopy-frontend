@@ -1,12 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Search, TrendingUp, Clock, Wallet } from "lucide-react";
 import tokensData from "@/data/tokens.json";
@@ -47,15 +42,9 @@ function TokenItem({ token, onSelect, balance }: TokenItemProps) {
           style={{ backgroundColor: token.brandColor || "#10b981" }}
         >
           {token.logo ? (
-            <img
-              src={token.logo}
-              alt={token.symbol}
-              className="w-full h-full rounded-full"
-            />
+            <img src={token.logo} alt={token.symbol} className="w-full h-full rounded-full" />
           ) : (
-            <span className="text-base font-bold text-white">
-              {token.symbol[0]}
-            </span>
+            <span className="text-base font-bold text-white">{token.symbol[0]}</span>
           )}
         </div>
 
@@ -64,9 +53,7 @@ function TokenItem({ token, onSelect, balance }: TokenItemProps) {
           <div className="flex items-center gap-2">
             <span className="font-medium">{token.symbol}</span>
             {token.isNative && (
-              <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
-                Native
-              </span>
+              <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">Native</span>
             )}
           </div>
           <p className="text-sm text-muted-foreground">{token.name}</p>
@@ -88,16 +75,10 @@ function TokenItem({ token, onSelect, balance }: TokenItemProps) {
         ) : (
           <>
             <p className="text-sm font-medium">
-              $
-              {token.currentPrice?.toFixed(token.currentPrice < 0.01 ? 6 : 4) ||
-                "0.00"}
+              ${token.currentPrice?.toFixed(token.currentPrice < 0.01 ? 6 : 4) || "0.00"}
             </p>
             {token.priceChange24h !== undefined && (
-              <p
-                className={`text-xs ${
-                  token.priceChange24h >= 0 ? "text-green-500" : "text-red-500"
-                }`}
-              >
+              <p className={`text-xs ${token.priceChange24h >= 0 ? "text-green-500" : "text-red-500"}`}>
                 {token.priceChange24h >= 0 ? "+" : ""}
                 {token.priceChange24h.toFixed(2)}%
               </p>
@@ -120,9 +101,7 @@ export default function TokenSelectionDialog({
 
   const [searchQuery, setSearchQuery] = useState("");
   const [recentTokens, setRecentTokens] = useState<string[]>([]);
-  const [allTokens, setAllTokens] = useState<Token[]>([
-    ...(tokensData as Token[]),
-  ]);
+  const [allTokens, setAllTokens] = useState<Token[]>([...(tokensData as Token[])]);
 
   // Load recent tokens from localStorage
   useEffect(() => {
@@ -142,11 +121,7 @@ export default function TokenSelectionDialog({
           // Only include C001 (Chain 1) and C002 (Chain 2)
           response.data.forEach((chain) => {
             // Only add chains 1 and 2 that have required fields
-            if (
-              chain.ticker &&
-              chain.name &&
-              !tokens.find((t) => t.symbol === chain.ticker)
-            ) {
+            if (chain.ticker && chain.name && !tokens.find((t) => t.symbol === chain.ticker)) {
               tokens.push({
                 symbol: chain.ticker,
                 name: chain.name,
@@ -190,7 +165,7 @@ export default function TokenSelectionDialog({
 
   // Filter and sort tokens based on search and balance
   const filteredTokens = useMemo(() => {
-    let tokens = allTokens.filter((token) => {
+    const tokens = allTokens.filter((token) => {
       if (excludeToken && token.symbol === excludeToken) return false;
 
       const query = searchQuery.toLowerCase();
@@ -227,18 +202,12 @@ export default function TokenSelectionDialog({
   // Get recent tokens that are still valid
   const recentTokensList = recentTokens
     .map((symbol) => allTokens.find((t) => t.symbol === symbol))
-    .filter(
-      (t): t is Token =>
-        t !== undefined && (!excludeToken || t.symbol !== excludeToken)
-    )
+    .filter((t): t is Token => t !== undefined && (!excludeToken || t.symbol !== excludeToken))
     .slice(0, 3);
 
   const handleSelectToken = (token: Token) => {
     // Add to recent tokens
-    const updated = [
-      token.symbol,
-      ...recentTokens.filter((s) => s !== token.symbol),
-    ].slice(0, 5);
+    const updated = [token.symbol, ...recentTokens.filter((s) => s !== token.symbol)].slice(0, 5);
     localStorage.setItem("recentTokens", JSON.stringify(updated));
     setRecentTokens(updated);
 
@@ -249,10 +218,7 @@ export default function TokenSelectionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="max-w-md max-h-[600px] flex flex-col p-0"
-        aria-describedby={undefined}
-      >
+      <DialogContent className="max-w-md max-h-[600px] flex flex-col p-0" aria-describedby={undefined}>
         <DialogHeader className="px-6 pt-6 pb-4">
           <DialogTitle>Select a token</DialogTitle>
         </DialogHeader>
@@ -297,9 +263,7 @@ export default function TokenSelectionDialog({
           {!searchQuery &&
             isConnected &&
             (() => {
-              const tokensWithBalance = filteredTokens.filter(
-                (t) => tokenBalances[t.symbol] > 0
-              );
+              const tokensWithBalance = filteredTokens.filter((t) => tokenBalances[t.symbol] > 0);
               if (tokensWithBalance.length === 0) return null;
               return (
                 <div className="space-y-2">
@@ -332,11 +296,7 @@ export default function TokenSelectionDialog({
                 // When not searching, filter out tokens already shown in "Your Tokens"
                 const tokensToShow =
                   !searchQuery && isConnected
-                    ? filteredTokens.filter(
-                        (t) =>
-                          !tokenBalances[t.symbol] ||
-                          tokenBalances[t.symbol] === 0
-                      )
+                    ? filteredTokens.filter((t) => !tokenBalances[t.symbol] || tokenBalances[t.symbol] === 0)
                     : filteredTokens;
 
                 return tokensToShow.length > 0 ? (
@@ -350,9 +310,7 @@ export default function TokenSelectionDialog({
                   ))
                 ) : (
                   <div className="text-center py-8 text-sm text-muted-foreground">
-                    {filteredTokens.length > 0
-                      ? "All your tokens are shown above"
-                      : "No tokens found"}
+                    {filteredTokens.length > 0 ? "All your tokens are shown above" : "No tokens found"}
                   </div>
                 );
               })()}

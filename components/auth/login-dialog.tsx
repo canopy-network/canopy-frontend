@@ -33,11 +33,8 @@ interface LoginDialogProps {
 }
 
 export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
-  const { user, isAuthenticated, token, setUser, setError, logout } =
-    useAuthStore();
-  const [step, setStep] = useState<AuthStep>(
-    isAuthenticated ? "authenticated" : "initial"
-  );
+  const { user, isAuthenticated, token, setUser, setError, logout } = useAuthStore();
+  const [step, setStep] = useState<AuthStep>(isAuthenticated ? "authenticated" : "initial");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [showWalletLinking, setShowWalletLinking] = useState(false);
@@ -48,7 +45,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
   const { signMessageAsync } = useSignMessage();
   const { disconnect } = useDisconnect();
   const { openConnectModal } = useConnectModal();
-  
+
   // Wallet context to trigger canopy wallet select modal
   const { setShowSelectDialog, setShowCreateDialog } = useWallet();
   const { fetchWallets } = useWalletStore();
@@ -78,13 +75,10 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
       const signature = await signMessageAsync({ message: messageString });
 
       // 4. Verify signature with backend
-      const verifyResponse = await axios.post(
-        `${API_CONFIG.baseURL}/api/v1/auth/siwe/verify`,
-        {
-          message: messageString,
-          signature,
-        }
-      );
+      const verifyResponse = await axios.post(`${API_CONFIG.baseURL}/api/v1/auth/siwe/verify`, {
+        message: messageString,
+        signature,
+      });
 
       if (verifyResponse.status !== 200) {
         setLocalError(verifyResponse.data.message || "Failed to verify signature");
@@ -94,9 +88,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
       const response_body = verifyResponse.data;
 
       // 5. Extract token from response headers
-      const authHeader =
-        verifyResponse.headers["authorization"] ||
-        verifyResponse.headers["Authorization"];
+      const authHeader = verifyResponse.headers["authorization"] || verifyResponse.headers["Authorization"];
       const token = authHeader ? authHeader.replace("Bearer ", "") : null;
 
       // 6. Save user and token (same as email auth)
@@ -124,9 +116,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
       }
     } catch (error: any) {
       console.error("SIWE login error:", error);
-      setLocalError(
-        error.message || "Failed to sign in with wallet. Please try again."
-      );
+      setLocalError(error.message || "Failed to sign in with wallet. Please try again.");
       disconnect();
     } finally {
       setIsSubmitting(false);
@@ -196,7 +186,6 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
     }
   };
 
-
   const handleLogout = () => {
     logout();
     disconnect();
@@ -229,7 +218,6 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
     onOpenChange(newOpen);
   };
 
-
   // Authenticated view
   if (step === "authenticated" && user) {
     const hasLinkedWallet = hasValidLinkedWallet(user.wallet_address);
@@ -253,137 +241,109 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
             <DialogOverlay className="z-100" />
             <div className="bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-150 grid w-full max-w-[calc(100%-2rem)] sm:max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200">
               <DialogHeader className="text-center">
-            <img
-              src="/images/logo.svg"
-              alt="Logo"
-              className="h-4 mx-auto my-6"
-            />
-            <DialogTitle className="text-2xl font-bold">
-              Welcome back!
-            </DialogTitle>
-            <DialogDescription className="text-base">
-              You're successfully signed in.
-            </DialogDescription>
-          </DialogHeader>
+                <img src="/images/logo.svg" alt="Logo" className="h-4 mx-auto my-6" />
+                <DialogTitle className="text-2xl font-bold">Welcome back!</DialogTitle>
+                <DialogDescription className="text-base">You&apos;re successfully signed in.</DialogDescription>
+              </DialogHeader>
 
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
-              <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-muted-foreground">Signed in as</p>
-                <p className="font-medium text-foreground truncate">
-                  {user.email}
-                </p>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
+                  <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-muted-foreground">Signed in as</p>
+                    <p className="font-medium text-foreground truncate">{user.email}</p>
+                  </div>
+                </div>
+
+                {/* Linked Wallet Display */}
+                {hasLinkedWallet && (
+                  <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg border">
+                    <Check className="h-5 w-5 text-green-500 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-muted-foreground">Linked Wallet</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-mono text-sm font-medium truncate">{formatAddress(user.wallet_address)}</p>
+                        <a
+                          href={getExplorerUrl(user.wallet_address)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Wallet Linking Section */}
+                {!hasLinkedWallet && (
+                  <div className="space-y-3 p-4 bg-muted/50 rounded-lg border">
+                    <div className="flex items-center gap-2">
+                      <Wallet className="h-4 w-4 text-muted-foreground" />
+                      <p className="text-sm font-medium">Link Your Wallet</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Connect your wallet to access blockchain features</p>
+
+                    {localError && <p className="text-xs text-red-500">{localError}</p>}
+
+                    {showWalletLinking && isConnected ? (
+                      <div className="space-y-3">
+                        <div className="flex flex-col items-center justify-center gap-2 py-2">
+                          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                          <p className="text-xs text-muted-foreground">Waiting for signature...</p>
+                        </div>
+                        <Button
+                          onClick={() => {
+                            setShowWalletLinking(false);
+                            disconnect();
+                            setLocalError(null);
+                          }}
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          disabled={isLinkingWallet}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        onClick={handleLinkWallet}
+                        variant="outline"
+                        size="sm"
+                        className="w-full gap-2"
+                        disabled={showWalletLinking}
+                      >
+                        {showWalletLinking ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Opening wallet...
+                          </>
+                        ) : (
+                          <>
+                            <Wallet className="h-4 w-4" />
+                            Link Wallet
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                <Button onClick={handleLogout} variant="outline" className="w-full gap-2">
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </Button>
               </div>
             </div>
-
-            {/* Linked Wallet Display */}
-            {hasLinkedWallet && (
-              <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg border">
-                <Check className="h-5 w-5 text-green-500 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-muted-foreground">Linked Wallet</p>
-                  <div className="flex items-center gap-2">
-                    <p className="font-mono text-sm font-medium truncate">
-                      {formatAddress(user.wallet_address)}
-                    </p>
-                    <a
-                      href={getExplorerUrl(user.wallet_address)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </a>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Wallet Linking Section */}
-            {!hasLinkedWallet && (
-              <div className="space-y-3 p-4 bg-muted/50 rounded-lg border">
-                <div className="flex items-center gap-2">
-                  <Wallet className="h-4 w-4 text-muted-foreground" />
-                  <p className="text-sm font-medium">Link Your Wallet</p>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Connect your wallet to access blockchain features
-                </p>
-
-                {localError && (
-                  <p className="text-xs text-red-500">{localError}</p>
-                )}
-
-                {showWalletLinking && isConnected ? (
-                  <div className="space-y-3">
-                    <div className="flex flex-col items-center justify-center gap-2 py-2">
-                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                      <p className="text-xs text-muted-foreground">Waiting for signature...</p>
-                    </div>
-                    <Button
-                      onClick={() => {
-                        setShowWalletLinking(false);
-                        disconnect();
-                        setLocalError(null);
-                      }}
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      disabled={isLinkingWallet}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    onClick={handleLinkWallet}
-                    variant="outline"
-                    size="sm"
-                    className="w-full gap-2"
-                    disabled={showWalletLinking}
-                  >
-                    {showWalletLinking ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Opening wallet...
-                      </>
-                    ) : (
-                      <>
-                        <Wallet className="h-4 w-4" />
-                        Link Wallet
-                      </>
-                    )}
-                  </Button>
-                )}
-              </div>
-            )}
-
-            <Button
-              onClick={handleLogout}
-              variant="outline"
-              className="w-full gap-2"
-            >
-              <LogOut className="h-4 w-4" />
-              Sign out
-            </Button>
-          </div>
-        </div>
-      </DialogPortal>
+          </DialogPortal>
         ) : (
           <DialogContent className="sm:max-w-md">
             <DialogHeader className="text-center">
-              <img
-                src="/images/logo.svg"
-                alt="Logo"
-                className="h-4 mx-auto my-6"
-              />
-              <DialogTitle className="text-2xl font-bold">
-                Welcome back!
-              </DialogTitle>
-              <DialogDescription className="text-base">
-                You're successfully signed in.
-              </DialogDescription>
+              <img src="/images/logo.svg" alt="Logo" className="h-4 mx-auto my-6" />
+              <DialogTitle className="text-2xl font-bold">Welcome back!</DialogTitle>
+              <DialogDescription className="text-base">You&apos;re successfully signed in.</DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4">
@@ -393,14 +353,10 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-muted-foreground">Signed in as</p>
                   {user.email ? (
-                    <p className="font-medium text-foreground truncate">
-                      {user.email}
-                    </p>
+                    <p className="font-medium text-foreground truncate">{user.email}</p>
                   ) : hasLinkedWallet ? (
                     <div className="flex items-center gap-2">
-                      <p className="font-mono text-sm font-medium truncate">
-                        {formatAddress(user.wallet_address)}
-                      </p>
+                      <p className="font-mono text-sm font-medium truncate">{formatAddress(user.wallet_address)}</p>
                       <a
                         href={getExplorerUrl(user.wallet_address)}
                         target="_blank"
@@ -411,9 +367,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
                       </a>
                     </div>
                   ) : (
-                    <p className="font-medium text-foreground truncate">
-                      Anonymous User
-                    </p>
+                    <p className="font-medium text-foreground truncate">Anonymous User</p>
                   )}
                 </div>
               </div>
@@ -425,9 +379,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-muted-foreground">Linked Wallet</p>
                     <div className="flex items-center gap-2">
-                      <p className="font-mono text-sm font-medium truncate">
-                        {formatAddress(user.wallet_address)}
-                      </p>
+                      <p className="font-mono text-sm font-medium truncate">{formatAddress(user.wallet_address)}</p>
                       <a
                         href={getExplorerUrl(user.wallet_address)}
                         target="_blank"
@@ -448,32 +400,18 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
                     <Wallet className="h-4 w-4 text-muted-foreground" />
                     <p className="text-sm font-medium">Link Your Wallet</p>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Connect your wallet to access blockchain features
-                  </p>
+                  <p className="text-xs text-muted-foreground">Connect your wallet to access blockchain features</p>
 
-                  {localError && (
-                    <p className="text-xs text-red-500">{localError}</p>
-                  )}
+                  {localError && <p className="text-xs text-red-500">{localError}</p>}
 
-                  <Button
-                    onClick={handleLinkWallet}
-                    variant="outline"
-                    size="sm"
-                    className="w-full gap-2"
-                  >
+                  <Button onClick={handleLinkWallet} variant="outline" size="sm" className="w-full gap-2">
                     <Wallet className="h-4 w-4" />
                     Link Wallet
                   </Button>
                 </div>
               )}
 
-
-              <Button
-                onClick={handleLogout}
-                variant="outline"
-                className="w-full gap-2"
-              >
+              <Button onClick={handleLogout} variant="outline" className="w-full gap-2">
                 <LogOut className="h-4 w-4" />
                 Sign out
               </Button>
@@ -484,30 +422,19 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
     );
   }
 
-
   // Initial view - show welcome with SIWE button
   if (step === "initial") {
     return (
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader className="text-center">
-            <img
-              src="/images/logo.svg"
-              alt="Logo"
-              className="h-4 mx-auto my-6"
-            />
-            <DialogTitle className="text-2xl font-bold">
-              Welcome to Canopy
-            </DialogTitle>
-            <DialogDescription className="text-base">
-              Connect your wallet to get started.
-            </DialogDescription>
+            <img src="/images/logo.svg" alt="Logo" className="h-4 mx-auto my-6" />
+            <DialogTitle className="text-2xl font-bold">Welcome to Canopy</DialogTitle>
+            <DialogDescription className="text-base">Connect your wallet to get started.</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            {localError && (
-              <p className="text-sm text-red-500 text-center">{localError}</p>
-            )}
+            {localError && <p className="text-sm text-red-500 text-center">{localError}</p>}
 
             {/* SIWE Button */}
             <Button
@@ -552,11 +479,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
             )}
 
             <DialogHeader className="text-center">
-            <img
-              src="/images/logo.svg"
-              alt="Logo"
-              className="h-4 mx-auto my-6"
-            />
+              <img src="/images/logo.svg" alt="Logo" className="h-4 mx-auto my-6" />
               <DialogTitle className="text-2xl font-bold">
                 {!isConnected ? "Connect Your Wallet" : "Sign in with Ethereum"}
               </DialogTitle>
@@ -566,9 +489,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
             </DialogHeader>
 
             <div className="space-y-4">
-              {localError && (
-                <p className="text-sm text-red-500 text-center">{localError}</p>
-              )}
+              {localError && <p className="text-sm text-red-500 text-center">{localError}</p>}
 
               {isConnected && (
                 <div className="flex flex-col items-center justify-center gap-3 py-4">

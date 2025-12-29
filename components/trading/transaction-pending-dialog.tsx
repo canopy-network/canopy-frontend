@@ -70,9 +70,7 @@ export default function TransactionPendingDialog({
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs
-      .toString()
-      .padStart(2, "0")}`;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
   const circumference = 2 * Math.PI * 80; // radius = 80
@@ -104,11 +102,7 @@ export default function TransactionPendingDialog({
           <span className="sr-only">Close</span>
         </button>
 
-        <div
-          className={`p-6 ${
-            !showSuccess ? "pt-20" : "pt-12"
-          } pb-6 flex flex-col items-center`}
-        >
+        <div className={`p-6 ${!showSuccess ? "pt-20" : "pt-12"} pb-6 flex flex-col items-center`}>
           {!showSuccess ? (
             <>
               {/* Countdown Timer with Progress Circle */}
@@ -141,32 +135,20 @@ export default function TransactionPendingDialog({
 
                 {/* Timer Text */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Time left
-                  </p>
-                  <p className="text-4xl font-bold tabular-nums">
-                    {formatTime(timeLeft)}
-                  </p>
+                  <p className="text-sm text-muted-foreground mb-2">Time left</p>
+                  <p className="text-4xl font-bold tabular-nums">{formatTime(timeLeft)}</p>
                 </div>
               </div>
 
               {/* Status Text */}
               <h2 className="text-xl font-bold mb-3">Transaction pending...</h2>
               <p className="text-sm text-muted-foreground text-center mb-8">
-                You can close this tab if you want, it's visible and accessible
-                in{" "}
-                <span className="text-foreground font-semibold">
-                  your activity
-                </span>
+                You can close this tab if you want, it&apos;s visible and accessible in{" "}
+                <span className="text-foreground font-semibold">your activity</span>
               </p>
 
               {/* Close Button */}
-              <Button
-                variant="secondary"
-                className="w-full h-11 text-base"
-                size="lg"
-                onClick={onClose}
-              >
+              <Button variant="secondary" className="w-full h-11 text-base" size="lg" onClick={onClose}>
                 Close
               </Button>
             </>
@@ -182,15 +164,9 @@ export default function TransactionPendingDialog({
                   }}
                 >
                   {fromToken?.logo ? (
-                    <img
-                      src={fromToken.logo}
-                      alt={fromToken.symbol}
-                      className="w-full h-full rounded-full"
-                    />
+                    <img src={fromToken.logo} alt={fromToken.symbol} className="w-full h-full rounded-full" />
                   ) : (
-                    <span className="text-lg font-bold text-white">
-                      {fromToken?.symbol?.[0] || "O"}
-                    </span>
+                    <span className="text-lg font-bold text-white">{fromToken?.symbol?.[0] || "O"}</span>
                   )}
                 </div>
 
@@ -207,15 +183,9 @@ export default function TransactionPendingDialog({
                   style={{ backgroundColor: toToken?.brandColor || "#10b981" }}
                 >
                   {toToken?.logo ? (
-                    <img
-                      src={toToken.logo}
-                      alt={toToken.symbol}
-                      className="w-full h-full rounded-full"
-                    />
+                    <img src={toToken.logo} alt={toToken.symbol} className="w-full h-full rounded-full" />
                   ) : (
-                    <span className="text-lg font-bold text-white">
-                      {toToken?.symbol?.[0] || "C"}
-                    </span>
+                    <span className="text-lg font-bold text-white">{toToken?.symbol?.[0] || "C"}</span>
                   )}
                 </div>
               </div>
@@ -223,43 +193,27 @@ export default function TransactionPendingDialog({
               {/* Success Message */}
               <h2 className="text-xl font-bold text-center mb-1">
                 You bought ${usdValue.toFixed(0)} worth of{" "}
-                <span className="text-muted-foreground">
-                  {toToken?.symbol || ""}
-                </span>
+                <span className="text-muted-foreground">{toToken?.symbol || ""}</span>
               </h2>
 
               {/* Transaction Details */}
               <p className="text-sm text-muted-foreground mb-4">
-                {fromAmount || "233"} {fromToken?.symbol || "OBNB"} to{" "}
-                {toAmount || "34342"} {toToken?.symbol || "CNPY"}
+                {fromAmount || "233"} {fromToken?.symbol || "OBNB"} to {toAmount || "34342"} {toToken?.symbol || "CNPY"}
               </p>
 
               {/* Network Fee */}
               <div className="w-full flex items-center justify-between py-2 mb-4">
-                <span className="text-sm text-muted-foreground">
-                  Network Fee
-                </span>
-                <span className="text-sm font-semibold">
-                  ${networkFee.toFixed(2)}
-                </span>
+                <span className="text-sm text-muted-foreground">Network Fee</span>
+                <span className="text-sm font-semibold">${networkFee.toFixed(2)}</span>
               </div>
 
               {/* Done Button */}
-              <Button
-                className="w-full h-11 text-base mb-3"
-                size="lg"
-                onClick={onClose}
-              >
+              <Button className="w-full h-11 text-base mb-3" size="lg" onClick={onClose}>
                 Done
               </Button>
 
               {/* View Transaction Button */}
-              <Button
-                variant="secondary"
-                className="w-full h-11 text-base"
-                size="lg"
-                onClick={onClose}
-              >
+              <Button variant="secondary" className="w-full h-11 text-base" size="lg" onClick={onClose}>
                 View transaction
               </Button>
             </>
