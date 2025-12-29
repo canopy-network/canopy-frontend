@@ -504,6 +504,11 @@ export function Header() {
 
   const pageType = getPageType();
 
+  // Early return for launchpad pages - after all hooks
+  if (pathname.includes("/launchpad")) {
+    return null;
+  }
+
   return (
     <>
       <header
