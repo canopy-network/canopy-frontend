@@ -216,6 +216,7 @@ jobs:
             echo ""
             echo "=== Updating Deployment ==="
             sudo k3s kubectl set image deployment/prod-canopy-frontend canopy-frontend="$IMAGE" -n canopy-prod
+            sudo k3s kubectl patch deployment prod-canopy-frontend -n canopy-prod -p '{"spec":{"template":{"spec":{"nodeSelector":{"node-role.kubernetes.io/master":"true"}}}}}'
             sudo k3s kubectl rollout restart deployment/prod-canopy-frontend -n canopy-prod
             
             echo ""
@@ -300,6 +301,7 @@ jobs:
             echo ""
             echo "=== Updating Deployment ==="
             sudo k3s kubectl set image deployment/dev-canopy-frontend canopy-frontend="$IMAGE" -n $NAMESPACE
+            sudo k3s kubectl patch deployment dev-canopy-frontend -n $NAMESPACE -p '{"spec":{"template":{"spec":{"nodeSelector":{"node-role.kubernetes.io/master":"true"}}}}}'
             sudo k3s kubectl rollout restart deployment/dev-canopy-frontend -n $NAMESPACE
             
             echo ""
