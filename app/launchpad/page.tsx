@@ -137,7 +137,6 @@ export default function LaunchpadPage() {
         chainName: string;
         tokenName: string;
         ticker: string;
-        tokenSupply: string;
         decimals: string;
         description: string;
         halvingDays: string;
@@ -208,7 +207,7 @@ export default function LaunchpadPage() {
         timezone: string;
         launchImmediately: boolean;
         initialPurchaseAmount: string;
-        graduationThreshold: number;
+        targetPriceAtGraduation: number;
       },
       isValid: boolean
     ) => {
@@ -293,10 +292,10 @@ export default function LaunchpadPage() {
           token_symbol: formData.ticker,
           chain_description: formData.chainDescription || formData.description,
           template_id: formData.template?.id || "",
-          genesis_supply: Number(formData.tokenSupply),
-          graduation_threshold: formData.graduationThreshold,
+          genesis_supply: 1000000000,
+          target_price_at_graduation_cnpy_per_token: formData.targetPriceAtGraduation,
           initial_cnpy_reserve: 10000.0,
-          initial_token_supply: Number(formData.tokenSupply),
+          initial_token_supply: 1000000000,
           validator_min_stake: 1000.0,
           creator_initial_purchase_cnpy: parseFloat(
             formData.initialPurchaseAmount || "0"
@@ -568,7 +567,6 @@ export default function LaunchpadPage() {
             chainName: formData.chainName,
             tokenName: formData.tokenName,
             ticker: formData.ticker,
-            tokenSupply: formData.tokenSupply,
             decimals: formData.decimals,
             description: formData.description,
           }}
@@ -609,7 +607,7 @@ export default function LaunchpadPage() {
             timezone: formData.timezone,
             launchImmediately: formData.launchImmediately,
             initialPurchaseAmount: formData.initialPurchaseAmount,
-            graduationThreshold: formData.graduationThreshold,
+            targetPriceAtGraduation: formData.targetPriceAtGraduation,
           }}
           ticker={formData.ticker}
           onDataSubmit={handleSettingsSubmit}

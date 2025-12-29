@@ -36,7 +36,6 @@ interface MainInfoProps {
     chainName?: string;
     tokenName?: string;
     ticker?: string;
-    tokenSupply?: string;
     decimals?: string;
     description?: string;
     halvingDays?: string;
@@ -47,7 +46,6 @@ interface MainInfoProps {
       chainName: string;
       tokenName: string;
       ticker: string;
-      tokenSupply: string;
       decimals: string;
       description: string;
       halvingDays: string;
@@ -63,7 +61,6 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
     chainName: initialData?.chainName || "TestChain",
     tokenName: initialData?.tokenName || "TestToken",
     ticker: initialData?.ticker || "TEST",
-    tokenSupply: initialData?.tokenSupply || "1000000000",
     decimals: initialData?.decimals || "18",
     description: initialData?.description || "",
     halvingDays: initialData?.halvingDays || "365",
@@ -174,23 +171,6 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
       }
     }
 
-    if (field === "tokenSupply") {
-      const numValue = parseFloat(value);
-      if (!value || isNaN(numValue)) {
-        newErrors.tokenSupply = "Token supply is required";
-        setErrors(newErrors);
-        return false;
-      } else if (numValue < 1000000) {
-        newErrors.tokenSupply = "Token supply must be at least 1,000,000";
-        setErrors(newErrors);
-        return false;
-      } else if (numValue > 3500000000) {
-        newErrors.tokenSupply = "Token supply cannot exceed 3,500,000,000";
-        setErrors(newErrors);
-        return false;
-      }
-    }
-
     if (field === "halvingDays") {
       if (!value || parseFloat(value) <= 0) {
         newErrors.halvingDays = "Halving schedule must be greater than 0";
@@ -245,15 +225,6 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
       newErrors.ticker = "Ticker must be 3-5 characters";
     }
 
-    const tokenSupplyValue = parseFloat(formData.tokenSupply);
-    if (!formData.tokenSupply || isNaN(tokenSupplyValue)) {
-      newErrors.tokenSupply = "Token supply is required";
-    } else if (tokenSupplyValue < 1000000) {
-      newErrors.tokenSupply = "Token supply must be at least 1,000,000";
-    } else if (tokenSupplyValue > 3500000000) {
-      newErrors.tokenSupply = "Token supply cannot exceed 3,500,000,000";
-    }
-
     if (!formData.halvingDays || parseFloat(formData.halvingDays) <= 0) {
       newErrors.halvingDays = "Halving schedule must be greater than 0";
     }
@@ -297,7 +268,6 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
       field === "chainName" ||
       field === "tokenName" ||
       field === "ticker" ||
-      field === "tokenSupply" ||
       field === "halvingDays"
     ) {
       debounceTimers.current[field] = setTimeout(() => {
@@ -318,8 +288,9 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
   const calculateYearlyMinting = () => {
     if (!formData.blockTime || !formData.halvingDays) return "0";
 
-    // Simplified calculation - assume 50% of total supply in first year
-    const yearlyMinting = Math.floor(parseInt(formData.tokenSupply) * 0.5);
+    // Simplified calculation - assume 50% of default 1B supply in first year
+    const defaultSupply = 1000000000;
+    const yearlyMinting = Math.floor(defaultSupply * 0.5);
     return yearlyMinting.toLocaleString();
   };
 
@@ -505,52 +476,6 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
 
             {/* Token Economics Group */}
             <div className="space-y-6">
-              {/* Token Supply */}
-              <div className="space-y-2">
-                <Label
-                  htmlFor="tokenSupply"
-                  className="flex items-center gap-2 text-sm font-medium"
-                >
-                  Token Supply
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      <p>The total number of tokens that will ever exist</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Min: 1,000,000 | Max: 3,500,000,000
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </Label>
-                <Input
-                  id="tokenSupply"
-                  type="number"
-                  placeholder="1000000000"
-                  value={formData.tokenSupply}
-                  onChange={(e) => updateField("tokenSupply", e.target.value)}
-                  min={100000}
-                  max={3500000000}
-                  className={
-                    touched.tokenSupply && errors.tokenSupply
-                      ? "border-destructive"
-                      : ""
-                  }
-                />
-                {touched.tokenSupply && errors.tokenSupply && (
-                  <p className="text-sm text-destructive">
-                    {errors.tokenSupply}
-                  </p>
-                )}
-                {!errors.tokenSupply && formData.tokenSupply && (
-                  <p className="text-sm text-muted-foreground">
-                    Total supply:{" "}
-                    {parseFloat(formData.tokenSupply).toLocaleString()} tokens
-                  </p>
-                )}
-              </div>
-
               {/* Halving Schedule */}
               <div className="space-y-2">
                 <Label
