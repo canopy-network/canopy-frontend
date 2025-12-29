@@ -10,7 +10,7 @@
  * @version 1.0.0
  */
 
-import { ReactNode } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { WagmiProvider } from "wagmi";
 import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
 import { config } from "@/lib/web3/config";
@@ -28,11 +28,21 @@ interface Web3ProviderProps {
  * Note: QueryClientProvider is handled by the parent QueryProvider in the layout
  */
 export function Web3Provider({ children }: Web3ProviderProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <WagmiProvider config={config}>
-      <RainbowKitProvider theme={darkTheme()}>
-        {children}
-      </RainbowKitProvider>
+      {mounted ? (
+        <RainbowKitProvider theme={darkTheme()}>
+          {children}
+        </RainbowKitProvider>
+      ) : (
+        children
+      )}
     </WagmiProvider>
   );
 }
