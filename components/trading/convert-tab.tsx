@@ -15,7 +15,6 @@ import {
   AlertCircle,
   Minus,
   AlertTriangle,
-  ChevronUp,
 } from "lucide-react";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
@@ -38,8 +37,6 @@ import { useChainId, useAccount, useSendTransaction, useWaitForTransactionReceip
 import { USDC_ADDRESS, ERC20_TRANSFER_ABI } from "@/lib/web3/config";
 import { encodeFunctionData, toHex } from "viem";
 import { chainsApi } from "@/lib/api";
-import { createSendMessage, createAndSignTransaction } from "@/lib/crypto/transaction";
-import { CurveType } from "@/lib/crypto/types";
 import toast from "react-hot-toast";
 import type { ChainData, BridgeToken, ConnectedWallets, OrderBookOrder, OrderSelection } from "@/types/trading";
 import type { OrderBookApiOrder, LockOrderData, CloseOrderData } from "@/types/orderbook";

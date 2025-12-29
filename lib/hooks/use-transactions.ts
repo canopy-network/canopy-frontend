@@ -14,13 +14,10 @@ import { useRef } from "react";
 import { transactionsApi } from "@/lib/api";
 import type {
   TransactionHistoryRequest,
-  TransactionHistoryResponse,
   PendingTransactionsRequest,
   SendRawTransactionRequest,
   SendRawTransactionResponse,
   EstimateFeeRequest,
-  TransactionDetail,
-  TransactionStatusResponse,
 } from "@/types/api";
 import { toast } from "sonner";
 

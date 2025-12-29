@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useWallet } from "./wallet-provider";
-import { Wallet, Loader2, ChevronDown } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { formatBalanceWithCommas } from "@/lib/utils/denomination";

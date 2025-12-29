@@ -4,7 +4,7 @@ import { MainNav } from "@/components/navigation/main-nav";
 import { WalletConnectButton } from "@/components/wallet/wallet-connect-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, Github, Mail, LogOut } from "lucide-react";
+import { Search, Plus, Mail, LogOut } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { AuthUser } from "@/lib/stores/auth-store";

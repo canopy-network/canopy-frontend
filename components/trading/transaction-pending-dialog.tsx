@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { X, Check } from "lucide-react";
+import { X } from "lucide-react";
 import type { Token } from "@/types/trading";
 
 interface TransactionPendingDialogProps {

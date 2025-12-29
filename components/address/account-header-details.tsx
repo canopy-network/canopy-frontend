@@ -2,7 +2,7 @@
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Copy, Share2, Heart } from "lucide-react";
+import { Share2, Heart } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { CopyableText } from "../ui/copyable-text";
 import { AddressInfo } from "@/types/api";

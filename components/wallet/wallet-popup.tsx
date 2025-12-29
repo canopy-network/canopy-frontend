@@ -25,7 +25,6 @@ import {
   Coins,
   ChevronRight,
   Wallet,
-  Activity,
   ChevronDown,
 } from "lucide-react";
 import { useRouter } from "next/navigation";

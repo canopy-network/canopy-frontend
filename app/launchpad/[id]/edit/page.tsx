@@ -27,7 +27,6 @@ import {
   Youtube,
   Twitch,
 } from "lucide-react";
-import Link from "next/link";
 import { Chain, ChainAsset } from "@/types/chains";
 import { cn } from "@/lib/utils";
 import { useChainsStore } from "@/lib/stores/chains-store";

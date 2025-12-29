@@ -6,7 +6,6 @@
  */
 
 import { apiClient } from "./client";
-import { ApiClientError } from "./client";
 import {
     Wallet,
     UpdateWalletRequest,

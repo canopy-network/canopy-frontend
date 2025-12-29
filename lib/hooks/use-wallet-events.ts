@@ -3,7 +3,6 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { walletEventsApi } from "@/lib/api/wallet-events";
 import type {
-  WalletEventBase,
   WalletEventsHistoryParams,
 } from "@/types/wallet-events";
 

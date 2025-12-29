@@ -24,7 +24,7 @@ import {
 import { walletApi, portfolioApi, walletTransactionApi, chainsApi, paramsApi } from "@/lib/api";
 import type { FeeParams } from "@/types/params";
 import { DEFAULT_FEE_PARAMS } from "@/types/params";
-import type { SendTransactionRequest, TransactionHistoryRequest, EstimateFeeRequest } from "@/types/wallet";
+import type { SendTransactionRequest, EstimateFeeRequest } from "@/types/wallet";
 import { generateEncryptedKeyPair, decryptPrivateKey, EncryptedKeyPair } from "@/lib/crypto/wallet";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { validateSeedphrase } from "@/lib/crypto/seedphrase";
@@ -52,7 +52,6 @@ import {
 } from "@/lib/crypto/transaction";
 import { detectPublicKeyCurve } from "@/lib/crypto/curve-detection";
 import { CurveType } from "@/lib/crypto/types";
-import { symbol } from "zod";
 
 export interface WalletState {
   // State

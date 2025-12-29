@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Chain, VirtualPool, Accolade } from "@/types/chains";
+import { Chain, VirtualPool } from "@/types/chains";
 import { ProjectCard } from "./project-card";
 import {
   getChainPriceHistory,

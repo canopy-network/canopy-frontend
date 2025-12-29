@@ -10,7 +10,6 @@ import {
   calculateGraduationProgress,
   formatNumber,
   calculateAge,
-  getMarketCap,
   getPriceChange24h,
 } from "@/lib/utils/chain-ui-helpers";
 import { useChainFavorite } from "@/lib/hooks/use-chain-favorite";

@@ -15,9 +15,6 @@ import { devtools, persist, createJSONStorage, StateStorage } from "zustand/midd
 import {
   chainsApi,
   virtualPoolsApi,
-  getActiveChains,
-  getGraduatedChains,
-  getChainsWithRelations,
 } from "@/lib/api";
 import {
   Chain,
@@ -26,7 +23,6 @@ import {
   Transaction,
   CreateChainRequest,
   GetChainsParams,
-  ChainAsset,
 } from "@/types/chains";
 
 // ============================================================================

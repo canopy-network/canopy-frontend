@@ -14,7 +14,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Edit2, X, Clock, CheckCircle, XCircle, Filter, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Clock, XCircle, Filter, Loader2, ArrowUp, ArrowDown } from "lucide-react";
 import { orderbookApi } from "@/lib/api";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import type { OrderBookApiOrder } from "@/types/orderbook";

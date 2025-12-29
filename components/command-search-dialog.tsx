@@ -14,7 +14,6 @@ import {
 import { Loader2 } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { searchChains } from "@/lib/api/chains";
 
 const RECENT_SEARCHES_KEY = "canopy_recent_searches";
 const MAX_RECENT_SEARCHES = 5;

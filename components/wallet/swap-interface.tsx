@@ -1,15 +1,9 @@
-import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import {
-  ArrowUpRight,
-  ArrowDownLeft,
   RefreshCw,
-  Copy,
-  ExternalLink,
   ArrowDownUp,
-  Wallet,
 } from "lucide-react";
 import { ChainToken } from "@/types/chains";
 interface SwapInterfaceProps {

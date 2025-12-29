@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useWallet } from "./wallet-provider";
 import type { CanopyWallet, ChainToken } from "@/types/chains";
@@ -13,7 +11,6 @@ import {
   RefreshCw,
   Copy,
   ExternalLink,
-  ArrowDownUp,
   Wallet,
 } from "lucide-react";
 import { SwapInterface } from "./swap-interface";

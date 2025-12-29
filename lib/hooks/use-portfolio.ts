@@ -9,16 +9,13 @@
  * @since 2025-11-28
  */
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { portfolioApi } from "@/lib/api";
 import type {
   PortfolioOverviewRequest,
-  PortfolioOverviewResponse,
   AccountBalancesRequest,
-  AccountBalancesResponse,
   PortfolioPerformanceRequest,
-  PortfolioPerformanceResponse,
 } from "@/types/api";
 
 /**

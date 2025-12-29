@@ -18,7 +18,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { useAccount, useChainId, useSendTransaction, useWaitForTransactionReceipt } from "wagmi";
 import { encodeFunctionData, toHex } from "viem";
 import { USDC_ADDRESS, ERC20_TRANSFER_ABI } from "@/lib/web3/config";
-import { chainsApi, walletTransactionApi } from "@/lib/api";
+import { chainsApi } from "@/lib/api";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { createSendMessage, createAndSignTransaction } from "@/lib/crypto/transaction";
 import { CurveType } from "@/lib/crypto/types";
