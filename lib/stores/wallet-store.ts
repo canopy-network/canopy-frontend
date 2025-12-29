@@ -299,7 +299,17 @@ export const useWalletStore = create<WalletState>()(
 
           console.log("✅ Populated", wallets.length, "wallets successfully");
 
-          set({ wallets, isLoading: false });
+          // Update wallets and sync currentWallet to the new wallet objects
+          const currentWalletId = get().currentWallet?.id;
+          const matchingWallet = currentWalletId
+            ? wallets.find((w) => w.id === currentWalletId)
+            : null;
+
+          set({
+            wallets,
+            currentWallet: matchingWallet || get().currentWallet,
+            isLoading: false
+          });
 
           // 🔓 Auto-unlock all wallets if password session exists
           const cachedPassword = getCachedPassword();
@@ -329,6 +339,15 @@ export const useWalletStore = create<WalletState>()(
 
             const successCount = results.filter(r => r.success).length;
             console.log(`✅ Auto-unlock complete: ${successCount}/${wallets.length} wallets unlocked`);
+
+            // Sync currentWallet with the updated wallets array after auto-unlock
+            const { wallets: updatedWallets, currentWallet } = get();
+            if (currentWallet) {
+              const updatedCurrentWallet = updatedWallets.find((w) => w.id === currentWallet.id);
+              if (updatedCurrentWallet && updatedCurrentWallet.isUnlocked !== currentWallet.isUnlocked) {
+                set({ currentWallet: updatedCurrentWallet });
+              }
+            }
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : "Failed to fetch wallets";
@@ -895,10 +914,11 @@ export const useWalletStore = create<WalletState>()(
 
           console.log("✅ Transaction sent:", response.transaction_hash);
 
-          // Refresh balance and transactions after sending
+          // Refresh balance and transactions in background (don't block return)
           const { currentWallet, fetchBalance, fetchTransactions } = get();
           if (currentWallet) {
-            await Promise.all([fetchBalance(currentWallet.id), fetchTransactions(currentWallet.id)]);
+            fetchBalance(currentWallet.id).catch(console.error);
+            fetchTransactions(currentWallet.id).catch(console.error);
           }
 
           set({ isLoading: false });
