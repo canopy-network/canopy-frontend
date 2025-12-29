@@ -509,7 +509,7 @@ export default function LaunchpadPage() {
       setSubmitStep("success");
       resetFormData();
       router.push(
-        `/launchpad/${chain.id}?success=true&name=${encodeURIComponent(
+        `/chains/${chain.id}?success=true&name=${encodeURIComponent(
           chain.chain_name
         )}`
       );
@@ -672,7 +672,7 @@ export default function LaunchpadPage() {
                     <Loader2 className="w-4 h-4 animate-spin" />
                     {submitStep === "creating" && "Creating chain..."}
                     {submitStep === "paying" && `Sending ${100 + parseFloat(formData.initialPurchaseAmount || "0")} CNPY...`}
-                    {submitStep === "activating" && "Activating chain..."}
+                    {submitStep === "activating" && "Confirming transaction..."}
                     {submitStep === "uploading" && "Uploading assets..."}
                     {submitStep === "idle" && "Processing..."}
                   </>
