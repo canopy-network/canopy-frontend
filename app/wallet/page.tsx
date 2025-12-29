@@ -6,20 +6,25 @@ export const dynamic = "force-dynamic";
 import { useState, useEffect, useMemo } from "react";
 import {
   Card,
-  CardContent, CardDescription,
+  CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { SendTransactionDialog } from "@/components/wallet/send-transaction-dialog";
-import { ReceiveDialog } from "@/components/wallet/receive-dialog";
-import { StakeDialog } from "@/components/wallet/stake-dialog";
-import { AssetsTab } from "@/components/wallet/assets-tab";
+import { WalletHeader } from "@/components/wallet/wallet-header";
+import AssetsTab from "@/components/wallet/assets-tab";
 import { ActivityTab } from "@/components/wallet/activity-tab";
 import { StakingTab } from "@/components/wallet/staking-tab";
 import { GovernanceTab } from "@/components/wallet/governance-tab";
@@ -37,6 +42,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Container } from "@/components/layout/container";
+import OrderBookTab from "@/components/orderbook/orders-tab";
 
 function WalletContent() {
   const router = useRouter();
@@ -48,14 +55,28 @@ function WalletContent() {
     fetchBalance,
     fetchTransactions,
     fetchPortfolioOverview,
+    openSendDialog,
+    openReceiveDialog,
+    openStakeDialog,
   } = useWalletStore();
   const { positions } = useStaking(currentWallet?.address);
 
-  const [showSendDialog, setShowSendDialog] = useState(false);
-  const [showReceiveDialog, setShowReceiveDialog] = useState(false);
-  const [showStakeDialog, setShowStakeDialog] = useState(false);
   const [showQuickActionsSheet, setShowQuickActionsSheet] = useState(false);
-  const [activeTab, setActiveTab] = useState("assets");
+  const [activeTab, setActiveTab] = useState("orders");
+
+  // Memoize addresses array to prevent recreation on every render
+  // This is critical to prevent infinite loops in child components
+  const addresses = useMemo(
+    () => (currentWallet ? [currentWallet.address] : []),
+    [currentWallet?.address]
+  );
+
+  // Memoize addresses array to prevent recreation on every render
+  // This is critical to prevent infinite loops in child components
+  const addresses = useMemo(
+    () => (currentWallet ? [currentWallet.address] : []),
+    [currentWallet?.address]
+  );
 
   // Memoize addresses array to prevent recreation on every render
   // This is critical to prevent infinite loops in child components
@@ -103,7 +124,9 @@ function WalletContent() {
 
   // Calculate total USD value from tokens
   const totalUSDValue = displayTokens.reduce((acc, token) => {
-    const usdValue = parseFloat(token.usdValue?.replace(/[^0-9.-]+/g, "") || "0");
+    const usdValue = parseFloat(
+      token.usdValue?.replace(/[^0-9.-]+/g, "") || "0"
+    );
     return acc + usdValue;
   }, 0);
 
@@ -168,65 +191,47 @@ function WalletContent() {
     );
   }
 
-
   return (
-    <div>
-      <div className="flex-1 p-4 sm:p-6 pt-4">
-        <div className="max-w-[1024px] mx-auto flex flex-col lg:flex-row gap-6 lg:gap-12">
-          {/* Main Content */}
-          <div className="flex-1 min-w-0 order-2 lg:order-1">
-            {/* Header with wallet info */}
-            <div className="mb-6 sm:mb-8">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                  {/* Avatar */}
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[#1dd13a] flex items-center justify-center shrink-0">
-                    <span className="text-base sm:text-lg font-bold text-white">C</span>
-                  </div>
+    <Container type="boxed-small" className="flex flex-row gap-6">
+      <div className="flex flex-col gap-6 w-full">
+        {/* Main Content */}
+        <WalletHeader />
 
-                  {/* Wallet Info */}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <div className="text-sm sm:text-base font-semibold text-foreground truncate">
-                        {formatAddress(currentWallet.address)}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 shrink-0 hover:bg-muted"
-                        onClick={copyAddress}
-                      >
-                        <Copy className="w-3 h-3" />
-                      </Button>
-                    </div>
-                    <div className="text-xs sm:text-sm text-[#1dd13a]">Connected</div>
-                  </div>
-                </div>
+        {/* Tabs */}
+        <div className="space-y-4 sm:space-y-6">
+          {/* Tabs for Assets, Activity, Staking, Governance */}
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="w-full"
+          >
+            <TabsList variant="wallet">
+              <TabsTrigger value="orders" variant="wallet">
+                Order Book
+              </TabsTrigger>
+              <TabsTrigger value="assets" variant="wallet">
+                Assets
+              </TabsTrigger>
+              <TabsTrigger value="staking" variant="wallet">
+                Staking
+              </TabsTrigger>
+              <TabsTrigger value="activity" variant="wallet">
+                Activity
+              </TabsTrigger>
+              <TabsTrigger value="governance" variant="wallet">
+                Governance
+              </TabsTrigger>
+            </TabsList>
 
-                {/* Actions */}
-                <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8 sm:h-9 sm:w-9 rounded-full hover:bg-muted"
-                    onClick={() => router.push("/settings")}
-                  >
-                    <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8 sm:h-9 sm:w-9 rounded-full text-red-500 hover:text-red-500 hover:bg-red-500/10"
-                    onClick={handleDisconnect}
-                  >
-                    <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </Button>
-                </div>
-              </div>
-            </div>
+            {/* Assets Tab */}
+            <TabsContent value="orders" className="mt-4 sm:mt-6">
+              <OrderBookTab />
+            </TabsContent>
 
-            {/* Tabs */}
-            <div className="space-y-4 sm:space-y-6">
+            {/* Assets Tab */}
+            <TabsContent value="assets" className="mt-4 sm:mt-6">
+              <AssetsTab />
+            </TabsContent>
 
               {/* Tabs for Assets, Activity, Staking, Governance */}
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

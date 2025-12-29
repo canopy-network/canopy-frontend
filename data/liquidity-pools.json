@@ -1,0 +1,14 @@
+[
+  {
+    "id": "pool-1",
+    "tokenA": "CNPY",
+    "tokenB": "DEFI",
+    "totalLiquidity": 2450000,
+    "volume24h": 450000,
+    "fees24h": 1350,
+    "apr": 42.5,
+    "tokenAReserve": 500000,
+    "tokenBReserve": 1000000,
+    "chainId": 2
+  }
+]

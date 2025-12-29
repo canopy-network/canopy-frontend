@@ -1,13 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Chain, VirtualPool, Accolade } from "@/types/chains";
 import { ProjectCard } from "./project-card";
 import {
   getChainPriceHistory,
   convertPriceHistoryToChart,
 } from "@/lib/api/price-history";
-import { chainsApi } from "@/lib/api/chains";
 import { filterAccoladesByCategory } from "@/lib/utils/chain-ui-helpers";
 
 interface RecentsProjectsCarouselProps {
@@ -31,14 +30,16 @@ export const RecentsProjectsCarousel = ({
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>(
     {}
   );
-  const [accoladesData, setAccoladesData] = useState<
-    Record<string, Accolade[]>
-  >({});
-
   // Get first 4 projects
-  const displayProjects = projects.slice(0, 4);
+  const displayProjects = useMemo(() => projects.slice(0, 4), [projects]);
+  
+  // Memoize project IDs to prevent unnecessary re-renders
+  const displayProjectIds = useMemo(
+    () => displayProjects.map((p) => p.id).join(","),
+    [displayProjects]
+  );
 
-  // Fetch price history and accolades for all display projects
+  // Fetch price history for all display projects
   useEffect(() => {
     const fetchProjectData = async () => {
       for (const project of displayProjects) {
@@ -50,12 +51,11 @@ export const RecentsProjectsCarousel = ({
         // Set loading state
         setLoadingStates((prev) => ({ ...prev, [project.id]: true }));
 
-        // Fetch price history and accolades in parallel
+        // Fetch price history
         try {
-          const [priceHistoryResponse, accoladesResponse] = await Promise.all([
-            getChainPriceHistory(project.id).catch(() => ({ data: null })),
-            chainsApi.getAccolades(project.id).catch(() => ({ data: null })),
-          ]);
+          const priceHistoryResponse = await getChainPriceHistory(
+            project.id
+          ).catch(() => ({ data: null }));
 
           // Handle price history
           if (
@@ -76,17 +76,6 @@ export const RecentsProjectsCarousel = ({
               [project.id]: [],
             }));
           }
-
-          // Handle accolades
-          if (accoladesResponse.data) {
-            const filteredAccolades = filterAccoladesByCategory(
-              accoladesResponse.data
-            );
-            setAccoladesData((prev) => ({
-              ...prev,
-              [project.id]: filteredAccolades,
-            }));
-          }
         } catch (error) {
           console.error(`Failed to fetch data for ${project.id}:`, error);
           // Set empty arrays to indicate no data available
@@ -101,8 +90,7 @@ export const RecentsProjectsCarousel = ({
     };
 
     fetchProjectData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displayProjects.map((p) => p.id).join(",")]); // Only re-run if projects change
+  }, [displayProjectIds, displayProjects, priceHistoryData, loadingStates]); // Stable dependencies
 
   // Auto-advance carousel every 3 seconds
   useEffect(() => {
@@ -161,7 +149,9 @@ export const RecentsProjectsCarousel = ({
             const chartData =
               externalPriceHistoryData?.[project.id] ||
               priceHistoryData[project.id];
-            const accolades = accoladesData[project.id] || [];
+            // Extract accolades from project (included via include parameter)
+            const projectAccolades = (project as any).accolades || [];
+            const accolades = filterAccoladesByCategory(projectAccolades);
 
             return (
               <div

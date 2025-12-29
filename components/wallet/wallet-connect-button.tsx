@@ -5,7 +5,7 @@ import { useWallet } from "./wallet-provider";
 import { Wallet, Loader2, ChevronDown } from "lucide-react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useWalletStore } from "@/lib/stores/wallet-store";
-import {formatBalanceWithCommas} from "@/lib/utils/denomination";
+import { formatBalanceWithCommas } from "@/lib/utils/denomination";
 import { useEffect } from "react";
 
 interface WalletConnectButtonProps {
@@ -13,13 +13,9 @@ interface WalletConnectButtonProps {
   hideBalance?: boolean;
 }
 
-export function WalletConnectButton({
-  isCondensed = false,
-  hideBalance = false,
-}: WalletConnectButtonProps) {
+export function WalletConnectButton({ isCondensed = false, hideBalance = false }: WalletConnectButtonProps) {
   const { isAuthenticated } = useAuthStore();
-  const { currentWallet, isConnecting, connectWallet, togglePopup } =
-    useWallet();
+  const { currentWallet, isConnecting, connectWallet, togglePopup } = useWallet();
   const { balance, fetchBalance } = useWalletStore();
 
   // Fetch balance when wallet is connected
@@ -67,57 +63,87 @@ export function WalletConnectButton({
     return (
       <Button
         variant="ghost"
+        size="freeflow"
         onClick={togglePopup}
-        className="bg-transparent text-white hover:bg-white/5 w-full h-auto py-3 px-2 border border-[#36d26a] rounded-md shadow-[0_0_14px_rgba(124,255,157,0.35)]"
+        className="w-full rounded-xl bg-gradient-to-br from-neutral-900 to-neutral-700 p-4 transition-all hover:scale-[1.02] active:scale-[0.98] flex flex-col items-start"
       >
-        <div className={`flex ${contentAlignment} gap-2 w-full`}>
-          <div className="flex-shrink-0 h-8 w-8 rounded bg-gradient-to-br from-[#0a2a12] via-[#103a1b] to-[#164c25] border border-[#36d26a] shadow-[0_0_12px_rgba(124,255,157,0.45)] flex items-center justify-center">
-            <img
-              src="/images/canopy-icon.svg"
-              alt="Canopy"
-              className="h-4 w-4 object-contain drop-shadow-[0_0_6px_rgba(124,255,157,0.6)]"
-            />
-          </div>
-          <div className="flex-1 min-w-0 text-left space-y-1">
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-sm text-white truncate">
-                {formatAddress(currentWallet.address)}
-              </span>
-              <ChevronDown className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+        <div className={`flex justify-between w-full`}>
+          <span className="text-xs">Balance</span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            className="lucide lucide-wallet w-4 h-4 text-white/70"
+            aria-hidden="true"
+          >
+            <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"></path>
+            <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"></path>
+          </svg>
+        </div>
+        <span className="text-xl text-left font-bold text-white ">{formatBalanceWithCommas(displayBalance)} CNPY</span>
+        <div className="flex-1 min-w-0 text-left space-y-1">
+          <div className="flex items-center justify-between gap-2">
+            <div className="w-5 h-5 rounded-full bg-[#1dd13a] flex items-center justify-center shrink-0 text-xs font-bold text-white">
+              {currentWallet.wallet_name.charAt(0).toUpperCase()}
             </div>
-            {!hideBalance && (
-              <div className="text-lg font-semibold text-[#7cff9d] truncate">
-                {formatBalanceWithCommas(displayBalance)} CNPY
-              </div>
-            )}
+            <span className="font-mono text-sm text-white truncate">{formatAddress(currentWallet.address)}</span>
           </div>
         </div>
       </Button>
     );
   }
 
-  // Otherwise, show connect button (Canopy wallet)
+  // Otherwise, show connect button (Canopy wallet) with gray gradient style
+  if (isCondensed) {
+    return (
+      <Button
+        onClick={connectWallet}
+        disabled={isConnecting}
+        variant="default"
+        size="icon"
+        className="w-full rounded-xl bg-gradient-to-br from-neutral-900 to-neutral-700 p-4 transition-all hover:scale-[1.02] active:scale-[0.98]"
+        aria-label="Connect Wallet"
+      >
+        {isConnecting ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <img
+            src="/images/canopy-icon.svg"
+            alt="Canopy"
+            className="h-4 w-4 object-contain drop-shadow-[0_0_8px_rgba(124,255,157,0.8)]"
+          />
+        )}
+      </Button>
+    );
+  }
+
   return (
     <Button
       onClick={connectWallet}
       disabled={isConnecting}
-      className="gap-2 w-full bg-transparent border-green-600/50 text-green-500 hover:bg-green-950/30 hover:border-green-600 h-12 rounded-2xl font-medium"
-      variant="outline"
+      variant="ghost"
+      size="sm"
+      className="w-full text-sm font-semibold text-[#7cff9d] border border-[#36d26a] bg-black/30 rounded-md shadow-[0_0_14px_rgba(124,255,157,0.4)] hover:shadow-[0_0_18px_rgba(124,255,157,0.55)] transition-transform hover:-translate-y-px gap-2"
     >
       {isConnecting ? (
         <>
           <Loader2 className="h-4 w-4 animate-spin" />
-          {!isCondensed && 'Connecting...'}
+          Connecting...
         </>
       ) : (
         <>
           <img
             src="/images/canopy-icon.svg"
             alt="Canopy"
-            className="h-4 w-4 object-contain"
+            className="h-4 w-4 object-contain drop-shadow-[0_0_8px_rgba(124,255,157,0.8)]"
           />
-          {!isCondensed && 'Connect wallet'}
-
+          Connect Wallet
         </>
       )}
     </Button>

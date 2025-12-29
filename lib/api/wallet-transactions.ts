@@ -127,10 +127,10 @@ export const walletTransactionApi = {
     chainId?: string
   ): Promise<{ status: string; transaction_hash: string }> => {
     const params = chainId ? { chain_id: chainId } : undefined;
-    const response = await apiClient.get<{ status: string; transaction_hash: string }>(
-      `/api/v1/wallet/transactions/${hash}/status`,
-      params
-    );
+    const response = await apiClient.get<{
+      status: string;
+      transaction_hash: string;
+    }>(`/api/v1/wallet/transactions/${hash}/status`, params);
     return response.data;
   },
 
@@ -216,11 +216,18 @@ export async function waitForTransactionCompletion(
 ): Promise<string> {
   for (let i = 0; i < maxAttempts; i++) {
     try {
-      const statusResponse = await walletTransactionApi.getTransactionStatus(hash, chainId);
+      const statusResponse = await walletTransactionApi.getTransactionStatus(
+        hash,
+        chainId
+      );
       const status = statusResponse.status.toLowerCase();
 
       // Check if transaction is in final state
-      if (status === "completed" || status === "success" || status === "confirmed") {
+      if (
+        status === "completed" ||
+        status === "success" ||
+        status === "confirmed"
+      ) {
         return "completed";
       }
       if (status === "failed" || status === "error") {
@@ -230,7 +237,10 @@ export async function waitForTransactionCompletion(
       // Wait before next attempt
       await new Promise((resolve) => setTimeout(resolve, intervalMs));
     } catch (error) {
-      console.error(`Failed to check transaction status (attempt ${i + 1}):`, error);
+      console.error(
+        `Failed to check transaction status (attempt ${i + 1}):`,
+        error
+      );
 
       // Continue polling even on error (transaction might be pending in mempool)
       if (i < maxAttempts - 1) {

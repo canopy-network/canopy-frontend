@@ -438,7 +438,7 @@ function SettingsContent() {
   return (
     <div className="min-h-screen px-4">
       {/* Top Header */}
-      <div className="border-b border-gray-800 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="border-b border-gray-800 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
         <div className="container flex items-center justify-between py-4">
           <div>
             <h1 className="text-2xl font-bold">Settings</h1>
@@ -489,7 +489,7 @@ function SettingsContent() {
       <div className="container py-8 mx-auto">
         <div className="flex gap-8">
           {/* Sidebar Navigation */}
-          <aside className="w-64 flex-shrink-0">
+          <aside className="w-64 shrink-0">
             <nav className="space-y-1">
               {navigationItems.map((item) => {
                 const Icon = item.icon;
@@ -687,7 +687,7 @@ function SettingsContent() {
                   <CardContent className="space-y-4">
                     <div className="flex items-center gap-6">
                       <div className="relative">
-                        <div className="w-32 h-32 rounded-full overflow-hidden bg-gradient-to-br from-pink-500 to-purple-500">
+                        <div className="w-32 h-32 rounded-full overflow-hidden bg-linear-to-br from-pink-500 to-purple-500">
                           <img
                             src={avatarPreview || profile.profileImage}
                             alt="Profile"
@@ -747,7 +747,7 @@ function SettingsContent() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-4">
-                      <div className="relative w-full h-48 rounded-lg overflow-hidden bg-gradient-to-r from-purple-500 to-pink-500">
+                      <div className="relative w-full h-48 rounded-lg overflow-hidden bg-linear-to-r from-purple-500 to-pink-500">
                         <img
                           src={bannerPreview || profile.bannerImage}
                           alt="Banner"
@@ -815,7 +815,7 @@ function SettingsContent() {
                         maxLength={500}
                         className={
                           socialLinks.website &&
-                          socialLinks.website.length > 500
+                            socialLinks.website.length > 500
                             ? "border-red-500"
                             : ""
                         }
@@ -865,8 +865,8 @@ function SettingsContent() {
                         maxLength={100}
                         className={
                           socialLinks.github &&
-                          (socialLinks.github.length > 100 ||
-                            !/^[a-zA-Z0-9_-]*$/.test(socialLinks.github))
+                            (socialLinks.github.length > 100 ||
+                              !/^[a-zA-Z0-9_-]*$/.test(socialLinks.github))
                             ? "border-red-500"
                             : ""
                         }
@@ -892,7 +892,7 @@ function SettingsContent() {
                         maxLength={50}
                         className={
                           socialLinks.telegram &&
-                          socialLinks.telegram.length > 50
+                            socialLinks.telegram.length > 50
                             ? "border-red-500"
                             : ""
                         }
@@ -1310,8 +1310,8 @@ function SettingsContent() {
                   {pendingAvatarFile && pendingBannerFile
                     ? "Your new avatar and banner images will be uploaded."
                     : pendingAvatarFile
-                    ? "Your new avatar image will be uploaded."
-                    : "Your new banner image will be uploaded."}
+                      ? "Your new avatar image will be uploaded."
+                      : "Your new banner image will be uploaded."}
                 </span>
               )}
             </DialogDescription>

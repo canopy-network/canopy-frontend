@@ -257,7 +257,7 @@ export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
     refreshPriceHistory();
     refreshChainData();
 
-    // Set up polling interval (10 seconds)
+    // Set up polling interval (30 seconds - reduced frequency to prevent excessive API calls)
     const interval = setInterval(() => {
       // Only poll if page is visible
       if (document.visibilityState === "visible") {
@@ -270,7 +270,7 @@ export function ChainDetails({ chain, accolades = [] }: ChainDetailsProps) {
           refreshChainData();
         }
       }
-    }, 10000); // 10 seconds
+    }, 30000); // 30 seconds - increased from 10s to reduce API load
 
     // Cleanup on unmount
     return () => clearInterval(interval);

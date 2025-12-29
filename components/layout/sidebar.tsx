@@ -44,7 +44,6 @@ export function Sidebar() {
     }
     const isSmallScreen = window.innerWidth <= WINDOW_BREAKPOINTS.XL;
 
-    console.log("isSmallScreen", isSmallScreen);
     setIsCompact(isSmallScreen);
   };
 
@@ -115,9 +114,7 @@ export function Sidebar() {
           href="/"
           className={cn(
             "overflow-hidden transition-all duration-300  block  ",
-            isCondensed
-              ? "w-[24px] max-w-[24px] mx-auto"
-              : "w-38 mr-auto xl:px-4"
+            isCondensed ? "w-[24px] max-w-[24px] mx-auto" : "w-38 mr-auto xl:px-4"
           )}
         >
           <Image
@@ -125,10 +122,7 @@ export function Sidebar() {
             height={128}
             src="/images/logo.svg"
             alt="Logo"
-            className={cn(
-              isCondensed ? "w-26 min-w-26" : "w-auto min-w-auto",
-              "h-auto object-contain"
-            )}
+            className={cn(isCondensed ? "w-26 min-w-26" : "w-auto min-w-auto", "h-auto object-contain")}
           />
         </Link>
       </div>
@@ -137,9 +131,7 @@ export function Sidebar() {
       <div
         className={cn(
           " py-3 border-b border-[#2a2a2a] transition-all duration-300",
-          isCondensed
-            ? "flex flex-col items-center gap-2 px-5"
-            : "px-4 space-y-3"
+          isCondensed ? "flex flex-col items-center gap-2 px-5" : "px-4 space-y-3"
         )}
       >
         <CommandSearchTrigger
@@ -158,9 +150,7 @@ export function Sidebar() {
               }
 
               // Check if dialog has been shown this session
-              const hasSeenDialog = sessionStorage.getItem(
-                "hasSeenLaunchDialog"
-              );
+              const hasSeenDialog = sessionStorage.getItem("hasSeenLaunchDialog");
               if (!hasSeenDialog) {
                 setShowLaunchDialog(true);
                 sessionStorage.setItem("hasSeenLaunchDialog", "true");
@@ -170,20 +160,11 @@ export function Sidebar() {
             }}
             className={cn(
               "flex  rounded-full bg-transparent text-sm font-medium text-white hover:bg-white/5 transition-colors",
-              isCondensed
-                ? "w-10 h-10 justify-center"
-                : "w-full h-9 gap-3 pl-4 text-left justify-start"
+              isCondensed ? "w-10 h-10 justify-center" : "w-full h-9 gap-3 pl-4 text-left justify-start"
             )}
           >
             <Plus className="w-5 h-5" />
-            <span
-              className={cn(
-                "transition-all duration-300",
-                isCondensed ? "hidden" : "block"
-              )}
-            >
-              Create L1 chain
-            </span>
+            <span className={cn("transition-all duration-300", isCondensed ? "hidden" : "block")}>Create L1 chain</span>
           </Button>
         )}
       </div>
@@ -201,52 +182,19 @@ export function Sidebar() {
       {/* Bottom Section */}
       <div
         className={cn(
-          "border-t border-[#2a2a2a] transition-all duration-300 py-4 transition-all duration-300 flex flex-col gap-3 items-center",
-            isCondensed ? "px-5" : "px-4"
-
+          "border-t border-[#2a2a2a] transition-all duration-300 py-4 flex flex-col gap-3 items-center",
+          isCondensed ? "px-5" : "px-4"
         )}
       >
-        {/* Email Authentication */}
-        {isLoggedIn && user ? (
-          <>
-            <Button
-              onClick={() => setLoginDialogOpen(true)}
-              variant="clear"
-              className="w-full  py-3 px-2 rounded-xl"
-            >
-              <div className="h-6 w-6 min-w-6 rounded bg-gradient-to-br from-[#0a2a12] via-[#103a1b] to-[#164c25] flex items-center justify-center border border-[#36d26a] shadow-[0_0_8px_rgba(54,210,106,0.4)]">
-                {user.avatar_url ? (
-                  <img
-                    src={user.avatar_url}
-                    alt={user.email || user.wallet_address || ""}
-                    className="h-6 w-6 min-w-6 rounded object-cover"
-                  />
-                ) : (
-                  <img
-                    src="/images/ethereum-logo.png"
-                    alt="Ethereum"
-                    className="h-5 w-5 object-contain"
-                  />
-                )}
-              </div>
-              {isCondensed ? null : (
-                <span className="text-sm text-white truncate font-mono flex-1 text-left">
-                  {user.email ||
-                    (user.wallet_address
-                      ? formatWalletAddress(user.wallet_address, addressVisibleChars)
-                      : "Anonymous")}
-                </span>
-              )}
-            </Button>
-          </>
-        ) : (
+        {/* Unified Wallet Button - Shows SIWE login if not authenticated, or wallet connection if authenticated */}
+        {!isLoggedIn ? (
           <>
             {isCondensed ? (
               <Button
                 onClick={() => setLoginDialogOpen(true)}
                 variant="default"
                 size="icon"
-                className="bg-black/30 text-[#7cff9d] border border-[#36d26a] shadow-[0_0_12px_2px_rgba(124,255,157,0.3)] hover:shadow-[0_0_16px_3px_rgba(124,255,157,0.45)] transition-transform hover:-translate-y-[1px] rounded-full"
+                className="bg-black/30 text-[#7cff9d] border border-[#36d26a] shadow-[0_0_12px_2px_rgba(124,255,157,0.3)] hover:shadow-[0_0_16px_3px_rgba(124,255,157,0.45)] transition-transform hover:-translate-y-px rounded-full"
                 aria-label="Connect Wallet"
               >
                 <img
@@ -260,7 +208,7 @@ export function Sidebar() {
                 onClick={() => setLoginDialogOpen(true)}
                 variant="ghost"
                 size="sm"
-                className="w-full text-sm font-semibold text-[#7cff9d] border border-[#36d26a] bg-black/30 rounded-md shadow-[0_0_14px_rgba(124,255,157,0.4)] hover:shadow-[0_0_18px_rgba(124,255,157,0.55)] transition-transform hover:-translate-y-[1px] gap-2"
+                className="w-full text-sm font-semibold text-[#7cff9d] border border-[#36d26a] bg-black/30 rounded-md shadow-[0_0_14px_rgba(124,255,157,0.4)] hover:shadow-[0_0_18px_rgba(124,255,157,0.55)] transition-transform hover:-translate-y-px gap-2"
               >
                 <img
                   src="/images/ethereum-logo.png"
@@ -271,9 +219,9 @@ export function Sidebar() {
               </Button>
             )}
           </>
+        ) : (
+          <WalletConnectButton isCondensed={isCondensed} />
         )}
-
-        {isLoggedIn && <WalletConnectButton isCondensed={isCondensed} />}
       </div>
 
       {/* Login Dialog */}

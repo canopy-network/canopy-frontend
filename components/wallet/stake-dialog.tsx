@@ -1138,7 +1138,7 @@ export function StakeDialog({
                                 {/* Fee Estimation Error */}
                                 {feeError && (
                                     <div className="flex gap-2 p-3 border border-red-500/20 bg-red-500/5 rounded-lg">
-                                        <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                                        <AlertCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
                                         <div className="space-y-1 text-sm">
                                             <p className="font-medium text-red-500">Fee Estimation Failed</p>
                                             <p className="text-muted-foreground">{feeError}</p>
@@ -1294,7 +1294,7 @@ export function StakeDialog({
                                 {/* Warning */}
                                 {!currentWallet?.isUnlocked && (
                                     <div className="flex gap-2 p-3 border border-red-500/20 bg-red-500/5 rounded-lg">
-                                        <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                                        <AlertCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
                                         <div className="space-y-1 text-sm">
                                             <p className="font-medium text-red-500">Wallet Locked</p>
                                             <p className="text-muted-foreground">
@@ -1307,7 +1307,7 @@ export function StakeDialog({
                                 {/* Disclaimer */}
                                 <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-lg">
                                     <div className="flex gap-3">
-                                        <AlertCircle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+                                        <AlertCircle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
                                         <p className="text-sm text-foreground">
                                             By staking, you agree to delegate your tokens. Please ensure you understand the risks involved.
                                         </p>
@@ -1394,7 +1394,7 @@ export function StakeDialog({
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="h-6 w-6 flex-shrink-0"
+                                                        className="h-6 w-6 shrink-0"
                                                         onClick={() => copyToClipboard(txHash, "Transaction hash")}
                                                     >
                                                         <Copy className="w-3 h-3" />

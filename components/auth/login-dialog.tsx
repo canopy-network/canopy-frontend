@@ -22,6 +22,8 @@ import { useConnectModal } from "@rainbow-me/rainbowkit";
 import axios from "axios";
 import { API_CONFIG } from "@/lib/config/api";
 import { toast } from "sonner";
+import { useWallet } from "@/components/wallet/wallet-provider";
+import { useWalletStore } from "@/lib/stores/wallet-store";
 
 type AuthStep = "initial" | "siwe" | "authenticated";
 
@@ -46,6 +48,10 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
   const { signMessageAsync } = useSignMessage();
   const { disconnect } = useDisconnect();
   const { openConnectModal } = useConnectModal();
+  
+  // Wallet context to trigger canopy wallet select modal
+  const { setShowSelectDialog, setShowCreateDialog } = useWallet();
+  const { fetchWallets } = useWalletStore();
 
   const handleSiweLogin = async () => {
     setIsSubmitting(true);
@@ -100,6 +106,22 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
 
       // Close the modal after successful sign-in
       onOpenChange(false);
+
+      // Trigger canopy wallet select modal after successful SIWE login
+      try {
+        await fetchWallets();
+        // Small delay to ensure state is updated, then check wallets from store
+        setTimeout(() => {
+          const currentWallets = useWalletStore.getState().wallets;
+          if (currentWallets.length === 0) {
+            setShowCreateDialog(true);
+          } else {
+            setShowSelectDialog(true);
+          }
+        }, 300);
+      } catch (error) {
+        console.error("Failed to fetch wallets after SIWE login:", error);
+      }
     } catch (error: any) {
       console.error("SIWE login error:", error);
       setLocalError(
@@ -228,8 +250,8 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
         {showWalletLinking ? (
           <DialogPortal>
             {/* Use a lower z-index overlay that won't block RainbowKit modal */}
-            <DialogOverlay className="z-[100]" />
-            <div className="bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-[150] grid w-full max-w-[calc(100%-2rem)] sm:max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200">
+            <DialogOverlay className="z-100" />
+            <div className="bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-150 grid w-full max-w-[calc(100%-2rem)] sm:max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200">
               <DialogHeader className="text-center">
             <img
               src="/images/logo.svg"
@@ -246,7 +268,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
 
           <div className="space-y-4">
             <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
-              <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />
+              <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-muted-foreground">Signed in as</p>
                 <p className="font-medium text-foreground truncate">
@@ -258,7 +280,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
             {/* Linked Wallet Display */}
             {hasLinkedWallet && (
               <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg border">
-                <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
+                <Check className="h-5 w-5 text-green-500 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-muted-foreground">Linked Wallet</p>
                   <div className="flex items-center gap-2">
@@ -367,7 +389,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
             <div className="space-y-4">
               {/* Primary Identity Display */}
               <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
-                <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />
+                <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-muted-foreground">Signed in as</p>
                   {user.email ? (
@@ -399,7 +421,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
               {/* Secondary Wallet Display (only if email exists and wallet is linked) */}
               {user.email && hasLinkedWallet && (
                 <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg border">
-                  <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
+                  <Check className="h-5 w-5 text-green-500 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-muted-foreground">Linked Wallet</p>
                     <div className="flex items-center gap-2">
@@ -516,8 +538,8 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogPortal>
           {/* Use a lower z-index overlay that won't block RainbowKit modal */}
-          <DialogOverlay className="z-[100]" />
-          <div className="bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-[150] grid w-full max-w-[calc(100%-2rem)] sm:max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200">
+          <DialogOverlay className="z-100" />
+          <div className="bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-150 grid w-full max-w-[calc(100%-2rem)] sm:max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200">
             {/* Back button - only show if not connected yet */}
             {!isConnected && (
               <button

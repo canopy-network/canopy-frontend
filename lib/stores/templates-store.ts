@@ -12,7 +12,7 @@
 
 import { useEffect, useState } from "react";
 import { create } from "zustand";
-import { devtools, persist } from "zustand/middleware";
+import { devtools, persist, createJSONStorage, StateStorage } from "zustand/middleware";
 import { templatesApi } from "@/lib/api";
 import {
   Template,
@@ -112,16 +112,20 @@ function calculateStatistics(templates: Template[]): TemplateStatistics {
 // ============================================================================
 
 // Custom storage that handles SSR
-const createNoopStorage = (): any => {
-  return {
-    getItem: () => null,
-    setItem: () => {},
-    removeItem: () => {},
-  };
+const zustandStorage: StateStorage = {
+  getItem: (name: string): string | null => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(name);
+  },
+  setItem: (name: string, value: string): void => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(name, value);
+  },
+  removeItem: (name: string): void => {
+    if (typeof window === "undefined") return;
+    localStorage.removeItem(name);
+  },
 };
-
-const storage =
-  typeof window !== "undefined" ? localStorage : createNoopStorage();
 
 export const useTemplatesStore = create<TemplatesState>()(
   devtools(
@@ -313,7 +317,7 @@ export const useTemplatesStore = create<TemplatesState>()(
       }),
       {
         name: "templates-store",
-        storage,
+        storage: createJSONStorage(() => zustandStorage),
         partialize: (state) => ({
           // Persist templates data and filters for better UX
           templates: state.templates,

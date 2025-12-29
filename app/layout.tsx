@@ -13,7 +13,8 @@ import { Web3Provider } from "@/components/web3/web3-provider";
 import { Toaster } from "sonner";
 import "./globals.css";
 import { Header } from "@/components/layout/header";
-
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { WalletDialogs } from "@/components/wallet/wallet-dialogs";
 // Force dynamic rendering for the entire app
 export const dynamic = "force-dynamic";
 
@@ -21,8 +22,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Canopy Super App",
-  description:
-    "Unified blockchain ecosystem for launching, discovering, and participating in new chains",
+  description: "Unified blockchain ecosystem for launching, discovering, and participating in new chains",
   generator: "Canopy",
 };
 
@@ -40,31 +40,34 @@ export default function RootLayout({
               <StoreProvider>
                 <AuthCookieSync />
                 <WalletProvider>
-                  <div className="flex h-screen bg-background overflow-hidden">
-                    {/* Desktop Sidebar - hidden on mobile */}
-                    <div className="hidden lg:block">
-                      <Sidebar />
-                    </div>
-                    <main className="w-full overflow-auto">
-                      <Header />
-                      <div className="flex-1 overflow-y-auto overflow-x-hidden">
-                        <Suspense fallback={null}>{children}</Suspense>
+                  <TooltipProvider>
+                    <div className="flex h-screen bg-background overflow-hidden">
+                      {/* Desktop Sidebar - hidden on mobile */}
+                      <div className="hidden lg:block">
+                        <Sidebar />
                       </div>
-                    </main>
-                  </div>
-                  <WalletPopup />
-                  <Toaster
-                    position="top-center"
-                    theme="dark"
-                    toastOptions={{
-                      style: {
-                        background: "rgba(255, 255, 255, 0.1)",
-                        border: "1px solid rgba(255, 255, 255, 0.1)",
-                        color: "white",
-                        backdropFilter: "blur(8px)",
-                      },
-                    }}
-                  />
+                      <main className="w-full overflow-auto">
+                        <Header />
+                        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+                          <Suspense fallback={null}>{children}</Suspense>
+                        </div>
+                      </main>
+                    </div>
+                    <WalletPopup />
+                    <WalletDialogs />
+                    <Toaster
+                      position="top-center"
+                      theme="dark"
+                      toastOptions={{
+                        style: {
+                          background: "rgba(255, 255, 255, 0.1)",
+                          border: "1px solid rgba(255, 255, 255, 0.1)",
+                          color: "white",
+                          backdropFilter: "blur(8px)",
+                        },
+                      }}
+                    />
+                  </TooltipProvider>
                 </WalletProvider>
               </StoreProvider>
             </Web3Provider>
