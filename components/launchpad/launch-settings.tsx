@@ -12,7 +12,7 @@ interface LaunchSettingsProps {
     timezone?: string;
     launchImmediately?: boolean;
     initialPurchaseAmount?: string;
-    graduationThreshold?: number;
+    targetPriceAtGraduation?: number;
   };
   ticker?: string;
   onDataSubmit?: (
@@ -22,7 +22,7 @@ interface LaunchSettingsProps {
       timezone: string;
       launchImmediately: boolean;
       initialPurchaseAmount: string;
-      graduationThreshold: number;
+      targetPriceAtGraduation: number;
     },
     isValid: boolean
   ) => void;
@@ -41,8 +41,8 @@ export default function LaunchSettings({
   const [initialPurchaseAmount, setInitialPurchaseAmount] = useState(
     initialData?.initialPurchaseAmount || ""
   );
-  const [graduationThreshold, setGraduationThreshold] = useState(
-    initialData?.graduationThreshold || 50000
+  const [targetPriceAtGraduation, setTargetPriceAtGraduation] = useState(
+    initialData?.targetPriceAtGraduation || 1.25
   );
 
   // Notify parent when data changes
@@ -58,7 +58,7 @@ export default function LaunchSettings({
           timezone,
           launchImmediately,
           initialPurchaseAmount,
-          graduationThreshold,
+          targetPriceAtGraduation,
         },
         isValid
       );
@@ -69,7 +69,7 @@ export default function LaunchSettings({
     timezone,
     launchImmediately,
     initialPurchaseAmount,
-    graduationThreshold,
+    targetPriceAtGraduation,
     onDataSubmit,
   ]);
 
@@ -84,43 +84,43 @@ export default function LaunchSettings({
           </p>
         </div>
 
-        {/* Graduation Threshold Section */}
+        {/* Target Price At Graduation Section */}
         <div className="space-y-4">
           <div className="flex items-center gap-3">
             <Target className="h-5 w-5" />
-            <h2 className="text-xl font-semibold">Graduation Threshold</h2>
+            <h2 className="text-xl font-semibold">Target Price At Graduation</h2>
           </div>
 
           <div className="space-y-4">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Label
-                  htmlFor="graduationThreshold"
+                  htmlFor="targetPriceAtGraduation"
                   className="text-sm font-medium"
                 >
-                  Threshold Amount in USD
+                  Target Price (CNPY Per Token)
                 </Label>
                 <HelpCircle className="h-4 w-4 text-muted-foreground" />
               </div>
 
               <Input
-                id="graduationThreshold"
+                id="targetPriceAtGraduation"
                 type="number"
-                placeholder="50000"
-                value={graduationThreshold}
+                placeholder="1.25"
+                value={targetPriceAtGraduation}
                 onChange={(e) =>
-                  setGraduationThreshold(parseFloat(e.target.value) || 0)
+                  setTargetPriceAtGraduation(parseFloat(e.target.value) || 0)
                 }
                 min="0"
-                step="1000"
+                step="0.01"
               />
             </div>
 
             <div className="bg-muted/30 rounded-lg p-6 space-y-4">
               <p className="text-lg">
-                Your chain becomes real at:{" "}
+                Your chain graduates when token price reaches:{" "}
                 <span className="font-bold">
-                  ${graduationThreshold.toLocaleString()}
+                  {targetPriceAtGraduation} CNPY per token
                 </span>
               </p>
 
@@ -134,9 +134,9 @@ export default function LaunchSettings({
                   tokens without the full blockchain infrastructure running yet.
                 </p>
                 <p>
-                  Once total purchases reach{" "}
+                  Once the token price reaches{" "}
                   <span className="font-semibold text-foreground">
-                    ${graduationThreshold.toLocaleString()}
+                    {targetPriceAtGraduation} CNPY per token
                   </span>
                   , your chain{" "}
                   <span className="font-semibold text-foreground">
