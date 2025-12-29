@@ -117,6 +117,27 @@ export const chainsApi = {
     } as ActivateChainRequest),
 
   /**
+   * Activate a chain with status check
+   * Returns whether activation is confirmed (200) or pending (202)
+   *
+   * @param id - Chain ID
+   * @param txHash - Transaction hash of the payment
+   * @returns Promise resolving to { confirmed: boolean, chain?: Chain }
+   */
+  activateChainWithStatus: async (id: string, txHash: string): Promise<{ confirmed: boolean; chain?: Chain }> => {
+    const axios = apiClient.getAxiosInstance();
+    const response = await axios.patch(`/api/v1/chains/${id}`, {
+      status: "virtual_active",
+      tx_hash: txHash,
+    } as ActivateChainRequest);
+
+    return {
+      confirmed: response.status === 200,
+      chain: response.status === 200 ? response.data?.data : undefined,
+    };
+  },
+
+  /**
    * Delete a chain (only allowed in draft status)
    *
    * @param id - Chain ID to delete
