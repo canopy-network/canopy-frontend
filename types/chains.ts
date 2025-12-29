@@ -134,6 +134,9 @@ export interface Chain {
 
   /** Graduation progress information */
   graduation?: GraduationProgress;
+
+  /** Payment address for chain creation fee (returned on draft chain creation) */
+  address?: string;
 }
 
 // ============================================================================
