@@ -16,6 +16,8 @@ spec:
         app: canopy-frontend
         component: frontend
     spec:
+      nodeSelector:
+        node-role.kubernetes.io/master: "true"
       containers:
       - name: canopy-frontend
         image: docker.io/canopy-frontend:latest

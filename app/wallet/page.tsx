@@ -77,7 +77,7 @@ function WalletContent() {
     () => (currentWallet ? [currentWallet.address] : []),
     [currentWallet?.address]
   );
-
+  
   // Fetch data when wallet changes
   useEffect(() => {
     if (currentWallet) {
