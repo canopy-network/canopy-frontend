@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { localApiClient } from "@/lib/api/local-client";
 
 export interface GitHubUser {
   id: number;
@@ -115,7 +116,7 @@ export function useGitHubSession() {
   const logout = async () => {
     try {
       // Clear GitHub session via API
-      await fetch("/api/github/session", { method: "DELETE" });
+      await localApiClient.deleteRaw("/github/session");
 
       // Clear local state
       setSession({

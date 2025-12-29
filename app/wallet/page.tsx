@@ -139,7 +139,7 @@ function WalletContent() {
         {/* Tabs */}
         <div className="space-y-4 sm:space-y-6">
           {/* Tabs for Assets, Activity, Staking, Governance */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full h-full">
             <TabsList variant="wallet">
               <TabsTrigger value="orders" variant="wallet">
                 Order Book

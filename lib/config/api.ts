@@ -9,27 +9,21 @@
  * @since 2024-01-01
  */
 
+const normalizeBaseUrl = (value: string) => value.trim().replace(/\/+$/, "");
+
 /**
  * Get the base URL for API requests
- * 
- * All requests go through Next.js API routes in app/api/* which proxy to the backend.
- * - Client: baseURL = "/api" (relative path)
- * - Server: baseURL = Next.js server URL (absolute URL to same server)
+ *
+ * Uses NEXT_PUBLIC_API_URL for both client and server to call the backend directly.
  */
 function getBaseURL(): string {
-  // Check if we're in the browser
-  if (typeof window !== "undefined") {
-    // Client-side: use relative path to Next.js API routes
-    return "/api";
+  const envBaseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+  if (envBaseUrl) {
+    return normalizeBaseUrl(envBaseUrl);
   }
 
-  // Server-side: use full URL to Next.js server with /api prefix
-  // This ensures SSR requests also go through app/api/* routes
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}/api`;
-  }
-  // In development, always use localhost:3000/api to hit Next.js API routes
-  return "http://localhost:3000/api";
+  // Fallback for local dev if env var is missing.
+  return "http://localhost:3001";
 }
 
 export const API_CONFIG = {

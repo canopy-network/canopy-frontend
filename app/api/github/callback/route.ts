@@ -1,5 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import {
+  githubApiClient,
+  githubOAuthClient,
+} from "@/lib/api/github-client";
+
+interface GitHubUserResponse {
+  id: number;
+  login: string;
+  name: string | null;
+  email: string | null;
+  avatar_url: string;
+}
+
+interface GitHubEmailResponse {
+  email: string;
+  primary: boolean;
+}
 
 // Handles GitHub OAuth callback - ONLY for repository access, NOT for app authentication
 export async function GET(request: NextRequest) {
@@ -23,24 +40,26 @@ export async function GET(request: NextRequest) {
 
   try {
     // Exchange code for access token
-    const tokenResponse = await fetch(
-      "https://github.com/login/oauth/access_token",
+    const tokenData = await githubOAuthClient.postRaw<{
+      access_token?: string;
+      error?: string;
+      error_description?: string;
+    }>(
+      "/login/oauth/access_token",
       {
-        method: "POST",
+        client_id: process.env.GITHUB_CLIENT_ID,
+        client_secret: process.env.GITHUB_CLIENT_SECRET,
+        code,
+        redirect_uri: `${process.env.NEXTAUTH_URL}/api/github/callback`,
+      },
+      {
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        body: JSON.stringify({
-          client_id: process.env.GH_CLIENT_ID,
-          client_secret: process.env.GH_CLIENT_SECRET,
-          code,
-          redirect_uri: `${process.env.NEXTAUTH_URL}/api/github/callback`,
-        }),
+        skipAuth: true,
       }
     );
-
-    const tokenData = await tokenResponse.json();
 
     if (tokenData.error) {
       console.error("GitHub token error:", tokenData);
@@ -51,25 +70,38 @@ export async function GET(request: NextRequest) {
 
     const accessToken = tokenData.access_token;
 
-    // Fetch user data from GitHub
-    const userResponse = await fetch("https://api.github.com/user", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/vnd.github.v3+json",
-      },
-    });
+    if (!accessToken) {
+      console.error("No access token received from GitHub");
+      return NextResponse.redirect(
+        `${process.env.NEXTAUTH_URL}${state}?error=no_access_token`
+      );
+    }
 
-    const githubUserData = await userResponse.json();
+    // Fetch user data from GitHub
+    const githubUserData = await githubApiClient.getRaw<GitHubUserResponse>(
+      "/user",
+      undefined,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: "application/vnd.github.v3+json",
+        },
+        skipAuth: true,
+      }
+    );
 
     // Fetch user emails
-    const emailsResponse = await fetch("https://api.github.com/user/emails", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/vnd.github.v3+json",
-      },
-    });
-
-    const emails = await emailsResponse.json();
+    const emails = await githubApiClient.getRaw<GitHubEmailResponse[]>(
+      "/user/emails",
+      undefined,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: "application/vnd.github.v3+json",
+        },
+        skipAuth: true,
+      }
+    );
     const primaryEmail =
       emails.find((e: { primary: boolean; email: string }) => e.primary)
         ?.email || githubUserData.email;

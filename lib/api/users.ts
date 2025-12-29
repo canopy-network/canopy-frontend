@@ -8,7 +8,8 @@
  * @since 2024-01-01
  */
 
-import { apiClient } from "./client";
+import { ApiClientError, apiClient } from "./client";
+import { localApiClient } from "./local-client";
 import type { ApiResponse } from "@/types/api";
 
 /**
@@ -92,15 +93,15 @@ export async function uploadUserMedia(
   formData.append("type", type);
   formData.append("file", file);
 
-  const response = await fetch("/api/canopy-user-media", {
-    method: "POST",
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Failed to upload image");
+  try {
+    return await localApiClient.postRaw<UploadUserMediaResponse>(
+      "/canopy-user-media",
+      formData
+    );
+  } catch (error) {
+    if (error instanceof ApiClientError) {
+      throw new Error(error.message || "Failed to upload image");
+    }
+    throw error;
   }
-
-  return response.json();
 }

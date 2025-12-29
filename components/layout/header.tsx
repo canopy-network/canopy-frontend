@@ -1,6 +1,5 @@
 "use client";
 
-import { useWallet } from "@/components/wallet/wallet-provider";
 import { Button } from "@/components/ui/button";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -53,7 +52,6 @@ const routeConfig: Record<string, { label: string; href?: string }> = {
 };
 
 export function Header() {
-  const { togglePopup } = useWallet();
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -505,7 +503,6 @@ export function Header() {
   };
 
   const pageType = getPageType();
-  const shouldShowCollapsedWalletButton = isLoggedIn && isSidebarCollapsed;
 
   return (
     <>
@@ -684,34 +681,7 @@ export function Header() {
                   }
                 }}
               />
-            ) : (
-              <>
-                {!isDetailPage && (
-                  <>
-                    {shouldShowCollapsedWalletButton && (
-                      <div className="w-[200px]">
-                        <WalletConnectButton hideBalance />
-                      </div>
-                    )}
-                    {!isLoggedIn && (
-                      <Button
-                        onClick={() => setLoginDialogOpen(true)}
-                        variant="ghost"
-                        size="sm"
-                        className="text-[#7cff9d] text-sm font-semibold px-3 py-2 hover:bg-transparent gap-2 border border-[#36d26a] bg-black/30 rounded-md shadow-[0_0_14px_rgba(124,255,157,0.4)] hover:shadow-[0_0_18px_rgba(124,255,157,0.55)]"
-                      >
-                        <img
-                          src="/images/ethereum-logo.png"
-                          alt="Ethereum"
-                          className="h-4 w-4 object-contain drop-shadow-[0_0_8px_rgba(124,255,157,0.8)]"
-                        />
-                        Connect Wallet
-                      </Button>
-                    )}
-                  </>
-                )}
-              </>
-            )}
+            ) : null}
           </div>
         </div>
       </header>

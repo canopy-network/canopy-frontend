@@ -41,6 +41,14 @@ export {
   getAllGraduatedChains,
   getChainsByCreator,
   getChainsByTemplate,
+  searchChains,
+  validateChainField,
+  storeChainListing,
+  type ChainSearchItem,
+  type ChainSearchResponse,
+  type ChainValidationResponse,
+  type ChainStoreRequest,
+  type ChainStoreResponse,
 } from "./chains";
 
 // Templates API
@@ -104,6 +112,7 @@ export {
   fetchUserRepositories,
   verifyRepositoryOwnership,
   getGitHubUser,
+  fetchRepositoryDetails,
   type Repository as GitHubRepository,
 } from "./github-repos";
 
@@ -198,9 +207,12 @@ export type {
 export {
   explorerApi,
   getExplorerTransactions,
+  getExplorerTransactionsWithPagination,
   getExplorerTransaction,
   getExplorerBlocks,
+  getExplorerBlocksWithPagination,
   getExplorerBlock,
+  getExplorerHistorical,
   getExplorerOverview,
   getExplorerTrendingChains,
   getExplorerAddress,
@@ -210,6 +222,7 @@ export {
   useExplorerTransaction,
   useExplorerBlocks,
   useExplorerBlock,
+  useExplorerHistorical,
   useExplorerOverview,
   useExplorerTrendingChains,
   useExplorerAddress,
@@ -218,6 +231,8 @@ export {
   type Transaction as ExplorerTransaction,
   type ExplorerTransactionsResponse,
   type GetExplorerTransactionsParams,
+  type ExplorerHistoricalData,
+  type GetExplorerHistoricalParams,
   type Block as ExplorerBlock,
   type ExplorerBlocksResponse,
   type GetExplorerBlocksParams,
@@ -232,8 +247,6 @@ export type {
   UpdateWalletRequest,
   DecryptWalletRequest,
   DecryptWalletResponse,
-  GetWalletsParams,
-  WalletsListResponse,
   LocalWallet,
   WalletCreationResult,
   WalletBalance,

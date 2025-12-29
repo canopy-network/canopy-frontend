@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { TableCard, TableColumn } from "@/components/explorer/table-card";
-import { explorerApi, type Transaction } from "@/lib/api/explorer";
+import { getExplorerTransactionsWithPagination, type Transaction } from "@/lib/api/explorer";
 import { canopyIconSvg, getCanopyAccent } from "@/lib/utils/brand";
 import { TableArrow } from "@/components/icons";
 import { chainsApi } from "@/lib/api/chains";
@@ -71,7 +71,7 @@ export function TransactionsExplorer({ chainContext }: TransactionsExplorerProps
     async function fetchTransactions() {
       try {
         setIsLoadingTransactions(true);
-        const response = await explorerApi.getTransactions({
+        const response = await getExplorerTransactionsWithPagination({
           ...(effectiveChainId && { chain_id: effectiveChainId }),
           limit: ROWS_PER_PAGE,
           cursor: currentCursor,
@@ -79,19 +79,11 @@ export function TransactionsExplorer({ chainContext }: TransactionsExplorerProps
         });
 
         if (response?.data) {
-          // Handle both direct array and nested data structure
-          const txData = Array.isArray(response.data)
-            ? response.data
-            : (response.data as any).data || [];
-
+          const txData = response.data;
           setTransactions(txData);
 
-          // Get pagination info
-          const pagination = Array.isArray(response.data)
-            ? (response as any).pagination
-            : (response.data as any).pagination || response.pagination;
+          const pagination = response.pagination;
 
-          // Update cursor history and total count based on pagination
           if (txData.length > 0 && pagination) {
             const nextCursor = pagination.next_cursor;
 

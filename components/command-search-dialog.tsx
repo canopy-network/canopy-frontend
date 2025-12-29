@@ -14,6 +14,7 @@ import {
 import { Loader2 } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { searchChains } from "@/lib/api/chains";
 
 const RECENT_SEARCHES_KEY = "canopy_recent_searches";
 const MAX_RECENT_SEARCHES = 5;
@@ -25,12 +26,6 @@ interface ApiChain {
   chain_name: string;
   token_name: string;
   branding: string | null;
-}
-
-interface ApiSearchResponse {
-  success: boolean;
-  chains: ApiChain[];
-  count: number;
 }
 
 interface CommandSearchDialogProps {
@@ -96,10 +91,7 @@ function GlobalSearchDialog({
     const searchChains = async () => {
       setIsSearching(true);
       try {
-        const response = await fetch(
-          `/api/chains/search?q=${encodeURIComponent(debouncedQuery)}`
-        );
-        const data: ApiSearchResponse = await response.json();
+        const data = await searchChains(debouncedQuery);
 
         if (data.success && data.chains) {
           // Map API response to Chain format

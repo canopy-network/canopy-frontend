@@ -38,7 +38,7 @@ export interface WalletRewardsHistoryChainGroup {
 }
 
 export interface WalletRewardsHistoryPayload {
-  rewards_by_chain: WalletRewardsHistoryChainGroup[];
+  events_by_chain: WalletRewardsHistoryChainGroup[];
   pagination?: WalletEventsPagination;
 }
 

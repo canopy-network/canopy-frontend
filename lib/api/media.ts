@@ -9,6 +9,9 @@
  * @since 2024-01-01
  */
 
+import { ApiClientError } from "./client";
+import { localApiClient } from "./local-client";
+
 export type FileCategory = "branding" | "media" | "papers";
 
 export interface UploadResult {
@@ -72,26 +75,20 @@ export async function uploadMedia(
       formData.append(`file${index}`, file);
     });
 
-    // Send request
-    const response = await fetch("/api/canopy-media", {
-      method: "POST",
-      body: formData,
-    });
-
-    const data: UploadResponse = await response.json();
-
-    if (!response.ok) {
-      throw new Error(
-        data.error || `Upload failed with status ${response.status}`
-      );
-    }
-
-    return data;
+    return await localApiClient.postRaw<UploadResponse>(
+      "/canopy-media",
+      formData
+    );
   } catch (error: any) {
+    const message =
+      error instanceof ApiClientError
+        ? error.message
+        : error?.message || "Failed to upload files";
+
     console.error("Error uploading media:", error);
     return {
       success: false,
-      error: error.message || "Failed to upload files",
+      error: message,
     };
   }
 }

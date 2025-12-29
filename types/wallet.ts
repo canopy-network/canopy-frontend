@@ -103,31 +103,6 @@ export interface DecryptWalletResponse {
   address: string; // Blockchain address
 }
 
-/**
- * Query parameters for listing wallets
- */
-export interface GetWalletsParams {
-  user_id?: string; // Filter by user
-  chain_id?: string; // Filter by chain
-  created_by?: string; // Filter by creator
-  is_active?: boolean; // Filter by active status
-  is_locked?: boolean; // Filter by locked status
-  page?: number; // Page number (default: 1, min: 1)
-  limit?: number; // Page size (default: 20, min: 1, max: 100)
-}
-
-/**
- * Paginated response for wallet list
- */
-export interface WalletsListResponse {
-  data: Wallet[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    pages: number;
-  };
-}
 
 /**
  * Local wallet state (minimal fields from export endpoint)
@@ -445,8 +420,11 @@ export interface PortfolioPerformanceResponse {
   start_date: string;
   end_date: string;
   starting_value_cnpy: string;
+  starting_value_usd?: string | null;
   ending_value_cnpy: string;
+  ending_value_usd?: string | null;
   total_pnl_cnpy: string;
+  total_pnl_usd?: string | null;
   total_pnl_percentage: number;
   realized_pnl_cnpy: string;
   unrealized_pnl_cnpy: string;

@@ -126,7 +126,7 @@ export const walletRewardsApi = {
     );
 
     const payload = response.data;
-    const rewards: RewardRecord[] = (payload?.rewards_by_chain || [])
+    const rewards: RewardRecord[] = (payload?.events_by_chain || [])
       .flatMap((group) =>
         (group.events || [])
           .map((event) => normalizeGroupEvent(group, event))

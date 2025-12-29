@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Copy, Settings, LogOut } from "lucide-react";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { useWallet } from "@/components/wallet/wallet-provider";
+import { useAuthStore } from "@/lib/stores/auth-store";
 import { formatAddress } from "@/lib/utils/wallet-helpers";
 import { toast } from "sonner";
 import { SwitchWalletDialog } from "@/components/wallet/switch-wallet-dialog";
@@ -15,6 +16,7 @@ export function WalletHeader() {
   const router = useRouter();
   const { currentWallet } = useWallet();
   const { wallets, selectWallet } = useWalletStore();
+  const { logout } = useAuthStore();
   const [showSwitchDialog, setShowSwitchDialog] = useState(false);
 
   if (!currentWallet) {
@@ -27,10 +29,11 @@ export function WalletHeader() {
   };
 
   const handleDisconnect = () => {
+    // Logout from auth
+    logout();
+    toast.success("Logged out successfully");
+    // Redirect to home
     router.push("/");
-    setTimeout(() => {
-      // Disconnect logic handled by wallet provider
-    }, 100);
   };
 
   const handleSwitchWallet = async (walletId: string) => {

@@ -5,7 +5,7 @@ import { MainNav } from "@/components/navigation/main-nav";
 import { WalletConnectButton } from "@/components/wallet/wallet-connect-button";
 import { LoginDialog } from "@/components/auth/login-dialog";
 import { Button } from "@/components/ui/button";
-import { Plus, Wallet } from "lucide-react";
+import { Plus, Wallet, LogOut } from "lucide-react";
 import { useCreateChainDialog } from "@/lib/stores/use-create-chain-dialog";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import Link from "next/link";
@@ -14,9 +14,10 @@ import { cn, WINDOW_BREAKPOINTS } from "@/lib/utils";
 import LaunchOverviewDialog from "@/components/launchpad/launch-overview-dialog";
 import Image from "next/image";
 import { CommandSearchTrigger } from "@/components/command-search-trigger";
+import { toast } from "sonner";
 
 export function Sidebar() {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, logout } = useAuthStore();
   const router = useRouter();
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [showCommandSearch, setShowCommandSearch] = useState(false);
@@ -95,6 +96,12 @@ export function Sidebar() {
   const isCondensed = isCompact && !shouldExpand;
 
   const isLoggedIn = isAuthenticated;
+
+  const handleLogout = () => {
+    logout();
+    toast.success("Logged out successfully");
+    router.push("/");
+  };
 
   return (
     <div
@@ -220,7 +227,30 @@ export function Sidebar() {
             )}
           </>
         ) : (
-          <WalletConnectButton isCondensed={isCondensed} />
+          <>
+            <WalletConnectButton isCondensed={isCondensed} />
+            {isCondensed ? (
+              <Button
+                onClick={handleLogout}
+                variant="ghost"
+                size="icon"
+                className="w-10 h-10 rounded-full text-red-500 hover:text-red-500 hover:bg-red-500/10"
+                aria-label="Logout"
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
+            ) : (
+              <Button
+                onClick={handleLogout}
+                variant="ghost"
+                size="sm"
+                className="w-full text-sm font-semibold text-red-500 hover:text-red-500 hover:bg-red-500/10 gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                Logout
+              </Button>
+            )}
+          </>
         )}
       </div>
 

@@ -7,6 +7,7 @@ import { useAuthStore } from "@/lib/stores/auth-store";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { formatBalanceWithCommas } from "@/lib/utils/denomination";
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 interface WalletConnectButtonProps {
   isCondensed?: boolean;
@@ -14,8 +15,9 @@ interface WalletConnectButtonProps {
 }
 
 export function WalletConnectButton({ isCondensed = false, hideBalance = false }: WalletConnectButtonProps) {
+  const router = useRouter();
   const { isAuthenticated } = useAuthStore();
-  const { currentWallet, isConnecting, connectWallet, togglePopup } = useWallet();
+  const { currentWallet, isConnecting, connectWallet } = useWallet();
   const { balance, fetchBalance } = useWalletStore();
 
   // Fetch balance when wallet is connected
@@ -48,7 +50,7 @@ export function WalletConnectButton({ isCondensed = false, hideBalance = false }
       return (
         <Button
           variant="ghost"
-          onClick={togglePopup}
+          onClick={() => router.push('/wallet')}
           className="w-10 h-10 p-0 bg-black/30 border border-[#36d26a] rounded-full text-[#7cff9d] shadow-[0_0_12px_2px_rgba(124,255,157,0.3)] hover:shadow-[0_0_16px_3px_rgba(124,255,157,0.45)]"
         >
           <img
@@ -64,7 +66,7 @@ export function WalletConnectButton({ isCondensed = false, hideBalance = false }
       <Button
         variant="ghost"
         size="freeflow"
-        onClick={togglePopup}
+        onClick={() => router.push('/wallet')}
         className="w-full rounded-xl bg-gradient-to-br from-neutral-900 to-neutral-700 p-4 transition-all hover:scale-[1.02] active:scale-[0.98] flex flex-col items-start"
       >
         <div className={`flex justify-between w-full`}>
@@ -76,11 +78,11 @@ export function WalletConnectButton({ isCondensed = false, hideBalance = false }
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
             className="lucide lucide-wallet w-4 h-4 text-white/70"
-            aria-hidden="true"
+            aria-hidden={true}
           >
             <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"></path>
             <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"></path>
@@ -107,7 +109,7 @@ export function WalletConnectButton({ isCondensed = false, hideBalance = false }
         disabled={isConnecting}
         variant="default"
         size="icon"
-        className="w-full rounded-xl bg-gradient-to-br from-neutral-900 to-neutral-700 p-4 transition-all hover:scale-[1.02] active:scale-[0.98]"
+        className="w-10 h-10 p-0 bg-black/30 border border-[#36d26a] rounded-full text-[#7cff9d] shadow-[0_0_12px_2px_rgba(124,255,157,0.3)] hover:shadow-[0_0_16px_3px_rgba(124,255,157,0.45)] transition-transform hover:-translate-y-px"
         aria-label="Connect Wallet"
       >
         {isConnecting ? (

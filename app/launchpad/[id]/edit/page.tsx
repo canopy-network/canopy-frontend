@@ -84,31 +84,9 @@ export default function EditChainPage(props: EditChainPageProps) {
     const fetchChainData = async () => {
       try {
         const chainId = decodeURIComponent(params.id);
-        const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "").trim();
-        const requestUrl = `${apiUrl}/api/v1/chains/${chainId}?include=assets,creator`;
-
-        console.log("Fetching chain for edit:", requestUrl);
-
-        const response = await fetch(requestUrl, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          cache: "no-store",
+        const data: ApiResponse = await chainsApi.getChain(chainId, {
+          include: "assets,creator",
         });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("API request failed:", {
-            status: response.status,
-            statusText: response.statusText,
-            body: errorText,
-          });
-          notFound();
-          return;
-        }
-
-        const data: ApiResponse = await response.json();
 
         if (!data.data) {
           console.error("API returned no chain data");
@@ -288,9 +266,6 @@ export default function EditChainPage(props: EditChainPageProps) {
       }
 
       // Step 3: Update chain metadata
-      const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "").trim();
-      const requestUrl = `${apiUrl}/api/v1/chains/${chainId}`;
-
       const updateData: any = {
         chain_description: chainDescription,
       };
@@ -300,19 +275,7 @@ export default function EditChainPage(props: EditChainPageProps) {
       return console.log({ "Stud updating chain": updateData });
 
       console.log("Updating chain metadata...");
-      const response = await fetch(requestUrl, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updateData),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to update chain: ${errorText}`);
-      }
-
+      await chainsApi.updateChain(chainId, updateData);
       console.log("Chain updated successfully!");
 
       // Exit edit mode and redirect to the chain detail page

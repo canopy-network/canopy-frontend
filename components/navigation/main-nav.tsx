@@ -6,9 +6,7 @@ import { cn } from "@/lib/utils";
 import {
   Zap,
   BarChart3,
-  Activity,
   TrendingUp,
-  User,
   Droplets,
 } from "lucide-react";
 
@@ -16,9 +14,7 @@ export const navigation = [
   { name: "Launchpad", href: "/", icon: Zap },
   { name: "Explorer", href: "/explorer", icon: BarChart3 },
   { name: "Liquidity", href: "/liquidity", icon: Droplets },
-  { name: "Staking", href: "/staking", icon: Activity },
   { name: "Trade", href: "/orderbook", icon: TrendingUp },
-  { name: "Profile", href: "/settings", icon: User },
 ];
 
 interface MainNavProps {

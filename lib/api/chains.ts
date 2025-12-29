@@ -10,6 +10,7 @@
  */
 
 import { apiClient } from "./client";
+import { localApiClient } from "./local-client";
 import {
   Chain,
   CreateChainRequest,
@@ -20,8 +21,51 @@ import {
   CreateAssetRequest,
   ChainHolder,
   GetHoldersParams,
-  Accolade, ChainHeight,
+  Accolade,
+  ChainHeight,
 } from "@/types/chains";
+
+export interface ChainSearchItem {
+  id: number;
+  ticker: string;
+  chain_name: string;
+  token_name: string;
+  updated_at?: string;
+  branding?: string | null;
+}
+
+export interface ChainSearchResponse {
+  success: boolean;
+  chains?: ChainSearchItem[];
+  count?: number;
+  error?: string;
+}
+
+export interface ChainValidationResponse {
+  success: boolean;
+  available?: boolean;
+  field?: string;
+  value?: string;
+  message?: string;
+  error?: string;
+}
+
+export interface ChainStoreRequest {
+  ticker: string;
+  chain_name: string;
+  token_name?: string;
+}
+
+export interface ChainStoreResponse {
+  success: boolean;
+  message?: string;
+  data?: {
+    ticker: string;
+    chain_name: string;
+    token_name: string;
+  };
+  error?: string;
+}
 
 // ============================================================================
 // CHAINS API
@@ -161,6 +205,9 @@ export const chainsApi = {
       default_branch?: string;
     }
   ) => apiClient.put<any>(`/api/v1/chains/${chainId}/repository`, data),
+
+  updateChain: (chainId: string, data: Partial<Chain>) =>
+    apiClient.patch<Chain>(`/api/v1/chains/${chainId}`, data),
 
   /**
    * Get all assets for a chain
@@ -517,4 +564,30 @@ export async function getChainHolders(
     };
     data: ChainHolder[];
   }>(`/api/v1/chains/${chainId}/holders`, params);
+}
+
+// ============================================================================
+// LOCAL CHAIN ROUTES (NEXT API)
+// ============================================================================
+
+export async function searchChains(query: string, signal?: AbortSignal) {
+  return localApiClient.getRaw<ChainSearchResponse>(
+    "/chains/search",
+    { q: query },
+    signal ? { signal } : undefined
+  );
+}
+
+export async function validateChainField(
+  field: "chain_name" | "token_name" | "ticker",
+  value: string
+) {
+  return localApiClient.getRaw<ChainValidationResponse>("/chains/validate", {
+    field,
+    value,
+  });
+}
+
+export async function storeChainListing(payload: ChainStoreRequest) {
+  return localApiClient.postRaw<ChainStoreResponse>("/chains/store", payload);
 }

@@ -4,6 +4,8 @@
  * Functions for fetching and managing GitHub repositories via the GitHub API
  */
 
+import { githubApiClient } from "./github-client";
+
 export interface GitHubRepository {
   id: number;
   name: string;
@@ -59,6 +61,25 @@ export interface Repository {
   pushedAt: string;
 }
 
+const githubRequestConfig = (accessToken?: string) => ({
+  headers: {
+    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    Accept: "application/vnd.github.v3+json",
+  },
+  skipAuth: true,
+});
+
+export async function fetchRepositoryDetails(
+  repoFullName: string,
+  accessToken?: string
+): Promise<GitHubRepository> {
+  return githubApiClient.getRaw<GitHubRepository>(
+    `/repos/${repoFullName}`,
+    undefined,
+    githubRequestConfig(accessToken)
+  );
+}
+
 /**
  * Fetch user's repositories from GitHub
  */
@@ -66,21 +87,15 @@ export async function fetchUserRepositories(
   accessToken: string
 ): Promise<Repository[]> {
   try {
-    const response = await fetch(
-      "https://api.github.com/user/repos?per_page=100&sort=updated&affiliation=owner",
+    const repos = await githubApiClient.getRaw<GitHubRepository[]>(
+      "/user/repos",
       {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          Accept: "application/vnd.github.v3+json",
-        },
-      }
+        per_page: 100,
+        sort: "updated",
+        affiliation: "owner",
+      },
+      githubRequestConfig(accessToken)
     );
-
-    if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.statusText}`);
-    }
-
-    const repos: GitHubRepository[] = await response.json();
 
     // Transform to our format
     return repos.map((repo) => ({
@@ -122,34 +137,20 @@ export async function verifyRepositoryOwnership(
   accessToken: string
 ): Promise<boolean> {
   try {
-    const response = await fetch(
-      `https://api.github.com/repos/${repoFullName}`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          Accept: "application/vnd.github.v3+json",
-        },
-      }
-    );
-
-    if (!response.ok) {
-      return false;
-    }
-
-    const repo: GitHubRepository = await response.json();
-
     // Check if the authenticated user has push access
-    const permissionsResponse = await fetch(
-      `https://api.github.com/repos/${repoFullName}/collaborators`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          Accept: "application/vnd.github.v3+json",
-        },
-      }
+    await githubApiClient.getRaw<GitHubRepository>(
+      `/repos/${repoFullName}`,
+      undefined,
+      githubRequestConfig(accessToken)
     );
 
-    return permissionsResponse.ok;
+    await githubApiClient.getRaw(
+      `/repos/${repoFullName}/collaborators`,
+      undefined,
+      githubRequestConfig(accessToken)
+    );
+
+    return true;
   } catch (error) {
     console.error("Error verifying repository ownership:", error);
     return false;
@@ -161,18 +162,11 @@ export async function verifyRepositoryOwnership(
  */
 export async function getGitHubUser(accessToken: string) {
   try {
-    const response = await fetch("https://api.github.com/user", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/vnd.github.v3+json",
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.statusText}`);
-    }
-
-    return await response.json();
+    return await githubApiClient.getRaw(
+      "/user",
+      undefined,
+      githubRequestConfig(accessToken)
+    );
   } catch (error) {
     console.error("Error fetching GitHub user:", error);
     throw error;

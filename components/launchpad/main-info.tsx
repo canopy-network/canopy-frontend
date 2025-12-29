@@ -18,6 +18,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { HelpCircle, Info, Check, Loader2 } from "lucide-react";
+import { validateChainField } from "@/lib/api/chains";
 
 // Toggle this to disable API validation when the API is unavailable
 const FORCE_ENABLE = false;
@@ -89,7 +90,11 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
         ticker: "ticker",
       };
 
-      const apiField = fieldMap[field];
+      const apiField = fieldMap[field] as
+        | "chain_name"
+        | "token_name"
+        | "ticker"
+        | undefined;
       if (!apiField) {
         return {
           success: false,
@@ -97,21 +102,7 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
         };
       }
 
-      const params = new URLSearchParams({
-        field: apiField,
-        value: value,
-      });
-
-      const response = await fetch(`/api/chains/validate?${params.toString()}`);
-
-      if (!response.ok) {
-        return {
-          success: false,
-          message: "Validation failed. Please try again.",
-        };
-      }
-
-      const data = await response.json();
+      const data = await validateChainField(apiField, value);
 
       if (!data.success) {
         return {

@@ -4,10 +4,13 @@ import { MainNav } from "@/components/navigation/main-nav";
 import { WalletConnectButton } from "@/components/wallet/wallet-connect-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, Github, Mail } from "lucide-react";
+import { Search, Plus, Github, Mail, LogOut } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { AuthUser } from "@/lib/stores/auth-store";
+import { useAuthStore } from "@/lib/stores/auth-store";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 interface MobileSidebarProps {
   isLoggedIn: boolean;
@@ -28,6 +31,16 @@ export function MobileSidebar({
   onLoginClick,
   onClose,
 }: MobileSidebarProps) {
+  const router = useRouter();
+  const { logout } = useAuthStore();
+
+  const handleLogout = () => {
+    logout();
+    toast.success("Logged out successfully");
+    onClose();
+    router.push("/");
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -105,17 +118,27 @@ export function MobileSidebar({
               </div>
               <span className="text-sm text-white truncate">{user.email}</span>
             </div>
-            <Button
-              onClick={() => {
-                onClose();
-                onLoginClick();
-              }}
-              variant="outline"
-              size="sm"
-              className="w-full text-xs"
-            >
-              Manage Account
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => {
+                  onClose();
+                  onLoginClick();
+                }}
+                variant="outline"
+                size="sm"
+                className="flex-1 text-xs"
+              >
+                Manage Account
+              </Button>
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                size="sm"
+                className="text-xs text-red-500 hover:text-red-500 hover:bg-red-500/10 border-red-500/20"
+              >
+                <LogOut className="h-3 w-3" />
+              </Button>
+            </div>
           </div>
         ) : (
           <Button

@@ -5,6 +5,8 @@ import { useChainsStore } from "@/lib/stores/chains-store";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { usePortfolioPerformance } from "@/lib/hooks/use-portfolio";
+import { cn } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -26,11 +28,111 @@ import {
 
 export default function AssetsTab() {
   const router = useRouter();
-  const { balance, availableAssets } = useWalletStore();
+  const { balance, availableAssets, wallets } = useWalletStore();
   const getChainById = useChainsStore((state) => state.getChainById);
   const [assetSearch, setAssetSearch] = useState("");
   const [sortBy, setSortBy] = useState("value");
   const [sortOrder, setSortOrder] = useState("desc");
+  const [selectedPeriod, setSelectedPeriod] = useState("1D");
+
+  // Get wallet addresses for portfolio performance API
+  const addresses = useMemo(
+    () => wallets?.map((w) => w.address).filter(Boolean) || [],
+    [wallets]
+  );
+
+  // Map UI periods to API parameters
+  const periodMapping: Record<
+    string,
+    { period: "24h" | "7d" | "30d" | "90d" | "1y" | "all"; granularity: "hourly" | "daily" | "weekly" | "monthly" }
+  > = {
+    "1H": { period: "24h", granularity: "hourly" },
+    "1D": { period: "24h", granularity: "hourly" },
+    "1W": { period: "7d", granularity: "daily" },
+    "1M": { period: "30d", granularity: "daily" },
+    "1Y": { period: "1y", granularity: "weekly" },
+  };
+
+  const { period: mappedPeriod, granularity: mappedGranularity } =
+    periodMapping[selectedPeriod] || periodMapping["1D"];
+
+  // Fetch portfolio performance data
+  const {
+    data: performanceData,
+    isLoading: isLoadingPerformance,
+    error: performanceError,
+  } = usePortfolioPerformance(addresses, mappedPeriod, mappedGranularity, {
+    enabled: addresses.length > 0,
+    refetchInterval: selectedPeriod === "1H" ? 60000 : 300000, // 1min vs 5min
+  });
+
+  // Transform performance data to chart format
+  const portfolioChartData = useMemo(() => {
+    if (!performanceData) return [];
+
+    const startValue = parseFloat(performanceData.starting_value_usd || "0");
+    const endValue = parseFloat(performanceData.ending_value_usd || "0");
+
+    // Fallback to CNPY values if USD values are not available
+    const finalStartValue =
+      startValue ||
+      parseFloat(performanceData.starting_value_cnpy || "0") / 1000000;
+    const finalEndValue =
+      endValue || parseFloat(performanceData.ending_value_cnpy || "0") / 1000000;
+
+    const startDate = new Date(performanceData.start_date);
+    const endDate = new Date(performanceData.end_date);
+
+    // Check if dates are on different days
+    const isDifferentDay =
+      startDate.getDate() !== endDate.getDate() ||
+      startDate.getMonth() !== endDate.getMonth() ||
+      startDate.getFullYear() !== endDate.getFullYear();
+
+    // Helper function to format timestamps
+    const formatTimestamp = (date: Date, isStart: boolean) => {
+      switch (selectedPeriod) {
+        case "1H":
+        case "1D":
+          // If the range crosses different days, include the date
+          if (isDifferentDay) {
+            return date.toLocaleString("en-US", {
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+          }
+          // Same day, just show time
+          return date.toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+        case "1W":
+          return date.toLocaleDateString("en-US", { weekday: "short" });
+        case "1M":
+          return date.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          });
+        case "1Y":
+          return date.toLocaleDateString("en-US", { month: "short" });
+        default:
+          return isStart ? "Start" : "Now";
+      }
+    };
+
+    return [
+      {
+        time: formatTimestamp(startDate, true),
+        value: finalStartValue,
+      },
+      {
+        time: formatTimestamp(endDate, false),
+        value: finalEndValue,
+      },
+    ];
+  }, [performanceData, selectedPeriod]);
 
   // Get total value from balance
   const totalValue = useMemo(() => {
@@ -125,64 +227,6 @@ export default function AssetsTab() {
     }
   });
 
-  const [selectedPeriod, setSelectedPeriod] = useState("1D");
-
-  // Generate dummy portfolio value history data
-  const getPortfolioChartData = () => {
-    const baseValue = totalValue || 17055.22; // Use dummy base value if no balance
-    const variation = baseValue * 0.1;
-
-    switch (selectedPeriod) {
-      case "1H":
-        return Array.from({ length: 12 }, (_, i) => ({
-          time: `${Math.floor((i * 5) / 60)}:${((i * 5) % 60)
-            .toString()
-            .padStart(2, "0")}`,
-          value: baseValue + (Math.random() - 0.5) * variation,
-        }));
-      case "1D":
-        return Array.from({ length: 12 }, (_, i) => ({
-          time: `${i * 2}:00`,
-          value: baseValue + (Math.random() - 0.5) * variation,
-        }));
-      case "1W": {
-        const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-        return days.map((day) => ({
-          time: day,
-          value: baseValue + (Math.random() - 0.5) * variation,
-        }));
-      }
-      case "1M":
-        return Array.from({ length: 10 }, (_, i) => ({
-          time: `${i * 3 + 1}`,
-          value: baseValue + (Math.random() - 0.5) * variation,
-        }));
-      case "1Y": {
-        const months = [
-          "Jan",
-          "Feb",
-          "Mar",
-          "Apr",
-          "May",
-          "Jun",
-          "Jul",
-          "Aug",
-          "Sep",
-          "Oct",
-          "Nov",
-          "Dec",
-        ];
-        return months.map((month) => ({
-          time: month,
-          value: baseValue + (Math.random() - 0.5) * variation,
-        }));
-      }
-      default:
-        return [];
-    }
-  };
-
-  const portfolioChartData = getPortfolioChartData();
 
   return (
     <div className="space-y-6">
@@ -196,26 +240,46 @@ export default function AssetsTab() {
               <div className="flex items-baseline gap-3">
                 <h3 className="text-3xl font-bold">
                   $
-                  {totalValue.toLocaleString("en-US", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
+                  {performanceData?.ending_value_usd
+                    ? parseFloat(performanceData.ending_value_usd).toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })
+                    : totalValue.toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
                 </h3>
-                <span className="text-xs text-muted-foreground">
-                  ≈ ${totalValue.toFixed(2)}
-                </span>
+                {performanceData?.ending_value_usd && (
+                  <span className="text-xs text-muted-foreground">
+                    ≈ ${parseFloat(performanceData.ending_value_usd).toFixed(2)}
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">
-                  Today&apos;s PnL
+                  {selectedPeriod === "1D" ? "Today's" : `${selectedPeriod}`} PnL
                 </span>
-                <span
-                  className={`text-sm ${
-                    totalValue * 0.001 >= 0 ? "text-red-500" : "text-green-500"
-                  }`}
-                >
-                  -${(totalValue * 0.001).toFixed(2)}(0.10%)
-                </span>
+                {performanceData ? (
+                  <span
+                    className={cn(
+                      "text-sm font-medium",
+                      performanceData.total_pnl_percentage >= 0
+                        ? "text-green-500"
+                        : "text-red-500"
+                    )}
+                  >
+                    {performanceData.total_pnl_percentage >= 0 ? "+" : ""}
+                    {performanceData.total_pnl_percentage.toFixed(2)}%
+                    {performanceData.total_pnl_usd && (
+                      <span className="ml-1">
+                        (${parseFloat(performanceData.total_pnl_usd).toFixed(2)})
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-sm text-muted-foreground">-</span>
+                )}
               </div>
             </div>
           </div>
@@ -268,50 +332,79 @@ export default function AssetsTab() {
 
             {/* Chart */}
             <div className="h-full pt-12 px-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={portfolioChartData}>
-                  <defs>
-                    <linearGradient
-                      id="portfolioGradient"
-                      x1="0"
-                      y1="0"
-                      x2="0"
-                      y2="1"
-                    >
-                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    className="stroke-muted"
-                    vertical={false}
-                  />
-                  <XAxis
-                    dataKey="time"
-                    tick={{ fill: "#71717a", fontSize: 12 }}
-                    axisLine={false}
-                    tickLine={false}
-                    padding={{ left: 20, right: 20 }}
-                  />
-                  <YAxis hide />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="value"
-                    stroke="#f59e0b"
-                    strokeWidth={2}
-                    dot={false}
-                    fill="url(#portfolioGradient)"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              {isLoadingPerformance ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" />
+                    <p className="text-sm text-muted-foreground">Loading performance data...</p>
+                  </div>
+                </div>
+              ) : performanceError ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="flex flex-col items-center gap-2">
+                    <p className="text-sm font-medium text-red-500">Failed to load performance data</p>
+                    <p className="text-xs text-muted-foreground">Please try again later</p>
+                  </div>
+                </div>
+              ) : portfolioChartData.length === 0 ? (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-sm text-muted-foreground">No performance data available</p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={portfolioChartData}>
+                    <defs>
+                      <linearGradient
+                        id="portfolioGradient"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      className="stroke-muted"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="time"
+                      tick={{ fill: "#71717a", fontSize: 12 }}
+                      axisLine={false}
+                      tickLine={false}
+                      padding={{ left: 20, right: 20 }}
+                    />
+                    <YAxis hide />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
+                      }}
+                      formatter={(value: number) => {
+                        return [
+                          `$${value.toLocaleString("en-US", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}`,
+                          "Portfolio Value",
+                        ];
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#f59e0b"
+                      strokeWidth={2}
+                      dot={false}
+                      fill="url(#portfolioGradient)"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </Card>
         </div>
