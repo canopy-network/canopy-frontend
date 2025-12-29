@@ -18,6 +18,7 @@ import { ArrowRight, ArrowLeft, Loader2, Lock } from "lucide-react";
 import { Template, Chain } from "@/types";
 import { cn, WINDOW_BREAKPOINTS } from "@/lib/utils";
 import { useWalletStore } from "@/lib/stores/wallet-store";
+import { useWallet } from "@/components/wallet/wallet-provider";
 
 /** Submit step tracking for the payment flow */
 type SubmitStep =
@@ -86,7 +87,13 @@ export default function LaunchpadPage() {
 
   // Wallet state
   const { currentWallet, sendTransaction } = useWalletStore();
+  const { setShowSelectDialog } = useWallet();
   const isWalletUnlocked = currentWallet?.isUnlocked ?? false;
+
+  // Handle unlock wallet button click
+  const handleUnlockClick = useCallback(() => {
+    setShowSelectDialog(true);
+  }, [setShowSelectDialog]);
 
   // Step 1: Language/Template Selection
   const handleLanguageSubmit = useCallback(
@@ -227,21 +234,24 @@ export default function LaunchpadPage() {
     }
   }, [currentStep, stepValidity, markStepCompleted, setCurrentStep]);
 
-  // Helper: Retry PATCH activation until success or timeout
+  // Helper: Retry PATCH activation until confirmed (200) or timeout
+  // Backend returns 202 if transaction not yet found, 200 when confirmed
   const activateWithRetry = useCallback(
     async (chainId: string, hash: string, timeoutMs: number): Promise<void> => {
       const startTime = Date.now();
-      let lastError: Error | null = null;
 
       while (Date.now() - startTime < timeoutMs) {
         try {
-          await chainsApi.activateChain(chainId, hash);
-          return; // Success
+          const result = await chainsApi.activateChainWithStatus(chainId, hash);
+          if (result.confirmed) {
+            return; // Success - got 200
+          }
+          // Got 202 - transaction pending, retry after delay
         } catch (error) {
-          lastError = error instanceof Error ? error : new Error("Activation failed");
-          // Wait 3 seconds before retry
-          await new Promise((resolve) => setTimeout(resolve, 3000));
+          // Network error or other failure, retry
         }
+        // Wait 6 seconds before retry
+        await new Promise((resolve) => setTimeout(resolve, 6000));
       }
 
       throw new Error(
@@ -265,38 +275,42 @@ export default function LaunchpadPage() {
     setSubmitStep("idle");
 
     try {
-      // Step 1: Create chain in draft status
-      setSubmitStep("creating");
+      let chain = createdChain;
 
-      // Calculate halving_schedule: convert halvingDays to blocks between halvings
-      const blockTimeSeconds = parseInt(formData.blockTime || "10", 10);
-      const halvingDays = parseFloat(formData.halvingDays || "365");
-      const secondsPerDay = 24 * 60 * 60;
-      const blocksPerDay = secondsPerDay / blockTimeSeconds;
-      const halvingSchedule = Math.floor(blocksPerDay * halvingDays);
+      // Step 1: Create chain in draft status (only if not already created)
+      if (!chain) {
+        setSubmitStep("creating");
 
-      const chainData = {
-        chain_name: formData.chainName,
-        token_symbol: formData.ticker,
-        chain_description: formData.chainDescription || formData.description,
-        template_id: formData.template?.id || "",
-        genesis_supply: Number(formData.tokenSupply),
-        graduation_threshold: formData.graduationThreshold,
-        initial_cnpy_reserve: 10000.0,
-        initial_token_supply: Number(formData.tokenSupply),
-        validator_min_stake: 1000.0,
-        creator_initial_purchase_cnpy: parseFloat(
-          formData.initialPurchaseAmount || "0"
-        ),
-        brand_color: formData.brandColor,
-        block_time_seconds: blockTimeSeconds,
-        halving_schedule: halvingSchedule,
-        block_reward_amount: 50.0,
-      };
+        // Calculate halving_schedule: convert halvingDays to blocks between halvings
+        const blockTimeSeconds = parseInt(formData.blockTime || "10", 10);
+        const halvingDays = parseFloat(formData.halvingDays || "365");
+        const secondsPerDay = 24 * 60 * 60;
+        const blocksPerDay = secondsPerDay / blockTimeSeconds;
+        const halvingSchedule = Math.floor(blocksPerDay * halvingDays);
 
-      const response = await chainsApi.createChain(chainData);
-      const chain = response.data;
-      setCreatedChain(chain);
+        const chainData = {
+          chain_name: formData.chainName,
+          token_symbol: formData.ticker,
+          chain_description: formData.chainDescription || formData.description,
+          template_id: formData.template?.id || "",
+          genesis_supply: Number(formData.tokenSupply),
+          graduation_threshold: formData.graduationThreshold,
+          initial_cnpy_reserve: 10000.0,
+          initial_token_supply: Number(formData.tokenSupply),
+          validator_min_stake: 1000.0,
+          creator_initial_purchase_cnpy: parseFloat(
+            formData.initialPurchaseAmount || "0"
+          ),
+          brand_color: formData.brandColor,
+          block_time_seconds: blockTimeSeconds,
+          halving_schedule: halvingSchedule,
+          block_reward_amount: 50.0,
+        };
+
+        const response = await chainsApi.createChain(chainData);
+        chain = response.data;
+        setCreatedChain(chain);
+      }
 
       // Step 2: Send payment transaction
       setSubmitStep("paying");
@@ -510,7 +524,7 @@ export default function LaunchpadPage() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, resetFormData, router, currentWallet, sendTransaction, activateWithRetry]);
+  }, [formData, resetFormData, router, currentWallet, sendTransaction, activateWithRetry, createdChain]);
 
   // Show loading spinner while hydrating persisted data from localStorage
   if (!isHydrated) {
@@ -648,8 +662,8 @@ export default function LaunchpadPage() {
               </Button>
             ) : (
               <Button
-                onClick={handleSubmit}
-                disabled={isSubmitting || !isWalletUnlocked}
+                onClick={isWalletUnlocked ? handleSubmit : handleUnlockClick}
+                disabled={isSubmitting}
                 size="lg"
                 className={cn("gap-2 ml-auto", currentStep === 7 && "w-full")}
               >
