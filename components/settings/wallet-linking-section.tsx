@@ -24,6 +24,7 @@ import { useAuthStore } from "@/lib/stores/auth-store";
 import { getSiweNonce, linkWalletToAccount } from "@/lib/api/siwe";
 import { createWalletLinkMessage } from "@/lib/web3/siwe-client";
 import { hasValidLinkedWallet } from "@/lib/web3/utils";
+import { parseSiweError, formatErrorMessage, logSiweError } from "@/lib/web3/siwe-errors";
 import { useAccount, useSignMessage, useDisconnect } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { toast } from "sonner";
@@ -33,6 +34,7 @@ export function WalletLinkingSection() {
   const [isLinking, setIsLinking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showConnectButton, setShowConnectButton] = useState(false);
+  const [progressMessage, setProgressMessage] = useState<string>("");
 
   // Wagmi hooks
   const { address, isConnected, chain } = useAccount();
@@ -61,20 +63,34 @@ export function WalletLinkingSection() {
 
     setIsLinking(true);
     setError(null);
+    setProgressMessage("");
 
     try {
       // 1. Get nonce from backend
+      setProgressMessage("Generating secure authentication token...");
       const nonceResponse = await getSiweNonce(address);
+
+      if (!nonceResponse?.data?.nonce) {
+        throw new Error("Failed to receive authentication token from server");
+      }
+
       const nonce = nonceResponse.data.nonce;
 
       // 2. Create wallet link message
+      setProgressMessage("Preparing signature request...");
       const message = createWalletLinkMessage(address, nonce, chain.id);
       const messageString = message.prepareMessage();
 
       // 3. Sign message with wallet
+      setProgressMessage("Waiting for your signature...");
       const signature = await signMessageAsync({ message: messageString });
 
+      if (!signature) {
+        throw new Error("Signature was not received from wallet");
+      }
+
       // 4. Link wallet to account (uses Bearer token automatically)
+      setProgressMessage("Linking wallet to your account...");
       await linkWalletToAccount(messageString, signature);
 
       // 5. Update user in store with new wallet address
@@ -86,19 +102,24 @@ export function WalletLinkingSection() {
       }
 
       // 6. Show success message
-      toast.success("Wallet linked successfully!");
+      toast.success("Wallet linked successfully!", {
+        description: `Connected ${address.slice(0, 6)}...${address.slice(-4)}`
+      });
 
       // 7. Disconnect wallet UI (keep the link on backend)
       disconnect();
       setShowConnectButton(false);
     } catch (error: any) {
-      console.error("Wallet linking error:", error);
-      setError(
-        error.message || "Failed to link wallet. Please try again."
-      );
-      toast.error("Failed to link wallet");
+      logSiweError(error, 'Wallet Linking (Settings)');
+      const parsedError = parseSiweError(error, 'link');
+      const errorMsg = formatErrorMessage(parsedError);
+      setError(errorMsg);
+      toast.error(parsedError.title, {
+        description: parsedError.message
+      });
     } finally {
       setIsLinking(false);
+      setProgressMessage("");
     }
   };
 
@@ -115,13 +136,13 @@ export function WalletLinkingSection() {
   };
 
   // Format wallet address for display
-  const formatAddress = (addr: string) => {
+  const formatAddress = (addr?: string) => {
     if (!addr) return "";
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
   // Get explorer URL for the wallet
-  const getExplorerUrl = (addr: string) => {
+  const getExplorerUrl = (addr?: string) => {
     return `https://etherscan.io/address/${addr}`;
   };
 
@@ -146,10 +167,10 @@ export function WalletLinkingSection() {
                 <p className="text-sm text-muted-foreground">Connected Wallet</p>
                 <div className="flex items-center gap-2">
                   <p className="font-mono font-medium truncate">
-                    {formatAddress(user.wallet_address)}
+                    {formatAddress(user?.wallet_address)}
                   </p>
                   <a
-                    href={getExplorerUrl(user.wallet_address)}
+                    href={getExplorerUrl(user?.wallet_address)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-muted-foreground hover:text-foreground transition-colors"
@@ -185,7 +206,7 @@ export function WalletLinkingSection() {
               <div className="space-y-4">
                 <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-4">
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  <span>Waiting for signature...</span>
+                  <span>{progressMessage || "Waiting for signature..."}</span>
                 </div>
 
                 <Button

@@ -17,6 +17,7 @@ import { useAuthStore } from "@/lib/stores/auth-store";
 import { getSiweNonce, linkWalletToAccount } from "@/lib/api/siwe";
 import { createSiweMessage, createWalletLinkMessage } from "@/lib/web3/siwe-client";
 import { hasValidLinkedWallet } from "@/lib/web3/utils";
+import { parseSiweError, formatErrorMessage, logSiweError } from "@/lib/web3/siwe-errors";
 import { useAccount, useSignMessage, useDisconnect } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import axios from "axios";
@@ -39,6 +40,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
   const [localError, setLocalError] = useState<string | null>(null);
   const [showWalletLinking, setShowWalletLinking] = useState(false);
   const [isLinkingWallet, setIsLinkingWallet] = useState(false);
+  const [progressMessage, setProgressMessage] = useState<string>("");
 
   // Wagmi hooks for SIWE
   const { address, isConnected, chain } = useAccount();
@@ -54,6 +56,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
     setIsSubmitting(true);
     setLocalError(null);
     setError(null);
+    setProgressMessage("");
 
     try {
       // Wait for wallet connection
@@ -64,25 +67,37 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
       }
 
       // 1. Get nonce from backend
+      setProgressMessage("Generating secure authentication token...");
       const nonceResponse = await getSiweNonce(address);
+
+      if (!nonceResponse?.data?.nonce) {
+        throw new Error("Failed to receive authentication token from server");
+      }
+
       const nonce = nonceResponse.data.nonce;
 
       // 2. Create SIWE message
+      setProgressMessage("Preparing signature request...");
       const message = createSiweMessage(address, nonce, chain.id);
       const messageString = message.prepareMessage();
 
       // 3. Sign message with wallet
+      setProgressMessage("Waiting for your signature...");
       const signature = await signMessageAsync({ message: messageString });
 
+      if (!signature) {
+        throw new Error("Signature was not received from wallet");
+      }
+
       // 4. Verify signature with backend
+      setProgressMessage("Verifying your signature...");
       const verifyResponse = await axios.post(`${API_CONFIG.baseURL}/api/v1/auth/siwe/verify`, {
         message: messageString,
         signature,
       });
 
       if (verifyResponse.status !== 200) {
-        setLocalError(verifyResponse.data.message || "Failed to verify signature");
-        return;
+        throw new Error(verifyResponse.data.message || "Signature verification failed");
       }
 
       const response_body = verifyResponse.data;
@@ -91,7 +106,12 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
       const authHeader = verifyResponse.headers["authorization"] || verifyResponse.headers["Authorization"];
       const token = authHeader ? authHeader.replace("Bearer ", "") : null;
 
+      if (!token) {
+        throw new Error("Authentication token not received from server");
+      }
+
       // 6. Save user and token (same as email auth)
+      setProgressMessage("Completing sign in...");
       setUser(response_body.data.user, token);
 
       setStep("authenticated");
@@ -115,27 +135,44 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
         console.error("Failed to fetch wallets after SIWE login:", error);
       }
     } catch (error: any) {
-      console.error("SIWE login error:", error);
-      setLocalError(error.message || "Failed to sign in with wallet. Please try again.");
+      logSiweError(error, 'SIWE Login');
+      const parsedError = parseSiweError(error, 'login');
+      setLocalError(formatErrorMessage(parsedError));
       disconnect();
     } finally {
       setIsSubmitting(false);
+      setProgressMessage("");
     }
   };
 
+  // Effect to sync step with authentication state
+  useEffect(() => {
+    if (isAuthenticated && step !== "authenticated") {
+      setStep("authenticated");
+    } else if (!isAuthenticated && step === "authenticated") {
+      setStep("initial");
+      // Clean up states when logged out
+      setLocalError(null);
+      setIsSubmitting(false);
+      setShowWalletLinking(false);
+      setIsLinkingWallet(false);
+      setProgressMessage("");
+    }
+  }, [isAuthenticated]);
+
   // Effect to handle wallet connection for SIWE
   useEffect(() => {
-    if (step === "siwe" && isConnected && address && !isSubmitting) {
+    if (step === "siwe" && isConnected && address && !isSubmitting && open) {
       handleSiweLogin();
     }
-  }, [step, isConnected, address]);
+  }, [step, isConnected, address, open]);
 
   // Effect to handle wallet connection for linking (in authenticated view)
   useEffect(() => {
-    if (step === "authenticated" && showWalletLinking && isConnected && address && !isLinkingWallet) {
+    if (step === "authenticated" && showWalletLinking && isConnected && address && !isLinkingWallet && open) {
       handleLinkWallet();
     }
-  }, [step, showWalletLinking, isConnected, address]);
+  }, [step, showWalletLinking, isConnected, address, open]);
 
   const handleLinkWallet = async () => {
     if (!isConnected || !address || !chain) {
@@ -147,20 +184,34 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
 
     setIsLinkingWallet(true);
     setLocalError(null);
+    setProgressMessage("");
 
     try {
       // 1. Get nonce from backend
+      setProgressMessage("Generating secure authentication token...");
       const nonceResponse = await getSiweNonce(address);
+
+      if (!nonceResponse?.data?.nonce) {
+        throw new Error("Failed to receive authentication token from server");
+      }
+
       const nonce = nonceResponse.data.nonce;
 
       // 2. Create wallet link message
+      setProgressMessage("Preparing signature request...");
       const message = createWalletLinkMessage(address, nonce, chain.id);
       const messageString = message.prepareMessage();
 
       // 3. Sign message with wallet
+      setProgressMessage("Waiting for your signature...");
       const signature = await signMessageAsync({ message: messageString });
 
+      if (!signature) {
+        throw new Error("Signature was not received from wallet");
+      }
+
       // 4. Link wallet to account (uses Bearer token automatically)
+      setProgressMessage("Linking wallet to your account...");
       await linkWalletToAccount(messageString, signature);
 
       // 5. Update user in store with new wallet address
@@ -172,17 +223,24 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
       }
 
       // 6. Show success message
-      toast.success("Wallet linked successfully!");
+      toast.success("Wallet linked successfully!", {
+        description: `Connected ${address.slice(0, 6)}...${address.slice(-4)}`
+      });
 
       // 7. Disconnect wallet UI and reset state
       disconnect();
       setShowWalletLinking(false);
     } catch (error: any) {
-      console.error("Wallet linking error:", error);
-      setLocalError(error.message || "Failed to link wallet. Please try again.");
-      toast.error("Failed to link wallet");
+      logSiweError(error, 'Wallet Linking');
+      const parsedError = parseSiweError(error, 'link');
+      const errorMsg = formatErrorMessage(parsedError);
+      setLocalError(errorMsg);
+      toast.error(parsedError.title, {
+        description: parsedError.message
+      });
     } finally {
       setIsLinkingWallet(false);
+      setProgressMessage("");
     }
   };
 
@@ -191,6 +249,10 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
     disconnect();
     setStep("initial");
     setLocalError(null);
+    setIsSubmitting(false);
+    setShowWalletLinking(false);
+    setIsLinkingWallet(false);
+    setProgressMessage("");
   };
 
   const handleBack = () => {
@@ -208,12 +270,16 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
     }
 
     if (!newOpen) {
+      // Reset all states when closing the modal
       if (!isAuthenticated) {
         setStep("initial");
+        disconnect(); // Disconnect wallet if not authenticated
       }
       setLocalError(null);
       setShowWalletLinking(false);
       setIsLinkingWallet(false);
+      setIsSubmitting(false);
+      setProgressMessage("");
     }
     onOpenChange(newOpen);
   };
@@ -291,7 +357,9 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
                       <div className="space-y-3">
                         <div className="flex flex-col items-center justify-center gap-2 py-2">
                           <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                          <p className="text-xs text-muted-foreground">Waiting for signature...</p>
+                          <p className="text-xs text-muted-foreground">
+                            {progressMessage || "Waiting for signature..."}
+                          </p>
                         </div>
                         <Button
                           onClick={() => {
@@ -496,7 +564,9 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   <div className="text-center">
                     <p className="text-sm font-medium">Wallet Connected</p>
-                    <p className="text-sm text-muted-foreground">Waiting for signature...</p>
+                    <p className="text-sm text-muted-foreground">
+                      {progressMessage || "Waiting for signature..."}
+                    </p>
                   </div>
                 </div>
               )}

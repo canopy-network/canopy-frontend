@@ -53,9 +53,15 @@ export interface WalletLinkResponse {
 /**
  * Get a nonce for SIWE message signing
  * This nonce should be used immediately to prevent replay attacks
+ * @param address - The wallet address requesting a nonce
  * @returns Promise with the nonce string
+ * @throws Error if address is invalid or server fails to generate nonce
  */
 export async function getSiweNonce(address: string): Promise<ApiResponse<SiweNonceResponse>> {
+  if (!address || typeof address !== 'string') {
+    throw new Error('Valid wallet address is required to generate authentication token');
+  }
+
   return apiClient.post<SiweNonceResponse>("/api/v1/auth/siwe/nonce", {
     address,
   });
@@ -67,11 +73,20 @@ export async function getSiweNonce(address: string): Promise<ApiResponse<SiweNon
  * @param message - The SIWE message that was signed
  * @param signature - The signature from the wallet
  * @returns Promise with the user object and authentication token
+ * @throws Error if message or signature is invalid, or verification fails
  */
 export async function verifySiweSignature(
   message: string,
   signature: string
 ): Promise<ApiResponse<SiweVerifyResponse>> {
+  if (!message || typeof message !== 'string') {
+    throw new Error('Valid SIWE message is required for verification');
+  }
+
+  if (!signature || typeof signature !== 'string') {
+    throw new Error('Valid signature is required for verification');
+  }
+
   return apiClient.post<SiweVerifyResponse>("/api/v1/auth/siwe/verify", {
     message,
     signature,
@@ -84,11 +99,20 @@ export async function verifySiweSignature(
  * @param message - The SIWE message that was signed
  * @param signature - The signature from the wallet
  * @returns Promise with the updated user object
+ * @throws Error if message or signature is invalid, user is not authenticated, or wallet is already linked
  */
 export async function linkWalletToAccount(
   message: string,
   signature: string
 ): Promise<ApiResponse<WalletLinkResponse>> {
+  if (!message || typeof message !== 'string') {
+    throw new Error('Valid SIWE message is required for wallet linking');
+  }
+
+  if (!signature || typeof signature !== 'string') {
+    throw new Error('Valid signature is required for wallet linking');
+  }
+
   return apiClient.post<WalletLinkResponse>("/api/v1/auth/wallet/link", {
     message,
     signature,
