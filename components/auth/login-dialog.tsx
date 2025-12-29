@@ -25,6 +25,7 @@ import { API_CONFIG } from "@/lib/config/api";
 import { toast } from "sonner";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { useWalletStore } from "@/lib/stores/wallet-store";
+import { withTimeout, TIMEOUTS } from "@/lib/utils/api-timeout";
 
 type AuthStep = "initial" | "siwe" | "authenticated";
 
@@ -81,20 +82,28 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
       const message = createSiweMessage(address, nonce, chain.id);
       const messageString = message.prepareMessage();
 
-      // 3. Sign message with wallet
+      // 3. Sign message with wallet (with timeout to prevent indefinite waiting)
       setProgressMessage("Waiting for your signature...");
-      const signature = await signMessageAsync({ message: messageString });
+      const signature = await withTimeout(
+        signMessageAsync({ message: messageString }),
+        TIMEOUTS.WALLET_SIGNATURE,
+        'Signature request timed out. Please try again and approve the signature in your wallet.'
+      );
 
       if (!signature) {
         throw new Error("Signature was not received from wallet");
       }
 
-      // 4. Verify signature with backend
+      // 4. Verify signature with backend (with timeout)
       setProgressMessage("Verifying your signature...");
-      const verifyResponse = await axios.post(`${API_CONFIG.baseURL}/api/v1/auth/siwe/verify`, {
-        message: messageString,
-        signature,
-      });
+      const verifyResponse = await withTimeout(
+        axios.post(`${API_CONFIG.baseURL}/api/v1/auth/siwe/verify`, {
+          message: messageString,
+          signature,
+        }),
+        TIMEOUTS.SIWE_VERIFY,
+        'Verification request timed out. Please try again.'
+      );
 
       if (verifyResponse.status !== 200) {
         throw new Error(verifyResponse.data.message || "Signature verification failed");
@@ -202,15 +211,19 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
       const message = createWalletLinkMessage(address, nonce, chain.id);
       const messageString = message.prepareMessage();
 
-      // 3. Sign message with wallet
+      // 3. Sign message with wallet (with timeout)
       setProgressMessage("Waiting for your signature...");
-      const signature = await signMessageAsync({ message: messageString });
+      const signature = await withTimeout(
+        signMessageAsync({ message: messageString }),
+        TIMEOUTS.WALLET_SIGNATURE,
+        'Signature request timed out. Please try again and approve the signature in your wallet.'
+      );
 
       if (!signature) {
         throw new Error("Signature was not received from wallet");
       }
 
-      // 4. Link wallet to account (uses Bearer token automatically)
+      // 4. Link wallet to account (uses Bearer token automatically, already has timeout)
       setProgressMessage("Linking wallet to your account...");
       await linkWalletToAccount(messageString, signature);
 

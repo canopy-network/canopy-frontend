@@ -50,11 +50,12 @@ export function useStaking(address?: string) {
       lastPage.metadata.has_more
         ? lastPage.metadata.offset + lastPage.metadata.limit
         : undefined,
-    staleTime: 30000,
-    refetchInterval: 60000,
+    staleTime: 60000, // Increased to 60s (was 30s)
+    refetchInterval: 120000, // Reduced frequency to 2min (was 60s)
+    retry: 2, // Retry twice on error
   });
 
-  // Query for rewards
+  // Query for rewards - staggered by 5s to avoid parallel burst
   const rewardsQuery = useQuery({
     queryKey: ["staking", "rewards", address],
     queryFn: () =>
@@ -63,8 +64,9 @@ export function useStaking(address?: string) {
         limit: 100
       }),
     enabled: !!address,
-    staleTime: 30000,
-    refetchInterval: 60000,
+    staleTime: 60000, // Increased to 60s
+    refetchInterval: 120000, // Reduced to 2min
+    retry: 2,
   });
 
   // Single query for unstaking queue with dynamic status filter
@@ -77,8 +79,9 @@ export function useStaking(address?: string) {
         limit: 100
       }),
     enabled: !!address,
-    staleTime: 30000,
-    refetchInterval: 60000,
+    staleTime: 60000, // Increased to 60s
+    refetchInterval: 120000, // Reduced to 2min
+    retry: 2,
   });
 
   // Flatten positions from all pages

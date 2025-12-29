@@ -36,6 +36,7 @@ interface ApiConfig {
 
 type RequestConfig = AxiosRequestConfig & {
   skipAuth?: boolean;
+  signal?: AbortSignal;
 };
 
 /**
@@ -382,8 +383,13 @@ export class ApiClient {
           // Mark as retry to skip toast during retry attempts
           (config as any).isRetrying = true;
 
-          // Wait before retrying
+          // Wait before retrying (non-blocking)
           await new Promise((resolve) => setTimeout(resolve, delay));
+
+          // Remove from pending requests before retry
+          if (method === "GET") {
+            this.pendingRequests.delete(requestKey);
+          }
 
           // Retry the request (pass attempt + 1, won't be deduplicated)
           return this.makeRequest<T>(config, attempt + 1);
@@ -432,6 +438,7 @@ export class ApiClient {
 
         (config as any).isRetrying = true;
 
+        // Wait before retrying (non-blocking)
         await new Promise((resolve) => setTimeout(resolve, delay));
 
         return this.makeRawRequest<T>(config, attempt + 1);

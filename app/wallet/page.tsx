@@ -35,12 +35,23 @@ function WalletContent() {
   // This is critical to prevent infinite loops in child components
   const addresses = useMemo(() => (currentWallet ? [currentWallet.address] : []), [currentWallet?.address]);
 
-  // Fetch data when wallet changes
+  // Fetch data when wallet changes (sequentially to avoid burst)
   useEffect(() => {
     if (currentWallet) {
-      fetchBalance(currentWallet.id);
-      fetchTransactions(currentWallet.id);
-      fetchPortfolioOverview([currentWallet.address]);
+      const fetchWalletData = async () => {
+        try {
+          // Fetch balance first (most important)
+          await fetchBalance(currentWallet.id);
+          // Then fetch portfolio and transactions in parallel
+          await Promise.allSettled([
+            fetchPortfolioOverview([currentWallet.address]),
+            fetchTransactions(currentWallet.id),
+          ]);
+        } catch (error) {
+          console.warn("Failed to fetch wallet data:", error);
+        }
+      };
+      fetchWalletData();
     }
   }, [currentWallet?.id, currentWallet?.address, fetchBalance, fetchTransactions, fetchPortfolioOverview]);
 

@@ -389,11 +389,23 @@ const createChainsStore = () => {
 
           refreshChain: async (id) => {
             const { fetchChain, fetchVirtualPool, fetchTransactions } = get();
-            await Promise.all([
-              fetchChain(id),
-              fetchVirtualPool(id),
-              fetchTransactions(id),
-            ]);
+            // Fetch sequentially with priority: chain data first, then pool, then transactions
+            // This prevents all 3 requests from competing for network resources
+            try {
+              await fetchChain(id);
+              // Fetch virtual pool and transactions in parallel (lower priority)
+              await Promise.all([
+                fetchVirtualPool(id),
+                fetchTransactions(id),
+              ]);
+            } catch (error) {
+              console.warn("Failed to refresh chain:", error);
+              // Still try to fetch additional data even if chain fetch fails
+              await Promise.allSettled([
+                fetchVirtualPool(id),
+                fetchTransactions(id),
+              ]);
+            }
           },
 
           // ============================================================================

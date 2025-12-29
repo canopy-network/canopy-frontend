@@ -310,17 +310,25 @@ export const useWalletStore = create<WalletState>()(
             // Save password session ONCE before unlocking (not per wallet)
             savePasswordSession(cachedPassword);
 
-            // Unlock all wallets with cached password
-            let successCount = 0;
-            for (const wallet of wallets) {
-              try {
-                // Call unlockWallet but skip saving password session (already saved above)
-                await get().unlockWallet(wallet.id, cachedPassword, true);
-                successCount++;
-              } catch (error) {
-                console.warn(`⚠️ Failed to auto-unlock wallet ${wallet.id}`);
-              }
+            // Unlock wallets with concurrency limit (max 3 at a time)
+            const MAX_CONCURRENT_UNLOCKS = 3;
+            const results: Array<{ success: boolean; walletId: string }> = [];
+
+            for (let i = 0; i < wallets.length; i += MAX_CONCURRENT_UNLOCKS) {
+              const batch = wallets.slice(i, i + MAX_CONCURRENT_UNLOCKS);
+              const batchPromises = batch.map(wallet =>
+                get().unlockWallet(wallet.id, cachedPassword, true)
+                  .then(() => ({ success: true, walletId: wallet.id }))
+                  .catch((error) => {
+                    console.warn(`⚠️ Failed to auto-unlock wallet ${wallet.id}`);
+                    return { success: false, walletId: wallet.id };
+                  })
+              );
+              const batchResults = await Promise.all(batchPromises);
+              results.push(...batchResults);
             }
+
+            const successCount = results.filter(r => r.success).length;
             console.log(`✅ Auto-unlock complete: ${successCount}/${wallets.length} wallets unlocked`);
           }
         } catch (error) {
@@ -332,16 +340,28 @@ export const useWalletStore = create<WalletState>()(
       },
 
       // Select a wallet as the current wallet
-      selectWallet: (walletId: string) => {
+      selectWallet: async (walletId: string) => {
         const { wallets } = get();
         const wallet = wallets.find((w) => w.id === walletId);
 
         if (wallet) {
           set({ currentWallet: wallet });
 
-          // Fetch balance and transactions for the selected wallet
-          get().fetchBalance(walletId);
-          get().fetchTransactions(walletId);
+          // Fetch balance first (higher priority), then transactions
+          // This prevents both calls from competing for network resources
+          try {
+            await get().fetchBalance(walletId);
+            // Fetch transactions in the background (non-blocking)
+            get().fetchTransactions(walletId).catch((error) => {
+              console.warn("Failed to fetch transactions:", error);
+            });
+          } catch (error) {
+            console.warn("Failed to fetch balance:", error);
+            // Still try to fetch transactions even if balance fails
+            get().fetchTransactions(walletId).catch((err) => {
+              console.warn("Failed to fetch transactions:", err);
+            });
+          }
         }
       },
 

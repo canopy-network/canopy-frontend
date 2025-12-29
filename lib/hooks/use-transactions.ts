@@ -10,6 +10,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
+import { useRef } from "react";
 import { transactionsApi } from "@/lib/api";
 import type {
   TransactionHistoryRequest,
@@ -98,6 +99,10 @@ export function usePendingTransactions(
     refetchInterval?: number;
   }
 ) {
+  // Use ref to track consecutive errors for backoff
+  const errorCountRef = useRef(0);
+  const lastErrorTimeRef = useRef<number>(0);
+
   return useQuery({
     queryKey: transactionKeys.pending(addresses),
     queryFn: async () => {
@@ -105,11 +110,37 @@ export function usePendingTransactions(
         addresses,
         chain_ids: chainIds,
       };
-      return transactionsApi.getPending(request);
+      try {
+        const result = await transactionsApi.getPending(request);
+        // Reset error count on success
+        errorCountRef.current = 0;
+        return result;
+      } catch (error: any) {
+        // Track consecutive errors
+        errorCountRef.current++;
+        lastErrorTimeRef.current = Date.now();
+        throw error;
+      }
     },
     enabled: options?.enabled !== false && addresses.length > 0,
-    refetchInterval: options?.refetchInterval ?? 5000, // Check every 5 seconds
+    refetchInterval: (data, error) => {
+      // If there's an error, use exponential backoff
+      if (error) {
+        const backoffMs = Math.min(5000 * Math.pow(2, errorCountRef.current - 1), 60000);
+        console.debug(`Pending tx poll error, backing off to ${backoffMs}ms`);
+        return backoffMs;
+      }
+
+      // If no pending transactions, slow down polling
+      if (data?.data?.transactions?.length === 0) {
+        return 15000; // Poll every 15s when nothing is pending
+      }
+
+      // Normal polling interval
+      return options?.refetchInterval ?? 5000;
+    },
     staleTime: 3000,
+    retry: 2, // Retry twice before backing off
   });
 }
 

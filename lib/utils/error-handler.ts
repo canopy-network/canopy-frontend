@@ -12,6 +12,62 @@ import { toast } from "sonner";
 import { ApiClientError } from "@/lib/api/client";
 
 // ============================================================================
+// ERROR THROTTLING
+// ============================================================================
+
+// Track recent error messages to prevent spam
+const errorCache = new Map<string, number>();
+const ERROR_THROTTLE_MS = 3000; // Don't show same error more than once per 3 seconds
+const MAX_CONCURRENT_ERRORS = 3; // Maximum number of error toasts at once
+let activeErrorCount = 0;
+
+/**
+ * Check if we should show this error toast (throttling logic)
+ */
+function shouldShowError(errorKey: string): boolean {
+  const now = Date.now();
+  const lastShown = errorCache.get(errorKey);
+
+  // If we've shown this exact error recently, skip it
+  if (lastShown && now - lastShown < ERROR_THROTTLE_MS) {
+    return false;
+  }
+
+  // If we have too many active errors, skip it
+  if (activeErrorCount >= MAX_CONCURRENT_ERRORS) {
+    console.warn(`Too many active error toasts (${activeErrorCount}), suppressing error:`, errorKey);
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Mark error as shown and track active count
+ */
+function markErrorShown(errorKey: string): void {
+  errorCache.set(errorKey, Date.now());
+  activeErrorCount++;
+
+  // Decrement count after toast duration (5 seconds)
+  setTimeout(() => {
+    activeErrorCount = Math.max(0, activeErrorCount - 1);
+  }, 5000);
+}
+
+/**
+ * Clean up old error cache entries
+ */
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, timestamp] of errorCache.entries()) {
+    if (now - timestamp > ERROR_THROTTLE_MS) {
+      errorCache.delete(key);
+    }
+  }
+}, ERROR_THROTTLE_MS);
+
+// ============================================================================
 // ERROR MESSAGES
 // ============================================================================
 
@@ -75,6 +131,15 @@ export function showErrorToast(
 ): void {
   let message = customMessage || getErrorMessage(error);
 
+  // Create a unique key for this error (for throttling)
+  const errorKey = `${message}:${requestUrl || 'unknown'}`;
+
+  // Check if we should show this error (throttling)
+  if (!shouldShowError(errorKey)) {
+    console.debug("Suppressing duplicate error:", message);
+    return;
+  }
+
   // In development, append the request URL to the error message
   if (
     process.env.NODE_ENV === "development" &&
@@ -83,6 +148,9 @@ export function showErrorToast(
   ) {
     message = `${message}\n\nRequest: ${requestUrl}`;
   }
+
+  // Mark this error as shown
+  markErrorShown(errorKey);
 
   toast.error(message, {
     duration: 5000,

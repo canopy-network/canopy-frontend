@@ -125,6 +125,15 @@ export function parseSiweError(error: any, context: 'login' | 'link' = 'login'):
     errorMessage.includes('timeout') ||
     errorMessage.includes('timed out')
   ) {
+    // Different messages for wallet signature timeout vs API timeout
+    if (errorMessage.includes('signature')) {
+      return {
+        title: 'Signature Timeout',
+        message: 'You took too long to sign the message in your wallet.',
+        suggestion: 'Please try again and approve the signature promptly in your wallet.'
+      };
+    }
+
     return {
       title: 'Request Timeout',
       message: 'The request took too long to complete.',

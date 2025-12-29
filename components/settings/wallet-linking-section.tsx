@@ -28,6 +28,7 @@ import { parseSiweError, formatErrorMessage, logSiweError } from "@/lib/web3/siw
 import { useAccount, useSignMessage, useDisconnect } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { toast } from "sonner";
+import { withTimeout, TIMEOUTS } from "@/lib/utils/api-timeout";
 
 export function WalletLinkingSection() {
   const { user, setUser } = useAuthStore();
@@ -81,15 +82,19 @@ export function WalletLinkingSection() {
       const message = createWalletLinkMessage(address, nonce, chain.id);
       const messageString = message.prepareMessage();
 
-      // 3. Sign message with wallet
+      // 3. Sign message with wallet (with timeout)
       setProgressMessage("Waiting for your signature...");
-      const signature = await signMessageAsync({ message: messageString });
+      const signature = await withTimeout(
+        signMessageAsync({ message: messageString }),
+        TIMEOUTS.WALLET_SIGNATURE,
+        'Signature request timed out. Please try again and approve the signature in your wallet.'
+      );
 
       if (!signature) {
         throw new Error("Signature was not received from wallet");
       }
 
-      // 4. Link wallet to account (uses Bearer token automatically)
+      // 4. Link wallet to account (uses Bearer token automatically, already has timeout)
       setProgressMessage("Linking wallet to your account...");
       await linkWalletToAccount(messageString, signature);
 
