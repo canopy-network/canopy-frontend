@@ -29,6 +29,7 @@ interface LaunchpadSidebarProps {
   isSaving?: boolean;
   lastSaved?: string | null;
   repoConnected?: boolean;
+  onStepClick?: (step: number) => void;
 }
 
 export default function LaunchpadSidebar({
@@ -37,6 +38,7 @@ export default function LaunchpadSidebar({
   isSaving = false,
   lastSaved = null,
   repoConnected = false,
+  onStepClick,
 }: LaunchpadSidebarProps) {
   const progressPercentage = (completedSteps.length / steps.length) * 100;
 
@@ -87,14 +89,21 @@ export default function LaunchpadSidebar({
           const isActive = step.id === currentStep;
           const isCompleted = completedSteps.includes(step.id);
           const Icon = step.icon;
+          // Can click if completed or current step
+          const canClick = isCompleted || isActive;
 
           return (
-            <div
+            <button
               key={step.id}
+              type="button"
+              onClick={() => canClick && onStepClick?.(step.id)}
+              disabled={!canClick}
               className={cn(
-                "flex items-center gap-2 p-2 rounded-lg transition-colors",
+                "flex items-center gap-2 p-2 rounded-lg transition-colors w-full text-left",
                 isActive && "bg-primary/10",
-                !isActive && !isCompleted && "opacity-50"
+                !isActive && !isCompleted && "opacity-50",
+                canClick && "cursor-pointer hover:bg-muted/50",
+                !canClick && "cursor-default"
               )}
             >
               {/* Icon/Status */}
@@ -129,7 +138,7 @@ export default function LaunchpadSidebar({
               >
                 {step.label}
               </span>
-            </div>
+            </button>
           );
         })}
       </div>
