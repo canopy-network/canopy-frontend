@@ -430,11 +430,6 @@ export function Header() {
     }
   }, [pathname, breadcrumbs, current_explorer_selected_chain]);
 
-  // Early return for launchpad pages - after all hooks
-  if (pathname.includes("/launchpad")) {
-    return null;
-  }
-
   // Chain search filter - Memoized for performance
   const filteredChains = useMemo(() => {
     if (!searchQuery.trim()) return [];
@@ -531,6 +526,11 @@ export function Header() {
 
   const pageType = getPageType();
   const shouldShowCollapsedWalletButton = isLoggedIn && isSidebarCollapsed;
+
+  // Early return for launchpad pages - after all hooks
+  if (pathname.includes("/launchpad")) {
+    return null;
+  }
 
   return (
     <>
