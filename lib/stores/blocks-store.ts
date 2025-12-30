@@ -29,6 +29,8 @@ export interface BlocksState {
   clearEvents: (chainId?: number) => void;
   getEventsForChain: (chainId: number) => BlockIndexedEvent[];
   getLatestHeight: (chainId: number) => number | null;
+  getAverageBlockTime: (chainId: number) => number | null;
+  getEstimatedTimeToNextBlock: (chainId: number) => number | null;
 }
 
 const MAX_EVENTS_PER_CHAIN = 5;
@@ -74,5 +76,34 @@ export const useBlocksStore = create<BlocksState>()((set, get) => ({
     const events = get().blockEvents[chainId];
     if (!events || events.length === 0) return null;
     return events[0].payload.height;
+  },
+
+  getAverageBlockTime: (chainId: number) => {
+    const events = get().blockEvents[chainId];
+    if (!events || events.length < 2) return null;
+
+    const timeDiffs: number[] = [];
+    for (let i = 0; i < events.length - 1; i++) {
+      const newer = new Date(events[i].timestamp).getTime();
+      const older = new Date(events[i + 1].timestamp).getTime();
+      timeDiffs.push((newer - older) / 1000);
+    }
+
+    return timeDiffs.reduce((sum, diff) => sum + diff, 0) / timeDiffs.length;
+  },
+
+  getEstimatedTimeToNextBlock: (chainId: number) => {
+    const events = get().blockEvents[chainId];
+    if (!events || events.length === 0) return null;
+
+    const avgBlockTime = get().getAverageBlockTime(chainId);
+    if (avgBlockTime === null) return null;
+
+    const lastEventTime = new Date(events[0].timestamp).getTime();
+    const now = Date.now();
+    const timeSinceLastBlock = (now - lastEventTime) / 1000;
+
+    const estimated = avgBlockTime - timeSinceLastBlock;
+    return estimated > 0 ? estimated : 0;
   },
 }));
