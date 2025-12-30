@@ -4,10 +4,24 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { HelpCircle, Info, Check, Loader2 } from "lucide-react";
-import { chainsApi } from "@/lib/api/chains";
+import { validateChainField } from "@/lib/api/chains";
+
+// Toggle this to disable API validation when the API is unavailable
+const FORCE_ENABLE = false;
 
 const BLOCK_TIME_OPTIONS = [
   { value: "5", label: "5 seconds" },
@@ -46,6 +60,7 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
     chainName: initialData?.chainName || "",
     tokenName: initialData?.tokenName || "",
     ticker: initialData?.ticker || "",
+    tokenSupply: initialData?.tokenSupply || "1000000000",
     decimals: initialData?.decimals || "18",
     description: initialData?.description || "",
     halvingDays: initialData?.halvingDays || "365",
@@ -53,51 +68,51 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [validatedFields, setValidatedFields] = useState<Record<string, boolean>>({});
-  const [validatingFields, setValidatingFields] = useState<Record<string, boolean>>({});
+  const [validatedFields, setValidatedFields] = useState<
+    Record<string, boolean>
+  >({});
+  const [validatingFields, setValidatingFields] = useState<
+    Record<string, boolean>
+  >({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
 
-  // API validation for a single field using backend /api/v1/chains/validate
+  // API validation for a single field (chain_name, token_name, or ticker)
   const validateWithAPI = async (field: string, value: string) => {
     try {
-      // Map frontend field names to API parameter names
-      const fieldToParam: Record<string, "name" | "symbol" | "token_name"> = {
-        chainName: "name",
+      // Map frontend field names to API field names
+      const fieldMap: Record<string, string> = {
+        chainName: "chain_name",
         tokenName: "token_name",
-        ticker: "symbol",
+        ticker: "ticker",
       };
 
-      const paramName = fieldToParam[field];
-      if (!paramName) {
+      const apiField = fieldMap[field] as
+        | "chain_name"
+        | "token_name"
+        | "ticker"
+        | undefined;
+      if (!apiField) {
         return {
           success: false,
           message: "Invalid field for validation",
         };
       }
 
-      // Call backend API with the appropriate parameter
-      const response = await chainsApi.validateChainNames({
-        [paramName]: value,
-      });
+      const data = await validateChainField(apiField, value);
 
-      const data = response.data;
-
-      // Check the availability based on the field
-      // API returns: name_available, token_name_available, symbol_available
-      let isAvailable = false;
-      if (field === "chainName") {
-        isAvailable = data.name_available === true;
-      } else if (field === "tokenName") {
-        isAvailable = data.token_name_available === true;
-      } else if (field === "ticker") {
-        isAvailable = data.symbol_available === true;
+      if (!data.success) {
+        return {
+          success: false,
+          message: data.error || data.message || "Validation failed",
+        };
       }
 
       return {
-        success: isAvailable,
-        message: isAvailable ? "Available" : "Already taken",
+        success: data.available === true,
+        message:
+          data.message || (data.available ? "Available" : "Not available"),
       };
     } catch (error) {
       console.error("Validation error:", error);
@@ -156,21 +171,26 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
 
     // API validation for chain name, token name, and ticker
     if (field === "chainName" || field === "tokenName" || field === "ticker") {
-      // Perform API validation for the specific field
-      setValidatingFields((prev) => ({ ...prev, [field]: true }));
+      if (FORCE_ENABLE) {
+        // Skip API validation, just mark as valid after basic validation passes
+        setValidatedFields((prev) => ({ ...prev, [field]: true }));
+      } else {
+        // Perform API validation for the specific field only
+        setValidatingFields((prev) => ({ ...prev, [field]: true }));
 
-      const result = await validateWithAPI(field, value);
+        const result = await validateWithAPI(field, value);
 
-      setValidatingFields((prev) => ({ ...prev, [field]: false }));
+        setValidatingFields((prev) => ({ ...prev, [field]: false }));
 
-      if (!result.success) {
-        newErrors[field] = result.message;
-        setErrors(newErrors);
-        setValidatedFields((prev) => ({ ...prev, [field]: false }));
-        return false;
+        if (!result.success) {
+          newErrors[field] = result.message;
+          setErrors(newErrors);
+          setValidatedFields((prev) => ({ ...prev, [field]: false }));
+          return false;
+        }
+
+        setValidatedFields((prev) => ({ ...prev, [field]: true }));
       }
-
-      setValidatedFields((prev) => ({ ...prev, [field]: true }));
     }
 
     setErrors(newErrors);
@@ -205,12 +225,13 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
   // Notify parent when data changes
   useEffect(() => {
     if (onDataSubmit) {
-      // Form is valid when basic validation passes AND API validation confirms availability
-      const isValid =
-        validateForm() &&
-        validatedFields.chainName === true &&
-        validatedFields.tokenName === true &&
-        validatedFields.ticker === true;
+      // When FORCE_ENABLE is true, skip API validation requirement
+      const isValid = FORCE_ENABLE
+        ? validateForm()
+        : validateForm() &&
+          validatedFields.chainName &&
+          validatedFields.tokenName &&
+          validatedFields.ticker;
       onDataSubmit(formData, isValid);
     }
   }, [formData, validateForm, onDataSubmit, validatedFields]);
@@ -233,7 +254,12 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
     }
 
     // Set new timer to validate after 1 second of inactivity
-    if (field === "chainName" || field === "tokenName" || field === "ticker" || field === "halvingDays") {
+    if (
+      field === "chainName" ||
+      field === "tokenName" ||
+      field === "ticker" ||
+      field === "halvingDays"
+    ) {
       debounceTimers.current[field] = setTimeout(() => {
         validateField(field, value);
       }, 1000);
@@ -265,7 +291,9 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
           {/* Title */}
           <div className="space-y-2">
             <h1 className="text-3xl font-bold">Configure your chain & token</h1>
-            <p className="text-muted-foreground">Set up the core parameters for your blockchain network</p>
+            <p className="text-muted-foreground">
+              Set up the core parameters for your blockchain network
+            </p>
           </div>
 
           {/* Form */}
@@ -274,7 +302,10 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
             <div className="space-y-6">
               {/* Chain Name */}
               <div className="space-y-2">
-                <Label htmlFor="chainName" className="flex items-center gap-2 text-sm font-medium">
+                <Label
+                  htmlFor="chainName"
+                  className="flex items-center gap-2 text-sm font-medium"
+                >
                   Chain Name
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -283,7 +314,8 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
                     <TooltipContent className="max-w-xs">
                       <p>The name of your blockchain network</p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Example: &quot;Ethereum&quot;, &quot;Solana&quot;, &quot;MyChain&quot;
+                        Example: &quot;Ethereum&quot;, &quot;Solana&quot;,
+                        &quot;MyChain&quot;
                       </p>
                     </TooltipContent>
                   </Tooltip>
@@ -322,7 +354,10 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
 
               {/* Token Name */}
               <div className="space-y-2">
-                <Label htmlFor="tokenName" className="flex items-center gap-2 text-sm font-medium">
+                <Label
+                  htmlFor="tokenName"
+                  className="flex items-center gap-2 text-sm font-medium"
+                >
                   Token Name
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -331,7 +366,8 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
                     <TooltipContent className="max-w-xs">
                       <p>The full name of your native token</p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Example: &quot;Ether&quot;, &quot;Bitcoin&quot;, &quot;MyToken&quot;
+                        Example: &quot;Ether&quot;, &quot;Bitcoin&quot;,
+                        &quot;MyToken&quot;
                       </p>
                     </TooltipContent>
                   </Tooltip>
@@ -370,7 +406,10 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
 
               {/* Ticker */}
               <div className="space-y-2">
-                <Label htmlFor="ticker" className="flex items-center gap-2 text-sm font-medium">
+                <Label
+                  htmlFor="ticker"
+                  className="flex items-center gap-2 text-sm font-medium"
+                >
                   Ticker
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -379,7 +418,8 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
                     <TooltipContent className="max-w-xs">
                       <p>The trading symbol for your token</p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Example: &quot;ETH&quot;, &quot;BTC&quot;, &quot;USDC&quot; (3-5 characters)
+                        Example: &quot;ETH&quot;, &quot;BTC&quot;,
+                        &quot;USDC&quot; (3-5 characters)
                       </p>
                     </TooltipContent>
                   </Tooltip>
@@ -409,7 +449,9 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
                     <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />
                   )}
                 </div>
-                {touched.ticker && errors.ticker && <p className="text-sm text-destructive">{errors.ticker}</p>}
+                {touched.ticker && errors.ticker && (
+                  <p className="text-sm text-destructive">{errors.ticker}</p>
+                )}
                 {validatedFields.ticker && !errors.ticker && (
                   <p className="text-sm text-green-600 flex items-center gap-1">
                     <Check className="w-3 h-3" />
@@ -426,16 +468,22 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
             <div className="space-y-6">
               {/* Halving Schedule */}
               <div className="space-y-2">
-                <Label htmlFor="halvingDays" className="flex items-center gap-2 text-sm font-medium">
+                <Label
+                  htmlFor="halvingDays"
+                  className="flex items-center gap-2 text-sm font-medium"
+                >
                   Halving Schedule (days)
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <HelpCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs">
-                      <p>Halving reduces mining rewards by 50% at set intervals</p>
+                      <p>
+                        Halving reduces mining rewards by 50% at set intervals
+                      </p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Like Bitcoin&apos;s 4-year halving cycle. Enter days between halvings.
+                        Like Bitcoin&apos;s 4-year halving cycle. Enter days
+                        between halvings.
                       </p>
                     </TooltipContent>
                   </Tooltip>
@@ -446,16 +494,25 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
                   placeholder="365"
                   value={formData.halvingDays}
                   onChange={(e) => updateField("halvingDays", e.target.value)}
-                  className={touched.halvingDays && errors.halvingDays ? "border-destructive" : ""}
+                  className={
+                    touched.halvingDays && errors.halvingDays
+                      ? "border-destructive"
+                      : ""
+                  }
                 />
                 {touched.halvingDays && errors.halvingDays && (
-                  <p className="text-sm text-destructive">{errors.halvingDays}</p>
+                  <p className="text-sm text-destructive">
+                    {errors.halvingDays}
+                  </p>
                 )}
               </div>
 
               {/* Block Time */}
               <div className="space-y-2">
-                <Label htmlFor="blockTime" className="flex items-center gap-2 text-sm font-medium">
+                <Label
+                  htmlFor="blockTime"
+                  className="flex items-center gap-2 text-sm font-medium"
+                >
                   Block Time
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -464,12 +521,16 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
                     <TooltipContent className="max-w-xs">
                       <p>Time between new blocks being added to the chain</p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Bitcoin: ~10 min, Ethereum: ~12 sec. Faster = more transactions.
+                        Bitcoin: ~10 min, Ethereum: ~12 sec. Faster = more
+                        transactions.
                       </p>
                     </TooltipContent>
                   </Tooltip>
                 </Label>
-                <Select value={formData.blockTime} onValueChange={(value) => updateField("blockTime", value)}>
+                <Select
+                  value={formData.blockTime}
+                  onValueChange={(value) => updateField("blockTime", value)}
+                >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select block time" />
                   </SelectTrigger>
@@ -496,25 +557,37 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Block Time:</span>
                     <span className="font-medium">
-                      {BLOCK_TIME_OPTIONS.find((opt) => opt.value === formData.blockTime)?.label || "-"}
+                      {BLOCK_TIME_OPTIONS.find(
+                        (opt) => opt.value === formData.blockTime
+                      )?.label || "-"}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Blocks per Day:</span>
+                    <span className="text-muted-foreground">
+                      Blocks per Day:
+                    </span>
                     <span className="font-medium">
                       {formData.blockTime
-                        ? Math.floor((24 * 60 * 60) / parseInt(formData.blockTime)).toLocaleString()
+                        ? Math.floor(
+                            (24 * 60 * 60) / parseInt(formData.blockTime)
+                          ).toLocaleString()
                         : "-"}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Halving Schedule:</span>
+                    <span className="text-muted-foreground">
+                      Halving Schedule:
+                    </span>
                     <span className="font-medium">
-                      {formData.halvingDays ? `Every ${formData.halvingDays} days` : "-"}
+                      {formData.halvingDays
+                        ? `Every ${formData.halvingDays} days`
+                        : "-"}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Est. Tokens Minted (Year 1):</span>
+                    <span className="text-muted-foreground">
+                      Est. Tokens Minted (Year 1):
+                    </span>
                     <span className="font-medium">
                       ~{calculateYearlyMinting()} {formData.ticker || "tokens"}
                     </span>

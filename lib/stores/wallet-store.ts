@@ -242,12 +242,6 @@ function clearPasswordSession(): void {
   console.log("🔒 Password session cleared");
 }
 
-/**
- * Request deduplication for fetchBalance
- * Prevents multiple concurrent requests for the same wallet
- */
-const pendingBalanceRequests = new Map<string, Promise<void>>();
-
 export const useWalletStore = create<WalletState>()(
   persist(
     (set, get) => ({
@@ -667,96 +661,77 @@ export const useWalletStore = create<WalletState>()(
         console.log("🔒 All wallets locked and password session cleared");
       },
       // Fetch balance for a wallet using portfolio overview API
-      // Uses request deduplication to prevent multiple concurrent requests
       fetchBalance: async (walletId: string) => {
-        // Check if there's already a pending request for this wallet
-        const existingRequest = pendingBalanceRequests.get(walletId);
-        if (existingRequest) {
-          console.log(`⏳ Reusing existing balance request for wallet ${walletId}`);
-          return existingRequest;
-        }
+        try {
+          const { wallets } = get();
+          const wallet = wallets.find((w) => w.id === walletId);
 
-        // Create new request promise
-        const requestPromise = (async () => {
-          try {
-            const { wallets } = get();
-            const wallet = wallets.find((w) => w.id === walletId);
+          if (!wallet) {
+            console.warn("Wallet not found:", walletId);
+            return;
+          }
 
-            if (!wallet) {
-              console.warn("Wallet not found:", walletId);
-              return;
-            }
+          // Fetch portfolio overview from API
+          const overview = await portfolioApi.getPortfolioOverview({
+            addresses: [wallet.address],
+          });
 
-            // Fetch portfolio overview from API
-            const overview = await portfolioApi.getPortfolioOverview({
-              addresses: [wallet.address],
-            });
-
-            if (!overview || !overview.accounts || overview.accounts.length === 0) {
-              // No balance data available, set empty balance
-              set({
-                balance: {
-                  total: "0.00",
-                  tokens: [],
-                },
-              });
-              return;
-            }
-
-            // Build tokens array - one token per chain
-            // Note: API already returns balances in standard units (not micro)
-            // Store raw values - formatting happens in the view layer
-            const tokens: WalletBalance["tokens"] = overview.accounts.map((account) => ({
-              symbol: generateChainSymbol(account.chain_id),
-              name: account.chain_name,
-              balance: account.balance, // Raw value from API
-              usdValue: undefined, // USD value not provided in current response
-              logo: undefined,
-              chainId: account.chain_id,
-              distribution: {
-                liquid: account.available_balance, // Raw value
-                staked: account.staked_balance + account.delegated_balance, // Raw value
-                delegated: account.delegated_balance, // Raw value
-              },
-            }));
-
-            // API already returns total in standard units (not micro)
-            // Store raw value - formatting happens in the view layer
-            const walletBalance: WalletBalance = {
-              total: overview.total_value_cnpy || "0", // Raw value from API
-              tokens,
-            };
-
-            set({ balance: walletBalance });
-
-            const availableAssets = tokens.map((token) => ({
-              chainId: String(token.chainId),
-              symbol: token.symbol,
-              name: token.name,
-              balance: token.balance,
-            }));
-
-            set({ availableAssets: availableAssets });
-          } catch (error) {
-            console.error("Failed to fetch balance:", error);
-
-            // Set empty balance on error to avoid showing stale data
+          if (!overview || !overview.accounts || overview.accounts.length === 0) {
+            // No balance data available, set empty balance
             set({
               balance: {
                 total: "0.00",
                 tokens: [],
               },
             });
-          } finally {
-            // Clean up the pending request
-            pendingBalanceRequests.delete(walletId);
+            return;
           }
-        })();
 
-        // Store the pending request
-        pendingBalanceRequests.set(walletId, requestPromise);
+          // Build tokens array - one token per chain
+          // Note: API already returns balances in standard units (not micro)
+          // Store raw values - formatting happens in the view layer
+          const tokens: WalletBalance["tokens"] = overview.accounts.map((account) => ({
+            symbol: generateChainSymbol(account.chain_id),
+            name: account.chain_name,
+            balance: account.balance, // Raw value from API
+            usdValue: undefined, // USD value not provided in current response
+            logo: undefined,
+            chainId: account.chain_id,
+            distribution: {
+              liquid: account.available_balance, // Raw value
+              staked: account.staked_balance + account.delegated_balance, // Raw value
+              delegated: account.delegated_balance, // Raw value
+            },
+          }));
 
-        return requestPromise;
+          // API already returns total in standard units (not micro)
+          // Store raw value - formatting happens in the view layer
+          const walletBalance: WalletBalance = {
+            total: overview.total_value_cnpy || "0", // Raw value from API
+            tokens,
+          };
+
+          set({ balance: walletBalance });
+
+          const availableAssets = tokens.map((token) => ({
+            chainId: String(token.chainId),
+            symbol: token.symbol,
+            name: token.name,
+            balance: token.balance,
+          }));
+
+          set({ availableAssets: availableAssets });
+        } catch (error) {
+          console.error("Failed to fetch balance:", error);
+
+          // Set empty balance on error to avoid showing stale data
+          set({
+            balance: {
+              total: "0.00",
+              tokens: [],
+            },
+          });
+        }
       },
 
       // Fetch transactions for a wallet using transaction history API
@@ -942,10 +917,11 @@ export const useWalletStore = create<WalletState>()(
 
           console.log("✅ Transaction sent:", response.transaction_hash);
 
-          // Refresh balance in background (don't block return)
+          // Refresh balance and transactions in background (don't block return)
           const { currentWallet, fetchBalance, fetchTransactions } = get();
           if (currentWallet) {
-            await Promise.all([fetchBalance(currentWallet.id), fetchTransactions(currentWallet.id)]);
+            fetchBalance(currentWallet.id).catch(console.error);
+            fetchTransactions(currentWallet.id).catch(console.error);
           }
 
           set({ isLoading: false });

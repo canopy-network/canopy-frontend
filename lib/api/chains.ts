@@ -143,6 +143,47 @@ export const chainsApi = {
   },
 
   /**
+   * Activate a chain after payment verification
+   *
+   * @param id - Chain ID
+   * @param txHash - Transaction hash of the payment
+   * @returns Promise resolving to activated chain data
+   *
+   * @example
+   * ```typescript
+   * // Activate chain after payment
+   * const chain = await chainsApi.activateChain('123', 'abc123def456...');
+   * console.log(chain.status); // 'virtual_active'
+   * ```
+   */
+  activateChain: (id: string, txHash: string) =>
+    apiClient.patch<Chain>(`/api/v1/chains/${id}`, {
+      status: "virtual_active",
+      tx_hash: txHash,
+    } as ActivateChainRequest),
+
+  /**
+   * Activate a chain with status check
+   * Returns whether activation is confirmed (200) or pending (202)
+   *
+   * @param id - Chain ID
+   * @param txHash - Transaction hash of the payment
+   * @returns Promise resolving to { confirmed: boolean, chain?: Chain }
+   */
+  activateChainWithStatus: async (id: string, txHash: string): Promise<{ confirmed: boolean; chain?: Chain }> => {
+    const axios = apiClient.getAxiosInstance();
+    const response = await axios.patch(`/api/v1/chains/${id}`, {
+      status: "virtual_active",
+      tx_hash: txHash,
+    } as ActivateChainRequest);
+
+    return {
+      confirmed: response.status === 200,
+      chain: response.status === 200 ? response.data?.data : undefined,
+    };
+  },
+
+  /**
    * Delete a chain (only allowed in draft status)
    */
   deleteChain: (id: string) => apiClient.delete<{ message: string }>(`/api/v1/chains/${id}`),
