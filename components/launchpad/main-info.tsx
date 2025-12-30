@@ -85,13 +85,14 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
       const data = response.data;
 
       // Check the availability based on the field
+      // API returns: name_available, token_name_available, symbol_available
       let isAvailable = false;
-      if (field === "chainName" && data.name) {
-        isAvailable = data.name.available;
-      } else if (field === "tokenName" && data.token_name) {
-        isAvailable = data.token_name.available;
-      } else if (field === "ticker" && data.symbol) {
-        isAvailable = data.symbol.available;
+      if (field === "chainName") {
+        isAvailable = data.name_available === true;
+      } else if (field === "tokenName") {
+        isAvailable = data.token_name_available === true;
+      } else if (field === "ticker") {
+        isAvailable = data.symbol_available === true;
       }
 
       return {

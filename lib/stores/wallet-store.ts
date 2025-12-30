@@ -918,7 +918,7 @@ export const useWalletStore = create<WalletState>()(
           console.log("✅ Transaction sent:", response.transaction_hash);
 
           // Refresh balance in background (don't block return)
-          const { currentWallet, fetchBalance } = get();
+          const { currentWallet, fetchBalance, fetchTransactions } = get();
           if (currentWallet) {
             await Promise.all([fetchBalance(currentWallet.id), fetchTransactions(currentWallet.id)]);
           }

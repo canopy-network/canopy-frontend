@@ -56,18 +56,9 @@ export interface ChainValidationResponse {
  * Returns availability status for each field provided
  */
 export interface ChainValidationResult {
-  name?: {
-    available: boolean;
-    value: string;
-  };
-  symbol?: {
-    available: boolean;
-    value: string;
-  };
-  token_name?: {
-    available: boolean;
-    value: string;
-  };
+  name_available?: boolean;
+  symbol_available?: boolean;
+  token_name_available?: boolean;
 }
 
 export interface ChainStoreRequest {
@@ -97,60 +88,18 @@ export interface ChainStoreResponse {
 export const chainsApi = {
   /**
    * Get all chains with optional filtering and pagination
-   *
-   * @param params - Query parameters for filtering and pagination
-   * @returns Promise resolving to chains data
-   *
-   * @example
-   * ```typescript
-   * // Get all chains
-   * const chains = await chainsApi.getChains();
-   *
-   * // Get chains with filters
-   * const activeChains = await chainsApi.getChains({
-   *   status: 'virtual_active',
-   *   include: 'template,creator',
-   *   page: 1,
-   *   limit: 20
-   * });
-   * ```
    */
+  getChains: (params?: GetChainsParams) => apiClient.get<Chain[]>("/api/v1/chains", params),
 
   /**
    * Get a single chain by ID
-   *
-   * @param id - Chain ID
-   * @param params - Optional query parameters (e.g., include)
-   * @returns Promise resolving to chain data with all related data when include params are provided
-   *
-   * @example
-   * ```typescript
-   * // Get chain by ID
-   * const chain = await chainsApi.getChain('chain-id');
-   *
-   * // Get chain with all related data (optimized for detail pages)
-   * const chain = await chainsApi.getChain('chain-id', {
-   *   include: 'creator,template,assets,graduation,repository,social_links,graduated_pool,virtual_pool'
-   * });
-   * ```
    */
+  getChain: (id: string, params?: { include?: string }) => apiClient.get<Chain>(`/api/v1/chains/${id}`, params),
 
   /**
    * Create a new chain
-   *
-   * @param data - Chain creation data
-   * @returns Promise resolving to created chain data
-   *
-   * @example
-   * ```typescript
-   * const newChain = await chainsApi.createChain({
-   *   token_name: 'My DeFi Chain',
-   *   token_symbol: 'DEFI',
-   *   chain_description: 'A revolutionary DeFi protocol',
-   *   template_id: 'template-id'
-   * });
-   * ```
    */
+  createChain: (data: CreateChainRequest) => apiClient.post<Chain>("/api/v1/chains", data),
 
   /**
    * Activate a chain after payment verification
@@ -195,15 +144,13 @@ export const chainsApi = {
 
   /**
    * Delete a chain (only allowed in draft status)
-   *
-   * @param id - Chain ID to delete
-   * @returns Promise resolving to deletion confirmation
-   *
-   * @example
-   * ```typescript
-   * await chainsApi.deleteChain('chain-id');
-   * ```
    */
+  deleteChain: (id: string) => apiClient.delete<{ message: string }>(`/api/v1/chains/${id}`),
+
+  /**
+   * Update chain data
+   */
+  updateChain: (chainId: string, data: Partial<Chain>) => apiClient.patch<Chain>(`/api/v1/chains/${chainId}`, data),
 
   /**
    * Create chain repository configuration
@@ -259,56 +206,23 @@ export const chainsApi = {
     }
   ) => apiClient.put<any>(`/api/v1/chains/${chainId}/repository`, data),
 
-
   /**
    * Get all assets for a chain
-   *
-   * @param chainId - Chain ID
-   * @returns Promise resolving to chain assets
-   *
-   * @example
-   * ```typescript
-   * const assets = await chainsApi.getChainAssets('chain-id');
-   * ```
    */
   getChainAssets: (chainId: string) =>
+    apiClient.get<import("@/types/chains").ChainAsset[]>(`/api/v1/chains/${chainId}/assets`),
 
   /**
    * Create an asset for a chain (logo, banner, screenshot, etc.)
-   *
-   * @param chainId - Chain ID to add the asset to
-   * @param data - Asset creation data
-   * @returns Promise resolving to created asset data
-   *
-   * @example
-   * ```typescript
-   * const asset = await chainsApi.createAsset('chain-id', {
-   *   asset_type: 'logo',
-   *   file_name: 'logo.png',
-   *   file_url: 'https://s3.amazonaws.com/...',
-   *   is_primary: true
-   * });
-   * ```
    */
   createAsset: (chainId: string, data: CreateAssetRequest) =>
     apiClient.post<any>(`/api/v1/chains/${chainId}/assets`, data),
 
   /**
    * Update an existing chain asset
-   *
-   * @param chainId - Chain ID
-   * @param assetId - Asset ID to update
-   * @param data - Updated asset data
-   * @returns Promise resolving to updated asset data
-   *
-   * @example
-   * ```typescript
-   * const asset = await chainsApi.updateAsset('chain-id', 'asset-id', {
-   *   file_url: 'https://s3.amazonaws.com/new-logo.png',
-   *   is_primary: true
-   * });
-   * ```
    */
+  updateAsset: (chainId: string, assetId: string, data: Partial<CreateAssetRequest>) =>
+    apiClient.put<any>(`/api/v1/chains/${chainId}/assets/${assetId}`, data),
 
   /**
    * Create a social link for a chain
@@ -339,15 +253,8 @@ export const chainsApi = {
 
   /**
    * Get accolades for a chain
-   *
-   * @param chainId - Chain ID
-   * @returns Promise resolving to accolades data
-   *
-   * @example
-   * ```typescript
-   * const accolades = await chainsApi.getAccolades('chain-id');
-   * ```
    */
+  getAccolades: (chainId: string) => apiClient.get<Accolade[]>(`/api/v1/chains/${chainId}/accolades`),
 
   /**
    * Get current block height for a chain
@@ -385,8 +292,14 @@ export const chainsApi = {
    * });
    *
    * // Check individual availability
-   * if (result.data.name?.available) {
+   * if (result.data.name_available) {
    *   console.log('Chain name is available!');
+   * }
+   * if (result.data.symbol_available) {
+   *   console.log('Symbol is available!');
+   * }
+   * if (result.data.token_name_available) {
+   *   console.log('Token name is available!');
    * }
    * ```
    */
@@ -414,8 +327,7 @@ export const virtualPoolsApi = {
    * console.log(`Current price: ${pool.data.current_price_cnpy} CNPY`);
    * ```
    */
-  getVirtualPool: (chainId: string) =>
-    apiClient.get<VirtualPool>(`/api/v1/virtual-pools/${chainId}`),
+  getVirtualPool: (chainId: string) => apiClient.get<VirtualPool>(`/api/v1/virtual-pools/${chainId}`),
 
   /**
    * Get transaction history for a chain's virtual pool
@@ -438,10 +350,7 @@ export const virtualPoolsApi = {
    * ```
    */
   getTransactions: (chainId: string, params?: GetTransactionsParams) =>
-    apiClient.get<Transaction[]>(
-      `/api/v1/chains/${chainId}/transactions`,
-      params
-    ),
+    apiClient.get<Transaction[]>(`/api/v1/chains/${chainId}/transactions`, params),
 };
 
 // ============================================================================
@@ -479,18 +388,13 @@ export async function getAllChains(params?: GetChainsParams): Promise<Chain[]> {
 
     if (Array.isArray(payload)) {
       pageData = payload as Chain[];
-    } else if (
-      payload &&
-      typeof payload === "object" &&
-      Array.isArray((payload as any).data)
-    ) {
+    } else if (payload && typeof payload === "object" && Array.isArray((payload as any).data)) {
       pageData = (payload as any).data as Chain[];
     }
 
     chains.push(...pageData);
 
-    const pagination =
-      (response as any).pagination || (payload as any)?.pagination;
+    const pagination = (response as any).pagination || (payload as any)?.pagination;
 
     if (pagination?.pages) {
       totalPages = pagination.pages;
@@ -532,9 +436,7 @@ export async function getChainsWithRelations(params?: GetChainsParams) {
  * @param params - Additional query parameters
  * @returns Promise resolving to active chains
  */
-export async function getActiveChains(
-  params?: Omit<GetChainsParams, "status">
-) {
+export async function getActiveChains(params?: Omit<GetChainsParams, "status">) {
   return chainsApi.getChains({
     ...params,
     status: "virtual_active",
@@ -547,9 +449,7 @@ export async function getActiveChains(
  * @param params - Additional query parameters
  * @returns Promise resolving to graduated chains
  */
-export async function getGraduatedChains(
-  params?: Omit<GetChainsParams, "status">
-) {
+export async function getGraduatedChains(params?: Omit<GetChainsParams, "status">) {
   return chainsApi.getChains({
     ...params,
     status: "graduated",
@@ -562,9 +462,7 @@ export async function getGraduatedChains(
  * @param params - Additional query parameters
  * @returns Promise resolving to all graduated chains
  */
-export async function getAllGraduatedChains(
-  params?: Omit<GetChainsParams, "status">
-): Promise<Chain[]> {
+export async function getAllGraduatedChains(params?: Omit<GetChainsParams, "status">): Promise<Chain[]> {
   return getAllChains({
     ...params,
     status: "graduated",
@@ -578,10 +476,7 @@ export async function getAllGraduatedChains(
  * @param params - Additional query parameters
  * @returns Promise resolving to creator's chains
  */
-export async function getChainsByCreator(
-  creatorId: string,
-  params?: Omit<GetChainsParams, "creator">
-) {
+export async function getChainsByCreator(creatorId: string, params?: Omit<GetChainsParams, "creator">) {
   return chainsApi.getChains({
     ...params,
     creator: creatorId,
@@ -595,10 +490,7 @@ export async function getChainsByCreator(
  * @param params - Additional query parameters
  * @returns Promise resolving to chains using the template
  */
-export async function getChainsByTemplate(
-  templateId: string,
-  params?: Omit<GetChainsParams, "template_id">
-) {
+export async function getChainsByTemplate(templateId: string, params?: Omit<GetChainsParams, "template_id">) {
   return chainsApi.getChains({
     ...params,
     template_id: templateId,
@@ -621,10 +513,7 @@ export async function getChainsByTemplate(
  * const holdersPage2 = await getChainHolders('chain-id', { page: 2, limit: 20 });
  * ```
  */
-export async function getChainHolders(
-  chainId: string,
-  params?: GetHoldersParams
-) {
+export async function getChainHolders(chainId: string, params?: GetHoldersParams) {
   return apiClient.get<{
     pagination: {
       page: number;
@@ -641,17 +530,10 @@ export async function getChainHolders(
 // ============================================================================
 
 export async function searchChains(query: string, signal?: AbortSignal) {
-  return localApiClient.getRaw<ChainSearchResponse>(
-    "/chains/search",
-    { q: query },
-    signal ? { signal } : undefined
-  );
+  return localApiClient.getRaw<ChainSearchResponse>("/chains/search", { q: query }, signal ? { signal } : undefined);
 }
 
-export async function validateChainField(
-  field: "chain_name" | "token_name" | "ticker",
-  value: string
-) {
+export async function validateChainField(field: "chain_name" | "token_name" | "ticker", value: string) {
   return localApiClient.getRaw<ChainValidationResponse>("/chains/validate", {
     field,
     value,
