@@ -11,7 +11,7 @@ interface LaunchpadLayoutProps {
 }
 
 export default function LaunchpadLayout({ children }: LaunchpadLayoutProps) {
-  const { currentStep, completedSteps, formData, resetFormData } =
+  const { currentStep, completedSteps, formData, resetFormData, setCurrentStep } =
     useCreateChainStore();
   const router = useRouter();
 
@@ -22,6 +22,10 @@ export default function LaunchpadLayout({ children }: LaunchpadLayoutProps) {
     router.back();
   };
 
+  const handleStepClick = (step: number) => {
+    setCurrentStep(step);
+  };
+
   return (
     <section className="flex min-h-screen max-h-screen overflow-hidden bg-background">
       {/* Launch Progress Sidebar */}
@@ -29,6 +33,7 @@ export default function LaunchpadLayout({ children }: LaunchpadLayoutProps) {
         currentStep={currentStep}
         completedSteps={completedSteps}
         repoConnected={formData.githubValidated}
+        onStepClick={handleStepClick}
       />
 
       {/* Main Content Area */}
