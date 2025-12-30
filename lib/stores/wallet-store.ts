@@ -325,8 +325,9 @@ export const useWalletStore = create<WalletState>()(
 
             for (let i = 0; i < wallets.length; i += MAX_CONCURRENT_UNLOCKS) {
               const batch = wallets.slice(i, i + MAX_CONCURRENT_UNLOCKS);
-              const batchPromises = batch.map(wallet =>
-                get().unlockWallet(wallet.id, cachedPassword, true)
+              const batchPromises = batch.map((wallet) =>
+                get()
+                  .unlockWallet(wallet.id, cachedPassword, true)
                   .then(() => ({ success: true, walletId: wallet.id }))
                   .catch((error) => {
                     console.warn(`⚠️ Failed to auto-unlock wallet ${wallet.id}`);
@@ -337,7 +338,7 @@ export const useWalletStore = create<WalletState>()(
               results.push(...batchResults);
             }
 
-            const successCount = results.filter(r => r.success).length;
+            const successCount = results.filter((r) => r.success).length;
             console.log(`✅ Auto-unlock complete: ${successCount}/${wallets.length} wallets unlocked`);
 
             // Sync currentWallet with the updated wallets array after auto-unlock
@@ -370,15 +371,19 @@ export const useWalletStore = create<WalletState>()(
           try {
             await get().fetchBalance(walletId);
             // Fetch transactions in the background (non-blocking)
-            get().fetchTransactions(walletId).catch((error) => {
-              console.warn("Failed to fetch transactions:", error);
-            });
+            get()
+              .fetchTransactions(walletId)
+              .catch((error) => {
+                console.warn("Failed to fetch transactions:", error);
+              });
           } catch (error) {
             console.warn("Failed to fetch balance:", error);
             // Still try to fetch transactions even if balance fails
-            get().fetchTransactions(walletId).catch((err) => {
-              console.warn("Failed to fetch transactions:", err);
-            });
+            get()
+              .fetchTransactions(walletId)
+              .catch((err) => {
+                console.warn("Failed to fetch transactions:", err);
+              });
           }
         }
       },
