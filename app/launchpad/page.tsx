@@ -57,21 +57,14 @@ export default function LaunchpadPage() {
       return () => window.removeEventListener("resize", checkMobile);
     }
   }, [isHydrated, isAuthenticated, router]);
-  const {
-    formData,
-    setFormData,
-    currentStep,
-    setCurrentStep,
-    markStepCompleted,
-    resetFormData,
-  } = useCreateChainStore();
+  const { formData, setFormData, currentStep, setCurrentStep, markStepCompleted, resetFormData } =
+    useCreateChainStore();
 
-  // TODO: Steps temporarily set to true to bypass validation for testing
   const [stepValidity, setStepValidity] = useState<Record<number, boolean>>({
     1: false,
-    2: true, // TEMP: Bypass GitHub validation
+    2: false, // GitHub validation is optional
     3: false,
-    4: true, // TEMP: Bypass branding validation
+    4: false, // Branding is optional
     5: false,
     6: false,
     7: true, // Review is always valid
@@ -235,33 +228,28 @@ export default function LaunchpadPage() {
 
   // Helper: Retry PATCH activation until confirmed (200) or timeout
   // Backend returns 202 if transaction not yet found, 200 when confirmed
-  const activateWithRetry = useCallback(
-    async (chainId: string, hash: string, timeoutMs: number): Promise<void> => {
-      const startTime = Date.now();
+  const activateWithRetry = useCallback(async (chainId: string, hash: string, timeoutMs: number): Promise<void> => {
+    const startTime = Date.now();
 
-      while (Date.now() - startTime < timeoutMs) {
-        try {
-          const result = await chainsApi.activateChainWithStatus(chainId, hash);
-          if (result.confirmed) {
-            return; // Success - got 200
-          }
-          // Got 202 - transaction pending, retry after delay
-        } catch (error) {
-          // Network error or other failure, retry
+    while (Date.now() - startTime < timeoutMs) {
+      try {
+        const result = await chainsApi.activateChainWithStatus(chainId, hash);
+        if (result.confirmed) {
+          return; // Success - got 200
         }
-        // Wait 6 seconds before retry
-        await new Promise((resolve) => setTimeout(resolve, 6000));
+        // Got 202 - transaction pending, retry after delay
+      } catch (error) {
+        // Network error or other failure, retry
       }
+      // Wait 6 seconds before retry
+      await new Promise((resolve) => setTimeout(resolve, 6000));
+    }
 
-      throw new Error(
-        `Chain activation timed out after ${
-          timeoutMs / 1000
-        }s. Your payment was sent successfully. ` +
-          `Please contact support with chain ID: ${chainId} and tx hash: ${hash}`
-      );
-    },
-    []
-  );
+    throw new Error(
+      `Chain activation timed out after ${timeoutMs / 1000}s. Your payment was sent successfully. ` +
+        `Please contact support with chain ID: ${chainId} and tx hash: ${hash}`
+    );
+  }, []);
 
   // Final submission with payment flow
   const handleSubmit = useCallback(async () => {
@@ -295,14 +283,11 @@ export default function LaunchpadPage() {
           chain_description: formData.chainDescription || formData.description,
           template_id: formData.template?.id || "",
           genesis_supply: 1000000000,
-          target_price_at_graduation_cnpy_per_token:
-            formData.targetPriceAtGraduation,
+          target_price_at_graduation_cnpy_per_token: formData.targetPriceAtGraduation,
           initial_cnpy_reserve: 10000.0,
           initial_token_supply: 1000000000,
           validator_min_stake: 1000.0,
-          creator_initial_purchase_cnpy: parseFloat(
-            formData.initialPurchaseAmount || "0"
-          ),
+          creator_initial_purchase_cnpy: parseFloat(formData.initialPurchaseAmount || "0"),
           brand_color: formData.brandColor,
           block_time_seconds: blockTimeSeconds,
           halving_schedule: halvingSchedule,
@@ -316,8 +301,7 @@ export default function LaunchpadPage() {
 
       // Step 2: Send payment transaction
       setSubmitStep("paying");
-      const paymentAmount =
-        100 + parseFloat(formData.initialPurchaseAmount || "0");
+      const paymentAmount = 100 + parseFloat(formData.initialPurchaseAmount || "0");
 
       if (!chain || !chain.address) {
         throw new Error("Chain created but no payment address received");
@@ -355,11 +339,7 @@ export default function LaunchpadPage() {
       }
 
       // Step 2: Create repository data if GitHub repo is connected
-      if (
-        formData.githubRepo &&
-        formData.githubValidated &&
-        formData.githubRepoData
-      ) {
+      if (formData.githubRepo && formData.githubValidated && formData.githubRepoData) {
         try {
           await chainsApi.createRepository(chain.id, {
             github_url: formData.githubRepoData.htmlUrl,
@@ -406,17 +386,12 @@ export default function LaunchpadPage() {
       if (formData.gallery && formData.gallery.length > 0) {
         try {
           const { uploadGallery } = await import("@/lib/api/media");
-          const galleryResult = await uploadGallery(
-            formData.ticker,
-            formData.gallery
-          );
+          const galleryResult = await uploadGallery(formData.ticker, formData.gallery);
           if (galleryResult.success && galleryResult.urls) {
             galleryUrls.push(
               ...galleryResult.urls.map((result, index) => ({
                 url: result.url,
-                type: formData.gallery[index].type.startsWith("image/")
-                  ? "banner"
-                  : "video",
+                type: formData.gallery[index].type.startsWith("image/") ? "banner" : "video",
                 name: result.originalName,
               }))
             );
@@ -456,10 +431,7 @@ export default function LaunchpadPage() {
               display_order: i,
             });
           } catch (socialErr) {
-            console.error(
-              `Error creating social link for ${socialLink.platform}:`,
-              socialErr
-            );
+            console.error(`Error creating social link for ${socialLink.platform}:`, socialErr);
             // Don't fail the entire process if a social link creation fails
           }
         }
@@ -475,11 +447,7 @@ export default function LaunchpadPage() {
             // If it's a file resource, upload it first
             if (resource.type === "file" && resource.file) {
               const { uploadSingleFile } = await import("@/lib/api/media");
-              const uploadResult = await uploadSingleFile(
-                formData.ticker,
-                "papers",
-                resource.file
-              );
+              const uploadResult = await uploadSingleFile(formData.ticker, "papers", resource.file);
               if (uploadResult.success && uploadResult.urls?.[0]) {
                 resourceUrl = uploadResult.urls[0].url;
               }
@@ -506,31 +474,15 @@ export default function LaunchpadPage() {
       // Success! Reset form and navigate to chain page
       setSubmitStep("success");
       resetFormData();
-      router.push(
-        `/chains/${chain.id}?success=true&name=${encodeURIComponent(
-          chain.chain_name
-        )}`
-      );
+      router.push(`/chains/${chain.id}?success=true&name=${encodeURIComponent(chain.chain_name)}`);
     } catch (err: unknown) {
       console.error("Error creating chain:", err);
       setSubmitStep("error");
-      setSubmitError(
-        err instanceof Error
-          ? err.message
-          : "Failed to create chain. Please try again."
-      );
+      setSubmitError(err instanceof Error ? err.message : "Failed to create chain. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
-  }, [
-    formData,
-    resetFormData,
-    router,
-    currentWallet,
-    sendTransaction,
-    activateWithRetry,
-    createdChain,
-  ]);
+  }, [formData, resetFormData, router, currentWallet, sendTransaction, activateWithRetry, createdChain]);
 
   // Show loading spinner while hydrating persisted data from localStorage
   if (!isHydrated) {
@@ -548,12 +500,7 @@ export default function LaunchpadPage() {
     <div className="flex flex-col h-full">
       {/* <div className="flex-1"> */}
       {/* Step 1: Select Template/Language */}
-      {currentStep === 1 && (
-        <SelectLanguage
-          initialTemplate={formData.template}
-          onDataSubmit={handleLanguageSubmit}
-        />
-      )}
+      {currentStep === 1 && <SelectLanguage initialTemplate={formData.template} onDataSubmit={handleLanguageSubmit} />}
 
       {/* Step 2: Connect Repository */}
       {currentStep === 2 && (
@@ -634,12 +581,7 @@ export default function LaunchpadPage() {
             </div>
           )}
 
-          <div
-            className={cn(
-              "flex justify-between",
-              currentStep === 7 && "flex-col-reverse justify-center gap-4"
-            )}
-          >
+          <div className={cn("flex justify-between", currentStep === 7 && "flex-col-reverse justify-center gap-4")}>
             {/* Back Button */}
             {currentStep > 1 && (
               <Button
@@ -677,9 +619,7 @@ export default function LaunchpadPage() {
                     <Loader2 className="w-4 h-4 animate-spin" />
                     {submitStep === "creating" && "Creating chain..."}
                     {submitStep === "paying" &&
-                      `Sending ${
-                        100 + parseFloat(formData.initialPurchaseAmount || "0")
-                      } CNPY...`}
+                      `Sending ${100 + parseFloat(formData.initialPurchaseAmount || "0")} CNPY...`}
                     {submitStep === "activating" && "Confirming transaction..."}
                     {submitStep === "uploading" && "Uploading assets..."}
                     {submitStep === "idle" && "Processing..."}

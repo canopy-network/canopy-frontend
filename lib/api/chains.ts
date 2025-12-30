@@ -51,6 +51,25 @@ export interface ChainValidationResponse {
   error?: string;
 }
 
+/**
+ * Response from backend /api/v1/chains/validate endpoint
+ * Returns availability status for each field provided
+ */
+export interface ChainValidationResult {
+  name?: {
+    available: boolean;
+    value: string;
+  };
+  symbol?: {
+    available: boolean;
+    value: string;
+  };
+  token_name?: {
+    available: boolean;
+    value: string;
+  };
+}
+
 export interface ChainStoreRequest {
   ticker: string;
   chain_name: string;
@@ -96,8 +115,6 @@ export const chainsApi = {
    * });
    * ```
    */
-  getChains: (params?: GetChainsParams) =>
-    apiClient.get<Chain[]>("/api/v1/chains", params),
 
   /**
    * Get a single chain by ID
@@ -117,8 +134,6 @@ export const chainsApi = {
    * });
    * ```
    */
-  getChain: (id: string, params?: { include?: string }) =>
-    apiClient.get<Chain>(`/api/v1/chains/${id}`, params),
 
   /**
    * Create a new chain
@@ -136,8 +151,6 @@ export const chainsApi = {
    * });
    * ```
    */
-  createChain: (data: CreateChainRequest) =>
-    apiClient.post<Chain>("/api/v1/chains", data),
 
   /**
    * Activate a chain after payment verification
@@ -191,8 +204,6 @@ export const chainsApi = {
    * await chainsApi.deleteChain('chain-id');
    * ```
    */
-  deleteChain: (id: string) =>
-    apiClient.delete<{ message: string }>(`/api/v1/chains/${id}`),
 
   /**
    * Create chain repository configuration
@@ -248,8 +259,6 @@ export const chainsApi = {
     }
   ) => apiClient.put<any>(`/api/v1/chains/${chainId}/repository`, data),
 
-  updateChain: (chainId: string, data: Partial<Chain>) =>
-    apiClient.patch<Chain>(`/api/v1/chains/${chainId}`, data),
 
   /**
    * Get all assets for a chain
@@ -263,9 +272,6 @@ export const chainsApi = {
    * ```
    */
   getChainAssets: (chainId: string) =>
-    apiClient.get<import("@/types/chains").ChainAsset[]>(
-      `/api/v1/chains/${chainId}/assets`
-    ),
 
   /**
    * Create an asset for a chain (logo, banner, screenshot, etc.)
@@ -303,11 +309,6 @@ export const chainsApi = {
    * });
    * ```
    */
-  updateAsset: (
-    chainId: string,
-    assetId: string,
-    data: Partial<CreateAssetRequest>
-  ) => apiClient.put<any>(`/api/v1/chains/${chainId}/assets/${assetId}`, data),
 
   /**
    * Create a social link for a chain
@@ -347,8 +348,6 @@ export const chainsApi = {
    * const accolades = await chainsApi.getAccolades('chain-id');
    * ```
    */
-  getAccolades: (chainId: string) =>
-    apiClient.get<Accolade[]>(`/api/v1/chains/${chainId}/accolades`),
 
   /**
    * Get current block height for a chain
@@ -362,8 +361,37 @@ export const chainsApi = {
    * console.log(`Current height: ${heightData.data.height}`);
    * ```
    */
-  getChainHeight: (id: string) =>
-    apiClient.get<ChainHeight>(`/api/v1/chains/${id}/height`),
+  getChainHeight: (id: string) => apiClient.get<ChainHeight>(`/api/v1/chains/${id}/height`),
+
+  /**
+   * Validate chain name, token symbol, and token name availability
+   *
+   * Performs case-insensitive checks against existing chains.
+   * At least one parameter must be provided.
+   *
+   * @param params - Validation parameters
+   * @param params.name - Chain name to validate (optional)
+   * @param params.symbol - Token symbol/ticker to validate (optional)
+   * @param params.token_name - Token name to validate (optional)
+   * @returns Promise resolving to validation results for each field
+   *
+   * @example
+   * ```typescript
+   * // Validate all fields at once
+   * const result = await chainsApi.validateChainNames({
+   *   name: 'MyChain',
+   *   symbol: 'MYC',
+   *   token_name: 'MyToken'
+   * });
+   *
+   * // Check individual availability
+   * if (result.data.name?.available) {
+   *   console.log('Chain name is available!');
+   * }
+   * ```
+   */
+  validateChainNames: (params: { name?: string; symbol?: string; token_name?: string }) =>
+    apiClient.get<ChainValidationResult>("/api/v1/chains/validate", params),
 };
 
 // ============================================================================
