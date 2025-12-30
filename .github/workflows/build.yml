@@ -291,8 +291,12 @@ jobs:
             
             echo ""
             echo "=== Pulling Image ==="
-            echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-            sudo docker pull "$IMAGE" || echo "Pull returned non-zero, continuing..."
+            echo "${{ secrets.GITHUB_TOKEN }}" | sudo k3s ctr images pull --user "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" "$IMAGE" || {
+              echo "Direct pull failed, trying docker..."
+              echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+              sudo docker pull "$IMAGE"
+              sudo docker save "$IMAGE" | sudo k3s ctr images import -
+            }
             
             echo "Importing image to k3s..."
             sudo docker save "$IMAGE" | sudo k3s ctr images import - || echo "Import returned non-zero, continuing..."
