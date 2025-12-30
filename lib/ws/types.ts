@@ -138,8 +138,6 @@ export interface WsClientOptions {
   url?: string;
   reconnectInterval?: number;
   maxReconnectAttempts?: number;
-  heartbeatInterval?: number;
-  heartbeatTimeout?: number;
   debug?: boolean;
   onConnect?: () => void;
   onDisconnect?: (event: CloseEvent) => void;

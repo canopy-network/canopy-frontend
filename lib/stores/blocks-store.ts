@@ -43,10 +43,9 @@ export const useBlocksStore = create<BlocksState>()((set, get) => ({
 
     set((state) => {
       const existingEvents = state.blockEvents[chainId] || [];
-      const updatedEvents = [event, ...existingEvents].slice(
-        0,
-        MAX_EVENTS_PER_CHAIN
-      );
+      const updatedEvents = [event, ...existingEvents]
+        .sort((a, b) => b.payload.height - a.payload.height)
+        .slice(0, MAX_EVENTS_PER_CHAIN);
 
       return {
         blockEvents: {

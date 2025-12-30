@@ -12,7 +12,6 @@ import type {
   WsClientOptions,
   MessageHandler,
   MessageHandlers,
-  PingMessage,
 } from "./types";
 
 export class WebSocketClient {
@@ -21,8 +20,6 @@ export class WebSocketClient {
   private state: ConnectionState = "disconnected";
   private reconnectAttempts = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
-  private heartbeatTimer: NodeJS.Timeout | null = null;
-  private heartbeatTimeoutTimer: NodeJS.Timeout | null = null;
   private handlers: MessageHandlers = {};
   private subscriptions: Set<string> = new Set();
 
@@ -31,8 +28,6 @@ export class WebSocketClient {
       url: options.url ?? wsConfig.url,
       reconnectInterval: options.reconnectInterval ?? wsConfig.reconnectInterval,
       maxReconnectAttempts: options.maxReconnectAttempts ?? wsConfig.maxReconnectAttempts,
-      heartbeatInterval: options.heartbeatInterval ?? wsConfig.heartbeatInterval,
-      heartbeatTimeout: options.heartbeatTimeout ?? wsConfig.heartbeatTimeout,
       debug: options.debug ?? wsConfig.debug,
       onConnect: options.onConnect ?? (() => {}),
       onDisconnect: options.onDisconnect ?? (() => {}),
@@ -159,7 +154,6 @@ export class WebSocketClient {
       this.log("Connected");
       this.state = "connected";
       this.reconnectAttempts = 0;
-      this.startHeartbeat();
       this.resubscribe();
       this.options.onConnect();
     };
@@ -193,12 +187,6 @@ export class WebSocketClient {
 
   private handleMessage(message: WsMessage): void {
     this.log("Received message", message);
-
-    // Handle pong response
-    if (message.type === "pong") {
-      this.clearHeartbeatTimeout();
-      return;
-    }
 
     // Call global message handler
     this.options.onMessage(message);
@@ -239,44 +227,11 @@ export class WebSocketClient {
     });
   }
 
-  private startHeartbeat(): void {
-    this.heartbeatTimer = setInterval(() => {
-      if (this.isConnected) {
-        const ping: PingMessage = {
-          type: "ping",
-          payload: { timestamp: Date.now() },
-        };
-        this.ws!.send(JSON.stringify(ping));
-        this.startHeartbeatTimeout();
-      }
-    }, this.options.heartbeatInterval);
-  }
-
-  private startHeartbeatTimeout(): void {
-    this.clearHeartbeatTimeout();
-    this.heartbeatTimeoutTimer = setTimeout(() => {
-      this.log("Heartbeat timeout - reconnecting");
-      this.ws?.close(4000, "Heartbeat timeout");
-    }, this.options.heartbeatTimeout);
-  }
-
-  private clearHeartbeatTimeout(): void {
-    if (this.heartbeatTimeoutTimer) {
-      clearTimeout(this.heartbeatTimeoutTimer);
-      this.heartbeatTimeoutTimer = null;
-    }
-  }
-
   private clearTimers(): void {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    if (this.heartbeatTimer) {
-      clearInterval(this.heartbeatTimer);
-      this.heartbeatTimer = null;
-    }
-    this.clearHeartbeatTimeout();
   }
 
   private log(message: string, data?: unknown): void {
