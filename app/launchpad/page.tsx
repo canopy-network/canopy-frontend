@@ -240,6 +240,7 @@ export default function LaunchpadPage() {
         // Got 202 - transaction pending, retry after delay
       } catch (error) {
         // Network error or other failure, retry
+        console.log("Chain not ready. Retrying.");
       }
       // Wait 6 seconds before retry
       await new Promise((resolve) => setTimeout(resolve, 6000));

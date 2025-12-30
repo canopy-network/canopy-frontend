@@ -21,11 +21,12 @@ export function WalletConnectButton({ isCondensed = false, hideBalance = false }
   const { balance, fetchBalance } = useWalletStore();
 
   // Fetch balance when wallet is connected
+  // Note: fetchBalance has built-in request deduplication, so multiple calls are safe
   useEffect(() => {
     if (currentWallet) {
       fetchBalance(currentWallet.id);
     }
-  }, [currentWallet]);
+  }, [currentWallet, fetchBalance]);
 
   // Format address for display
   const formatAddress = (address: string) => {
