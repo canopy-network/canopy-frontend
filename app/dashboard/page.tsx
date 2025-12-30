@@ -80,13 +80,24 @@ export default function Dashboard() {
     [chains, user?.id]
   );
 
-  // Fetch virtual pools for user's chains
+  // Fetch virtual pools for user's chains with concurrency limit
   useEffect(() => {
-    userChains.forEach((chain) => {
-      if (!virtualPools[chain.id]) {
-        fetchVirtualPool(chain.id);
+    const chainsNeedingPools = userChains.filter((chain) => !virtualPools[chain.id]);
+
+    if (chainsNeedingPools.length === 0) return;
+
+    // Fetch in batches of 3 to avoid overwhelming the network
+    const MAX_CONCURRENT = 3;
+    const fetchInBatches = async () => {
+      for (let i = 0; i < chainsNeedingPools.length; i += MAX_CONCURRENT) {
+        const batch = chainsNeedingPools.slice(i, i + MAX_CONCURRENT);
+        await Promise.allSettled(
+          batch.map((chain) => fetchVirtualPool(chain.id))
+        );
       }
-    });
+    };
+
+    fetchInBatches();
   }, [userChains, virtualPools, fetchVirtualPool]);
 
   const getStatusVariant = (status: string): "default" | "secondary" => {

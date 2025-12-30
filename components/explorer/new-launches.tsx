@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { TableCard, TableColumn } from "./table-card";
 import { Chain } from "@/types/chains";
-import { canopyIconSvg, getCanopyAccent, EXPLORER_ICON_GLOW } from "@/lib/utils/brand";
+import { canopyIconSvg, getCanopyAccent } from "@/lib/utils/brand";
 import { ChainDetailModal } from "./chain-detail-modal";
 import { chainsApi } from "@/lib/api/chains";
 

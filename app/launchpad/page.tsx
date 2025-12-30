@@ -12,7 +12,7 @@ import ReviewPayment from "@/components/launchpad/review-payment";
 import { useInitializeTemplates } from "@/lib/stores/templates-store";
 import { useCreateChainStore } from "@/lib/stores/create-chain-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { chainsApi } from "@/lib/api";
+import { chainsApi, storeChainListing } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, ArrowLeft, Loader2, Lock } from "lucide-react";
 import { Template, Chain } from "@/types";
@@ -344,16 +344,10 @@ export default function LaunchpadPage() {
 
       // Step 1.5: Store chain data in DynamoDB
       try {
-        await fetch("/api/chains/store", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            ticker: formData.ticker,
-            chain_name: formData.chainName,
-            token_name: formData.tokenName,
-          }),
+        await storeChainListing({
+          ticker: formData.ticker,
+          chain_name: formData.chainName,
+          token_name: formData.tokenName,
         });
       } catch (storeErr) {
         console.error("Error storing chain data in DynamoDB:", storeErr);

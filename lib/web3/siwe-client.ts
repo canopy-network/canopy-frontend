@@ -30,7 +30,7 @@ export function createSiweMessage(
   return new SiweMessage({
     domain: window.location.host,
     address,
-    statement: "Sign in to Canopy",
+    statement: "Welcome to Canopy! Please sign this message to authenticate your wallet. This is free and will not send a transaction.",
     uri: window.location.origin,
     version: "1",
     chainId,
@@ -58,7 +58,7 @@ export function createWalletLinkMessage(
   return new SiweMessage({
     domain: window.location.host,
     address,
-    statement: "Link this wallet to your Canopy account",
+    statement: "Link this wallet to your Canopy account. This signature proves you own this wallet address. This is free and will not send a transaction.",
     uri: window.location.origin,
     version: "1",
     chainId,

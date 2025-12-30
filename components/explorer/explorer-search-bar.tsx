@@ -16,6 +16,7 @@ import type { ExplorerBlockSearchResult } from "@/types/blocks";
 import { CopyableText } from "@/components/ui/copyable-text";
 import { EXPLORER_ICON_GLOW, canopyIconSvg, getCanopyAccent } from "@/lib/utils/brand";
 import { useChainsStore } from "@/lib/stores/chains-store";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 
 const DEBOUNCE_DELAY_MS = 400;
 
@@ -28,13 +29,8 @@ type GroupedSearchResults = {
 
 export function ExplorerSearchBar({ className }: { className?: string }) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
   const getChainById = useChainsStore((state) => state.getChainById);
-  const [searchResults, setSearchResults] = useState<GroupedSearchResults>({
-    transactions: [],
-    blocks: [],
-    addresses: [],
-  });
+  const [results, setResults] = useState<ExplorerSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const requestIdRef = useRef(0);
@@ -59,28 +55,17 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
     return result.type === "address";
   };
 
-  useEffect(() => {
-    if (searchQuery.trim() === "") {
-      setDebouncedQuery("");
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      setDebouncedQuery(searchQuery.trim());
-    }, DEBOUNCE_DELAY_MS);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  const trimmedQuery = useMemo(() => searchQuery.trim(), [searchQuery]);
+  const debouncedQuery = useDebouncedValue(trimmedQuery, DEBOUNCE_DELAY_MS);
 
   useEffect(() => {
     if (!debouncedQuery) {
-      setSearchResults({ transactions: [], blocks: [], addresses: [] });
+      setResults([]);
       setSearchError(null);
       setIsSearching(false);
       return;
     }
 
-    let isCancelled = false;
     const currentRequestId = ++requestIdRef.current;
 
     const fetchResults = async () => {
@@ -89,84 +74,47 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
 
       try {
         const response = await searchExplorerEntities(debouncedQuery);
-        console.log("[ExplorerSearchBar] Search response:", response);
-        console.log("[ExplorerSearchBar] Response type:", typeof response);
-        console.log("[ExplorerSearchBar] Is array:", Array.isArray(response));
-        console.log("[ExplorerSearchBar] Response length:", Array.isArray(response) ? response.length : "N/A");
-
-        if (isCancelled || requestIdRef.current !== currentRequestId) {
+        if (requestIdRef.current !== currentRequestId) {
           return;
         }
-
-        // Group results by type
-        const grouped: GroupedSearchResults = {
-          transactions: [],
-          blocks: [],
-          addresses: [],
-        };
-
-        if (Array.isArray(response) && response.length > 0) {
-          console.log("[ExplorerSearchBar] Response is array with length:", response.length);
-          response.forEach((result, idx) => {
-            console.log(`[ExplorerSearchBar] Processing result ${idx}:`, {
-              type: result.type,
-              typeValue: result.type,
-              hasResult: !!result.result,
-              resultKeys: result.result ? Object.keys(result.result) : [],
-              fullResult: result,
-            });
-            
-            // Normalize type to lowercase for comparison
-            const normalizedType = String(result.type).toLowerCase().trim();
-            console.log(`[ExplorerSearchBar] Normalized type: "${normalizedType}"`);
-            
-            if (normalizedType === "transaction") {
-              console.log("[ExplorerSearchBar] Adding transaction result");
-              grouped.transactions.push(result);
-            } else if (normalizedType === "block") {
-              console.log("[ExplorerSearchBar] Adding block result");
-              grouped.blocks.push(result);
-            } else if (normalizedType === "address") {
-              console.log("[ExplorerSearchBar] Adding address result");
-              grouped.addresses.push(result);
-            } else {
-              console.warn("[ExplorerSearchBar] Unknown result type:", result.type, "normalized:", normalizedType);
-            }
-          });
-        } else {
-          console.log("[ExplorerSearchBar] Response is not array or is empty:", {
-            isArray: Array.isArray(response),
-            length: Array.isArray(response) ? response.length : "N/A",
-            response,
-            responseString: JSON.stringify(response, null, 2),
-          });
-        }
-
-        console.log("[ExplorerSearchBar] Grouped results:", grouped);
-        console.log("[ExplorerSearchBar] Total grouped:", {
-          transactions: grouped.transactions.length,
-          blocks: grouped.blocks.length,
-          addresses: grouped.addresses.length,
-        });
-        setSearchResults(grouped);
-        setIsSearching(false);
+        setResults(Array.isArray(response) ? response : []);
       } catch (error) {
         console.error("[ExplorerSearchBar] Failed to search", error);
 
-        if (!isCancelled && requestIdRef.current === currentRequestId) {
+        if (requestIdRef.current === currentRequestId) {
           setSearchError("Unable to fetch search results");
-          setSearchResults({ transactions: [], blocks: [], addresses: [] });
+          setResults([]);
+        }
+      } finally {
+        if (requestIdRef.current === currentRequestId) {
           setIsSearching(false);
         }
       }
     };
 
     fetchResults();
-
-    return () => {
-      isCancelled = true;
-    };
   }, [debouncedQuery]);
+
+  const groupedResults = useMemo<GroupedSearchResults>(() => {
+    const grouped: GroupedSearchResults = {
+      transactions: [],
+      blocks: [],
+      addresses: [],
+    };
+
+    for (const result of results) {
+      const normalizedType = String(result.type).toLowerCase().trim();
+      if (normalizedType === "transaction") {
+        grouped.transactions.push(result);
+      } else if (normalizedType === "block") {
+        grouped.blocks.push(result);
+      } else if (normalizedType === "address") {
+        grouped.addresses.push(result);
+      }
+    }
+
+    return grouped;
+  }, [results]);
 
   const formatTimestamp = (timestamp?: string | null) => {
     if (!timestamp) return "";
@@ -188,7 +136,7 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
       return value;
     }
 
-    return `${value.slice(0, chars)}…${value.slice(-chars)}`;
+    return `${value.slice(0, chars)}...${value.slice(-chars)}`;
   };
 
   // Helper function to get chain name from chain_id
@@ -204,34 +152,28 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
   };
 
   const handleResultClick = () => {
+    requestIdRef.current += 1;
     setSearchQuery("");
-    setSearchResults({ transactions: [], blocks: [], addresses: [] });
-    setDebouncedQuery("");
+    setResults([]);
+    setSearchError(null);
   };
 
   // Calculate total results count
   const totalResults = useMemo(() => {
-    const total =
-      searchResults.transactions.length +
-      searchResults.blocks.length +
-      searchResults.addresses.length;
-    console.log("[ExplorerSearchBar] Total results:", total, {
-      transactions: searchResults.transactions.length,
-      blocks: searchResults.blocks.length,
-      addresses: searchResults.addresses.length,
-      isSearching,
-      debouncedQuery,
-    });
-    return total;
-  }, [searchResults, isSearching, debouncedQuery]);
+    return (
+      groupedResults.transactions.length +
+      groupedResults.blocks.length +
+      groupedResults.addresses.length
+    );
+  }, [groupedResults]);
 
   const shouldShowResults =
     !isSearching && debouncedQuery.length > 0;
 
   const handleClear = () => {
+    requestIdRef.current += 1;
     setSearchQuery("");
-    setSearchResults({ transactions: [], blocks: [], addresses: [] });
-    setDebouncedQuery("");
+    setResults([]);
     setSearchError(null);
   };
 
@@ -243,7 +185,8 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
         !searchContainerRef.current.contains(event.target as Node) &&
         shouldShowResults
       ) {
-        setSearchResults({ transactions: [], blocks: [], addresses: [] });
+        requestIdRef.current += 1;
+        setResults([]);
       }
     };
 
@@ -307,16 +250,16 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
             id="search-results-container"
           >
             {/* Transactions Section */}
-            {searchResults.transactions.length > 0 && (
+            {groupedResults.transactions.length > 0 && (
               <div className="p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground uppercase font-medium">
-                    Transactions ({searchResults.transactions.length})
+                    Transactions ({groupedResults.transactions.length})
                   </span>
                 </div>
                 <div className="space-y-1">
-                  {searchResults.transactions.map((result, index) => {
+                  {groupedResults.transactions.map((result, index) => {
                     if (!isTransactionResult(result)) return null;
                     const tx: Transaction = result.result;
                     const chainId = result.chain_id;
@@ -369,16 +312,16 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
             )}
 
             {/* Blocks Section */}
-            {searchResults.blocks.length > 0 && (
+            {groupedResults.blocks.length > 0 && (
               <div className="p-4 border-t border-border">
                 <div className="flex items-center gap-2 mb-3">
                   <Box className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground uppercase font-medium">
-                    Blocks ({searchResults.blocks.length})
+                    Blocks ({groupedResults.blocks.length})
                   </span>
                 </div>
                 <div className="space-y-1">
-                  {searchResults.blocks.map((result, index) => {
+                  {groupedResults.blocks.map((result, index) => {
                     if (!isBlockResult(result)) return null;
                     const block = result.result;
                     const chainId = result.chain_id;
@@ -443,16 +386,16 @@ export function ExplorerSearchBar({ className }: { className?: string }) {
             )}
 
             {/* Addresses Section */}
-            {searchResults.addresses.length > 0 && (
+            {groupedResults.addresses.length > 0 && (
               <div className="p-4 border-t border-border">
                 <div className="flex items-center gap-2 mb-3">
                   <User className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground uppercase font-medium">
-                    Addresses ({searchResults.addresses.length})
+                    Addresses ({groupedResults.addresses.length})
                   </span>
                 </div>
                 <div className="space-y-1">
-                  {searchResults.addresses.map((result, index) => {
+                  {groupedResults.addresses.map((result, index) => {
                     if (!isAddressResult(result)) return null;
                     const address = result.result;
                     const addressValue = address.address;

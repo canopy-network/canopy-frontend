@@ -27,7 +27,7 @@ import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { useLockOrder } from "@/lib/hooks/use-lock-order";
 import { useCloseOrder } from "@/lib/hooks/use-close-order";
-import { USDC_ADDRESSES } from "@/lib/web3/config";
+import { USDC_ADDRESS } from "@/lib/web3/config";
 import { isOrderLocked, type OrderBookApiOrder } from "@/types/orderbook";
 
 const DECIMALS = 1_000_000; // 6 decimals
@@ -39,12 +39,7 @@ interface BuyOrderDialogProps {
   onSuccess?: () => void;
 }
 
-export function BuyOrderDialog({
-  order,
-  open,
-  onOpenChange,
-  onSuccess,
-}: BuyOrderDialogProps) {
+export function BuyOrderDialog({ order, open, onOpenChange, onSuccess }: BuyOrderDialogProps) {
   const [step, setStep] = useState<"confirm" | "processing" | "success" | "error">("confirm");
 
   // Ethereum wallet
@@ -57,7 +52,7 @@ export function BuyOrderDialog({
   const canopyAddress = currentWallet?.address;
 
   // Check if USDC is supported on this chain
-  const usdcSupported = chainId && USDC_ADDRESSES[chainId];
+  const usdcSupported = chainId && USDC_ADDRESS;
 
   // Determine if this order needs LockOrder or CloseOrder
   const orderIsLocked = order ? isOrderLocked(order) : false;
@@ -75,15 +70,7 @@ export function BuyOrderDialog({
 
   // Use the appropriate hook based on order state
   const activeHook = orderIsLocked ? closeOrder : lockOrder;
-  const {
-    isPending,
-    isConfirming,
-    isSuccess,
-    isError,
-    error,
-    txHash,
-    reset,
-  } = activeHook;
+  const { isPending, isConfirming, isSuccess, isError, error, txHash, reset } = activeHook;
 
   const sendOrder = orderIsLocked ? closeOrder.sendCloseOrder : lockOrder.sendLockOrder;
 
@@ -175,9 +162,7 @@ export function BuyOrderDialog({
                 </div>
                 <div>
                   <span className="text-muted-foreground">You Receive</span>
-                  <div className="text-lg font-bold text-green-500">
-                    {cnpyAmount.toLocaleString()} CNPY
-                  </div>
+                  <div className="text-lg font-bold text-green-500">{cnpyAmount.toLocaleString()} CNPY</div>
                 </div>
               </div>
 
@@ -193,7 +178,7 @@ export function BuyOrderDialog({
 
               {orderIsLocked && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Seller's ETH Address</span>
+                  <span className="text-muted-foreground">Seller&apos;s ETH Address</span>
                   <span className="font-mono text-xs">
                     {order.sellerReceiveAddress.startsWith("0x")
                       ? `${order.sellerReceiveAddress.slice(0, 10)}...`
@@ -232,11 +217,7 @@ export function BuyOrderDialog({
                       {ethAddress.slice(0, 8)}...
                     </Badge>
                   ) : (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => openConnectModal?.()}
-                    >
+                    <Button size="sm" variant="outline" onClick={() => openConnectModal?.()}>
                       Connect
                     </Button>
                   )}
@@ -262,8 +243,8 @@ export function BuyOrderDialog({
               {/* Explanation of next steps */}
               {!orderIsLocked && (
                 <div className="p-3 bg-muted/30 rounded text-sm text-muted-foreground">
-                  <strong>Step 1 of 2:</strong> Lock this order (no USDC sent yet).
-                  After locking, you'll need to send the USDC payment to complete the purchase.
+                  <strong>Step 1 of 2:</strong> Lock this order (no USDC sent yet). After locking, you&apos;ll need to
+                  send the USDC payment to complete the purchase.
                 </div>
               )}
             </div>
@@ -290,9 +271,7 @@ export function BuyOrderDialog({
               <p className="font-medium">
                 {isPending ? "Waiting for wallet confirmation..." : "Confirming transaction..."}
               </p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Please confirm the transaction in your wallet
-              </p>
+              <p className="text-sm text-muted-foreground mt-1">Please confirm the transaction in your wallet</p>
             </div>
           </div>
         )}

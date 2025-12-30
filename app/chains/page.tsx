@@ -22,13 +22,7 @@ export default async function ChainsPage() {
     }
 
     list.sort((a: Chain, b: Chain) => {
-      const getDate = (chain: Chain) =>
-        new Date(
-          (chain as any).graduation_time ||
-            chain.actual_launch_time ||
-            chain.created_at ||
-            0
-        ).getTime();
+      const getDate = (chain: Chain) => new Date((chain as any).graduation_time || chain.created_at || 0).getTime();
 
       return getDate(b) - getDate(a);
     });

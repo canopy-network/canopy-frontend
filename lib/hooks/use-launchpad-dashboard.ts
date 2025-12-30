@@ -99,7 +99,7 @@ export function useLaunchpadDashboard({
   useEffect(() => {
     if (autoFetch) {
       fetchChains({
-        include: "template,creator,assets,virtual_pool,graduation",
+        include: "template,creator,assets,virtual_pool,graduation,accolades",
         page: 1,
         limit: 20,
       });
@@ -193,7 +193,7 @@ export function useLaunchpadDashboard({
 
   const refreshData = async () => {
     await fetchChains({
-      include: "template,creator,assets,virtual_pool,graduation",
+      include: "template,creator,assets,virtual_pool,graduation,accolades",
       page: 1,
       limit: 20,
     });
@@ -203,7 +203,7 @@ export function useLaunchpadDashboard({
     const nextPage = pagination.page + 1;
     if (nextPage <= pagination.pages) {
       await fetchChains({
-        include: "template,creator,assets,virtual_pool,graduation",
+        include: "template,creator,assets,virtual_pool,graduation,accolades",
         page: nextPage,
         limit: 20,
       });

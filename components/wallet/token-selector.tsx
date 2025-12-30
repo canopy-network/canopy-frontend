@@ -8,7 +8,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { ChevronRight, Search } from "lucide-react";
 import type { ChainToken } from "@/types/chains";

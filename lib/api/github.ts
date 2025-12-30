@@ -2,6 +2,9 @@
  * GitHub API service for repository ownership validation
  */
 
+import { ApiClientError } from "./client";
+import { githubApiClient } from "./github-client";
+
 export interface GitHubRepoInfo {
   id: number;
   name: string;
@@ -50,39 +53,18 @@ export async function validateGitHubOwnership(
     const [, owner, repo] = match;
 
     // Check repository permissions
-    const response = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}`,
+    const repoData = await githubApiClient.getRaw<GitHubRepoInfo>(
+      `/repos/${owner}/${repo}`,
+      undefined,
       {
         headers: {
           Authorization: `token ${accessToken}`,
           Accept: "application/vnd.github.v3+json",
           "User-Agent": "Canopy-Chain-Creator",
         },
+        skipAuth: true,
       }
     );
-
-    if (response.status === 404) {
-      return {
-        isValid: false,
-        error: "Repository not found or you don't have access to it",
-      };
-    }
-
-    if (response.status === 403) {
-      return {
-        isValid: false,
-        error: "Rate limit exceeded. Please try again later.",
-      };
-    }
-
-    if (!response.ok) {
-      return {
-        isValid: false,
-        error: `GitHub API error: ${response.status} ${response.statusText}`,
-      };
-    }
-
-    const repoData: GitHubRepoInfo = await response.json();
 
     // Check if user has write/admin permissions
     const permissions = repoData.permissions;
@@ -99,6 +81,22 @@ export async function validateGitHubOwnership(
       repoInfo: repoData,
     };
   } catch (error) {
+    if (error instanceof ApiClientError) {
+      if (error.status === 404) {
+        return {
+          isValid: false,
+          error: "Repository not found or you don't have access to it",
+        };
+      }
+
+      if (error.status === 403) {
+        return {
+          isValid: false,
+          error: "Rate limit exceeded. Please try again later.",
+        };
+      }
+    }
+
     console.error("GitHub validation error:", error);
     return {
       isValid: false,

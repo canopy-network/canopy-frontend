@@ -5,10 +5,7 @@ import { useLaunchpadDashboard } from "@/lib/hooks/use-launchpad-dashboard";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { listUserFavorites } from "@/lib/api/chain-favorites";
 import { chainsApi } from "@/lib/api/chains";
-import {
-  getChainPriceHistory,
-  convertPriceHistoryToChart,
-} from "@/lib/api/price-history";
+import { getChainPriceHistory, convertPriceHistoryToChart } from "@/lib/api/price-history";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BondingCurveChart } from "./bonding-curve-chart";
@@ -17,22 +14,9 @@ import { SmallProjectCard } from "./small-project-card";
 import { RecentsProjectsCarousel } from "./recents-projects-carousel";
 import { SortDropdown } from "./sort-dropdown";
 import { HomePageSkeleton } from "@/components/skeletons";
-import { Chain, Accolade } from "@/types/chains";
-import {
-  getMarketCap,
-  filterAccoladesByCategory,
-} from "@/lib/utils/chain-ui-helpers";
-import {
-  AlertCircle,
-  Home,
-  Calendar,
-  TrendingUp,
-  Heart,
-  LucideIcon,
-  Grid3x3,
-  List,
-  GraduationCap,
-} from "lucide-react";
+import { Chain } from "@/types/chains";
+import { getMarketCap, filterAccoladesByCategory } from "@/lib/utils/chain-ui-helpers";
+import { AlertCircle, Home, Calendar, TrendingUp, Heart, LucideIcon, Grid3x3, List, GraduationCap } from "lucide-react";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Container } from "@/components/layout/container";
 import { Spacer } from "@/components/layout/spacer";
@@ -63,18 +47,10 @@ export function LaunchpadDashboard() {
   const [favoriteChains, setFavoriteChains] = useState<Chain[]>([]);
   const [loadingFavorites, setLoadingFavorites] = useState(false);
   const [localActiveTab, setLocalActiveTab] = useState("all");
-  const [accoladesData, setAccoladesData] = useState<
-    Record<string, Accolade[]>
-  >({});
-  const fetchedChainIdsRef = useRef<Set<string>>(new Set());
-  const [priceHistoryData, setPriceHistoryData] = useState<
-    Record<string, Array<{ value: number; time: number }>>
-  >({});
+  const [priceHistoryData, setPriceHistoryData] = useState<Record<string, Array<{ value: number; time: number }>>>({});
   const chainsRef = useRef<Chain[]>([]);
   const refreshDataRef = useRef<(() => Promise<void>) | undefined>(undefined);
-  const loadMoreChainsRef = useRef<(() => Promise<void>) | undefined>(
-    undefined
-  );
+  const loadMoreChainsRef = useRef<(() => Promise<void>) | undefined>(undefined);
   const loadMoreObserverRef = useRef<IntersectionObserver | null>(null);
   const loadMoreTriggerRef = useRef<HTMLDivElement | null>(null);
 
@@ -141,50 +117,32 @@ export function LaunchpadDashboard() {
       // Apply sorting
       switch (sortOption) {
         case "market-cap-high":
-          return chainsCopy.sort(
-            (a, b) =>
-              getMarketCap(b.virtual_pool) - getMarketCap(a.virtual_pool)
-          );
+          return chainsCopy.sort((a, b) => getMarketCap(b.virtual_pool) - getMarketCap(a.virtual_pool));
         case "market-cap-low":
-          return chainsCopy.sort(
-            (a, b) =>
-              getMarketCap(a.virtual_pool) - getMarketCap(b.virtual_pool)
-          );
+          return chainsCopy.sort((a, b) => getMarketCap(a.virtual_pool) - getMarketCap(b.virtual_pool));
         case "volume-high":
           return chainsCopy.sort(
-            (a, b) =>
-              (b.virtual_pool?.total_volume_cnpy || 0) -
-              (a.virtual_pool?.total_volume_cnpy || 0)
+            (a, b) => (b.virtual_pool?.total_volume_cnpy || 0) - (a.virtual_pool?.total_volume_cnpy || 0)
           );
         case "volume-low":
           return chainsCopy.sort(
-            (a, b) =>
-              (a.virtual_pool?.total_volume_cnpy || 0) -
-              (b.virtual_pool?.total_volume_cnpy || 0)
+            (a, b) => (a.virtual_pool?.total_volume_cnpy || 0) - (b.virtual_pool?.total_volume_cnpy || 0)
           );
         case "price-high":
           return chainsCopy.sort(
-            (a, b) =>
-              (b.virtual_pool?.current_price_cnpy || 0) -
-              (a.virtual_pool?.current_price_cnpy || 0)
+            (a, b) => (b.virtual_pool?.current_price_cnpy || 0) - (a.virtual_pool?.current_price_cnpy || 0)
           );
         case "price-low":
           return chainsCopy.sort(
-            (a, b) =>
-              (a.virtual_pool?.current_price_cnpy || 0) -
-              (b.virtual_pool?.current_price_cnpy || 0)
+            (a, b) => (a.virtual_pool?.current_price_cnpy || 0) - (b.virtual_pool?.current_price_cnpy || 0)
           );
         case "completion-percentage-high":
           return chainsCopy.sort(
-            (a, b) =>
-              (b.graduation?.completion_percentage || 0) -
-              (a.graduation?.completion_percentage || 0)
+            (a, b) => (b.graduation?.completion_percentage || 0) - (a.graduation?.completion_percentage || 0)
           );
         case "completion-percentage-low":
           return chainsCopy.sort(
-            (a, b) =>
-              (a.graduation?.completion_percentage || 0) -
-              (b.graduation?.completion_percentage || 0)
+            (a, b) => (a.graduation?.completion_percentage || 0) - (b.graduation?.completion_percentage || 0)
           );
         case "default":
         default:
@@ -203,48 +161,32 @@ export function LaunchpadDashboard() {
     // Apply sorting
     switch (sortOption) {
       case "market-cap-high":
-        return chainsCopy.sort(
-          (a, b) => getMarketCap(b.virtual_pool) - getMarketCap(a.virtual_pool)
-        );
+        return chainsCopy.sort((a, b) => getMarketCap(b.virtual_pool) - getMarketCap(a.virtual_pool));
       case "market-cap-low":
-        return chainsCopy.sort(
-          (a, b) => getMarketCap(a.virtual_pool) - getMarketCap(b.virtual_pool)
-        );
+        return chainsCopy.sort((a, b) => getMarketCap(a.virtual_pool) - getMarketCap(b.virtual_pool));
       case "volume-high":
         return chainsCopy.sort(
-          (a, b) =>
-            (b.virtual_pool?.total_volume_cnpy || 0) -
-            (a.virtual_pool?.total_volume_cnpy || 0)
+          (a, b) => (b.virtual_pool?.total_volume_cnpy || 0) - (a.virtual_pool?.total_volume_cnpy || 0)
         );
       case "volume-low":
         return chainsCopy.sort(
-          (a, b) =>
-            (a.virtual_pool?.total_volume_cnpy || 0) -
-            (b.virtual_pool?.total_volume_cnpy || 0)
+          (a, b) => (a.virtual_pool?.total_volume_cnpy || 0) - (b.virtual_pool?.total_volume_cnpy || 0)
         );
       case "price-high":
         return chainsCopy.sort(
-          (a, b) =>
-            (b.virtual_pool?.current_price_cnpy || 0) -
-            (a.virtual_pool?.current_price_cnpy || 0)
+          (a, b) => (b.virtual_pool?.current_price_cnpy || 0) - (a.virtual_pool?.current_price_cnpy || 0)
         );
       case "price-low":
         return chainsCopy.sort(
-          (a, b) =>
-            (a.virtual_pool?.current_price_cnpy || 0) -
-            (b.virtual_pool?.current_price_cnpy || 0)
+          (a, b) => (a.virtual_pool?.current_price_cnpy || 0) - (b.virtual_pool?.current_price_cnpy || 0)
         );
       case "completion-percentage-high":
         return chainsCopy.sort(
-          (a, b) =>
-            (b.graduation?.completion_percentage || 0) -
-            (a.graduation?.completion_percentage || 0)
+          (a, b) => (b.graduation?.completion_percentage || 0) - (a.graduation?.completion_percentage || 0)
         );
       case "completion-percentage-low":
         return chainsCopy.sort(
-          (a, b) =>
-            (a.graduation?.completion_percentage || 0) -
-            (b.graduation?.completion_percentage || 0)
+          (a, b) => (a.graduation?.completion_percentage || 0) - (b.graduation?.completion_percentage || 0)
         );
       case "default":
       default:
@@ -252,54 +194,6 @@ export function LaunchpadDashboard() {
         return chainsCopy;
     }
   }, [filteredChains, sortOption, localActiveTab, favoriteChains]);
-
-  // Fetch accolades for sorted chains (batch fetch with limit to avoid performance issues)
-  useEffect(() => {
-    const fetchAccolades = async () => {
-      // Only fetch for first 20 chains to avoid too many requests
-      const chainsToFetch = sortedChains.slice(0, 20);
-      const chainIdsToFetch = chainsToFetch
-        .map((c) => c.id)
-        .filter((id) => !fetchedChainIdsRef.current.has(id)); // Only fetch if not already fetched
-
-      if (chainIdsToFetch.length === 0) return;
-
-      // Mark as fetching
-      chainIdsToFetch.forEach((id) => fetchedChainIdsRef.current.add(id));
-
-      // Fetch in batches of 5 to avoid overwhelming the API
-      const batchSize = 5;
-      for (let i = 0; i < chainIdsToFetch.length; i += batchSize) {
-        const batch = chainIdsToFetch.slice(i, i + batchSize);
-        const promises = batch.map(async (chainId) => {
-          try {
-            const response = await chainsApi.getAccolades(chainId);
-            if (response.data) {
-              const filteredAccolades = filterAccoladesByCategory(
-                response.data
-              );
-              return { chainId, accolades: filteredAccolades };
-            }
-          } catch (error) {
-            console.error(`Failed to fetch accolades for ${chainId}:`, error);
-          }
-          return { chainId, accolades: [] };
-        });
-
-        const results = await Promise.all(promises);
-        setAccoladesData((prev) => {
-          const updated = { ...prev };
-          results.forEach(({ chainId, accolades }) => {
-            updated[chainId] = accolades;
-          });
-          return updated;
-        });
-      }
-    };
-
-    fetchAccolades();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortedChains.map((c) => c.id).join(",")]); // Only re-run if chain IDs change
 
   // Handle buy button click
   const handleBuyClick = (project: Chain) => {
@@ -316,6 +210,7 @@ export function LaunchpadDashboard() {
         try {
           // First, get the list of favorite chain IDs
           const result = await listUserFavorites(user.id, "like");
+          x;
           if (result.success && result.chains && result.chains.length > 0) {
             const chainIds = result.chains.map((c) => c.chain_id);
 
@@ -323,8 +218,7 @@ export function LaunchpadDashboard() {
             const chainPromises = chainIds.map(async (chainId) => {
               try {
                 const response = await chainsApi.getChain(chainId, {
-                  include:
-                    "creator,template,assets,virtual_pool,graduated_pool,graduation_progress",
+                  include: "creator,template,assets,virtual_pool,graduated_pool,graduation_progress,accolades",
                 });
                 return response.data;
               } catch (error) {
@@ -335,9 +229,7 @@ export function LaunchpadDashboard() {
 
             const fetchedChains = await Promise.all(chainPromises);
             // Filter out any null values (failed fetches)
-            const validChains = fetchedChains.filter(
-              (chain): chain is Chain => chain !== null
-            );
+            const validChains = fetchedChains.filter((chain): chain is Chain => chain !== null);
             setFavoriteChains(validChains);
           } else {
             // No favorites found
@@ -391,12 +283,7 @@ export function LaunchpadDashboard() {
     const observer = new IntersectionObserver(
       (entries) => {
         const firstEntry = entries[0];
-        if (
-          firstEntry.isIntersecting &&
-          hasMore &&
-          !isLoadingMore &&
-          !isLoading
-        ) {
+        if (firstEntry.isIntersecting && hasMore && !isLoadingMore && !isLoading) {
           loadMoreChainsRef.current?.();
         }
       },
@@ -452,13 +339,9 @@ export function LaunchpadDashboard() {
             if (response.data) {
               // Update the chain in the store by merging new data
               // Only update if data actually changed to prevent unnecessary rerenders
-              const { useChainsStore } = await import(
-                "@/lib/stores/chains-store"
-              );
+              const { useChainsStore } = await import("@/lib/stores/chains-store");
               const store = useChainsStore.getState();
-              const existingChainIndex = store.chains.findIndex(
-                (c) => c.id === chain.id
-              );
+              const existingChainIndex = store.chains.findIndex((c) => c.id === chain.id);
 
               if (existingChainIndex !== -1) {
                 const existingChain = store.chains[existingChainIndex];
@@ -467,11 +350,9 @@ export function LaunchpadDashboard() {
 
                 // Only update if data actually changed (shallow comparison)
                 const virtualPoolChanged =
-                  JSON.stringify(existingChain.virtual_pool) !==
-                  JSON.stringify(newVirtualPool);
+                  JSON.stringify(existingChain.virtual_pool) !== JSON.stringify(newVirtualPool);
                 const graduationChanged =
-                  JSON.stringify((existingChain as any).graduation) !==
-                  JSON.stringify(newGraduation);
+                  JSON.stringify((existingChain as any).graduation) !== JSON.stringify(newGraduation);
 
                 if (virtualPoolChanged || graduationChanged) {
                   // Merge new virtual_pool and graduation data into existing chain
@@ -488,10 +369,7 @@ export function LaunchpadDashboard() {
               }
             }
           } catch (error) {
-            console.error(
-              `Failed to refresh data for chain ${chain.id}:`,
-              error
-            );
+            console.error(`Failed to refresh data for chain ${chain.id}:`, error);
           }
         });
 
@@ -520,10 +398,7 @@ export function LaunchpadDashboard() {
               return { chainId: chain.id, chartData };
             }
           } catch (error) {
-            console.error(
-              `Failed to fetch price history for ${chain.id}:`,
-              error
-            );
+            console.error(`Failed to fetch price history for ${chain.id}:`, error);
           }
           return null;
         });
@@ -550,10 +425,7 @@ export function LaunchpadDashboard() {
     // Set up polling interval (30 seconds - OPTIMIZED from 10s)
     const interval = setInterval(() => {
       // Only poll if page is visible (not in background tab)
-      if (
-        document.visibilityState === "visible" &&
-        chainsRef.current.length > 0
-      ) {
+      if (document.visibilityState === "visible" && chainsRef.current.length > 0) {
         refreshChainData();
         refreshPriceHistory();
       }
@@ -570,11 +442,7 @@ export function LaunchpadDashboard() {
         <div className="flex items-center gap-2">
           {/* Sort Dropdown - Mobile: Icon only, Desktop: Full dropdown */}
           <div className="lg:hidden">
-            <SortDropdown
-              value={sortOption}
-              onSort={setSortOption}
-              mobile={true}
-            />
+            <SortDropdown value={sortOption} onSort={setSortOption} mobile={true} />
           </div>
           <div className="hidden lg:block">
             <SortDropdown value={sortOption} onSort={setSortOption} />
@@ -659,24 +527,14 @@ export function LaunchpadDashboard() {
             />
           ) : (
             <div className="text-center py-12">
-              <p className="text-gray-400 text-lg">
-                No recent projects available
-              </p>
+              <p className="text-gray-400 text-lg">No recent projects available</p>
             </div>
           )}
         </div>
 
-        <Tabs
-          value={localActiveTab}
-          onValueChange={handleTabChange}
-          className="min-h-[400px]"
-          id="chain-list"
-        >
+        <Tabs value={localActiveTab} onValueChange={handleTabChange} className="min-h-[400px]" id="chain-list">
           {/* Filter Bar */}
-          <div
-            className="flex items-center justify-between gap-4"
-            id="filter-bar"
-          >
+          <div className="flex items-center justify-between gap-4" id="filter-bar">
             <div className="card-like p-1 mb-4 lg:mb-8 overflow-auto no-scrollbar w-full flex items-center justify-between">
               {/* Left: Tab Buttons */}
               <div className="flex items-center gap-1">
@@ -684,9 +542,7 @@ export function LaunchpadDashboard() {
                   <Button
                     key={tab.value}
                     onClick={() => handleTabChange(tab.value)}
-                    variant={
-                      localActiveTab === tab.value ? "secondary" : "ghost"
-                    }
+                    variant={localActiveTab === tab.value ? "secondary" : "ghost"}
                     size="sm"
                     className={`rounded-md gap-1.5 h-9 px-4 ${
                       localActiveTab === tab.value
@@ -717,24 +573,26 @@ export function LaunchpadDashboard() {
               }
             >
               {sortedChains &&
-                sortedChains.map((project) => (
-                  <SmallProjectCard
-                    key={project.id}
-                    project={project}
-                    href={`/chains/${project.id}`}
-                    viewMode={viewMode}
-                    accolades={accoladesData[project.id] || []}
-                  />
-                ))}
+                sortedChains.map((project) => {
+                  const chainAccolades = (project as any).accolades || [];
+                  const filteredAccolades = filterAccoladesByCategory(chainAccolades);
+                  return (
+                    <SmallProjectCard
+                      key={project.id}
+                      project={project}
+                      href={`/chains/${project.id}`}
+                      viewMode={viewMode}
+                      accolades={filteredAccolades}
+                    />
+                  );
+                })}
             </div>
 
             {/* Empty State */}
             {sortedChains.length === 0 && !isLoading && (
               <div className="text-center py-12">
                 <p className="text-gray-400 text-lg">No projects found</p>
-                <p className="text-gray-500 text-sm mt-2">
-                  Try adjusting your filters or check back later
-                </p>
+                <p className="text-gray-500 text-sm mt-2">Try adjusting your filters or check back later</p>
                 <Button
                   onClick={() => {
                     setSearchQuery("");
@@ -759,14 +617,19 @@ export function LaunchpadDashboard() {
             }
           >
             {sortedChains &&
-              sortedChains.map((project) => (
-                <SmallProjectCard
-                  key={project.id}
-                  project={project}
-                  href={`/chains/${project.id}`}
-                  viewMode={viewMode}
-                />
-              ))}
+              sortedChains.map((project) => {
+                const chainAccolades = (project as any).accolades || [];
+                const filteredAccolades = filterAccoladesByCategory(chainAccolades);
+                return (
+                  <SmallProjectCard
+                    key={project.id}
+                    project={project}
+                    href={`/chains/${project.id}`}
+                    viewMode={viewMode}
+                    accolades={filteredAccolades}
+                  />
+                );
+              })}
             {sortedChains.length === 0 && (
               <div className="text-center py-12 w-full col-span-4">
                 <p className="text-gray-400 text-lg">No new projects</p>
@@ -783,14 +646,19 @@ export function LaunchpadDashboard() {
             }
           >
             {sortedChains &&
-              sortedChains.map((project) => (
-                <SmallProjectCard
-                  key={project.id}
-                  project={project}
-                  href={`/chains/${project.id}`}
-                  viewMode={viewMode}
-                />
-              ))}
+              sortedChains.map((project) => {
+                const chainAccolades = (project as any).accolades || [];
+                const filteredAccolades = filterAccoladesByCategory(chainAccolades);
+                return (
+                  <SmallProjectCard
+                    key={project.id}
+                    project={project}
+                    href={`/chains/${project.id}`}
+                    viewMode={viewMode}
+                    accolades={filteredAccolades}
+                  />
+                );
+              })}
             {sortedChains.length === 0 && (
               <div className="text-center py-12 w-full col-span-4 ">
                 <p className="text-gray-400 text-lg">No trending projects</p>
@@ -807,14 +675,19 @@ export function LaunchpadDashboard() {
             }
           >
             {sortedChains &&
-              sortedChains.map((project) => (
-                <SmallProjectCard
-                  key={project.id}
-                  project={project}
-                  href={`/chains/${project.id}`}
-                  viewMode={viewMode}
-                />
-              ))}
+              sortedChains.map((project) => {
+                const chainAccolades = (project as any).accolades || [];
+                const filteredAccolades = filterAccoladesByCategory(chainAccolades);
+                return (
+                  <SmallProjectCard
+                    key={project.id}
+                    project={project}
+                    href={`/chains/${project.id}`}
+                    viewMode={viewMode}
+                    accolades={filteredAccolades}
+                  />
+                );
+              })}
             {sortedChains.length === 0 && (
               <div className="text-center py-12 w-full col-span-4">
                 <p className="text-gray-400 text-lg">No graduated projects</p>
@@ -833,26 +706,18 @@ export function LaunchpadDashboard() {
             {loadingFavorites ? (
               <div className="text-center py-12 w-full col-span-4">
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                <p className="text-gray-400 text-sm mt-4">
-                  Loading your favorites...
-                </p>
+                <p className="text-gray-400 text-sm mt-4">Loading your favorites...</p>
               </div>
             ) : !isAuthenticated ? (
               <div className="text-center py-12 w-full col-span-4">
                 <Heart className="w-12 h-12 mx-auto text-gray-600 mb-4" />
-                <p className="text-gray-400 text-lg mb-2">
-                  Login to see your favorites
-                </p>
-                <p className="text-gray-500 text-sm">
-                  Star chains to save them here for quick access
-                </p>
+                <p className="text-gray-400 text-lg mb-2">Login to see your favorites</p>
+                <p className="text-gray-500 text-sm">Star chains to save them here for quick access</p>
               </div>
             ) : sortedChains && sortedChains.length === 0 ? (
               <div className="text-center py-12 w-full col-span-4">
                 <Heart className="w-12 h-12 mx-auto text-gray-600 mb-4" />
-                <p className="text-gray-400 text-lg mb-2">
-                  No favorite chains yet
-                </p>
+                <p className="text-gray-400 text-lg mb-2">No favorite chains yet</p>
                 <p className="text-gray-500 text-sm mb-4">
                   Click the star icon on any chain to add it to your favorites
                 </p>
@@ -866,40 +731,34 @@ export function LaunchpadDashboard() {
               </div>
             ) : (
               sortedChains &&
-              sortedChains.map((project) => (
-                <SmallProjectCard
-                  key={project.id}
-                  project={project}
-                  href={`/chains/${project.id}`}
-                  viewMode={viewMode}
-                />
-              ))
+              sortedChains.map((project) => {
+                const chainAccolades = (project as any).accolades || [];
+                const filteredAccolades = filterAccoladesByCategory(chainAccolades);
+                return (
+                  <SmallProjectCard
+                    key={project.id}
+                    project={project}
+                    href={`/chains/${project.id}`}
+                    viewMode={viewMode}
+                    accolades={filteredAccolades}
+                  />
+                );
+              })
             )}
           </TabsContent>
         </Tabs>
 
         {/* Infinite scroll trigger and loading indicator */}
         {hasMore && (
-          <div
-            ref={loadMoreTriggerRef}
-            id="loading-spinner"
-            className="flex items-center justify-center py-16"
-          >
-            {isLoadingMore && (
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-            )}
+          <div ref={loadMoreTriggerRef} id="loading-spinner" className="flex items-center justify-center py-16">
+            {isLoadingMore && <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>}
           </div>
         )}
         <Spacer height={320} />
       </Container>
 
       {/* Onboarding Modal */}
-      {showOnboarding && (
-        <OnboardingGuide
-          isOpen={showOnboarding}
-          onClose={() => setShowOnboarding(false)}
-        />
-      )}
+      {showOnboarding && <OnboardingGuide isOpen={showOnboarding} onClose={() => setShowOnboarding(false)} />}
 
       {/* Project Detail Modal */}
       {selectedProject && (
@@ -907,9 +766,7 @@ export function LaunchpadDashboard() {
           <div className="bg-[#1a1a1a] rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-2xl font-bold text-white">
-                  {selectedProject.chain_name}
-                </h3>
+                <h3 className="text-2xl font-bold text-white">{selectedProject.chain_name}</h3>
                 <Button
                   onClick={() => setSelectedProject(null)}
                   variant="outline"
@@ -921,16 +778,13 @@ export function LaunchpadDashboard() {
               </div>
               <div className="grid md:grid-cols-2 gap-8">
                 <div>
-                  <h4 className="text-lg font-semibold text-white mb-4">
-                    Bonding Curve
-                  </h4>
+                  <h4 className="text-lg font-semibold text-white mb-4">Bonding Curve</h4>
                   <BondingCurveChart
                     project={{
                       id: selectedProject.id,
                       name: selectedProject.chain_name,
                       description: selectedProject.chain_description,
-                      creator:
-                        selectedProject.creator?.display_name || "Unknown",
+                      creator: selectedProject.creator?.display_name || "Unknown",
                       progress: selectedProject.progress,
                       raised: selectedProject.raised,
                       target: selectedProject.target,
@@ -944,15 +798,11 @@ export function LaunchpadDashboard() {
                   />
                 </div>
                 <div>
-                  <h4 className="text-lg font-semibold text-white mb-4">
-                    Project Details
-                  </h4>
+                  <h4 className="text-lg font-semibold text-white mb-4">Project Details</h4>
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-400">Creator:</span>
-                      <span className="text-white">
-                        {selectedProject.creator?.display_name || "Unknown"}
-                      </span>
+                      <span className="text-white">{selectedProject.creator?.display_name || "Unknown"}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Status:</span>
@@ -970,27 +820,19 @@ export function LaunchpadDashboard() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Progress:</span>
-                      <span className="text-white">
-                        {selectedProject.progress}%
-                      </span>
+                      <span className="text-white">{selectedProject.progress}%</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Raised:</span>
-                      <span className="text-white">
-                        {selectedProject.raised}
-                      </span>
+                      <span className="text-white">{selectedProject.raised}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Target:</span>
-                      <span className="text-white">
-                        {selectedProject.target}
-                      </span>
+                      <span className="text-white">{selectedProject.target}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Participants:</span>
-                      <span className="text-white">
-                        {selectedProject.participants}
-                      </span>
+                      <span className="text-white">{selectedProject.participants}</span>
                     </div>
                   </div>
                 </div>

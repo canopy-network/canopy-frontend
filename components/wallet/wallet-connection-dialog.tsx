@@ -17,7 +17,7 @@ import {
   CheckCircle,
   Copy,
 } from "lucide-react";
-import { useWalletStore, hasStoredSeedphrase, getStoredSeedphrase } from "@/lib/stores/wallet-store";
+import { useWalletStore, getStoredSeedphrase } from "@/lib/stores/wallet-store";
 import { generateSeedphrase, splitMnemonic } from "@/lib/crypto/seedphrase";
 import { showSuccessToast, showErrorToast } from "@/lib/utils/error-handler";
 import { toast } from "sonner";

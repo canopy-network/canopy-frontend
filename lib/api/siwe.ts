@@ -10,6 +10,7 @@
 
 import { apiClient } from "./client";
 import type { ApiResponse, User } from "@/types/api";
+import { withTimeout, TIMEOUTS } from "@/lib/utils/api-timeout";
 
 /**
  * SIWE nonce response
@@ -53,12 +54,22 @@ export interface WalletLinkResponse {
 /**
  * Get a nonce for SIWE message signing
  * This nonce should be used immediately to prevent replay attacks
+ * @param address - The wallet address requesting a nonce
  * @returns Promise with the nonce string
+ * @throws Error if address is invalid or server fails to generate nonce
  */
 export async function getSiweNonce(address: string): Promise<ApiResponse<SiweNonceResponse>> {
-  return apiClient.post<SiweNonceResponse>("/api/v1/auth/siwe/nonce", {
-    address,
-  });
+  if (!address || typeof address !== 'string') {
+    throw new Error('Valid wallet address is required to generate authentication token');
+  }
+
+  return withTimeout(
+    apiClient.post<SiweNonceResponse>("/api/v1/auth/siwe/nonce", {
+      address,
+    }),
+    TIMEOUTS.SIWE_NONCE,
+    'Failed to get authentication token - request timed out. Please try again.'
+  );
 }
 
 /**
@@ -67,15 +78,28 @@ export async function getSiweNonce(address: string): Promise<ApiResponse<SiweNon
  * @param message - The SIWE message that was signed
  * @param signature - The signature from the wallet
  * @returns Promise with the user object and authentication token
+ * @throws Error if message or signature is invalid, or verification fails
  */
 export async function verifySiweSignature(
   message: string,
   signature: string
 ): Promise<ApiResponse<SiweVerifyResponse>> {
-  return apiClient.post<SiweVerifyResponse>("/api/v1/auth/siwe/verify", {
-    message,
-    signature,
-  });
+  if (!message || typeof message !== 'string') {
+    throw new Error('Valid SIWE message is required for verification');
+  }
+
+  if (!signature || typeof signature !== 'string') {
+    throw new Error('Valid signature is required for verification');
+  }
+
+  return withTimeout(
+    apiClient.post<SiweVerifyResponse>("/api/v1/auth/siwe/verify", {
+      message,
+      signature,
+    }),
+    TIMEOUTS.SIWE_VERIFY,
+    'Failed to verify signature - request timed out. Please try again.'
+  );
 }
 
 /**
@@ -84,13 +108,26 @@ export async function verifySiweSignature(
  * @param message - The SIWE message that was signed
  * @param signature - The signature from the wallet
  * @returns Promise with the updated user object
+ * @throws Error if message or signature is invalid, user is not authenticated, or wallet is already linked
  */
 export async function linkWalletToAccount(
   message: string,
   signature: string
 ): Promise<ApiResponse<WalletLinkResponse>> {
-  return apiClient.post<WalletLinkResponse>("/api/v1/auth/wallet/link", {
-    message,
-    signature,
-  });
+  if (!message || typeof message !== 'string') {
+    throw new Error('Valid SIWE message is required for wallet linking');
+  }
+
+  if (!signature || typeof signature !== 'string') {
+    throw new Error('Valid signature is required for wallet linking');
+  }
+
+  return withTimeout(
+    apiClient.post<WalletLinkResponse>("/api/v1/auth/wallet/link", {
+      message,
+      signature,
+    }),
+    TIMEOUTS.SIWE_VERIFY,
+    'Failed to link wallet - request timed out. Please try again.'
+  );
 }

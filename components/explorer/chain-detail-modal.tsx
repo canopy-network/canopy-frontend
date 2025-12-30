@@ -11,7 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Copy, Download, ExternalLink, Heart, Share2, TrendingUp } from "lucide-react";
+import { Copy, ExternalLink, Heart, Share2, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { canopyIconSvg, getCanopyAccent } from "@/lib/utils/brand";
 import { toast } from "sonner";

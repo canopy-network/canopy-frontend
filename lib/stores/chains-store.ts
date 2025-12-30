@@ -11,13 +11,10 @@
  */
 
 import { create } from "zustand";
-import { devtools, persist } from "zustand/middleware";
+import { devtools, persist, createJSONStorage, StateStorage } from "zustand/middleware";
 import {
   chainsApi,
   virtualPoolsApi,
-  getActiveChains,
-  getGraduatedChains,
-  getChainsWithRelations,
 } from "@/lib/api";
 import {
   Chain,
@@ -26,7 +23,6 @@ import {
   Transaction,
   CreateChainRequest,
   GetChainsParams,
-  ChainAsset,
 } from "@/types/chains";
 
 // ============================================================================
@@ -132,16 +128,20 @@ function processChainAssets(chain: Chain): Chain {
 // ============================================================================
 
 // Custom storage that handles SSR
-const createNoopStorage = (): any => {
-  return {
-    getItem: () => null,
-    setItem: () => {},
-    removeItem: () => {},
-  };
+const zustandStorage: StateStorage = {
+  getItem: (name: string): string | null => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(name);
+  },
+  setItem: (name: string, value: string): void => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(name, value);
+  },
+  removeItem: (name: string): void => {
+    if (typeof window === "undefined") return;
+    localStorage.removeItem(name);
+  },
 };
-
-const storage =
-  typeof window !== "undefined" ? localStorage : createNoopStorage();
 
 // Create chains store only on client side
 const createChainsStore = () => {
@@ -385,11 +385,23 @@ const createChainsStore = () => {
 
           refreshChain: async (id) => {
             const { fetchChain, fetchVirtualPool, fetchTransactions } = get();
-            await Promise.all([
-              fetchChain(id),
-              fetchVirtualPool(id),
-              fetchTransactions(id),
-            ]);
+            // Fetch sequentially with priority: chain data first, then pool, then transactions
+            // This prevents all 3 requests from competing for network resources
+            try {
+              await fetchChain(id);
+              // Fetch virtual pool and transactions in parallel (lower priority)
+              await Promise.all([
+                fetchVirtualPool(id),
+                fetchTransactions(id),
+              ]);
+            } catch (error) {
+              console.warn("Failed to refresh chain:", error);
+              // Still try to fetch additional data even if chain fetch fails
+              await Promise.allSettled([
+                fetchVirtualPool(id),
+                fetchTransactions(id),
+              ]);
+            }
           },
 
           // ============================================================================
@@ -486,7 +498,7 @@ const createChainsStore = () => {
         }),
         {
           name: "chains-store",
-          storage,
+          storage: createJSONStorage(() => zustandStorage),
           partialize: (state) => ({
             // Only persist filters and pagination, not the actual data
             filters: state.filters,

@@ -4,10 +4,13 @@ import { MainNav } from "@/components/navigation/main-nav";
 import { WalletConnectButton } from "@/components/wallet/wallet-connect-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, Github, Mail } from "lucide-react";
+import { Search, Plus, Mail, LogOut } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { AuthUser } from "@/lib/stores/auth-store";
+import { useAuthStore } from "@/lib/stores/auth-store";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 interface MobileSidebarProps {
   isLoggedIn: boolean;
@@ -28,6 +31,16 @@ export function MobileSidebar({
   onLoginClick,
   onClose,
 }: MobileSidebarProps) {
+  const router = useRouter();
+  const { logout } = useAuthStore();
+
+  const handleLogout = () => {
+    logout();
+    toast.success("Logged out successfully");
+    onClose();
+    router.push("/");
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -95,7 +108,7 @@ export function MobileSidebar({
       {/* Footer - Auth Section */}
       <div className="border-t border-[#2a2a2a] p-4 space-y-3">
         {/* Email Authentication */}
-        {isAuthenticated && user ? (
+        {isAuthenticated && user && user.email ? (
           <div className="space-y-2">
             <div className="flex items-center gap-2 p-2 bg-[#1a1a1a] rounded-lg">
               <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center">
@@ -105,17 +118,27 @@ export function MobileSidebar({
               </div>
               <span className="text-sm text-white truncate">{user.email}</span>
             </div>
-            <Button
-              onClick={() => {
-                onClose();
-                onLoginClick();
-              }}
-              variant="outline"
-              size="sm"
-              className="w-full text-xs"
-            >
-              Manage Account
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => {
+                  onClose();
+                  onLoginClick();
+                }}
+                variant="outline"
+                size="sm"
+                className="flex-1 text-xs"
+              >
+                Manage Account
+              </Button>
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                size="sm"
+                className="text-xs text-red-500 hover:text-red-500 hover:bg-red-500/10 border-red-500/20"
+              >
+                <LogOut className="h-3 w-3" />
+              </Button>
+            </div>
           </div>
         ) : (
           <Button
@@ -123,7 +146,7 @@ export function MobileSidebar({
               onClose();
               onLoginClick();
             }}
-            className="w-full gap-2 bg-gradient-to-r from-[#0a2a12] via-[#103a1b] to-[#164c25] hover:from-[#08230e] hover:via-[#0e3216] hover:to-[#133f1d] text-[#7cff9d] font-semibold border border-[#36d26a] shadow-[0_0_12px_2px_rgba(124,255,157,0.2)] hover:shadow-[0_0_16px_3px_rgba(124,255,157,0.35)] transition-transform hover:-translate-y-[1px]"
+            className="w-full gap-2 bg-linear-to-r from-[#0a2a12] via-[#103a1b] to-[#164c25] hover:from-[#08230e] hover:via-[#0e3216] hover:to-[#133f1d] text-[#7cff9d] font-semibold border border-[#36d26a] shadow-[0_0_12px_2px_rgba(124,255,157,0.2)] hover:shadow-[0_0_16px_3px_rgba(124,255,157,0.35)] transition-transform hover:-translate-y-px"
             variant="default"
           >
             <Mail className="h-4 w-4" />

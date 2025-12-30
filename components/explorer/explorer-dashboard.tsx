@@ -2,8 +2,6 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { Container } from "@/components/layout/container";
-import { Spacer } from "@/components/layout/spacer";
 import { NetworkOverview } from "./network-overview";
 import { NewLaunches } from "./new-launches";
 import { TopValidators } from "./top-validators";

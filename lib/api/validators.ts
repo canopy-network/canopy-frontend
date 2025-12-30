@@ -286,7 +286,7 @@ export const validatorsApi = {
     params?: ValidatorsRequest
   ): Promise<ValidatorsResponse> => {
     const response = await apiClient.get<ValidatorsResponseWrapper>(
-      "/validators",
+      "/api/v1/validators",
       params
     );
     // API returns: { data: { validators, metadata }, pagination }
@@ -332,7 +332,7 @@ export const validatorsApi = {
    */
   getValidator: async (address: string): Promise<ValidatorDetailData> => {
     const response = await apiClient.get<ValidatorDetailResponse>(
-      `/validators/${address}`
+      `/api/v1/validators/${address}`
     );
     // API response structure: { data: { data: ValidatorDetailData } }
     const responseData = response.data as unknown as ValidatorDetailResponse | ValidatorDetailData;
@@ -355,7 +355,7 @@ export const validatorsApi = {
     format: "json" | "csv" = "json"
   ): Promise<ValidatorDetailData | string> => {
     const response = await apiClient.get<ValidatorDetailResponse | string>(
-      `/validators/${address}/export`,
+      `/api/v1/validators/${address}/export`,
       { format }
     );
     return response.data as ValidatorDetailData | string;
@@ -380,7 +380,7 @@ export const validatorsApi = {
     }
     
     const response = await apiClient.get<ValidatorRewardsResponse>(
-      "/validator/rewards",
+      "/api/v1/validator/rewards",
       queryParams
     );
     
@@ -468,7 +468,7 @@ export const validatorsApi = {
     }
     
     const response = await apiClient.get<ValidatorSlashesResponse>(
-      "/validator/slashes",
+      "/api/v1/validator/slashes",
       queryParams
     );
     
@@ -558,7 +558,7 @@ export function useValidator(
 
 /**
  * React Query hook for exporting validator data
- * Uses /api/validators/[address]/export endpoint
+ * Uses /api/v1/validators/[address]/export endpoint
  * 
  * @param address - Validator address
  * @param format - Export format: "json" or "csv" (default: "json")
@@ -586,7 +586,7 @@ export function useValidatorExport(
 
 /**
  * React Query hook for fetching validator rewards history
- * Uses /api/validator/rewards endpoint
+ * Uses /api/v1/validator/rewards endpoint
  * 
  * @param params - Query parameters (chain_id, addresses)
  * @param options - React Query options
@@ -615,7 +615,7 @@ export function useValidatorRewards(
 
 /**
  * React Query hook for fetching validator slash history
- * Uses /api/validator/slashes endpoint
+ * Uses /api/v1/validator/slashes endpoint
  * 
  * @param params - Query parameters (addresses, chain_ids, dates, pagination)
  * @param options - React Query options

@@ -9,15 +9,13 @@
  * @since 2025-11-28
  */
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { portfolioApi } from "@/lib/api";
 import type {
   PortfolioOverviewRequest,
-  PortfolioOverviewResponse,
   AccountBalancesRequest,
-  AccountBalancesResponse,
   PortfolioPerformanceRequest,
-  PortfolioPerformanceResponse,
 } from "@/types/api";
 
 /**
@@ -30,8 +28,7 @@ export const portfolioKeys = {
     [...portfolioKeys.all, "balances", addresses, chainIds] as const,
   performance: (addresses: string[], period: string) =>
     [...portfolioKeys.all, "performance", addresses, period] as const,
-  allocation: (addresses: string[]) =>
-    [...portfolioKeys.all, "allocation", addresses] as const,
+  allocation: (addresses: string[]) => [...portfolioKeys.all, "allocation", addresses] as const,
 };
 
 /**
@@ -48,18 +45,22 @@ export function usePortfolioOverview(
     refetchInterval?: number;
   }
 ) {
+  // Sort addresses to ensure stable query key (same addresses in different order = same cache)
+  const sortedAddresses = useMemo(() => [...addresses].sort(), [addresses]);
+
   return useQuery({
-    queryKey: portfolioKeys.overview(addresses),
+    queryKey: portfolioKeys.overview(sortedAddresses),
     queryFn: async () => {
       const request: PortfolioOverviewRequest = {
-        addresses,
+        addresses: sortedAddresses,
         include_watch_only: false,
       };
       return portfolioApi.getPortfolioOverview(request);
     },
-    enabled: options?.enabled !== false && addresses.length > 0,
-    refetchInterval: options?.refetchInterval ?? 60000, // Refresh every 1 minute by default
-    staleTime: 30000, // Consider data stale after 30 seconds
+    enabled: options?.enabled !== false && sortedAddresses.length > 0,
+    refetchInterval: options?.refetchInterval ?? undefined, // Disable auto-refetch by default
+    staleTime: 60000, // Consider data stale after 1 minute (increased from 30s)
+    gcTime: 300000, // Keep in cache for 5 minutes
   });
 }
 
@@ -154,12 +155,7 @@ export function usePortfolio(
     refetchInterval: options?.refetchInterval,
   });
 
-  const performance = usePortfolioPerformance(
-    addresses,
-    options?.performancePeriod ?? "7d",
-    "daily",
-    { enabled }
-  );
+  const performance = usePortfolioPerformance(addresses, options?.performancePeriod ?? "7d", "daily", { enabled });
 
   return {
     // Overview data
@@ -187,11 +183,7 @@ export function usePortfolio(
     refetchBalances: balances.refetch,
     refetchPerformance: performance.refetch,
     refetchAll: async () => {
-      await Promise.all([
-        overview.refetch(),
-        balances.refetch(),
-        performance.refetch(),
-      ]);
+      await Promise.all([overview.refetch(), balances.refetch(), performance.refetch()]);
     },
   };
 }

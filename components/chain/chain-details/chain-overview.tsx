@@ -18,7 +18,10 @@ import {
 import { useEffect, useState } from "react";
 import type { ChainHolder, SocialPlatform } from "@/types/chains";
 import type { ReactElement } from "react";
-import { GitHubRepository } from "@/lib/api/github-repos";
+import {
+  GitHubRepository,
+  fetchRepositoryDetails,
+} from "@/lib/api/github-repos";
 
 // Social platform icon mapping - all icons are 16px (w-4 h-4)
 const SOCIAL_ICONS: Record<SocialPlatform, ReactElement> = {
@@ -101,23 +104,14 @@ export function ChainOverview({
         chain.repository?.repository_name
       ) {
         try {
-          const response = await fetch(
-            `https://api.github.com/repos/${chain.repository.repository_owner}/${chain.repository.repository_name}`,
-            {
-              headers: {
-                Accept: "application/vnd.github.v3+json",
-              },
-            }
+          const repo = await fetchRepositoryDetails(
+            `${chain.repository.repository_owner}/${chain.repository.repository_name}`
           );
-
-          if (response.ok) {
-            const data = await response.json();
-            setRepository({
-              ...data,
-              stargazers_count: data.stargazers_count,
-              forks_count: data.forks_count,
-            });
-          }
+          setRepository({
+            ...repo,
+            stargazers_count: repo.stargazers_count,
+            forks_count: repo.forks_count,
+          });
         } catch (error) {
           console.error("Failed to fetch GitHub stars:", error);
         }

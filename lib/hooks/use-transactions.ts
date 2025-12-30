@@ -10,16 +10,14 @@
  */
 
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
+import { useRef } from "react";
 import { transactionsApi } from "@/lib/api";
 import type {
   TransactionHistoryRequest,
-  TransactionHistoryResponse,
   PendingTransactionsRequest,
   SendRawTransactionRequest,
   SendRawTransactionResponse,
   EstimateFeeRequest,
-  TransactionDetail,
-  TransactionStatusResponse,
 } from "@/types/api";
 import { toast } from "sonner";
 
@@ -30,12 +28,9 @@ export const transactionKeys = {
   all: ["transactions"] as const,
   history: (addresses: string[], filters?: Partial<TransactionHistoryRequest>) =>
     [...transactionKeys.all, "history", addresses, filters] as const,
-  pending: (addresses: string[]) =>
-    [...transactionKeys.all, "pending", addresses] as const,
-  detail: (hash: string, chainId: number) =>
-    [...transactionKeys.all, "detail", hash, chainId] as const,
-  status: (hash: string, chainId: number) =>
-    [...transactionKeys.all, "status", hash, chainId] as const,
+  pending: (addresses: string[]) => [...transactionKeys.all, "pending", addresses] as const,
+  detail: (hash: string, chainId: number) => [...transactionKeys.all, "detail", hash, chainId] as const,
+  status: (hash: string, chainId: number) => [...transactionKeys.all, "status", hash, chainId] as const,
 };
 
 /**
@@ -101,6 +96,10 @@ export function usePendingTransactions(
     refetchInterval?: number;
   }
 ) {
+  // Use ref to track consecutive errors for backoff
+  const errorCountRef = useRef(0);
+  const lastErrorTimeRef = useRef<number>(0);
+
   return useQuery({
     queryKey: transactionKeys.pending(addresses),
     queryFn: async () => {
@@ -108,11 +107,37 @@ export function usePendingTransactions(
         addresses,
         chain_ids: chainIds,
       };
-      return transactionsApi.getPending(request);
+      try {
+        const result = await transactionsApi.getPending(request);
+        // Reset error count on success
+        errorCountRef.current = 0;
+        return result;
+      } catch (error: any) {
+        // Track consecutive errors
+        errorCountRef.current++;
+        lastErrorTimeRef.current = Date.now();
+        throw error;
+      }
     },
     enabled: options?.enabled !== false && addresses.length > 0,
-    refetchInterval: options?.refetchInterval ?? 5000, // Check every 5 seconds
+    refetchInterval: (data, error) => {
+      // If there's an error, use exponential backoff
+      if (error) {
+        const backoffMs = Math.min(5000 * Math.pow(2, errorCountRef.current - 1), 60000);
+        console.debug(`Pending tx poll error, backing off to ${backoffMs}ms`);
+        return backoffMs;
+      }
+
+      // If no pending transactions, slow down polling
+      if (data?.data?.transactions?.length === 0) {
+        return 15000; // Poll every 15s when nothing is pending
+      }
+
+      // Normal polling interval
+      return options?.refetchInterval ?? 5000;
+    },
     staleTime: 3000,
+    retry: 2, // Retry twice before backing off
   });
 }
 
@@ -162,10 +187,7 @@ export function useTransactionStatus(
     enabled: options?.enabled !== false && !!hash,
     refetchInterval: (data) => {
       // Stop polling if transaction is complete and option is set
-      if (
-        options?.stopPollingOnComplete &&
-        data?.status !== "pending"
-      ) {
+      if (options?.stopPollingOnComplete && data?.status !== "pending") {
         return false;
       }
       return options?.pollInterval ?? 5000; // Poll every 5 seconds by default
@@ -190,8 +212,7 @@ export function useSendTransaction() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: SendRawTransactionRequest) =>
-      transactionsApi.sendRawTransaction(data),
+    mutationFn: (data: SendRawTransactionRequest) => transactionsApi.sendRawTransaction(data),
     onSuccess: (response: SendRawTransactionResponse) => {
       // Invalidate transaction queries to refresh the list
       queryClient.invalidateQueries({ queryKey: transactionKeys.all });
@@ -263,8 +284,7 @@ export function useTransactions(
   const estimateFee = useEstimateFee();
 
   // Flatten all pages of history
-  const allTransactions =
-    history.data?.pages.flatMap((page) => page.transactions) ?? [];
+  const allTransactions = history.data?.pages.flatMap((page) => page.transactions) ?? [];
 
   return {
     // History data

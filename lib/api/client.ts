@@ -34,6 +34,11 @@ interface ApiConfig {
   retryDelay: number;
 }
 
+type RequestConfig = AxiosRequestConfig & {
+  skipAuth?: boolean;
+  signal?: AbortSignal;
+};
+
 /**
  * Default API configuration
  */
@@ -129,6 +134,10 @@ function handleApiError(error: AxiosError): never {
  * Check if error is retryable
  */
 function isRetryableError(error: AxiosError): boolean {
+  if (error.code === "ERR_CANCELED" || error.name === "CanceledError") {
+    return false;
+  }
+
   // Retry on network errors or 5xx server errors
   return (
     !error.response ||
@@ -182,11 +191,27 @@ function getAuthHeaders(): Record<string, string> {
 export class ApiClient {
   private axiosInstance: AxiosInstance;
   private config: ApiConfig;
+  // Request deduplication: track pending requests by key
+  private pendingRequests = new Map<string, Promise<ApiResponse<any>>>();
 
   constructor(config: Partial<ApiConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.axiosInstance = this.createAxiosInstance();
     this.setupInterceptors();
+  }
+
+  /**
+   * Generate a unique key for request deduplication
+   */
+  private getRequestKey(
+    method: string,
+    url: string,
+    params?: Record<string, any>,
+    data?: any
+  ): string {
+    const paramsStr = params ? JSON.stringify(params) : "";
+    const dataStr = data ? JSON.stringify(data) : "";
+    return `${method}:${url}:${paramsStr}:${dataStr}`;
   }
 
   /**
@@ -228,17 +253,35 @@ export class ApiClient {
     // Request interceptor - Add auth headers
     this.axiosInstance.interceptors.request.use(
       (config: InternalAxiosRequestConfig) => {
+        const typedConfig = config as RequestConfig;
+        const shouldSkipAuth = typedConfig.skipAuth === true;
+
         // Add authentication headers for all mutation operations
         const method = config.method?.toUpperCase();
         if (
-          method === "GET" ||
-          method === "PUT" ||
-          method === "POST" ||
-          method === "PATCH" ||
-          method === "DELETE"
+          !shouldSkipAuth &&
+          (method === "GET" ||
+            method === "PUT" ||
+            method === "POST" ||
+            method === "PATCH" ||
+            method === "DELETE")
         ) {
           const authHeaders = getAuthHeaders();
           Object.assign(config.headers, authHeaders);
+        }
+
+        if (
+          typeof FormData !== "undefined" &&
+          typedConfig.data instanceof FormData
+        ) {
+          const headers = config.headers as any;
+          if (headers?.delete) {
+            headers.delete("Content-Type");
+            headers.delete("content-type");
+          } else if (headers) {
+            delete headers["Content-Type"];
+            delete headers["content-type"];
+          }
         }
 
         // Add request timestamp for debugging
@@ -293,19 +336,94 @@ export class ApiClient {
   }
 
   /**
-   * Make HTTP request with retry logic
+   * Make HTTP request with retry logic and request deduplication
    */
   private async makeRequest<T>(
-    config: AxiosRequestConfig,
+    config: RequestConfig,
     attempt: number = 1
   ): Promise<ApiResponse<T>> {
+    const method = config.method?.toUpperCase() || "GET";
+    const url = config.url || "";
+    const requestKey = this.getRequestKey(method, url, config.params, config.data);
+
+    // Only deduplicate on first attempt (not retries) and only for GET requests
+    // This prevents duplicate simultaneous requests while allowing retries to proceed
+    if (attempt === 1 && method === "GET" && this.pendingRequests.has(requestKey)) {
+      const pendingRequest = this.pendingRequests.get(requestKey);
+      if (pendingRequest) {
+        return pendingRequest as Promise<ApiResponse<T>>;
+      }
+    }
+
+    // Create the request promise
+    const requestPromise = (async () => {
+      try {
+        const response = await this.axiosInstance.request<ApiResponse<T>>(config);
+        // Remove from pending requests on success
+        if (attempt === 1 && method === "GET") {
+          this.pendingRequests.delete(requestKey);
+        }
+        return response.data;
+      } catch (error) {
+        const axiosError = error as AxiosError;
+
+        // Check if we should retry
+        if (attempt < this.config.retryAttempts && isRetryableError(axiosError)) {
+          const delay = calculateRetryDelay(attempt, this.config.retryDelay);
+
+          console.warn(
+            `API Request failed (attempt ${attempt}), retrying in ${delay}ms:`,
+            {
+              url: config.url,
+              method: config.method,
+              error: axiosError.message,
+            }
+          );
+
+          // Mark as retry to skip toast during retry attempts
+          (config as any).isRetrying = true;
+
+          // Wait before retrying (non-blocking)
+          await new Promise((resolve) => setTimeout(resolve, delay));
+
+          // Remove from pending requests before retry
+          if (method === "GET") {
+            this.pendingRequests.delete(requestKey);
+          }
+
+          // Retry the request (pass attempt + 1, won't be deduplicated)
+          return this.makeRequest<T>(config, attempt + 1);
+        }
+
+        // Remove from pending requests on final error
+        if (attempt === 1 && method === "GET") {
+          this.pendingRequests.delete(requestKey);
+        }
+
+        // Don't retry, handle the error (toast will be shown in interceptor if not retrying)
+        (config as any).isRetrying = false;
+        handleApiError(axiosError);
+      }
+    })();
+
+    // Store pending GET requests for deduplication (only on first attempt)
+    if (attempt === 1 && method === "GET") {
+      this.pendingRequests.set(requestKey, requestPromise);
+    }
+
+    return requestPromise;
+  }
+
+  private async makeRawRequest<T>(
+    config: RequestConfig,
+    attempt: number = 1
+  ): Promise<T> {
     try {
-      const response = await this.axiosInstance.request<ApiResponse<T>>(config);
+      const response = await this.axiosInstance.request<T>(config);
       return response.data;
     } catch (error) {
       const axiosError = error as AxiosError;
 
-      // Check if we should retry
       if (attempt < this.config.retryAttempts && isRetryableError(axiosError)) {
         const delay = calculateRetryDelay(attempt, this.config.retryDelay);
 
@@ -318,17 +436,14 @@ export class ApiClient {
           }
         );
 
-        // Mark as retry to skip toast during retry attempts
         (config as any).isRetrying = true;
 
-        // Wait before retrying
+        // Wait before retrying (non-blocking)
         await new Promise((resolve) => setTimeout(resolve, delay));
 
-        // Retry the request
-        return this.makeRequest<T>(config, attempt + 1);
+        return this.makeRawRequest<T>(config, attempt + 1);
       }
 
-      // Don't retry, handle the error (toast will be shown in interceptor if not retrying)
       (config as any).isRetrying = false;
       handleApiError(axiosError);
     }
@@ -344,7 +459,7 @@ export class ApiClient {
   async get<T>(
     url: string,
     params?: Record<string, any>,
-    config?: AxiosRequestConfig
+    config?: RequestConfig
   ): Promise<ApiResponse<T>> {
     return this.makeRequest<T>({
       method: "GET",
@@ -360,7 +475,7 @@ export class ApiClient {
   async post<T>(
     url: string,
     data?: any,
-    config?: AxiosRequestConfig
+    config?: RequestConfig
   ): Promise<ApiResponse<T>> {
     return this.makeRequest<T>({
       method: "POST",
@@ -376,7 +491,7 @@ export class ApiClient {
   async put<T>(
     url: string,
     data?: any,
-    config?: AxiosRequestConfig
+    config?: RequestConfig
   ): Promise<ApiResponse<T>> {
     return this.makeRequest<T>({
       method: "PUT",
@@ -391,7 +506,7 @@ export class ApiClient {
    */
   async delete<T>(
     url: string,
-    config?: AxiosRequestConfig
+    config?: RequestConfig
   ): Promise<ApiResponse<T>> {
     return this.makeRequest<T>({
       method: "DELETE",
@@ -406,9 +521,69 @@ export class ApiClient {
   async patch<T>(
     url: string,
     data?: any,
-    config?: AxiosRequestConfig
+    config?: RequestConfig
   ): Promise<ApiResponse<T>> {
     return this.makeRequest<T>({
+      method: "PATCH",
+      url,
+      data,
+      ...config,
+    });
+  }
+
+  async getRaw<T>(
+    url: string,
+    params?: Record<string, any>,
+    config?: RequestConfig
+  ): Promise<T> {
+    return this.makeRawRequest<T>({
+      method: "GET",
+      url,
+      params,
+      ...config,
+    });
+  }
+
+  async postRaw<T>(
+    url: string,
+    data?: any,
+    config?: RequestConfig
+  ): Promise<T> {
+    return this.makeRawRequest<T>({
+      method: "POST",
+      url,
+      data,
+      ...config,
+    });
+  }
+
+  async putRaw<T>(
+    url: string,
+    data?: any,
+    config?: RequestConfig
+  ): Promise<T> {
+    return this.makeRawRequest<T>({
+      method: "PUT",
+      url,
+      data,
+      ...config,
+    });
+  }
+
+  async deleteRaw<T>(url: string, config?: RequestConfig): Promise<T> {
+    return this.makeRawRequest<T>({
+      method: "DELETE",
+      url,
+      ...config,
+    });
+  }
+
+  async patchRaw<T>(
+    url: string,
+    data?: any,
+    config?: RequestConfig
+  ): Promise<T> {
+    return this.makeRawRequest<T>({
       method: "PATCH",
       url,
       data,

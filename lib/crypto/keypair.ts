@@ -3,7 +3,6 @@
  */
 
 import { ed25519 } from '@noble/curves/ed25519.js';
-import { randomBytes } from '@noble/hashes/utils.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 
 /**

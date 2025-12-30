@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -17,11 +16,15 @@ import { useAuthStore } from "@/lib/stores/auth-store";
 import { getSiweNonce, linkWalletToAccount } from "@/lib/api/siwe";
 import { createSiweMessage, createWalletLinkMessage } from "@/lib/web3/siwe-client";
 import { hasValidLinkedWallet } from "@/lib/web3/utils";
+import { parseSiweError, formatErrorMessage, logSiweError } from "@/lib/web3/siwe-errors";
 import { useAccount, useSignMessage, useDisconnect } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import axios from "axios";
 import { API_CONFIG } from "@/lib/config/api";
 import { toast } from "sonner";
+import { useWallet } from "@/components/wallet/wallet-provider";
+import { useWalletStore } from "@/lib/stores/wallet-store";
+import { withTimeout, TIMEOUTS } from "@/lib/utils/api-timeout";
 
 type AuthStep = "initial" | "siwe" | "authenticated";
 
@@ -31,15 +34,13 @@ interface LoginDialogProps {
 }
 
 export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
-  const { user, isAuthenticated, token, setUser, setError, logout } =
-    useAuthStore();
-  const [step, setStep] = useState<AuthStep>(
-    isAuthenticated ? "authenticated" : "initial"
-  );
+  const { user, isAuthenticated, token, setUser, setError, logout } = useAuthStore();
+  const [step, setStep] = useState<AuthStep>(isAuthenticated ? "authenticated" : "initial");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [showWalletLinking, setShowWalletLinking] = useState(false);
   const [isLinkingWallet, setIsLinkingWallet] = useState(false);
+  const [progressMessage, setProgressMessage] = useState<string>("");
 
   // Wagmi hooks for SIWE
   const { address, isConnected, chain } = useAccount();
@@ -47,10 +48,15 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
   const { disconnect } = useDisconnect();
   const { openConnectModal } = useConnectModal();
 
+  // Wallet context to trigger canopy wallet select modal
+  const { setShowSelectDialog, setShowCreateDialog } = useWallet();
+  const { fetchWallets } = useWalletStore();
+
   const handleSiweLogin = async () => {
     setIsSubmitting(true);
     setLocalError(null);
     setError(null);
+    setProgressMessage("");
 
     try {
       // Wait for wallet connection
@@ -61,69 +67,120 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
       }
 
       // 1. Get nonce from backend
+      setProgressMessage("Generating secure authentication token...");
       const nonceResponse = await getSiweNonce(address);
+
+      if (!nonceResponse?.data?.nonce) {
+        throw new Error("Failed to receive authentication token from server");
+      }
+
       const nonce = nonceResponse.data.nonce;
 
       // 2. Create SIWE message
+      setProgressMessage("Preparing signature request...");
       const message = createSiweMessage(address, nonce, chain.id);
       const messageString = message.prepareMessage();
 
-      // 3. Sign message with wallet
-      const signature = await signMessageAsync({ message: messageString });
+      // 3. Sign message with wallet (with timeout to prevent indefinite waiting)
+      setProgressMessage("Waiting for your signature...");
+      const signature = await withTimeout(
+        signMessageAsync({ message: messageString }),
+        TIMEOUTS.WALLET_SIGNATURE,
+        'Signature request timed out. Please try again and approve the signature in your wallet.'
+      );
 
-      // 4. Verify signature with backend
-      const verifyResponse = await axios.post(
-        `${API_CONFIG.baseURL}/api/v1/auth/siwe/verify`,
-        {
+      if (!signature) {
+        throw new Error("Signature was not received from wallet");
+      }
+
+      // 4. Verify signature with backend (with timeout)
+      setProgressMessage("Verifying your signature...");
+      const verifyResponse = await withTimeout(
+        axios.post(`${API_CONFIG.baseURL}/api/v1/auth/siwe/verify`, {
           message: messageString,
           signature,
-        }
+        }),
+        TIMEOUTS.SIWE_VERIFY,
+        'Verification request timed out. Please try again.'
       );
 
       if (verifyResponse.status !== 200) {
-        setLocalError(verifyResponse.data.message || "Failed to verify signature");
-        return;
+        throw new Error(verifyResponse.data.message || "Signature verification failed");
       }
 
       const response_body = verifyResponse.data;
 
       // 5. Extract token from response headers
-      const authHeader =
-        verifyResponse.headers["authorization"] ||
-        verifyResponse.headers["Authorization"];
+      const authHeader = verifyResponse.headers["authorization"] || verifyResponse.headers["Authorization"];
       const token = authHeader ? authHeader.replace("Bearer ", "") : null;
 
+      if (!token) {
+        throw new Error("Authentication token not received from server");
+      }
+
       // 6. Save user and token (same as email auth)
+      setProgressMessage("Completing sign in...");
       setUser(response_body.data.user, token);
 
       setStep("authenticated");
 
       // Close the modal after successful sign-in
       onOpenChange(false);
+
+      // Trigger canopy wallet select modal after successful SIWE login
+      try {
+        await fetchWallets();
+        // Small delay to ensure state is updated, then check wallets from store
+        setTimeout(() => {
+          const currentWallets = useWalletStore.getState().wallets;
+          if (currentWallets.length === 0) {
+            setShowCreateDialog(true);
+          } else {
+            setShowSelectDialog(true);
+          }
+        }, 300);
+      } catch (error) {
+        console.error("Failed to fetch wallets after SIWE login:", error);
+      }
     } catch (error: any) {
-      console.error("SIWE login error:", error);
-      setLocalError(
-        error.message || "Failed to sign in with wallet. Please try again."
-      );
+      logSiweError(error, 'SIWE Login');
+      const parsedError = parseSiweError(error, 'login');
+      setLocalError(formatErrorMessage(parsedError));
       disconnect();
     } finally {
       setIsSubmitting(false);
+      setProgressMessage("");
     }
   };
 
+  // Effect to sync step with authentication state
+  useEffect(() => {
+    if (isAuthenticated && step !== "authenticated") {
+      setStep("authenticated");
+    } else if (!isAuthenticated && step === "authenticated") {
+      setStep("initial");
+      // Clean up states when logged out
+      setLocalError(null);
+      setIsSubmitting(false);
+      setShowWalletLinking(false);
+      setIsLinkingWallet(false);
+      setProgressMessage("");
+    }
+  }, [isAuthenticated]);
+
   // Effect to handle wallet connection for SIWE
   useEffect(() => {
-    if (step === "siwe" && isConnected && address && !isSubmitting) {
+    if (step === "siwe" && isConnected && address && !isSubmitting && open) {
       handleSiweLogin();
     }
-  }, [step, isConnected, address]);
+  }, [step, isConnected, address, open]);
 
   // Effect to handle wallet connection for linking (in authenticated view)
   useEffect(() => {
-    if (step === "authenticated" && showWalletLinking && isConnected && address && !isLinkingWallet) {
+    if (step === "authenticated" && showWalletLinking && isConnected && address && !isLinkingWallet && open) {
       handleLinkWallet();
     }
-  }, [step, showWalletLinking, isConnected, address]);
+  }, [step, showWalletLinking, isConnected, address, open]);
 
   const handleLinkWallet = async () => {
     if (!isConnected || !address || !chain) {
@@ -135,20 +192,38 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
 
     setIsLinkingWallet(true);
     setLocalError(null);
+    setProgressMessage("");
 
     try {
       // 1. Get nonce from backend
+      setProgressMessage("Generating secure authentication token...");
       const nonceResponse = await getSiweNonce(address);
+
+      if (!nonceResponse?.data?.nonce) {
+        throw new Error("Failed to receive authentication token from server");
+      }
+
       const nonce = nonceResponse.data.nonce;
 
       // 2. Create wallet link message
+      setProgressMessage("Preparing signature request...");
       const message = createWalletLinkMessage(address, nonce, chain.id);
       const messageString = message.prepareMessage();
 
-      // 3. Sign message with wallet
-      const signature = await signMessageAsync({ message: messageString });
+      // 3. Sign message with wallet (with timeout)
+      setProgressMessage("Waiting for your signature...");
+      const signature = await withTimeout(
+        signMessageAsync({ message: messageString }),
+        TIMEOUTS.WALLET_SIGNATURE,
+        'Signature request timed out. Please try again and approve the signature in your wallet.'
+      );
 
-      // 4. Link wallet to account (uses Bearer token automatically)
+      if (!signature) {
+        throw new Error("Signature was not received from wallet");
+      }
+
+      // 4. Link wallet to account (uses Bearer token automatically, already has timeout)
+      setProgressMessage("Linking wallet to your account...");
       await linkWalletToAccount(messageString, signature);
 
       // 5. Update user in store with new wallet address
@@ -160,26 +235,36 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
       }
 
       // 6. Show success message
-      toast.success("Wallet linked successfully!");
+      toast.success("Wallet linked successfully!", {
+        description: `Connected ${address.slice(0, 6)}...${address.slice(-4)}`
+      });
 
       // 7. Disconnect wallet UI and reset state
       disconnect();
       setShowWalletLinking(false);
     } catch (error: any) {
-      console.error("Wallet linking error:", error);
-      setLocalError(error.message || "Failed to link wallet. Please try again.");
-      toast.error("Failed to link wallet");
+      logSiweError(error, 'Wallet Linking');
+      const parsedError = parseSiweError(error, 'link');
+      const errorMsg = formatErrorMessage(parsedError);
+      setLocalError(errorMsg);
+      toast.error(parsedError.title, {
+        description: parsedError.message
+      });
     } finally {
       setIsLinkingWallet(false);
+      setProgressMessage("");
     }
   };
-
 
   const handleLogout = () => {
     logout();
     disconnect();
     setStep("initial");
     setLocalError(null);
+    setIsSubmitting(false);
+    setShowWalletLinking(false);
+    setIsLinkingWallet(false);
+    setProgressMessage("");
   };
 
   const handleBack = () => {
@@ -197,16 +282,19 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
     }
 
     if (!newOpen) {
+      // Reset all states when closing the modal
       if (!isAuthenticated) {
         setStep("initial");
+        disconnect(); // Disconnect wallet if not authenticated
       }
       setLocalError(null);
       setShowWalletLinking(false);
       setIsLinkingWallet(false);
+      setIsSubmitting(false);
+      setProgressMessage("");
     }
     onOpenChange(newOpen);
   };
-
 
   // Authenticated view
   if (step === "authenticated" && user) {
@@ -228,157 +316,127 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
         {showWalletLinking ? (
           <DialogPortal>
             {/* Use a lower z-index overlay that won't block RainbowKit modal */}
-            <DialogOverlay className="z-[100]" />
-            <div className="bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-[150] grid w-full max-w-[calc(100%-2rem)] sm:max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200">
+            <DialogOverlay className="z-100" />
+            <div className="bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-150 grid w-full max-w-[calc(100%-2rem)] sm:max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200">
               <DialogHeader className="text-center">
-            <img
-              src="/images/logo.svg"
-              alt="Logo"
-              className="h-4 mx-auto my-6"
-            />
-            <DialogTitle className="text-2xl font-bold">
-              Welcome back!
-            </DialogTitle>
-            <DialogDescription className="text-base">
-              You're successfully signed in.
-            </DialogDescription>
-          </DialogHeader>
+                <img src="/images/logo.svg" alt="Logo" className="h-4 mx-auto my-6" />
+                <DialogTitle className="text-2xl font-bold">Welcome back!</DialogTitle>
+                <DialogDescription className="text-base">You&apos;re successfully signed in.</DialogDescription>
+              </DialogHeader>
 
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
-              <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-muted-foreground">Signed in as</p>
-                <p className="font-medium text-foreground truncate">
-                  {user.email}
-                </p>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
+                  <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-muted-foreground">Signed in as</p>
+                    <p className="font-medium text-foreground truncate">{user.email}</p>
+                  </div>
+                </div>
+
+                {/* Linked Wallet Display */}
+                {hasLinkedWallet && (
+                  <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg border">
+                    <Check className="h-5 w-5 text-green-500 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-muted-foreground">Linked Wallet</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-mono text-sm font-medium truncate">{formatAddress(user.wallet_address)}</p>
+                        <a
+                          href={getExplorerUrl(user.wallet_address)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Wallet Linking Section */}
+                {!hasLinkedWallet && (
+                  <div className="space-y-3 p-4 bg-muted/50 rounded-lg border">
+                    <div className="flex items-center gap-2">
+                      <Wallet className="h-4 w-4 text-muted-foreground" />
+                      <p className="text-sm font-medium">Link Your Wallet</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Connect your wallet to access blockchain features</p>
+
+                    {localError && <p className="text-xs text-red-500">{localError}</p>}
+
+                    {showWalletLinking && isConnected ? (
+                      <div className="space-y-3">
+                        <div className="flex flex-col items-center justify-center gap-2 py-2">
+                          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                          <p className="text-xs text-muted-foreground">
+                            {progressMessage || "Waiting for signature..."}
+                          </p>
+                        </div>
+                        <Button
+                          onClick={() => {
+                            setShowWalletLinking(false);
+                            disconnect();
+                            setLocalError(null);
+                          }}
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          disabled={isLinkingWallet}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        onClick={handleLinkWallet}
+                        variant="outline"
+                        size="sm"
+                        className="w-full gap-2"
+                        disabled={showWalletLinking}
+                      >
+                        {showWalletLinking ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Opening wallet...
+                          </>
+                        ) : (
+                          <>
+                            <Wallet className="h-4 w-4" />
+                            Link Wallet
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                <Button onClick={handleLogout} variant="outline" className="w-full gap-2">
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </Button>
               </div>
             </div>
-
-            {/* Linked Wallet Display */}
-            {hasLinkedWallet && (
-              <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg border">
-                <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-muted-foreground">Linked Wallet</p>
-                  <div className="flex items-center gap-2">
-                    <p className="font-mono text-sm font-medium truncate">
-                      {formatAddress(user.wallet_address)}
-                    </p>
-                    <a
-                      href={getExplorerUrl(user.wallet_address)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </a>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Wallet Linking Section */}
-            {!hasLinkedWallet && (
-              <div className="space-y-3 p-4 bg-muted/50 rounded-lg border">
-                <div className="flex items-center gap-2">
-                  <Wallet className="h-4 w-4 text-muted-foreground" />
-                  <p className="text-sm font-medium">Link Your Wallet</p>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Connect your wallet to access blockchain features
-                </p>
-
-                {localError && (
-                  <p className="text-xs text-red-500">{localError}</p>
-                )}
-
-                {showWalletLinking && isConnected ? (
-                  <div className="space-y-3">
-                    <div className="flex flex-col items-center justify-center gap-2 py-2">
-                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                      <p className="text-xs text-muted-foreground">Waiting for signature...</p>
-                    </div>
-                    <Button
-                      onClick={() => {
-                        setShowWalletLinking(false);
-                        disconnect();
-                        setLocalError(null);
-                      }}
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      disabled={isLinkingWallet}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    onClick={handleLinkWallet}
-                    variant="outline"
-                    size="sm"
-                    className="w-full gap-2"
-                    disabled={showWalletLinking}
-                  >
-                    {showWalletLinking ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Opening wallet...
-                      </>
-                    ) : (
-                      <>
-                        <Wallet className="h-4 w-4" />
-                        Link Wallet
-                      </>
-                    )}
-                  </Button>
-                )}
-              </div>
-            )}
-
-            <Button
-              onClick={handleLogout}
-              variant="outline"
-              className="w-full gap-2"
-            >
-              <LogOut className="h-4 w-4" />
-              Sign out
-            </Button>
-          </div>
-        </div>
-      </DialogPortal>
+          </DialogPortal>
         ) : (
           <DialogContent className="sm:max-w-md">
             <DialogHeader className="text-center">
-              <img
-                src="/images/logo.svg"
-                alt="Logo"
-                className="h-4 mx-auto my-6"
-              />
-              <DialogTitle className="text-2xl font-bold">
-                Welcome back!
-              </DialogTitle>
-              <DialogDescription className="text-base">
-                You're successfully signed in.
-              </DialogDescription>
+              <img src="/images/logo.svg" alt="Logo" className="h-4 mx-auto my-6" />
+              <DialogTitle className="text-2xl font-bold">Welcome back!</DialogTitle>
+              <DialogDescription className="text-base">You&apos;re successfully signed in.</DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4">
               {/* Primary Identity Display */}
               <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
-                <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />
+                <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-muted-foreground">Signed in as</p>
                   {user.email ? (
-                    <p className="font-medium text-foreground truncate">
-                      {user.email}
-                    </p>
+                    <p className="font-medium text-foreground truncate">{user.email}</p>
                   ) : hasLinkedWallet ? (
                     <div className="flex items-center gap-2">
-                      <p className="font-mono text-sm font-medium truncate">
-                        {formatAddress(user.wallet_address)}
-                      </p>
+                      <p className="font-mono text-sm font-medium truncate">{formatAddress(user.wallet_address)}</p>
                       <a
                         href={getExplorerUrl(user.wallet_address)}
                         target="_blank"
@@ -389,9 +447,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
                       </a>
                     </div>
                   ) : (
-                    <p className="font-medium text-foreground truncate">
-                      Anonymous User
-                    </p>
+                    <p className="font-medium text-foreground truncate">Anonymous User</p>
                   )}
                 </div>
               </div>
@@ -399,13 +455,11 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
               {/* Secondary Wallet Display (only if email exists and wallet is linked) */}
               {user.email && hasLinkedWallet && (
                 <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg border">
-                  <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
+                  <Check className="h-5 w-5 text-green-500 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-muted-foreground">Linked Wallet</p>
                     <div className="flex items-center gap-2">
-                      <p className="font-mono text-sm font-medium truncate">
-                        {formatAddress(user.wallet_address)}
-                      </p>
+                      <p className="font-mono text-sm font-medium truncate">{formatAddress(user.wallet_address)}</p>
                       <a
                         href={getExplorerUrl(user.wallet_address)}
                         target="_blank"
@@ -426,32 +480,18 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
                     <Wallet className="h-4 w-4 text-muted-foreground" />
                     <p className="text-sm font-medium">Link Your Wallet</p>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Connect your wallet to access blockchain features
-                  </p>
+                  <p className="text-xs text-muted-foreground">Connect your wallet to access blockchain features</p>
 
-                  {localError && (
-                    <p className="text-xs text-red-500">{localError}</p>
-                  )}
+                  {localError && <p className="text-xs text-red-500">{localError}</p>}
 
-                  <Button
-                    onClick={handleLinkWallet}
-                    variant="outline"
-                    size="sm"
-                    className="w-full gap-2"
-                  >
+                  <Button onClick={handleLinkWallet} variant="outline" size="sm" className="w-full gap-2">
                     <Wallet className="h-4 w-4" />
                     Link Wallet
                   </Button>
                 </div>
               )}
 
-
-              <Button
-                onClick={handleLogout}
-                variant="outline"
-                className="w-full gap-2"
-              >
+              <Button onClick={handleLogout} variant="outline" className="w-full gap-2">
                 <LogOut className="h-4 w-4" />
                 Sign out
               </Button>
@@ -462,30 +502,19 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
     );
   }
 
-
   // Initial view - show welcome with SIWE button
   if (step === "initial") {
     return (
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader className="text-center">
-            <img
-              src="/images/logo.svg"
-              alt="Logo"
-              className="h-4 mx-auto my-6"
-            />
-            <DialogTitle className="text-2xl font-bold">
-              Welcome to Canopy
-            </DialogTitle>
-            <DialogDescription className="text-base">
-              Connect your wallet to get started.
-            </DialogDescription>
+            <img src="/images/logo.svg" alt="Logo" className="h-4 mx-auto my-6" />
+            <DialogTitle className="text-2xl font-bold">Welcome to Canopy</DialogTitle>
+            <DialogDescription className="text-base">Connect your wallet to get started.</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            {localError && (
-              <p className="text-sm text-red-500 text-center">{localError}</p>
-            )}
+            {localError && <p className="text-sm text-red-500 text-center">{localError}</p>}
 
             {/* SIWE Button */}
             <Button
@@ -516,8 +545,8 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogPortal>
           {/* Use a lower z-index overlay that won't block RainbowKit modal */}
-          <DialogOverlay className="z-[100]" />
-          <div className="bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-[150] grid w-full max-w-[calc(100%-2rem)] sm:max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200">
+          <DialogOverlay className="z-100" />
+          <div className="bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-150 grid w-full max-w-[calc(100%-2rem)] sm:max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200">
             {/* Back button - only show if not connected yet */}
             {!isConnected && (
               <button
@@ -530,11 +559,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
             )}
 
             <DialogHeader className="text-center">
-            <img
-              src="/images/logo.svg"
-              alt="Logo"
-              className="h-4 mx-auto my-6"
-            />
+              <img src="/images/logo.svg" alt="Logo" className="h-4 mx-auto my-6" />
               <DialogTitle className="text-2xl font-bold">
                 {!isConnected ? "Connect Your Wallet" : "Sign in with Ethereum"}
               </DialogTitle>
@@ -544,16 +569,16 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
             </DialogHeader>
 
             <div className="space-y-4">
-              {localError && (
-                <p className="text-sm text-red-500 text-center">{localError}</p>
-              )}
+              {localError && <p className="text-sm text-red-500 text-center">{localError}</p>}
 
               {isConnected && (
                 <div className="flex flex-col items-center justify-center gap-3 py-4">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   <div className="text-center">
                     <p className="text-sm font-medium">Wallet Connected</p>
-                    <p className="text-sm text-muted-foreground">Waiting for signature...</p>
+                    <p className="text-sm text-muted-foreground">
+                      {progressMessage || "Waiting for signature..."}
+                    </p>
                   </div>
                 </div>
               )}

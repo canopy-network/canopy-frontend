@@ -4,72 +4,54 @@
 export const dynamic = "force-dynamic";
 
 import { useState, useEffect, useMemo } from "react";
-import {
-  Card,
-  CardContent, CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { SendTransactionDialog } from "@/components/wallet/send-transaction-dialog";
-import { ReceiveDialog } from "@/components/wallet/receive-dialog";
-import { StakeDialog } from "@/components/wallet/stake-dialog";
-import { AssetsTab } from "@/components/wallet/assets-tab";
+import { WalletHeader } from "@/components/wallet/wallet-header";
+import AssetsTab from "@/components/wallet/assets-tab";
 import { ActivityTab } from "@/components/wallet/activity-tab";
 import { StakingTab } from "@/components/wallet/staking-tab";
 import { GovernanceTab } from "@/components/wallet/governance-tab";
-import { RewardsActivity } from "@/components/wallet/rewards-activity";
 import { useStaking } from "@/lib/hooks/use-staking";
-import {
-  Copy,
-  Send,
-  Download,
-  Coins,
-  Settings,
-  Repeat,
-  LogOut, Wallet,
-  ChevronUp,
-} from "lucide-react";
+import { Wallet } from "lucide-react";
 import { toast } from "sonner";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { Container } from "@/components/layout/container";
+import OrderBookTab from "@/components/orderbook/orders-tab";
 
 function WalletContent() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
   const { currentWallet, connectWallet, setShowSelectDialog } = useWallet();
-  const {
-    balance,
-    transactions,
-    fetchBalance,
-    fetchTransactions,
-    fetchPortfolioOverview,
-  } = useWalletStore();
+  const { balance, transactions, fetchBalance, fetchTransactions, fetchPortfolioOverview } = useWalletStore();
   const { positions } = useStaking(currentWallet?.address);
 
-  const [showSendDialog, setShowSendDialog] = useState(false);
-  const [showReceiveDialog, setShowReceiveDialog] = useState(false);
-  const [showStakeDialog, setShowStakeDialog] = useState(false);
-  const [showQuickActionsSheet, setShowQuickActionsSheet] = useState(false);
-  const [activeTab, setActiveTab] = useState("assets");
+  const [activeTab, setActiveTab] = useState("orders");
 
   // Memoize addresses array to prevent recreation on every render
   // This is critical to prevent infinite loops in child components
-  const addresses = useMemo(
-    () => (currentWallet ? [currentWallet.address] : []),
-    [currentWallet?.address]
-  );
+  const addresses = useMemo(() => (currentWallet ? [currentWallet.address] : []), [currentWallet?.address]);
 
-  // Fetch data when wallet changes
+  // Fetch data when wallet changes (sequentially to avoid burst)
   useEffect(() => {
     if (currentWallet) {
-      fetchBalance(currentWallet.id);
-      fetchTransactions(currentWallet.id);
-      fetchPortfolioOverview([currentWallet.address]);
+      const fetchWalletData = async () => {
+        try {
+          // Fetch balance first (most important)
+          await fetchBalance(currentWallet.id);
+          // Then fetch portfolio and transactions in parallel
+          await Promise.allSettled([
+            fetchPortfolioOverview([currentWallet.address]),
+            fetchTransactions(currentWallet.id),
+          ]);
+        } catch (error) {
+          console.warn("Failed to fetch wallet data:", error);
+        }
+      };
+      fetchWalletData();
     }
   }, [currentWallet?.id, currentWallet?.address, fetchBalance, fetchTransactions, fetchPortfolioOverview]);
 
@@ -109,9 +91,7 @@ function WalletContent() {
 
   const displayUSDValue = `$${totalUSDValue.toFixed(2)}`;
   const displayTransactions = transactions.length > 0 ? transactions : [];
-  const disallowChainIds = positions
-    .filter((p) => p.status !== "unstaking")
-    .map((p) => p.chain_id);
+  const disallowChainIds = positions.filter((p) => p.status !== "unstaking").map((p) => p.chain_id);
 
   if (!isAuthenticated) {
     return (
@@ -119,9 +99,7 @@ function WalletContent() {
         <Card>
           <CardHeader>
             <CardTitle>Authentication Required</CardTitle>
-            <CardDescription>
-              Please log in to access your wallet.
-            </CardDescription>
+            <CardDescription>Please log in to access your wallet.</CardDescription>
           </CardHeader>
           <CardContent>
             <Button onClick={() => router.push("/")}>Go to Home</Button>
@@ -144,19 +122,14 @@ function WalletContent() {
         <Card>
           <CardHeader>
             <CardTitle>No Wallet Connected</CardTitle>
-            <CardDescription>
-              Connect your wallet to view account details and manage your
-              assets.
-            </CardDescription>
+            <CardDescription>Connect your wallet to view account details and manage your assets.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="rounded-lg bg-muted/50 p-8 text-center">
               <div className="rounded-full bg-primary/10 p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                 <Wallet className="h-8 w-8 text-primary" />
               </div>
-              <p className="text-sm text-muted-foreground mb-4">
-                Get started by connecting or creating a wallet
-              </p>
+              <p className="text-sm text-muted-foreground mb-4">Get started by connecting or creating a wallet</p>
               <Button onClick={connectWallet} size="lg" className="gap-2">
                 <Wallet className="h-4 w-4" />
                 Connect Wallet
@@ -168,262 +141,62 @@ function WalletContent() {
     );
   }
 
-
   return (
-    <div>
-      <div className="flex-1 p-4 sm:p-6 pt-4">
-        <div className="max-w-[1024px] mx-auto flex flex-col lg:flex-row gap-6 lg:gap-12">
-          {/* Main Content */}
-          <div className="flex-1 min-w-0 order-2 lg:order-1">
-            {/* Header with wallet info */}
-            <div className="mb-6 sm:mb-8">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                  {/* Avatar */}
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[#1dd13a] flex items-center justify-center shrink-0">
-                    <span className="text-base sm:text-lg font-bold text-white">C</span>
-                  </div>
+    <Container type="boxed-small" className="flex flex-row gap-6">
+      <div className="flex flex-col gap-6 w-full">
+        {/* Main Content */}
+        <WalletHeader />
 
-                  {/* Wallet Info */}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <div className="text-sm sm:text-base font-semibold text-foreground truncate">
-                        {formatAddress(currentWallet.address)}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 shrink-0 hover:bg-muted"
-                        onClick={copyAddress}
-                      >
-                        <Copy className="w-3 h-3" />
-                      </Button>
-                    </div>
-                    <div className="text-xs sm:text-sm text-[#1dd13a]">Connected</div>
-                  </div>
-                </div>
+        {/* Tabs */}
+        <div className="space-y-4 sm:space-y-6">
+          {/* Tabs for Assets, Activity, Staking, Governance */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full h-full">
+            <TabsList variant="wallet">
+              <TabsTrigger value="orders" variant="wallet">
+                Order Book
+              </TabsTrigger>
+              <TabsTrigger value="assets" variant="wallet">
+                Assets
+              </TabsTrigger>
+              <TabsTrigger value="staking" variant="wallet">
+                Staking
+              </TabsTrigger>
+              <TabsTrigger value="activity" variant="wallet">
+                Activity
+              </TabsTrigger>
+              <TabsTrigger value="governance" variant="wallet">
+                Governance
+              </TabsTrigger>
+            </TabsList>
 
-                {/* Actions */}
-                <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8 sm:h-9 sm:w-9 rounded-full hover:bg-muted"
-                    onClick={() => router.push("/settings")}
-                  >
-                    <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8 sm:h-9 sm:w-9 rounded-full text-red-500 hover:text-red-500 hover:bg-red-500/10"
-                    onClick={handleDisconnect}
-                  >
-                    <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </Button>
-                </div>
-              </div>
-            </div>
+            {/* Assets Tab */}
+            <TabsContent value="orders" className="mt-4 sm:mt-6">
+              <OrderBookTab />
+            </TabsContent>
 
-            {/* Tabs */}
-            <div className="space-y-4 sm:space-y-6">
+            {/* Assets Tab */}
+            <TabsContent value="assets" className="mt-4 sm:mt-6">
+              <AssetsTab />
+            </TabsContent>
 
-              {/* Tabs for Assets, Activity, Staking, Governance */}
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="h-auto w-full justify-start bg-transparent p-0 border-b rounded-none overflow-x-auto scrollbar-hide">
-                  <TabsTrigger
-                    value="assets"
-                    className="py-3 sm:py-4 px-0 mr-4 sm:mr-8 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent text-sm sm:text-base shrink-0"
-                  >
-                    Assets
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="staking"
-                    className="py-3 sm:py-4 px-0 mr-4 sm:mr-8 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent text-sm sm:text-base shrink-0"
-                  >
-                    Staking
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="rewards"
-                    className="py-3 sm:py-4 px-0 mr-4 sm:mr-8 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent text-sm sm:text-base shrink-0"
-                  >
-                    Rewards
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="activity"
-                    className="py-3 sm:py-4 px-0 mr-4 sm:mr-8 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent text-sm sm:text-base shrink-0"
-                  >
-                    Activity
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="governance"
-                    className="py-3 sm:py-4 px-0 mr-4 sm:mr-8 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent text-sm sm:text-base shrink-0"
-                  >
-                    Governance
-                  </TabsTrigger>
-                </TabsList>
+            {/* Staking Tab */}
+            <TabsContent value="staking" className="mt-4 sm:mt-6">
+              <StakingTab addresses={addresses} />
+            </TabsContent>
 
-                {/* Assets Tab */}
-                <TabsContent value="assets" className="mt-4 sm:mt-6">
-                  <AssetsTab addresses={addresses} />
-                </TabsContent>
+            {/* Activity Tab */}
+            <TabsContent value="activity" className="mt-4 sm:mt-6">
+              <ActivityTab addresses={addresses} compact />
+            </TabsContent>
 
-                {/* Staking Tab */}
-                <TabsContent value="staking" className="mt-4 sm:mt-6">
-                  <StakingTab addresses={addresses} />
-                </TabsContent>
-
-                {/* Rewards Tab */}
-                <TabsContent value="rewards" className="mt-4 sm:mt-6">
-                  <RewardsActivity
-                    addresses={addresses}
-                    limit={10}
-                  />
-                </TabsContent>
-
-                {/* Activity Tab */}
-                <TabsContent value="activity" className="mt-4 sm:mt-6">
-                  <ActivityTab addresses={addresses} compact />
-                </TabsContent>
-
-                {/* Governance Tab */}
-                <TabsContent value="governance" className="mt-4 sm:mt-6">
-                  <GovernanceTab tokens={displayTokens} />
-                </TabsContent>
-              </Tabs>
-            </div>
-          </div>
-
-          {/* Quick Actions Sidebar - Desktop */}
-          <div className="hidden lg:block lg:order-2">
-            <Card className="w-64 shrink-0 h-fit sticky top-4">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    variant="outline"
-                    className="h-auto py-4 flex-col gap-2"
-                    onClick={() => setShowSendDialog(true)}
-                  >
-                    <Send className="h-5 w-5" />
-                    <span className="text-xs">Send</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="h-auto py-4 flex-col gap-2"
-                    onClick={() => setShowReceiveDialog(true)}
-                  >
-                    <Download className="h-5 w-5" />
-                    <span className="text-xs">Buy</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="h-auto py-4 flex-col gap-2"
-                    onClick={() => toast.info("Swap coming soon")}
-                  >
-                    <Repeat className="h-5 w-5" />
-                    <span className="text-xs">Swap</span>
-                  </Button>
-                  <Button
-        variant="outline"
-        className="h-auto py-4 flex-col gap-2"
-        onClick={() => setShowStakeDialog(true)}
-      >
-        <Coins className="h-5 w-5" />
-        <span className="text-xs">Stake</span>
-      </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Quick Actions Button - Mobile */}
-          <div className="lg:hidden w-full order-1 lg:order-2">
-            <Sheet open={showQuickActionsSheet} onOpenChange={setShowQuickActionsSheet}>
-              <SheetTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full justify-between h-12"
-                >
-                  <span className="text-sm font-medium">Quick Actions</span>
-                  <ChevronUp className="h-4 w-4" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="bottom" className="h-auto p-0">
-                <SheetHeader className="px-6 pt-6 pb-4">
-                  <SheetTitle>Quick Actions</SheetTitle>
-                </SheetHeader>
-                <div className="px-6 pb-6">
-                  <div className="grid grid-cols-4 gap-3">
-                    <Button
-                      variant="outline"
-                      className="h-auto py-4 flex-col gap-2"
-                      onClick={() => {
-                        setShowSendDialog(true);
-                        setShowQuickActionsSheet(false);
-                      }}
-                    >
-                      <Send className="h-5 w-5" />
-                      <span className="text-xs">Send</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="h-auto py-4 flex-col gap-2"
-                      onClick={() => {
-                        setShowReceiveDialog(true);
-                        setShowQuickActionsSheet(false);
-                      }}
-                    >
-                      <Download className="h-5 w-5" />
-                      <span className="text-xs">Buy</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="h-auto py-4 flex-col gap-2"
-                      onClick={() => {
-                        toast.info("Swap coming soon");
-                        setShowQuickActionsSheet(false);
-                      }}
-                    >
-                      <Repeat className="h-5 w-5" />
-                      <span className="text-xs">Swap</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="h-auto py-4 flex-col gap-2"
-                      onClick={() => {
-                        setShowStakeDialog(true);
-                        setShowQuickActionsSheet(false);
-                      }}
-                    >
-                      <Coins className="h-5 w-5" />
-                      <span className="text-xs">Stake</span>
-                    </Button>
-                  </div>
-                </div>
-              </SheetContent>
-            </Sheet>
-          </div>
+            {/* Governance Tab */}
+            <TabsContent value="governance" className="mt-4 sm:mt-6">
+              <GovernanceTab tokens={displayTokens} />
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
-
-      {/* Dialogs */}
-      <SendTransactionDialog
-        open={showSendDialog}
-        onOpenChange={setShowSendDialog}
-      />
-      <ReceiveDialog
-        open={showReceiveDialog}
-        onOpenChange={setShowReceiveDialog}
-      />
-      <StakeDialog
-        open={showStakeDialog}
-        onOpenChange={setShowStakeDialog}
-        disallowChainIds={disallowChainIds}
-      />
-    </div>
+    </Container>
   );
 }
 

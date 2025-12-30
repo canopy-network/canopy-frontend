@@ -27,12 +27,6 @@ interface ApiChain {
   branding: string | null;
 }
 
-interface ApiSearchResponse {
-  success: boolean;
-  chains: ApiChain[];
-  count: number;
-}
-
 interface CommandSearchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -96,10 +90,7 @@ function GlobalSearchDialog({
     const searchChains = async () => {
       setIsSearching(true);
       try {
-        const response = await fetch(
-          `/api/chains/search?q=${encodeURIComponent(debouncedQuery)}`
-        );
-        const data: ApiSearchResponse = await response.json();
+        const data = await searchChains(debouncedQuery);
 
         if (data.success && data.chains) {
           // Map API response to Chain format

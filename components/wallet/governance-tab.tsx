@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { portfolioApi, chainsApi, governanceApi } from "@/lib/api";
-import { formatTokenAmount, withCommas } from "@/lib/utils/denomination";
+import { withCommas } from "@/lib/utils/denomination";
 import { generateChainColor } from "@/lib/utils/chain-ui-helpers";
 import type { TokenBalance } from "@/types/wallet";
 import type { Chain } from "@/types/chains";

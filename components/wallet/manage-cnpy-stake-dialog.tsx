@@ -1,12 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,12 +18,7 @@ interface ManageCnpyStakeDialogProps {
   onConfirm: (payload: { amountToAdd: number; committees: number[]; autoCompound: boolean }) => void;
 }
 
-export function ManageCnpyStakeDialog({
-  open,
-  onOpenChange,
-  stake,
-  onConfirm,
-}: ManageCnpyStakeDialogProps) {
+export function ManageCnpyStakeDialog({ open, onOpenChange, stake, onConfirm }: ManageCnpyStakeDialogProps) {
   const [amount, setAmount] = useState("");
   const [autoCompound, setAutoCompound] = useState(true);
   const [selectedCommittees, setSelectedCommittees] = useState<number[]>([]);
@@ -99,9 +89,7 @@ export function ManageCnpyStakeDialog({
   const toggleCommittee = (id: number) => {
     // main chain always selected
     if (id === safeStake.chainId) return;
-    setSelectedCommittees((prev) =>
-      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
-    );
+    setSelectedCommittees((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
   };
 
   const handleContinue = () => {
@@ -149,12 +137,10 @@ export function ManageCnpyStakeDialog({
               <div className="px-6 pb-6 space-y-6">
                 <div className="p-4 bg-muted/30 rounded-lg border flex items-center gap-3">
                   <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                    className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
                     style={{ backgroundColor: stake.color }}
                   >
-                    <span className="text-sm font-bold text-white">
-                      {stake.symbol.slice(0, 2)}
-                    </span>
+                    <span className="text-sm font-bold text-white">{stake.symbol.slice(0, 2)}</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold">{stake.chain} (Main)</p>
@@ -222,12 +208,10 @@ export function ManageCnpyStakeDialog({
                             disabled={isMain}
                           />
                           <div
-                            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
                             style={{ backgroundColor: chain.color }}
                           >
-                            <span className="text-sm font-bold text-white">
-                              {chain.symbol.slice(0, 2)}
-                            </span>
+                            <span className="text-sm font-bold text-white">{chain.symbol.slice(0, 2)}</span>
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-sm">{chain.chain}</p>
@@ -250,7 +234,8 @@ export function ManageCnpyStakeDialog({
                   <div className="space-y-1 text-sm">
                     <p className="font-medium">Multichain rewards</p>
                     <p className="text-muted-foreground">
-                      You'll earn CNPY plus native rewards (GAME, DEFI, etc.) for each selected chain. Those baby tokens can also be staked on their own chains.
+                      You&apos;ll earn CNPY plus native rewards (GAME, DEFI, etc.) for each selected chain. Those baby
+                      tokens can also be staked on their own chains.
                     </p>
                   </div>
                 </div>
@@ -265,12 +250,7 @@ export function ManageCnpyStakeDialog({
           {step === 2 && (
             <>
               <div className="relative px-6 py-4 border-b">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute left-2 top-2"
-                  onClick={() => setStep(1)}
-                >
+                <Button variant="ghost" size="icon" className="absolute left-2 top-2" onClick={() => setStep(1)}>
                   <ArrowLeft className="w-5 h-5" />
                 </Button>
                 <Button
@@ -300,14 +280,13 @@ export function ManageCnpyStakeDialog({
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Auto-compound</span>
-                    <span className="font-semibold">
-                      {autoCompound ? "Enabled" : "Disabled (20% penalty)"}
-                    </span>
+                    <span className="font-semibold">{autoCompound ? "Enabled" : "Disabled (20% penalty)"}</span>
                   </div>
                 </div>
 
                 <div className="p-4 bg-muted/50 rounded-lg text-xs text-muted-foreground leading-relaxed">
-                  By confirming, you apply your CNPY stake to the selected chains. Unstaking is full-position and takes ~7 days. Baby chain rewards can be staked separately to compound further.
+                  By confirming, you apply your CNPY stake to the selected chains. Unstaking is full-position and takes
+                  ~7 days. Baby chain rewards can be staked separately to compound further.
                 </div>
 
                 <div className="space-y-2">

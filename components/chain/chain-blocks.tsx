@@ -58,7 +58,7 @@ export function ChainBlocks({ onBlockClick }: ChainBlocksProps) {
     const fetchBlocks = async () => {
       setIsLoading(true);
       // TODO: Replace with actual API call when backend is ready
-      // Example: const response = await fetch(`/api/chains/${chainId}/blocks`);
+      // Example: const response = await apiClient.get(`/api/v1/chains/${chainId}/blocks`);
 
       // Simulate API delay
       await new Promise((resolve) => setTimeout(resolve, 500));
@@ -119,7 +119,7 @@ export function ChainBlocks({ onBlockClick }: ChainBlocksProps) {
     setLoadingMore(true);
 
     // TODO: Replace with actual API call
-    // Example: const response = await fetch(`/api/chains/${chainId}/blocks?before=${blocks[blocks.length - 1].number}`);
+    // Example: const response = await apiClient.get(`/api/v1/chains/${chainId}/blocks`, { before: blocks[blocks.length - 1].number });
 
     // Simulate API delay
     await new Promise((resolve) => setTimeout(resolve, 500));

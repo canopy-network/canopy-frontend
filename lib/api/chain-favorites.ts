@@ -9,6 +9,8 @@
  * @since 2025-11-05
  */
 
+import { localApiClient } from "./local-client";
+
 type PreferenceType = "like" | "dislike";
 
 interface FavoriteResponse {
@@ -35,6 +37,8 @@ interface ListFavoritesResponse {
   error?: string;
 }
 
+const favoritesRequestConfig = { withCredentials: true };
+
 /**
  * Get the current user's preference for a chain
  *
@@ -45,16 +49,11 @@ export async function getChainPreference(
   chainId: string
 ): Promise<FavoriteResponse> {
   try {
-    const response = await fetch(
-      `/api/chains/favorite?chain_id=${encodeURIComponent(String(chainId))}`,
-      {
-        method: "GET",
-        credentials: "include", // Include cookies for authentication
-      }
+    return await localApiClient.getRaw<FavoriteResponse>(
+      "/chains/favorite",
+      { chain_id: String(chainId) },
+      favoritesRequestConfig
     );
-
-    const data = await response.json();
-    return data;
   } catch (error) {
     console.error("Error fetching chain preference:", error);
     return {
@@ -78,21 +77,15 @@ export async function setChainPreference(
   preference: PreferenceType
 ): Promise<FavoriteResponse> {
   try {
-    const response = await fetch("/api/chains/favorite", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include", // Include cookies for authentication
-      body: JSON.stringify({
+    return await localApiClient.postRaw<FavoriteResponse>(
+      "/chains/favorite",
+      {
         user_id: userId,
         chain_id: String(chainId),
         preference,
-      }),
-    });
-
-    const data = await response.json();
-    return data;
+      },
+      favoritesRequestConfig
+    );
   } catch (error) {
     console.error("Error setting chain preference:", error);
     return {
@@ -114,20 +107,13 @@ export async function removeChainPreference(
   chainId: string
 ): Promise<FavoriteResponse> {
   try {
-    const response = await fetch("/api/chains/favorite", {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include", // Include cookies for authentication
-      body: JSON.stringify({
+    return await localApiClient.deleteRaw<FavoriteResponse>("/chains/favorite", {
+      data: {
         user_id: userId,
         chain_id: String(chainId),
-      }),
+      },
+      ...favoritesRequestConfig,
     });
-
-    const data = await response.json();
-    return data;
   } catch (error) {
     console.error("Error removing chain preference:", error);
     return {
@@ -183,18 +169,14 @@ export async function listUserFavorites(
   preference: "like" | "dislike" | "all" = "like"
 ): Promise<ListFavoritesResponse> {
   try {
-    const response = await fetch(
-      `/api/chains/favorite/list?user_id=${encodeURIComponent(
-        userId
-      )}&preference=${encodeURIComponent(preference)}`,
+    return await localApiClient.getRaw<ListFavoritesResponse>(
+      "/chains/favorite/list",
       {
-        method: "GET",
-        credentials: "include", // Include cookies for authentication
-      }
+        user_id: userId,
+        preference,
+      },
+      favoritesRequestConfig
     );
-
-    const data = await response.json();
-    return data;
   } catch (error) {
     console.error("Error listing user favorites:", error);
     return {

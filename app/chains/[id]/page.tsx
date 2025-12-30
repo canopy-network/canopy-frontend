@@ -136,19 +136,9 @@ export default async function ChainPage(props: ChainPageProps) {
       media,
     } as ChainExtended;
 
-    // Fetch accolades for the chain
-    let filteredAccolades: Accolade[] = [];
-    let allAccolades: Accolade[] = [];
-    try {
-      const accoladesResponse = await chainsApi.getAccolades(chainId);
-      if (accoladesResponse.data) {
-        allAccolades = accoladesResponse.data;
-        filteredAccolades = filterAccoladesByCategory(accoladesResponse.data);
-      }
-    } catch (error) {
-      console.error("Error fetching accolades:", error);
-      // Continue without accolades if fetch fails
-    }
+    // Extract accolades from the chain response (included via include parameter)
+    const allAccolades: Accolade[] = (response.data as any).accolades || [];
+    const filteredAccolades = filterAccoladesByCategory(allAccolades);
 
     console.log("[allAccolades]", allAccolades);
     console.log("[filteredAccolades]", filteredAccolades);
