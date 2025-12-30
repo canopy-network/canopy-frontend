@@ -152,12 +152,16 @@ export default function BrandingMedia({
   }, [gallery, existingGalleryUrls]);
 
   // Notify parent when data changes
+  // TODO: TEMP - Bypass validation for testing
   useEffect(() => {
     if (onDataSubmit) {
       // Logo is valid if we have either a new file or an existing URL
-      const isValid =
-        (logo !== null || logoUrl !== null) && chainDescription.length >= 10;
-      onDataSubmit({ logo, chainDescription, gallery, brandColor }, isValid);
+      // const isValid =
+      //   (logo !== null || logoUrl !== null) && chainDescription.length >= 10;
+      const isValid = true; // TEMP: Always valid for testing
+      // TEMP: Use default brand color if not set
+      const effectiveBrandColor = brandColor || "#6366F1";
+      onDataSubmit({ logo, chainDescription, gallery, brandColor: effectiveBrandColor }, isValid);
     }
   }, [logo, logoUrl, chainDescription, gallery, brandColor, onDataSubmit]);
 

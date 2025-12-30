@@ -43,7 +43,6 @@ export interface CreateChainFormData {
   chainName: string;
   tokenName: string;
   ticker: string;
-  tokenSupply: string;
   decimals: string;
   description: string;
   halvingDays: string;
@@ -78,7 +77,7 @@ export interface CreateChainFormData {
   timezone: string;
   launchImmediately: boolean;
   initialPurchaseAmount: string;
-  graduationThreshold: number;
+  targetPriceAtGraduation: number;
 }
 
 interface CreateChainState {
@@ -115,7 +114,6 @@ const initialFormData: CreateChainFormData = {
   chainName: "",
   tokenName: "",
   ticker: "",
-  tokenSupply: "1000000000",
   decimals: "18",
   description: "",
   halvingDays: "365",
@@ -137,7 +135,7 @@ const initialFormData: CreateChainFormData = {
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   launchImmediately: true,
   initialPurchaseAmount: "",
-  graduationThreshold: 50000,
+  targetPriceAtGraduation: 1.25,
 };
 
 // ============================================================================

@@ -48,7 +48,6 @@ interface ReviewPaymentProps {
     chainName: string;
     tokenName: string;
     ticker: string;
-    tokenSupply: string;
     decimals: string;
     halvingDays: string;
     blockTime: string;
@@ -71,7 +70,7 @@ interface ReviewPaymentProps {
       title?: string;
       description?: string;
     }>;
-    graduationThreshold: number;
+    targetPriceAtGraduation: number;
     initialPurchaseAmount: string;
     launchImmediately: boolean;
     launchDate: string;
@@ -220,8 +219,7 @@ export default function ReviewPayment({ formData }: ReviewPaymentProps) {
               <div>
                 <div className="text-sm text-muted-foreground mb-1">Supply</div>
                 <div className="font-medium">
-                  {Number(formData.tokenSupply).toLocaleString()}{" "}
-                  {formData.ticker}
+                  {Number(1000000000).toLocaleString()} {formData.ticker}
                 </div>
               </div>
 
@@ -378,10 +376,10 @@ export default function ReviewPayment({ formData }: ReviewPaymentProps) {
             <div className="space-y-3">
               <div>
                 <div className="text-sm text-muted-foreground mb-1">
-                  Graduation Threshold
+                  Target Price At Graduation
                 </div>
                 <div className="font-medium">
-                  ${formData.graduationThreshold.toLocaleString()} market cap
+                  {formData.targetPriceAtGraduation} CNPY per token
                 </div>
               </div>
 
@@ -444,8 +442,8 @@ export default function ReviewPayment({ formData }: ReviewPaymentProps) {
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li>• Starts as virtual chain (test mode)</li>
                 <li>
-                  • Becomes real at $
-                  {formData.graduationThreshold.toLocaleString()} market cap
+                  • Graduates when token reaches{" "}
+                  {formData.targetPriceAtGraduation} CNPY per token
                 </li>
                 <li>• Settings cannot be changed after launch</li>
               </ul>
