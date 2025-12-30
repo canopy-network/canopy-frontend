@@ -7,18 +7,17 @@
 
 import { apiClient } from "./client";
 import {
-    Wallet,
-    UpdateWalletRequest,
-    ImportWalletRequest,
-    ImportWalletResponse,
-    ExportWalletResponse,
+  Wallet,
+  UpdateWalletRequest,
+  ImportWalletRequest,
+  ImportWalletResponse,
+  ExportWalletResponse,
 } from "@/types/wallet";
 
 /**
  * Wallet API methods
  */
 export const walletApi = {
-
   /**
    * Create a new wallet (import with seedphrase)
    * POST /api/v1/wallet/import
@@ -44,10 +43,7 @@ export const walletApi = {
    * @param data - Updated wallet metadata
    * @returns Updated wallet
    */
-  updateWallet: async (
-    id: string,
-    data: UpdateWalletRequest
-  ): Promise<Wallet> => {
+  updateWallet: async (id: string, data: UpdateWalletRequest): Promise<Wallet> => {
     const response = await apiClient.put<Wallet>(`/api/v1/wallet/${id}`, data);
     return response.data;
   },
@@ -63,7 +59,6 @@ export const walletApi = {
     await apiClient.delete(`/api/v1/wallet/${id}`);
   },
 
-
   /**
    * Export wallets in keystore format with encryption data
    * POST /api/v1/wallet/export (fallback to GET for backwards compatibility)
@@ -75,13 +70,11 @@ export const walletApi = {
    */
   exportWallets: async (): Promise<ExportWalletResponse> => {
     try {
-      const response = await apiClient.get<ExportWalletResponse>(
-          "/api/v1/wallet/export"
-      );
+      const response = await apiClient.get<ExportWalletResponse>("/api/v1/wallet/export");
       return response.data;
     } catch (error) {
-      console.error("There was an error retrieving wallets")
-      throw new Error("There was an error retrieving wallets")
+      console.error("There was an error retrieving wallets");
+      throw new Error("There was an error retrieving wallets");
     }
   },
 };
