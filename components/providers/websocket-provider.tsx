@@ -7,9 +7,10 @@
  * Automatically connects when user is authenticated.
  */
 
-import { useEffect } from "react";
-import { useWebSocket } from "@/lib/hooks/use-websocket";
+import { useEffect, useCallback } from "react";
+import { useWebSocket, useWebSocketMessage } from "@/lib/hooks/use-websocket";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { useBlocksStore, BlockIndexedEvent } from "@/lib/stores/blocks-store";
 
 interface WebSocketProviderProps {
   children: React.ReactNode;
@@ -20,6 +21,26 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   const { connect, disconnect, isConnected, connectionState } = useWebSocket({
     autoConnect: false, // We'll manage connection based on auth state
   });
+  const addBlockEvent = useBlocksStore((state) => state.addBlockEvent);
+
+  // Handle block.indexed WebSocket events
+  const handleBlockIndexed = useCallback(
+    (payload: { chainId: number; height: number }) => {
+      const event: BlockIndexedEvent = {
+        type: "block.indexed",
+        timestamp: new Date().toISOString(),
+        payload,
+      };
+      addBlockEvent(event);
+    },
+    [addBlockEvent]
+  );
+
+  useWebSocketMessage<{ chainId: number; height: number }>(
+    "block.indexed",
+    handleBlockIndexed,
+    [handleBlockIndexed]
+  );
 
   // Connect/disconnect based on authentication state
   useEffect(() => {

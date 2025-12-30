@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MainNav } from "@/components/navigation/main-nav";
 import { WalletConnectButton } from "@/components/wallet/wallet-connect-button";
 import { LoginDialog } from "@/components/auth/login-dialog";
@@ -14,6 +14,7 @@ import LaunchOverviewDialog from "@/components/launchpad/launch-overview-dialog"
 import Image from "next/image";
 import { CommandSearchTrigger } from "@/components/command-search-trigger";
 import { toast } from "sonner";
+import { useBlocksStore } from "@/lib/stores/blocks-store";
 
 export function Sidebar() {
   const { user, isAuthenticated, logout } = useAuthStore();
@@ -26,6 +27,11 @@ export function Sidebar() {
   const [isMobile, setIsMobile] = useState(false);
   const [addressVisibleChars, setAddressVisibleChars] = useState(22);
   const pathname = usePathname();
+
+  // Block indexed animation state
+  const blockEvents = useBlocksStore((state) => state.blockEvents);
+  const [isLogoAnimating, setIsLogoAnimating] = useState(false);
+  const prevEventCountRef = useRef(0);
 
   const formatWalletAddress = (address?: string, maxVisible: number = 22) => {
     if (!address) return "";
@@ -63,6 +69,20 @@ export function Sidebar() {
     window.addEventListener("resize", updateVisibleChars);
     return () => window.removeEventListener("resize", updateVisibleChars);
   }, []);
+
+  // Trigger logo animation when new block.indexed events arrive
+  useEffect(() => {
+    const totalEventCount = Object.values(blockEvents).reduce(
+      (sum, events) => sum + events.length,
+      0
+    );
+    if (totalEventCount > prevEventCountRef.current) {
+      setIsLogoAnimating(true);
+      const timeout = setTimeout(() => setIsLogoAnimating(false), 500);
+      return () => clearTimeout(timeout);
+    }
+    prevEventCountRef.current = totalEventCount;
+  }, [blockEvents]);
 
   // Check if sidebar should be compact
   useEffect(() => {
@@ -128,7 +148,11 @@ export function Sidebar() {
             height={128}
             src="/images/logo.svg"
             alt="Logo"
-            className={cn(isCondensed ? "w-26 min-w-26" : "w-auto min-w-auto", "h-auto object-contain")}
+            className={cn(
+              isCondensed ? "w-26 min-w-26" : "w-auto min-w-auto",
+              "h-auto object-contain transition-all duration-300",
+              isLogoAnimating && "scale-105 drop-shadow-[0_0_8px_rgba(34,197,94,0.6)]"
+            )}
           />
         </Link>
       </div>
