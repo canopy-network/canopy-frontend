@@ -200,7 +200,7 @@ export function Sidebar() {
                 onClick={() => setLoginDialogOpen(true)}
                 variant="default"
                 size="icon"
-                className="bg-black/30 text-[#7cff9d] border border-[#36d26a] shadow-[0_0_12px_2px_rgba(124,255,157,0.3)] hover:shadow-[0_0_16px_3px_rgba(124,255,157,0.45)] transition-transform hover:-translate-y-px rounded-full"
+                className={"w-full h-11 rounded-xl bg-[#0e200e] border border-white/15 text-sm font-medium text-[#1dd13a] backdrop-blur transition-colors hover:bg-[#0e200e]/80"}
                 aria-label="Connect Wallet"
               >
                 <img
@@ -214,13 +214,9 @@ export function Sidebar() {
                 onClick={() => setLoginDialogOpen(true)}
                 variant="ghost"
                 size="sm"
-                className="w-full text-sm font-semibold text-[#7cff9d] border border-[#36d26a] bg-black/30 rounded-md shadow-[0_0_14px_rgba(124,255,157,0.4)] hover:shadow-[0_0_18px_rgba(124,255,157,0.55)] transition-transform hover:-translate-y-px gap-2"
+                className="w-full h-11 rounded-xl bg-[#0e200e] border border-white/15 text-sm font-medium text-[#1dd13a] backdrop-blur transition-colors hover:bg-[#0e200e]/80"
               >
-                <img
-                  src="/images/ethereum-logo.png"
-                  alt="Ethereum"
-                  className="h-4 w-4 object-contain drop-shadow-[0_0_8px_rgba(124,255,157,0.8)]"
-                />
+
                 Connect Wallet
               </Button>
             )}
