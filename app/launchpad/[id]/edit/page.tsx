@@ -269,15 +269,12 @@ export default function EditChainPage(props: EditChainPageProps) {
         chain_description: chainDescription,
       };
 
-      //TODO: PATCH chain update has not been implemented yet.
-      setIsEditMode(false);
-      return console.log({ "Stud updating chain": updateData });
-
-      console.log("Updating chain metadata...");
-      await chainsApi.updateChain(chainId, updateData);
-      console.log("Chain updated successfully!");
+      // TODO: Chain metadata update endpoint not yet implemented
+      // For now, just exit edit mode after saving assets
+      console.log("Chain assets saved, metadata update pending:", updateData);
 
       // Exit edit mode and redirect to the chain detail page
+      setSaving(false);
       setIsEditMode(false);
       router.push(`/launchpad/${chainId}`);
     } catch (error) {

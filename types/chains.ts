@@ -354,7 +354,7 @@ export interface Transaction {
 
 /**
  * Create chain request payload
- * Creates a chain in draft status with an inactive virtual pool
+ * Creates a chain in pending_launch status with an inactive virtual pool
  */
 export interface CreateChainRequest {
   /** Chain name (required, 1-100 chars) */
@@ -391,11 +391,9 @@ export interface CreateChainRequest {
 
 /**
  * Activate chain request payload
- * Used to transition chain from draft to virtual_active status after payment
+ * Used to transition chain from pending_launch to virtual_active status after payment
  */
 export interface ActivateChainRequest {
-  /** Target status (must be "virtual_active") */
-  status: "virtual_active";
   /** Transaction hash of the payment (64-66 chars) */
   tx_hash: string;
 }
