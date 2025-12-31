@@ -157,8 +157,7 @@ export const chainsApi = {
    * ```
    */
   activateChain: (id: string, txHash: string) =>
-    apiClient.patch<Chain>(`/api/v1/chains/${id}`, {
-      status: "virtual_active",
+    apiClient.post<Chain>(`/api/v1/chains/${id}/activate`, {
       tx_hash: txHash,
     } as ActivateChainRequest),
 
@@ -172,8 +171,7 @@ export const chainsApi = {
    */
   activateChainWithStatus: async (id: string, txHash: string): Promise<{ confirmed: boolean; chain?: Chain }> => {
     const axios = apiClient.getAxiosInstance();
-    const response = await axios.patch(`/api/v1/chains/${id}`, {
-      status: "virtual_active",
+    const response = await axios.post(`/api/v1/chains/${id}/activate`, {
       tx_hash: txHash,
     } as ActivateChainRequest);
 
