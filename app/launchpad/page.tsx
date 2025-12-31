@@ -14,7 +14,7 @@ import { useCreateChainStore } from "@/lib/stores/create-chain-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { chainsApi, storeChainListing } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, ArrowLeft, Loader2, Lock } from "lucide-react";
+import { ArrowRight, ArrowLeft, Loader2, Lock, Zap } from "lucide-react";
 import { Template, Chain } from "@/types";
 import { cn, WINDOW_BREAKPOINTS } from "@/lib/utils";
 import { useWalletStore } from "@/lib/stores/wallet-store";
@@ -30,9 +30,39 @@ type SubmitStep =
   | "success"
   | "error";
 
+// Default values for dev populate feature (steps 2-5 only)
+const DEV_DEFAULTS = {
+  // Step 2: GitHub (skip validation)
+  githubRepo: null as string | null,
+  githubValidated: true,
+  githubRepoData: null,
+
+  // Step 3: Main Info
+  chainName: "DevTestChain",
+  tokenName: "DevToken",
+  ticker: "DEV",
+  decimals: "18",
+  description: "Development test chain for quick testing",
+  halvingDays: "365",
+  blockTime: "10",
+
+  // Step 4: Branding
+  chainDescription: "A development test chain for quick testing of the launchpad flow",
+  brandColor: "#6366F1",
+  logo: null as File | null,
+  gallery: [] as File[],
+
+  // Step 5: Links
+  socialLinks: [{ id: 1, platform: "twitter", url: "https://x.com/devtest" }],
+  resources: [] as Array<{ id: number; type: "file" | "url"; name: string; url?: string }>,
+};
+
 export default function LaunchpadPage() {
   // Initialize templates on mount
   useInitializeTemplates();
+
+  // Dev mode check for populate button
+  const isDev = process.env.NODE_ENV === "development";
 
   // Hydration state to prevent SSR/client mismatch with persisted store
   const [isHydrated, setIsHydrated] = useState(false);
@@ -78,6 +108,7 @@ export default function LaunchpadPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [populateCount, setPopulateCount] = useState(0);
 
   // Payment flow state
   const [submitStep, setSubmitStep] = useState<SubmitStep>("idle");
@@ -232,6 +263,64 @@ export default function LaunchpadPage() {
     }
   }, [currentStep, stepValidity, markStepCompleted, setCurrentStep]);
 
+  // Dev populate handler - fills default values for current step
+  const handlePopulate = useCallback(
+    (step: number) => {
+      // Clear any previous chain creation state to ensure fresh POST request
+      setCreatedChain(null);
+      setTxHash(null);
+      setSubmitStep("idle");
+      setSubmitError(null);
+
+      switch (step) {
+        case 2:
+          // Skip GitHub - just mark valid
+          setFormData({
+            githubRepo: DEV_DEFAULTS.githubRepo,
+            githubValidated: DEV_DEFAULTS.githubValidated,
+            githubRepoData: DEV_DEFAULTS.githubRepoData,
+          });
+          setStepValidity((prev) => ({ ...prev, 2: true }));
+          break;
+        case 3: {
+          // Increment counter and use it for suffix
+          const newCount = populateCount + 1;
+          setPopulateCount(newCount);
+
+          const suffix = newCount > 1 ? String(newCount) : "";
+          setFormData({
+            chainName: `${DEV_DEFAULTS.chainName}${suffix}`,
+            tokenName: `${DEV_DEFAULTS.tokenName}${suffix}`,
+            ticker: `${DEV_DEFAULTS.ticker}${suffix}`,
+            decimals: DEV_DEFAULTS.decimals,
+            description: DEV_DEFAULTS.description,
+            halvingDays: DEV_DEFAULTS.halvingDays,
+            blockTime: DEV_DEFAULTS.blockTime,
+          });
+          setStepValidity((prev) => ({ ...prev, 3: true }));
+          break;
+        }
+        case 4:
+          setFormData({
+            chainDescription: DEV_DEFAULTS.chainDescription,
+            brandColor: DEV_DEFAULTS.brandColor,
+            logo: DEV_DEFAULTS.logo,
+            gallery: DEV_DEFAULTS.gallery,
+          });
+          setStepValidity((prev) => ({ ...prev, 4: true }));
+          break;
+        case 5:
+          setFormData({
+            socialLinks: DEV_DEFAULTS.socialLinks,
+            resources: DEV_DEFAULTS.resources,
+          });
+          setStepValidity((prev) => ({ ...prev, 5: true }));
+          break;
+      }
+    },
+    [setFormData, populateCount]
+  );
+
   // Helper: Retry PATCH activation until confirmed (200) or timeout
   // Backend returns 202 if transaction not yet found, 200 when confirmed
   const activateWithRetry = useCallback(
@@ -291,6 +380,7 @@ export default function LaunchpadPage() {
         const chainData = {
           chain_name: formData.chainName,
           token_symbol: formData.ticker,
+          status: "pending_launch" as const,
           chain_description: formData.chainDescription || formData.description,
           template_id: formData.template?.id || "",
           genesis_supply: 1000000000,
@@ -569,6 +659,7 @@ export default function LaunchpadPage() {
       {/* Step 3: Main Info */}
       {currentStep === 3 && (
         <MainInfo
+          key={`main-info-${populateCount}`}
           initialData={{
             chainName: formData.chainName,
             tokenName: formData.tokenName,
@@ -583,6 +674,7 @@ export default function LaunchpadPage() {
       {/* Step 4: Branding & Media */}
       {currentStep === 4 && (
         <BrandingMedia
+          key={`branding-${populateCount}`}
           initialData={{
             logo: formData.logo,
             chainDescription: formData.chainDescription,
@@ -596,6 +688,7 @@ export default function LaunchpadPage() {
       {/* Step 5: Links & Documentation */}
       {currentStep === 5 && (
         <LinksDocumentation
+          key={`links-${populateCount}`}
           initialData={{
             social: formData.socialLinks,
             resources: formData.resources,
@@ -607,6 +700,7 @@ export default function LaunchpadPage() {
       {/* Step 6: Launch Settings */}
       {currentStep === 6 && (
         <LaunchSettings
+          key={`settings-${populateCount}`}
           initialData={{
             launchDate: formData.launchDate,
             launchTime: formData.launchTime,
@@ -653,17 +747,32 @@ export default function LaunchpadPage() {
               </Button>
             )}
 
-            {/* Continue/Submit Button */}
+            {/* Populate & Continue Buttons */}
             {currentStep < 7 ? (
-              <Button
-                onClick={handleContinue}
-                disabled={!stepValidity[currentStep]}
-                className="gap-2 ml-auto"
-                size="lg"
-              >
-                Continue
-                <ArrowRight className="w-4 h-4" />
-              </Button>
+              <div className="flex gap-2 ml-auto">
+                {/* Populate Button - only in development, steps 2-5 */}
+                {isDev && currentStep > 1 && currentStep < 6 && (
+                  <Button
+                    variant="outline"
+                    onClick={() => handlePopulate(currentStep)}
+                    className="gap-2 border-green-500 text-green-500 hover:bg-green-500/10"
+                    size="lg"
+                  >
+                    <Zap className="w-4 h-4" />
+                    Populate
+                  </Button>
+                )}
+                {/* Continue Button */}
+                <Button
+                  onClick={handleContinue}
+                  disabled={!stepValidity[currentStep]}
+                  className="gap-2"
+                  size="lg"
+                >
+                  Continue
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </div>
             ) : (
               <Button
                 onClick={isWalletUnlocked ? handleSubmit : handleUnlockClick}

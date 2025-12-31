@@ -135,10 +135,8 @@ export default function LinksDocumentation({
 }: LinksDocumentationProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // TODO: TEMP - Default Twitter link for testing
-  const defaultTwitter: SocialLink[] = [{ id: 1, platform: "twitter", url: "https://x.com/test" }];
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>(
-    initialData?.social?.length ? initialData.social : defaultTwitter
+    initialData?.social || []
   );
   const [selectedPlatform, setSelectedPlatform] = useState("");
   const [resourceTab, setResourceTab] = useState("upload");
