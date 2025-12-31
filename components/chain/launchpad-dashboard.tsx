@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useLaunchpadDashboard } from "@/lib/hooks/use-launchpad-dashboard";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { listUserFavorites } from "@/lib/api/chain-favorites";
+import { useChainFavorites } from "@/lib/hooks/use-chain-favorites";
 import { chainsApi } from "@/lib/api/chains";
 import { getChainPriceHistory, convertPriceHistoryToChart } from "@/lib/api/price-history";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,10 @@ const tabsConfig: TabConfig[] = [
 
 export function LaunchpadDashboard() {
   const { user, isAuthenticated } = useAuthStore();
+
+  // Fetch all favorites once - data is cached and shared with useChainFavorite hooks
+  const { data: favoritesData } = useChainFavorites();
+
   const [selectedProject, setSelectedProject] = useState<Chain | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -202,53 +206,51 @@ export function LaunchpadDashboard() {
   };
 
   // Fetch favorited chains when Favorites tab is active
+  // Uses cached favorite IDs from useChainFavorites() instead of making another API call
   useEffect(() => {
     const fetchFavorites = async () => {
-      if (localActiveTab === "favorites" && isAuthenticated && user) {
+      if (localActiveTab === "favorites" && isAuthenticated && favoritesData?.likedSet) {
+        const likedChainIds = Array.from(favoritesData.likedSet);
+
+        if (likedChainIds.length === 0) {
+          setFavoriteChains([]);
+          return;
+        }
+
         setLoadingFavorites(true);
         setFavoriteChains([]); // Clear previous favorites
         try {
-          // First, get the list of favorite chain IDs
-          const result = await listUserFavorites(user.id, "like");
-          x;
-          if (result.success && result.chains && result.chains.length > 0) {
-            const chainIds = result.chains.map((c) => c.chain_id);
+          // Fetch full chain data for each favorite ID
+          const chainPromises = likedChainIds.map(async (chainId) => {
+            try {
+              const response = await chainsApi.getChain(String(chainId), {
+                include: "creator,template,assets,virtual_pool,graduated_pool,graduation_progress,accolades",
+              });
+              return response.data;
+            } catch (error) {
+              console.error(`Error fetching chain ${chainId}:`, error);
+              return null;
+            }
+          });
 
-            // Then, fetch full chain data for each favorite ID
-            const chainPromises = chainIds.map(async (chainId) => {
-              try {
-                const response = await chainsApi.getChain(chainId, {
-                  include: "creator,template,assets,virtual_pool,graduated_pool,graduation_progress,accolades",
-                });
-                return response.data;
-              } catch (error) {
-                console.error(`Error fetching chain ${chainId}:`, error);
-                return null;
-              }
-            });
-
-            const fetchedChains = await Promise.all(chainPromises);
-            // Filter out any null values (failed fetches)
-            const validChains = fetchedChains.filter((chain): chain is Chain => chain !== null);
-            setFavoriteChains(validChains);
-          } else {
-            // No favorites found
-            setFavoriteChains([]);
-          }
+          const fetchedChains = await Promise.all(chainPromises);
+          // Filter out any null values (failed fetches)
+          const validChains = fetchedChains.filter((chain): chain is Chain => chain !== null);
+          setFavoriteChains(validChains);
         } catch (error) {
           console.error("Error fetching favorites:", error);
           setFavoriteChains([]);
         } finally {
           setLoadingFavorites(false);
         }
-      } else {
+      } else if (localActiveTab !== "favorites") {
         // Clear favorites when not on favorites tab
         setFavoriteChains([]);
       }
     };
 
     fetchFavorites();
-  }, [localActiveTab, isAuthenticated, user]);
+  }, [localActiveTab, isAuthenticated, favoritesData]);
 
   // Show onboarding on first visit
   useEffect(() => {
