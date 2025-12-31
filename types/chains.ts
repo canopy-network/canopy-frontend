@@ -361,6 +361,8 @@ export interface CreateChainRequest {
   chain_name: string;
   /** Token symbol (required, 1-20 chars, uppercase) */
   token_symbol: string;
+  /** Initial chain status (default: pending_launch) */
+  status?: ChainStatus;
   /** Brand color in hex format (e.g., #3b82f6) */
   brand_color?: string;
   /** Chain description (max 5000 chars) */

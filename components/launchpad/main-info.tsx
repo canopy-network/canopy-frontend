@@ -68,9 +68,21 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // Initialize validatedFields to true if initialData has valid values (for Populate button)
   const [validatedFields, setValidatedFields] = useState<
     Record<string, boolean>
-  >({});
+  >(() => {
+    const hasValidInitialData =
+      initialData?.chainName &&
+      initialData?.tokenName &&
+      initialData?.ticker &&
+      initialData.chainName.length >= 3 &&
+      initialData.tokenName.length >= 2 &&
+      initialData.ticker.length >= 3;
+    return hasValidInitialData
+      ? { chainName: true, tokenName: true, ticker: true }
+      : {};
+  });
   const [validatingFields, setValidatingFields] = useState<
     Record<string, boolean>
   >({});
