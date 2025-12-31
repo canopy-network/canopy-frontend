@@ -34,42 +34,42 @@ export interface SetChainFavoriteRequest {
 export const chainFavoritesApi = {
   /**
    * Set or update the user's preference for a chain
-   * POST /api/v1/user-chain-favorites
+   * POST /api/v1/users/chain-favorites
    */
   setPreference: (chainId: number, preference: PreferenceType) =>
-    apiClient.post<ChainFavoriteResponse>("/api/v1/user-chain-favorites", {
+    apiClient.post<ChainFavoriteResponse>("/api/v1/users/chain-favorites", {
       chain_id: chainId,
       preference,
     }),
 
   /**
    * Get the user's preference for a specific chain
-   * GET /api/v1/user-chain-favorites/:chainId
+   * GET /api/v1/users/chain-favorites/:chainId
    */
   getPreference: (chainId: number) =>
     apiClient.get<ChainFavoriteResponse>(
-      `/api/v1/user-chain-favorites/${chainId}`
+      `/api/v1/users/chain-favorites/${chainId}`
     ),
 
   /**
    * List all chain preferences for the current user
-   * GET /api/v1/user-chain-favorites
+   * GET /api/v1/users/chain-favorites
    */
   list: (preference?: PreferenceType) => {
     const params = preference ? { preference } : undefined;
     return apiClient.get<ChainFavoritesListResponse>(
-      "/api/v1/user-chain-favorites",
+      "/api/v1/users/chain-favorites",
       params
     );
   },
 
   /**
    * Remove the user's preference for a chain
-   * DELETE /api/v1/user-chain-favorites/:chainId
+   * DELETE /api/v1/users/chain-favorites/:chainId
    */
   removePreference: (chainId: number) =>
     apiClient.delete<{ message: string }>(
-      `/api/v1/user-chain-favorites/${chainId}`
+      `/api/v1/users/chain-favorites/${chainId}`
     ),
 
   /**
