@@ -14,4 +14,4 @@ keyfile().json
 # Playwright
 /test-results/
 /playwright-report/
-/playwright/.cache/
+/playwright/.cache/tsconfig.tsbuildinfo
