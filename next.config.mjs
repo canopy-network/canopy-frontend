@@ -48,7 +48,7 @@ const nextConfig = {
       // Only rewrite other /api/* paths to backend
       {
         source: '/api/:path((?!explorer|validators).*)',
-        destination: `${apiUrl}/:path*`,
+        destination: `${apiUrl}/api/:path*`,
       },
     ]
   },
