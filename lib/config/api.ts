@@ -14,15 +14,22 @@ const normalizeBaseUrl = (value: string) => value.trim().replace(/\/+$/, "");
 /**
  * Get the base URL for API requests
  *
- * Uses NEXT_PUBLIC_API_URL for both client and server to call the backend directly.
+ * In browser: Uses relative URLs to leverage Next.js rewrites (avoids CORS preflight)
+ * On server: Uses NEXT_PUBLIC_API_URL to call the backend directly
  */
 function getBaseURL(): string {
+  // In browser, use relative URL so requests go through Next.js proxy (no CORS)
+  if (typeof window !== "undefined") {
+    return "";
+  }
+
+  // On server, use full URL
   const envBaseUrl = process.env.NEXT_PUBLIC_API_URL || "";
   if (envBaseUrl) {
     return normalizeBaseUrl(envBaseUrl);
   }
 
-  // Fallback for local dev if env var is missing.
+  // Fallback for local dev if env var is missing
   return "http://localhost:3001";
 }
 
