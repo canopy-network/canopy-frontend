@@ -4,16 +4,103 @@
  * Client-side functions for managing chain favorites (like/dislike).
  * All operations require user authentication.
  *
- * @author Canopy Development Team
- * @version 1.0.0
- * @since 2025-11-05
+ * Uses the launchpad API backend for data storage.
  */
 
-import { localApiClient } from "./local-client";
+import { apiClient } from "./client";
 
-type PreferenceType = "like" | "dislike";
+export type PreferenceType = "like" | "dislike";
 
-interface FavoriteResponse {
+export interface ChainFavoriteResponse {
+  chain_id: number;
+  preference: PreferenceType | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ChainFavoritesListResponse {
+  favorites: ChainFavoriteResponse[];
+  total_count: number;
+}
+
+export interface SetChainFavoriteRequest {
+  chain_id: number;
+  preference: PreferenceType;
+}
+
+/**
+ * Chain Favorites API endpoints
+ */
+export const chainFavoritesApi = {
+  /**
+   * Set or update the user's preference for a chain
+   * POST /api/v1/users/chain-favorites
+   */
+  setPreference: (chainId: number, preference: PreferenceType) =>
+    apiClient.post<ChainFavoriteResponse>("/api/v1/users/chain-favorites", {
+      chain_id: chainId,
+      preference,
+    }),
+
+  /**
+   * Get the user's preference for a specific chain
+   * GET /api/v1/users/chain-favorites/:chainId
+   */
+  getPreference: (chainId: number) =>
+    apiClient.get<ChainFavoriteResponse>(
+      `/api/v1/users/chain-favorites/${chainId}`
+    ),
+
+  /**
+   * List all chain preferences for the current user
+   * GET /api/v1/users/chain-favorites
+   */
+  list: (preference?: PreferenceType) => {
+    const params = preference ? { preference } : undefined;
+    return apiClient.get<ChainFavoritesListResponse>(
+      "/api/v1/users/chain-favorites",
+      params
+    );
+  },
+
+  /**
+   * Remove the user's preference for a chain
+   * DELETE /api/v1/users/chain-favorites/:chainId
+   */
+  removePreference: (chainId: number) =>
+    apiClient.delete<{ message: string }>(
+      `/api/v1/users/chain-favorites/${chainId}`
+    ),
+
+  /**
+   * Toggle between like and dislike for a chain
+   * If the user has already liked the chain, this will dislike it, and vice versa
+   */
+  togglePreference: async (chainId: number) => {
+    const current = await chainFavoritesApi.getPreference(chainId);
+    const newPreference: PreferenceType =
+      current.data.preference === "like" ? "dislike" : "like";
+    return chainFavoritesApi.setPreference(chainId, newPreference);
+  },
+
+  /**
+   * Get only the chain IDs of liked chains
+   */
+  getLikedChainIds: async (): Promise<number[]> => {
+    try {
+      const response = await chainFavoritesApi.list("like");
+      return response.data.favorites.map((fav) => fav.chain_id);
+    } catch (error) {
+      console.error("Error getting liked chain IDs:", error);
+      return [];
+    }
+  },
+};
+
+// Legacy exports for backward compatibility
+// These maintain the same interface as the old DynamoDB-based implementation
+
+interface LegacyFavoriteResponse {
   success: boolean;
   preference?: PreferenceType | null;
   message?: string;
@@ -23,37 +110,34 @@ interface FavoriteResponse {
   updated_at?: string;
 }
 
-interface ChainPreference {
-  chain_id: string;
-  preference: PreferenceType;
-  created_at: string;
-  updated_at: string;
-}
-
-interface ListFavoritesResponse {
+interface LegacyListFavoritesResponse {
   success: boolean;
-  chains?: ChainPreference[];
+  chains?: Array<{
+    chain_id: string;
+    preference: PreferenceType;
+    created_at: string;
+    updated_at: string;
+  }>;
   count?: number;
   error?: string;
 }
 
-const favoritesRequestConfig = { withCredentials: true };
-
 /**
  * Get the current user's preference for a chain
- *
- * @param chainId - The ID of the chain
- * @returns The user's preference (like, dislike, or null)
+ * @deprecated Use chainFavoritesApi.getPreference instead
  */
 export async function getChainPreference(
   chainId: string
-): Promise<FavoriteResponse> {
+): Promise<LegacyFavoriteResponse> {
   try {
-    return await localApiClient.getRaw<FavoriteResponse>(
-      "/chains/favorite",
-      { chain_id: String(chainId) },
-      favoritesRequestConfig
-    );
+    const response = await chainFavoritesApi.getPreference(Number(chainId));
+    return {
+      success: true,
+      preference: response.data.preference,
+      chain_id: String(response.data.chain_id),
+      created_at: response.data.created_at,
+      updated_at: response.data.updated_at,
+    };
   } catch (error) {
     console.error("Error fetching chain preference:", error);
     return {
@@ -65,27 +149,26 @@ export async function getChainPreference(
 
 /**
  * Set or update the user's preference for a chain
- *
- * @param userId - The ID of the authenticated user
- * @param chainId - The ID of the chain
- * @param preference - "like" or "dislike"
- * @returns Response indicating success or failure
+ * @deprecated Use chainFavoritesApi.setPreference instead
  */
 export async function setChainPreference(
   userId: string,
   chainId: string,
   preference: PreferenceType
-): Promise<FavoriteResponse> {
+): Promise<LegacyFavoriteResponse> {
   try {
-    return await localApiClient.postRaw<FavoriteResponse>(
-      "/chains/favorite",
-      {
-        user_id: userId,
-        chain_id: String(chainId),
-        preference,
-      },
-      favoritesRequestConfig
+    // userId is not needed - the backend uses the authenticated session
+    const response = await chainFavoritesApi.setPreference(
+      Number(chainId),
+      preference
     );
+    return {
+      success: true,
+      preference: response.data.preference,
+      chain_id: String(response.data.chain_id),
+      created_at: response.data.created_at,
+      updated_at: response.data.updated_at,
+    };
   } catch (error) {
     console.error("Error setting chain preference:", error);
     return {
@@ -97,23 +180,19 @@ export async function setChainPreference(
 
 /**
  * Remove the user's preference for a chain
- *
- * @param userId - The ID of the authenticated user
- * @param chainId - The ID of the chain
- * @returns Response indicating success or failure
+ * @deprecated Use chainFavoritesApi.removePreference instead
  */
 export async function removeChainPreference(
   userId: string,
   chainId: string
-): Promise<FavoriteResponse> {
+): Promise<LegacyFavoriteResponse> {
   try {
-    return await localApiClient.deleteRaw<FavoriteResponse>("/chains/favorite", {
-      data: {
-        user_id: userId,
-        chain_id: String(chainId),
-      },
-      ...favoritesRequestConfig,
-    });
+    // userId is not needed - the backend uses the authenticated session
+    await chainFavoritesApi.removePreference(Number(chainId));
+    return {
+      success: true,
+      message: "Preference removed successfully",
+    };
   } catch (error) {
     console.error("Error removing chain preference:", error);
     return {
@@ -125,29 +204,22 @@ export async function removeChainPreference(
 
 /**
  * Toggle between like and dislike for a chain
- * If the user has already liked the chain, this will dislike it, and vice versa
- *
- * @param userId - The ID of the authenticated user
- * @param chainId - The ID of the chain
- * @returns Response indicating success or failure
+ * @deprecated Use chainFavoritesApi.togglePreference instead
  */
 export async function toggleChainPreference(
   userId: string,
   chainId: string
-): Promise<FavoriteResponse> {
+): Promise<LegacyFavoriteResponse> {
   try {
-    // First, get the current preference
-    const currentPref = await getChainPreference(chainId);
-
-    if (!currentPref.success) {
-      return currentPref;
-    }
-
-    // Toggle the preference
-    const newPreference: PreferenceType =
-      currentPref.preference === "like" ? "dislike" : "like";
-
-    return await setChainPreference(userId, chainId, newPreference);
+    // userId is not needed - the backend uses the authenticated session
+    const response = await chainFavoritesApi.togglePreference(Number(chainId));
+    return {
+      success: true,
+      preference: response.data.preference,
+      chain_id: String(response.data.chain_id),
+      created_at: response.data.created_at,
+      updated_at: response.data.updated_at,
+    };
   } catch (error) {
     console.error("Error toggling chain preference:", error);
     return {
@@ -159,24 +231,26 @@ export async function toggleChainPreference(
 
 /**
  * Get all chains that the user has liked or disliked
- *
- * @param userId - The ID of the authenticated user
- * @param preference - Filter by "like", "dislike", or "all" (defaults to "like")
- * @returns List of chains with their preferences
+ * @deprecated Use chainFavoritesApi.list instead
  */
 export async function listUserFavorites(
   userId: string,
   preference: "like" | "dislike" | "all" = "like"
-): Promise<ListFavoritesResponse> {
+): Promise<LegacyListFavoritesResponse> {
   try {
-    return await localApiClient.getRaw<ListFavoritesResponse>(
-      "/chains/favorite/list",
-      {
-        user_id: userId,
-        preference,
-      },
-      favoritesRequestConfig
-    );
+    // userId is not needed - the backend uses the authenticated session
+    const prefFilter = preference === "all" ? undefined : preference;
+    const response = await chainFavoritesApi.list(prefFilter);
+    return {
+      success: true,
+      chains: response.data.favorites.map((fav) => ({
+        chain_id: String(fav.chain_id),
+        preference: fav.preference!,
+        created_at: fav.created_at || "",
+        updated_at: fav.updated_at || "",
+      })),
+      count: response.data.total_count,
+    };
   } catch (error) {
     console.error("Error listing user favorites:", error);
     return {
@@ -188,17 +262,13 @@ export async function listUserFavorites(
 
 /**
  * Get only the chain IDs of liked chains (convenience function)
- *
- * @param userId - The ID of the authenticated user
- * @returns Array of chain IDs that the user has liked
+ * @deprecated Use chainFavoritesApi.getLikedChainIds instead
  */
 export async function getLikedChainIds(userId: string): Promise<string[]> {
   try {
-    const response = await listUserFavorites(userId, "like");
-    if (response.success && response.chains) {
-      return response.chains.map((chain) => chain.chain_id);
-    }
-    return [];
+    // userId is not needed - the backend uses the authenticated session
+    const chainIds = await chainFavoritesApi.getLikedChainIds();
+    return chainIds.map(String);
   } catch (error) {
     console.error("Error getting liked chain IDs:", error);
     return [];
