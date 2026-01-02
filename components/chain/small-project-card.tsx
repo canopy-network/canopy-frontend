@@ -169,11 +169,11 @@ const SmallProjectCardComponent = ({
 
   // Generate placeholder data for list view
   const volumeFormatted = formatNumber(
-    project.volume24h || Math.random() * 100000 + 10000
+    project.virtual_pool?.volume_24h_cnpy || 0
   );
-  const holdersCount = Math.floor(Math.random() * 2000 + 500); // Placeholder
+  const holdersCount = project.virtual_pool?.unique_traders || 0;
   const liquidityFormatted = formatNumber(
-    project.marketCap * 0.1 || Math.random() * 50000 + 5000
+    project.virtual_pool?.cnpy_reserve || 0
   );
 
   // List view rendering
