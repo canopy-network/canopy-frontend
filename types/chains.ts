@@ -411,6 +411,7 @@ export interface GetChainsParams {
   page?: number;
   limit?: number;
   include?: string;
+  order_by?: string; // Sort order (e.g., "volume_24h" for 24h trading volume)
 }
 
 /**

@@ -31,7 +31,7 @@ interface TabConfig {
 
 const tabsConfig: TabConfig[] = [
   { value: "all", label: "All", icon: Home },
-  { value: "virtual_active", label: "Trending", icon: TrendingUp },
+  { value: "trending", label: "Trending", icon: TrendingUp },
   { value: "graduated", label: "Graduated", icon: GraduationCap },
   { value: "pending_launch", label: "New", icon: Calendar },
   { value: "favorites", label: "Favorites", icon: Heart },
@@ -161,6 +161,12 @@ export function LaunchpadDashboard() {
 
     let chainsCopy = [...filteredChains];
 
+    // If trending tab is active, filter to virtual_active chains
+    // The API returns these sorted by volume_24h, so preserve that order
+    if (localActiveTab === "trending") {
+      chainsCopy = chainsCopy.filter((chain) => chain.status === "virtual_active");
+    }
+
     // If graduated tab is active, filter by is_graduated = true
     if (localActiveTab === "graduated") {
       chainsCopy = chainsCopy.filter((chain) => chain.is_graduated === true);
@@ -198,8 +204,16 @@ export function LaunchpadDashboard() {
         );
       case "default":
       default:
-        // Return chains in their original order (as received from API)
-        return chainsCopy;
+        // For trending tab, sort by 24h volume (highest first)
+        if (localActiveTab === "trending") {
+          return chainsCopy.sort(
+            (a, b) => (b.virtual_pool?.volume_24h_cnpy || 0) - (a.virtual_pool?.volume_24h_cnpy || 0)
+          );
+        }
+        // For other tabs, sort by creation date (newest first)
+        return chainsCopy.sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
     }
   }, [filteredChains, sortOption, localActiveTab, favoriteChains]);
 
@@ -694,7 +708,7 @@ export function LaunchpadDashboard() {
           </TabsContent>
 
           <TabsContent
-            value="virtual_active"
+            value="trending"
             className={
               viewMode === "grid"
                 ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"

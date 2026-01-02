@@ -178,12 +178,8 @@ export function useLaunchpadDashboard({
       filtered = filtered.filter((p) => p.status === filters.status);
     }
 
-    // Sort by creation date (newest first)
-    filtered.sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
-
+    // Don't sort here - let the component handle sorting via sortedChains
+    // This preserves API order (e.g., volume_24h for trending)
     return filtered;
   }, [chains, filters]);
 
@@ -248,8 +244,8 @@ export function useLaunchpadDashboard({
     // Tab values now directly correspond to status values
     let status: string | undefined;
 
-    if (tab === "all" || tab === "favorites") {
-      // "all" shows everything, "favorites" is handled separately in the component
+    if (tab === "all" || tab === "favorites" || tab === "trending") {
+      // "all" shows everything, "favorites" and "trending" are handled separately
       status = undefined;
     } else {
       // Use the tab value directly as the status
