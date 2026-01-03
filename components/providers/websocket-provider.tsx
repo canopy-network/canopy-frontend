@@ -22,22 +22,6 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     autoConnect: false, // We'll manage connection based on auth state
   });
   const addBlockEvent = useBlocksStore((state) => state.addBlockEvent);
-  const getAverageBlockTime = useBlocksStore((state) => state.getAverageBlockTime);
-  const getEstimatedTimeToNextBlock = useBlocksStore((state) => state.getEstimatedTimeToNextBlock);
-
-  // TEMP: Log block timing for chain 1
-  const blockEvents = useBlocksStore((state) => state.blockEvents);
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const events = blockEvents[1] || [];
-      const avgTime = getAverageBlockTime(1);
-      const estTime = getEstimatedTimeToNextBlock(1);
-      console.log(`[Chain 1] Avg: ${avgTime?.toFixed(2) ?? 'N/A'}s | Est. next: ${estTime?.toFixed(2) ?? 'N/A'}s`);
-      console.log(`[Chain 1] Events:`, events.map(e => ({ height: e.payload.height, timestamp: e.timestamp })));
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [blockEvents, getAverageBlockTime, getEstimatedTimeToNextBlock]);
-
   // Handle block.finalized WebSocket events
   const handleBlockFinalized = useCallback(
     (payload: { chainId: number; height: number }) => {
