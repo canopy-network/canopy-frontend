@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 import { useWallet } from "./wallet-provider";
 import { Loader2 } from "lucide-react";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { useWalletStore } from "@/lib/stores/wallet-store";
 import { formatBalanceWithCommas } from "@/lib/utils/denomination";
-import { useEffect } from "react";
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { usePortfolioOverview } from "@/lib/hooks/use-portfolio";
 
 interface WalletConnectButtonProps {
   isCondensed?: boolean;
@@ -18,15 +18,14 @@ export function WalletConnectButton({ isCondensed = false, hideBalance = false }
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
   const { currentWallet, isConnecting, connectWallet } = useWallet();
-  const { balance, fetchBalance } = useWalletStore();
 
-  // Fetch balance when wallet is connected
-  // Note: fetchBalance has built-in request deduplication, so multiple calls are safe
-  useEffect(() => {
-    if (currentWallet) {
-      fetchBalance(currentWallet.id);
-    }
-  }, [currentWallet, fetchBalance]);
+  // Use React Query for portfolio data - automatically deduplicates requests
+  // and caches for 30 seconds with auto-refresh
+  const walletAddresses = useMemo(
+    () => (currentWallet ? [currentWallet.address] : []),
+    [currentWallet?.address]
+  );
+  const { data: portfolioData } = usePortfolioOverview(walletAddresses);
 
   // Format address for display
   const formatAddress = (address: string) => {
@@ -44,7 +43,7 @@ export function WalletConnectButton({ isCondensed = false, hideBalance = false }
 
   // If wallet is connected, show wallet info button
   if (currentWallet) {
-    const displayBalance = balance?.total || "0.00";
+    const displayBalance = portfolioData?.total_value_cnpy || "0.00";
     const contentAlignment = hideBalance ? "items-center" : "items-start";
 
     if (isCondensed) {

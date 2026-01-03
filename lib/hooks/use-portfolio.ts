@@ -58,8 +58,8 @@ export function usePortfolioOverview(
       return portfolioApi.getPortfolioOverview(request);
     },
     enabled: options?.enabled !== false && sortedAddresses.length > 0,
-    refetchInterval: options?.refetchInterval ?? undefined, // Disable auto-refetch by default
-    staleTime: 60000, // Consider data stale after 1 minute (increased from 30s)
+    refetchInterval: options?.refetchInterval ?? 30000, // Auto-refresh every 30 seconds
+    staleTime: 30000, // Consider data fresh for 30 seconds
     gcTime: 300000, // Keep in cache for 5 minutes
   });
 }
