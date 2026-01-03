@@ -9,10 +9,10 @@ export const wsConfig = {
   url: process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8081/ws/blocks",
 
   /** Time in ms to wait before attempting reconnection */
-  reconnectInterval: 3000,
+  reconnectInterval: 30000,
 
   /** Maximum number of reconnection attempts (0 = unlimited) */
-  maxReconnectAttempts: 5,
+  maxReconnectAttempts: 0,
 
   /** Enable debug logging */
   debug: process.env.NODE_ENV === "development",
