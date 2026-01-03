@@ -186,7 +186,6 @@ export class WebSocketClient {
   }
 
   private handleMessage(message: WsMessage): void {
-    this.log("Received message", message);
 
     // Call global message handler
     this.options.onMessage(message);
