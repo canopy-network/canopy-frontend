@@ -67,6 +67,7 @@ jobs:
         run: |
           if [[ "${{ steps.set-env.outputs.environment }}" == "dev" ]]; then
             echo "api_url=https://api.dev.app.canopynetwork.org" >> $GITHUB_OUTPUT
+            echo "ws_url=wss://api.dev.app.canopynetwork.org/ws/blocks" >> $GITHUB_OUTPUT
             echo "frontend_url=https://dev.app.canopynetwork.org" >> $GITHUB_OUTPUT
             echo "dev_mode=true" >> $GITHUB_OUTPUT
             echo "image_suffix=" >> $GITHUB_OUTPUT
@@ -74,6 +75,7 @@ jobs:
             echo "is_dev=true" >> $GITHUB_OUTPUT
           else
             echo "api_url=https://api.staging.app.canopynetwork.org" >> $GITHUB_OUTPUT
+            echo "ws_url=wss://api.staging.app.canopynetwork.org/ws/blocks" >> $GITHUB_OUTPUT
             echo "frontend_url=https://staging.app.canopynetwork.org" >> $GITHUB_OUTPUT
             echo "dev_mode=false" >> $GITHUB_OUTPUT
             echo "image_suffix=" >> $GITHUB_OUTPUT
@@ -137,6 +139,7 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             NEXT_PUBLIC_API_URL=${{ steps.env-vars.outputs.api_url }}
+            NEXT_PUBLIC_WS_URL=${{ steps.env-vars.outputs.ws_url }}
             NEXT_PUBLIC_DEV_MODE=${{ steps.env-vars.outputs.dev_mode }}
             NEXTAUTH_URL=${{ steps.env-vars.outputs.frontend_url }}
             NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
