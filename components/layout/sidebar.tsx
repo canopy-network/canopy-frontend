@@ -15,6 +15,11 @@ import Image from "next/image";
 import { CommandSearchTrigger } from "@/components/command-search-trigger";
 import { toast } from "sonner";
 import { useBlocksStore } from "@/lib/stores/blocks-store";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export function Sidebar() {
   const { user, isAuthenticated, logout } = useAuthStore();
@@ -28,10 +33,20 @@ export function Sidebar() {
   const [addressVisibleChars, setAddressVisibleChars] = useState(22);
   const pathname = usePathname();
 
-  // Block indexed animation state
+  // Block animation state and tooltip data
   const blockEvents = useBlocksStore((state) => state.blockEvents);
+  const getLatestHeight = useBlocksStore((state) => state.getLatestHeight);
   const [isLogoAnimating, setIsLogoAnimating] = useState(false);
   const prevEventCountRef = useRef(0);
+
+  // Get latest block time for tooltip
+  const getLatestBlockTime = () => {
+    const events = blockEvents[1]; // Chain 1
+    if (!events?.length) return null;
+    return events[0].timestamp;
+  };
+  const latestBlockTime = getLatestBlockTime();
+  const latestHeight = getLatestHeight(1);
 
   const formatWalletAddress = (address?: string, maxVisible: number = 22) => {
     if (!address) return "";
@@ -136,25 +151,41 @@ export function Sidebar() {
           isCondensed ? "px-5" : "px-4"
         )}
       >
-        <Link
-          href="/"
-          className={cn(
-            "overflow-hidden transition-all duration-300  block  ",
-            isCondensed ? "w-[24px] max-w-[24px] mx-auto" : "w-38 mr-auto xl:px-4"
-          )}
-        >
-          <Image
-            width={128}
-            height={128}
-            src="/images/logo.svg"
-            alt="Logo"
-            className={cn(
-              isCondensed ? "w-26 min-w-26" : "w-auto min-w-auto",
-              "h-auto object-contain transition-all duration-300",
-              isLogoAnimating && "scale-105 drop-shadow-[0_0_8px_rgba(34,197,94,0.6)]"
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link
+              href="/"
+              className={cn(
+                "overflow-hidden transition-all duration-300 block",
+                isCondensed ? "w-[24px] max-w-[24px] mx-auto" : "w-38 mr-auto xl:px-4"
+              )}
+            >
+              <Image
+                width={128}
+                height={128}
+                src="/images/logo.svg"
+                alt="Logo"
+                className={cn(
+                  isCondensed ? "w-26 min-w-26" : "w-auto min-w-auto",
+                  "h-auto object-contain transition-all duration-300",
+                  isLogoAnimating && "scale-105 drop-shadow-[0_0_8px_rgba(34,197,94,0.6)]"
+                )}
+              />
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            {latestBlockTime ? (
+              <div className="text-xs">
+                <div>Block #{latestHeight?.toLocaleString()}</div>
+                <div className="text-muted-foreground">
+                  {new Date(latestBlockTime).toLocaleTimeString()}
+                </div>
+              </div>
+            ) : (
+              <span>Waiting for blocks...</span>
             )}
-          />
-        </Link>
+          </TooltipContent>
+        </Tooltip>
       </div>
 
       {/* Search and Create */}
