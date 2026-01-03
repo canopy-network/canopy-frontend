@@ -70,7 +70,7 @@ export function Sidebar() {
     return () => window.removeEventListener("resize", updateVisibleChars);
   }, []);
 
-  // Trigger logo animation when new block.indexed events arrive
+  // Trigger logo animation when new block.finalized events arrive
   useEffect(() => {
     const totalEventCount = Object.values(blockEvents).reduce(
       (sum, events) => sum + events.length,

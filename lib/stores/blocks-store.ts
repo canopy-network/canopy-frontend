@@ -1,7 +1,7 @@
 /**
  * @fileoverview Blocks Store
  *
- * This store manages block.indexed WebSocket events:
+ * This store manages block.finalized WebSocket events:
  * - Stores up to 5 most recent events per chainId
  * - No persistence (ephemeral WebSocket data)
  */
@@ -9,25 +9,25 @@
 import { create } from "zustand";
 
 // Types
-export interface BlockIndexedPayload {
+export interface BlockFinalizedPayload {
   chainId: number;
   height: number;
 }
 
-export interface BlockIndexedEvent {
-  type: "block.indexed";
+export interface BlockFinalizedEvent {
+  type: "block.finalized";
   timestamp: string;
-  payload: BlockIndexedPayload;
+  payload: BlockFinalizedPayload;
 }
 
 export interface BlocksState {
   // Map of chainId -> array of up to 5 most recent events
-  blockEvents: Record<number, BlockIndexedEvent[]>;
+  blockEvents: Record<number, BlockFinalizedEvent[]>;
 
   // Actions
-  addBlockEvent: (event: BlockIndexedEvent) => void;
+  addBlockEvent: (event: BlockFinalizedEvent) => void;
   clearEvents: (chainId?: number) => void;
-  getEventsForChain: (chainId: number) => BlockIndexedEvent[];
+  getEventsForChain: (chainId: number) => BlockFinalizedEvent[];
   getLatestHeight: (chainId: number) => number | null;
   getAverageBlockTime: (chainId: number) => number | null;
   getEstimatedTimeToNextBlock: (chainId: number) => number | null;
@@ -38,7 +38,7 @@ const MAX_EVENTS_PER_CHAIN = 5;
 export const useBlocksStore = create<BlocksState>()((set, get) => ({
   blockEvents: {},
 
-  addBlockEvent: (event: BlockIndexedEvent) => {
+  addBlockEvent: (event: BlockFinalizedEvent) => {
     const { chainId } = event.payload;
 
     set((state) => {

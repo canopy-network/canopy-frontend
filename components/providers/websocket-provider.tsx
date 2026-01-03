@@ -10,7 +10,7 @@
 import { useEffect, useCallback } from "react";
 import { useWebSocket, useWebSocketMessage } from "@/lib/hooks/use-websocket";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { useBlocksStore, BlockIndexedEvent } from "@/lib/stores/blocks-store";
+import { useBlocksStore, BlockFinalizedEvent } from "@/lib/stores/blocks-store";
 
 interface WebSocketProviderProps {
   children: React.ReactNode;
@@ -38,11 +38,11 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     return () => clearInterval(interval);
   }, [blockEvents, getAverageBlockTime, getEstimatedTimeToNextBlock]);
 
-  // Handle block.indexed WebSocket events
-  const handleBlockIndexed = useCallback(
+  // Handle block.finalized WebSocket events
+  const handleBlockFinalized = useCallback(
     (payload: { chainId: number; height: number }) => {
-      const event: BlockIndexedEvent = {
-        type: "block.indexed",
+      const event: BlockFinalizedEvent = {
+        type: "block.finalized",
         timestamp: new Date().toISOString(),
         payload,
       };
@@ -52,9 +52,9 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   );
 
   useWebSocketMessage<{ chainId: number; height: number }>(
-    "block.indexed",
-    handleBlockIndexed,
-    [handleBlockIndexed]
+    "block.finalized",
+    handleBlockFinalized,
+    [handleBlockFinalized]
   );
 
   // Connect/disconnect based on authentication state
