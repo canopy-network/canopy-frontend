@@ -165,6 +165,7 @@ export async function encryptPrivateKey(
 
 /**
  * Decrypts an encrypted private key using the password
+ * Uses a Web Worker to prevent blocking the main thread during Argon2 key derivation
  *
  * @param encryptedKeyPair - Encrypted key pair data
  * @param password - Password used for encryption
@@ -175,6 +176,23 @@ export async function decryptPrivateKey(
     encryptedKeyPair: EncryptedKeyPair,
     password: string
 ): Promise<Uint8Array> {
+    // Use Web Worker for decryption to avoid blocking main thread
+    // Argon2 key derivation is CPU-intensive (~4s) and would freeze the UI
+    if (typeof window !== 'undefined' && typeof Worker !== 'undefined') {
+        try {
+            const { decryptPrivateKeyInWorker } = await import('./decrypt-worker-manager');
+            return await decryptPrivateKeyInWorker(
+                encryptedKeyPair.encryptedPrivateKey,
+                encryptedKeyPair.salt,
+                password
+            );
+        } catch (workerError) {
+            console.warn('Web Worker decryption failed, falling back to main thread:', workerError);
+            // Fall through to main thread decryption
+        }
+    }
+
+    // Fallback: Main thread decryption (for SSR or if Worker fails)
     try {
         // Decode hex-encoded data
         const salt = hexToBytes(encryptedKeyPair.salt);
@@ -202,11 +220,8 @@ export async function decryptPrivateKey(
             encryptedData.buffer
         );
 
-        console.log(decryptedData)
-
         return new Uint8Array(decryptedData);
     } catch (error) {
-        console.log(error)
         // Web Crypto throws generic errors, provide more context
         if (error instanceof Error && error.name === 'OperationError') {
             throw new Error("There's a problem with your password. Please try again.");
