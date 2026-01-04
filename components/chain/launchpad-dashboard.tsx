@@ -426,17 +426,18 @@ export function LaunchpadDashboard() {
       }
     };
 
-    // Function to refresh price history for currently loaded chains
+    // Function to refresh price history for carousel chains only
     const refreshPriceHistory = async () => {
       // Use ref to get latest chains without causing re-renders
       const currentChains = chainsRef.current;
       if (currentChains.length === 0) return;
 
-      // PERFORMANCE: Only poll first 20 chains to reduce load
-      const chainsToUpdate = currentChains.slice(0, 20);
+      // PERFORMANCE: Only fetch price history for carousel (first 4 chains)
+      // Price history is only displayed in the RecentsProjectsCarousel component
+      const chainsToUpdate = currentChains.slice(0, 4);
 
-      // Fetch price history for chains in parallel (batched)
-      const batchSize = 5;
+      // Fetch price history for chains in parallel
+      const batchSize = 4;
       for (let i = 0; i < chainsToUpdate.length; i += batchSize) {
         const batch = chainsToUpdate.slice(i, i + batchSize);
         const promises = batch.map(async (chain) => {
@@ -465,11 +466,14 @@ export function LaunchpadDashboard() {
       }
     };
 
-    // Initial refresh only if we have chains
-    if (chainsRef.current.length > 0) {
-      refreshChainData();
-      refreshPriceHistory();
-    }
+    // Initial price history fetch for carousel only (delayed to avoid blocking render)
+    // Note: refreshChainData() is NOT called on initial load because virtual_pool and
+    // graduation data are already included in the initial fetchChains() call
+    const initialFetchTimeout = setTimeout(() => {
+      if (chainsRef.current.length > 0) {
+        refreshPriceHistory();
+      }
+    }, 1000); // 1 second delay to let initial render complete
 
     // Set up polling interval (30 seconds - OPTIMIZED from 10s)
     const interval = setInterval(() => {
@@ -481,7 +485,10 @@ export function LaunchpadDashboard() {
     }, 30000); // 30 seconds (was 10 seconds)
 
     // Cleanup on unmount
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(initialFetchTimeout);
+      clearInterval(interval);
+    };
   }, [isLoading]); // Only depend on isLoading, not chains or refreshData
 
   const sortComponent = () => {
