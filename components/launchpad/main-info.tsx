@@ -18,7 +18,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { HelpCircle, Info, Check, Loader2 } from "lucide-react";
-import { validateChainField } from "@/lib/api/chains";
+import { chainsApi } from "@/lib/api/chains";
 
 // Toggle this to disable API validation when the API is unavailable
 const FORCE_ENABLE = false;
@@ -68,21 +68,10 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
-  // Initialize validatedFields to true if initialData has valid values (for Populate button)
+  // Start with empty validation state - API validation will confirm availability
   const [validatedFields, setValidatedFields] = useState<
     Record<string, boolean>
-  >(() => {
-    const hasValidInitialData =
-      initialData?.chainName &&
-      initialData?.tokenName &&
-      initialData?.ticker &&
-      initialData.chainName.length >= 3 &&
-      initialData.tokenName.length >= 2 &&
-      initialData.ticker.length >= 3;
-    return hasValidInitialData
-      ? { chainName: true, tokenName: true, ticker: true }
-      : {};
-  });
+  >({});
   const [validatingFields, setValidatingFields] = useState<
     Record<string, boolean>
   >({});
@@ -91,40 +80,40 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
   const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
 
   // API validation for a single field (chain_name, token_name, or ticker)
+  // Uses backend /api/v1/chains/validate endpoint
   const validateWithAPI = async (field: string, value: string) => {
     try {
-      // Map frontend field names to API field names
-      const fieldMap: Record<string, string> = {
-        chainName: "chain_name",
-        tokenName: "token_name",
-        ticker: "ticker",
-      };
+      // Build params based on field being validated
+      const params: { name?: string; symbol?: string; token_name?: string } = {};
 
-      const apiField = fieldMap[field] as
-        | "chain_name"
-        | "token_name"
-        | "ticker"
-        | undefined;
-      if (!apiField) {
+      if (field === "chainName") {
+        params.name = value;
+      } else if (field === "tokenName") {
+        params.token_name = value;
+      } else if (field === "ticker") {
+        params.symbol = value;
+      } else {
         return {
           success: false,
           message: "Invalid field for validation",
         };
       }
 
-      const data = await validateChainField(apiField, value);
+      const response = await chainsApi.validateChainNames(params);
 
-      if (!data.success) {
-        return {
-          success: false,
-          message: data.error || data.message || "Validation failed",
-        };
+      // Map response field to availability
+      let available = false;
+      if (field === "chainName") {
+        available = response.data?.name_available === true;
+      } else if (field === "tokenName") {
+        available = response.data?.token_name_available === true;
+      } else if (field === "ticker") {
+        available = response.data?.symbol_available === true;
       }
 
       return {
-        success: data.available === true,
-        message:
-          data.message || (data.available ? "Available" : "Not available"),
+        success: available,
+        message: available ? "Available" : "Already taken",
       };
     } catch (error) {
       console.error("Validation error:", error);
@@ -284,6 +273,26 @@ export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
     return () => {
       Object.values(timers).forEach(clearTimeout);
     };
+  }, []);
+
+  // Validate initial data on mount (e.g., when Populate button is pressed)
+  useEffect(() => {
+    const validateInitialData = async () => {
+      if (initialData?.chainName && initialData.chainName.length >= 3) {
+        setTouched((prev) => ({ ...prev, chainName: true }));
+        await validateField("chainName", initialData.chainName);
+      }
+      if (initialData?.tokenName && initialData.tokenName.length >= 2) {
+        setTouched((prev) => ({ ...prev, tokenName: true }));
+        await validateField("tokenName", initialData.tokenName);
+      }
+      if (initialData?.ticker && initialData.ticker.length >= 3) {
+        setTouched((prev) => ({ ...prev, ticker: true }));
+        await validateField("ticker", initialData.ticker);
+      }
+    };
+    validateInitialData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Calculate yearly minting based on block time and halving

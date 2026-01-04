@@ -343,7 +343,7 @@ export const chainsApi = {
    * ```
    */
   validateChainNames: (params: { name?: string; symbol?: string; token_name?: string }) =>
-    apiClient.get<ChainValidationResult>("/api/v1/chains/validate", params),
+    apiClient.get<ChainValidationResult>("/api/v1/chains/validate/", params),
 };
 
 // ============================================================================
