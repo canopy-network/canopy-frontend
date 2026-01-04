@@ -199,21 +199,24 @@ jobs:
             
             echo ""
             echo "=== Pulling Image ==="
-            # Use GHCR for pulling and importing
+            # Login to GHCR
             echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-            echo "Pulling image with Docker..."
-            # Try to pull, but continue if image already exists locally
-            if ! sudo docker pull "$IMAGE" 2>\&1; then
-              echo "Docker pull failed, checking if image exists locally..."
-              if sudo docker images "$IMAGE" --format "{{.Repository}}:{{.Tag}}" | grep -q "^${IMAGE}$"; then
-                echo "Image found locally, using cached version"
-              else
-                echo "ERROR: Image not found locally and pull failed"
-                exit 1
-              fi
-            fi
+
+            # Remove old image to force fresh pull (tag-based caching causes stale deploys)
+            sudo docker rmi "$IMAGE" 2>/dev/null || true
+            sudo k3s ctr images rm "$IMAGE" 2>/dev/null || true
+
+            # Pull fresh image
+            echo "Pulling image: $IMAGE"
+            sudo docker pull "$IMAGE"
+
+            # Import to k3s containerd
             echo "Importing image to k3s..."
-            sudo docker save "$IMAGE" | sudo k3s ctr images import - || true
+            sudo docker save "$IMAGE" | sudo k3s ctr images import -
+
+            # Verify import
+            echo "Verifying image in k3s..."
+            sudo k3s ctr images ls | grep -q "canopy-frontend:staging" || { echo "ERROR: Image not found in k3s"; exit 1; }
             echo "✅ Image ready in k3s"
             
             echo ""
@@ -294,15 +297,24 @@ jobs:
             
             echo ""
             echo "=== Pulling Image ==="
-            echo "${{ secrets.GITHUB_TOKEN }}" | sudo k3s ctr images pull --user "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" "$IMAGE" || {
-              echo "Direct pull failed, trying docker..."
-              echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-              sudo docker pull "$IMAGE"
-              sudo docker save "$IMAGE" | sudo k3s ctr images import -
-            }
-            
+            # Login to GHCR
+            echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+            # Remove old image to force fresh pull (tag-based caching causes stale deploys)
+            sudo docker rmi "$IMAGE" 2>/dev/null || true
+            sudo k3s ctr images rm "$IMAGE" 2>/dev/null || true
+
+            # Pull fresh image
+            echo "Pulling image: $IMAGE"
+            sudo docker pull "$IMAGE"
+
+            # Import to k3s containerd
             echo "Importing image to k3s..."
-            sudo docker save "$IMAGE" | sudo k3s ctr images import - || echo "Import returned non-zero, continuing..."
+            sudo docker save "$IMAGE" | sudo k3s ctr images import -
+
+            # Verify import
+            echo "Verifying image in k3s..."
+            sudo k3s ctr images ls | grep -q "canopy-frontend:dev" || { echo "ERROR: Image not found in k3s"; exit 1; }
             echo "✅ Image ready in k3s"
             
             echo ""
