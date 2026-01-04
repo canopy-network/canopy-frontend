@@ -28,22 +28,21 @@ interface Web3ProviderProps {
  * Note: QueryClientProvider is handled by the parent QueryProvider in the layout
  */
 export function Web3Provider({ children }: Web3ProviderProps) {
-  // Prevent SSR - RainbowKit requires localStorage which only exists on the client
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!mounted) {
-    return null;
-  }
-
   return (
     <WagmiProvider config={config}>
-      <RainbowKitProvider theme={darkTheme()}>
-        {children}
-      </RainbowKitProvider>
+      {mounted ? (
+        <RainbowKitProvider theme={darkTheme()}>
+          {children}
+        </RainbowKitProvider>
+      ) : (
+        children
+      )}
     </WagmiProvider>
   );
 }

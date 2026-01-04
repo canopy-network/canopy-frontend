@@ -1371,8 +1371,6 @@ export default function ConvertTab({
     try {
       // When selling CNPY for USDC, use Ethereum mainnet USDC address
       // This ensures the transform function correctly interprets it as "Selling CNPY for USDC"
-      // USDC contract address on Ethereum mainnet
-      const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
       const DATA_ADDRESS = USDC_ADDRESS;
       const cnpyAmount = parseFloat(amount);
 

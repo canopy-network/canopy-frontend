@@ -141,7 +141,6 @@ const ProjectCardComponent = ({
                     src={project.branding}
                     alt={`logo - ${project.chain_name}`}
                     className="w-10 h-10 rounded-full"
-                    loading="lazy"
                     onError={() => setImageError(true)}
                   />
                 ) : (

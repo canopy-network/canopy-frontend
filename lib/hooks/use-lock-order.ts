@@ -27,6 +27,8 @@ import type { LockOrderData, OrderBookApiOrder } from "@/types/orderbook";
 // Deadline offset: ~6.7 minutes at 10s blocks = 40 blocks
 const DEADLINE_BLOCK_OFFSET = 40;
 
+const DEFAULT_BUYER_CHAIN_DEADLINE = 900000; // ~2.5 hours at 10s blocks
+
 interface UseLockOrderParams {
   order: OrderBookApiOrder | null;
   buyerCanopyAddress: string; // Canopy address to receive CNPY
