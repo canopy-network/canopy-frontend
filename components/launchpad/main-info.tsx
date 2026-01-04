@@ -21,7 +21,8 @@ import { HelpCircle, Info, Check, Loader2 } from "lucide-react";
 import { validateChainField } from "@/lib/api/chains";
 
 // Toggle this to disable API validation when the API is unavailable
-const FORCE_ENABLE = false;
+// TODO: TEMP - Set to true to bypass API validation for testing
+const FORCE_ENABLE = true;
 
 const BLOCK_TIME_OPTIONS = [
   { value: "5", label: "5 seconds" },
@@ -56,10 +57,11 @@ interface MainInfoProps {
 }
 
 export default function MainInfo({ initialData, onDataSubmit }: MainInfoProps) {
+  // TODO: TEMP - Default values for testing
   const [formData, setFormData] = useState({
-    chainName: initialData?.chainName || "",
-    tokenName: initialData?.tokenName || "",
-    ticker: initialData?.ticker || "",
+    chainName: initialData?.chainName || "TestChain",
+    tokenName: initialData?.tokenName || "TestToken",
+    ticker: initialData?.ticker || "TEST",
     tokenSupply: initialData?.tokenSupply || "1000000000",
     decimals: initialData?.decimals || "18",
     description: initialData?.description || "",

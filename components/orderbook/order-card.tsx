@@ -154,8 +154,38 @@ export function OrderCard({
         {order.status === "active" && (
           <div className="flex items-center gap-2 ml-4">
             {isOrderOwner(order) ? (
-              // Owner actions: Edit and Cancel
+              // Owner actions: Lock, Edit and Cancel
               <>
+                {!isOrderReadyForClose(order.id) && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="bg-green-500 hover:bg-green-600"
+                    onClick={() => handleLockOrder(order)}
+                    disabled={
+                      !currentWallet ||
+                      !currentWallet.isUnlocked ||
+                      !isEthConnected ||
+                      !usdcAddress ||
+                      isOrderReadyForClose(order.id) ||
+                      lockOrder.isPending ||
+                      lockOrder.isConfirming ||
+                      currentLockingOrderId !== null
+                    }
+                  >
+                    {(lockOrder.isPending || lockOrder.isConfirming) && currentLockingOrderId === order.id ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Locking...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Lock Order
+                      </>
+                    )}
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={() => handleEdit(order)} disabled={showPlaceholders}>
                   <Edit2 className="w-4 h-4 mr-2" />
                   Edit
@@ -228,7 +258,8 @@ export function OrderCard({
                   !currentWallet.isUnlocked ||
                   !isEthConnected ||
                   !usdcAddress ||
-                  isOrderOwner(order) ||
+                  // NOTE: Owners can now lock their own orders for testing/self-purchase
+                  // isOrderOwner(order) ||
                   isOrderReadyForClose(order.id) ||
                   lockOrder.isPending ||
                   lockOrder.isConfirming ||
