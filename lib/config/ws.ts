@@ -6,7 +6,7 @@
 
 export const wsConfig = {
   /** WebSocket server URL */
-  url: process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8081/ws/blocks",
+  url: process.env.NEXT_PUBLIC_WS_URL || "wss://api.dev.app.canopynetwork.org/ws/blocks",
 
   /** Time in ms to wait before attempting reconnection */
   reconnectInterval: 30000,
