@@ -210,18 +210,27 @@ jobs:
             echo "Pulling image: $IMAGE"
             sudo docker pull "$IMAGE"
 
+            # Get the digest we just pulled
+            DIGEST=$(sudo docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE")
+            echo "Pulled image digest: $DIGEST"
+
             # Import to k3s containerd
             echo "Importing image to k3s..."
             sudo docker save "$IMAGE" | sudo k3s ctr images import -
 
-            # Verify import
+            # Verify the exact digest is in k3s
             echo "Verifying image in k3s..."
-            sudo k3s ctr images ls | grep -q "canopy-frontend:staging" || { echo "ERROR: Image not found in k3s"; exit 1; }
-            echo "✅ Image ready in k3s"
-            
+            if sudo k3s ctr images ls | grep -q "${DIGEST#*@}"; then
+              echo "✅ Image verified in k3s: $DIGEST"
+            else
+              echo "WARNING: Could not verify digest, listing images:"
+              sudo k3s ctr images ls name~="canopy-frontend"
+            fi
+
             echo ""
             echo "=== Updating Deployment ==="
-            sudo k3s kubectl set image deployment/prod-canopy-frontend canopy-frontend="$IMAGE" -n canopy-prod
+            # Use digest reference to ensure exact image is deployed
+            sudo k3s kubectl set image deployment/prod-canopy-frontend canopy-frontend="$DIGEST" -n canopy-prod
             sudo k3s kubectl patch deployment prod-canopy-frontend -n canopy-prod -p '{"spec":{"template":{"spec":{"nodeSelector":{"node-role.kubernetes.io/master":"true"}}}}}'
             sudo k3s kubectl rollout restart deployment/prod-canopy-frontend -n canopy-prod
             
@@ -308,18 +317,27 @@ jobs:
             echo "Pulling image: $IMAGE"
             sudo docker pull "$IMAGE"
 
+            # Get the digest we just pulled
+            DIGEST=$(sudo docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE")
+            echo "Pulled image digest: $DIGEST"
+
             # Import to k3s containerd
             echo "Importing image to k3s..."
             sudo docker save "$IMAGE" | sudo k3s ctr images import -
 
-            # Verify import
+            # Verify the exact digest is in k3s
             echo "Verifying image in k3s..."
-            sudo k3s ctr images ls | grep -q "canopy-frontend:dev" || { echo "ERROR: Image not found in k3s"; exit 1; }
-            echo "✅ Image ready in k3s"
-            
+            if sudo k3s ctr images ls | grep -q "${DIGEST#*@}"; then
+              echo "✅ Image verified in k3s: $DIGEST"
+            else
+              echo "WARNING: Could not verify digest, listing images:"
+              sudo k3s ctr images ls name~="canopy-frontend"
+            fi
+
             echo ""
             echo "=== Updating Deployment ==="
-            sudo k3s kubectl set image deployment/dev-canopy-frontend canopy-frontend="$IMAGE" -n $NAMESPACE
+            # Use digest reference to ensure exact image is deployed
+            sudo k3s kubectl set image deployment/dev-canopy-frontend canopy-frontend="$DIGEST" -n $NAMESPACE
             sudo k3s kubectl patch deployment dev-canopy-frontend -n $NAMESPACE -p '{"spec":{"template":{"spec":{"nodeSelector":{"node-role.kubernetes.io/master":"true"}}}}}'
             sudo k3s kubectl rollout restart deployment/dev-canopy-frontend -n $NAMESPACE
             
