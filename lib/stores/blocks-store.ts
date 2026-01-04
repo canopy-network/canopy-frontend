@@ -23,6 +23,10 @@ export interface BlockFinalizedEvent {
 export interface BlocksState {
   // Map of chainId -> array of up to 5 most recent events
   blockEvents: Record<number, BlockFinalizedEvent[]>;
+  // Counter incremented on each event (for triggering effects)
+  eventCount: number;
+  // Most recent event across all chains (for subscribing to all events)
+  lastEvent: BlockFinalizedEvent | null;
 
   // Actions
   addBlockEvent: (event: BlockFinalizedEvent) => void;
@@ -37,6 +41,8 @@ const MAX_EVENTS_PER_CHAIN = 5;
 
 export const useBlocksStore = create<BlocksState>()((set, get) => ({
   blockEvents: {},
+  eventCount: 0,
+  lastEvent: null,
 
   addBlockEvent: (event: BlockFinalizedEvent) => {
     const { chainId } = event.payload;
@@ -52,6 +58,8 @@ export const useBlocksStore = create<BlocksState>()((set, get) => ({
           ...state.blockEvents,
           [chainId]: updatedEvents,
         },
+        eventCount: state.eventCount + 1,
+        lastEvent: event,
       };
     });
   },

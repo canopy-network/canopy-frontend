@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useLaunchpadDashboard } from "@/lib/hooks/use-launchpad-dashboard";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { useBlocksStore } from "@/lib/stores/blocks-store";
 import { useChainFavorites } from "@/lib/hooks/use-chain-favorites";
 import { chainsApi } from "@/lib/api/chains";
 import { getChainPriceHistory, convertPriceHistoryToChart } from "@/lib/api/price-history";
@@ -84,6 +85,9 @@ export function LaunchpadDashboard() {
   } = useLaunchpadDashboard({
     autoFetch: true,
   });
+
+  // Subscribe to WebSocket block.finalized events
+  const lastBlockEvent = useBlocksStore((state) => state.lastEvent);
 
   // Custom handler for tab changes
   const handleTabChange = (tab: string) => {
@@ -262,6 +266,49 @@ export function LaunchpadDashboard() {
       }
     }
   }, []);
+
+  // React to WebSocket block.finalized events - refresh chain data for the affected chain
+  useEffect(() => {
+    if (!lastBlockEvent) return;
+
+    const { chainId } = lastBlockEvent.payload;
+    console.log(`[WS] Block finalized on chain ${chainId}, height ${lastBlockEvent.payload.height}`);
+
+    // Find if this chain is in our current list
+    const chainInList = chainsRef.current.find((c) => c.id === String(chainId));
+    if (!chainInList) return;
+
+    // Refresh data for this specific chain
+    const refreshChain = async () => {
+      try {
+        const response = await chainsApi.getChain(String(chainId), {
+          include: "virtual_pool,graduation",
+        });
+
+        if (response.data) {
+          const { useChainsStore } = await import("@/lib/stores/chains-store");
+          const store = useChainsStore.getState();
+          const existingChainIndex = store.chains.findIndex((c) => c.id === String(chainId));
+
+          if (existingChainIndex !== -1) {
+            const updatedChains = [...store.chains];
+            updatedChains[existingChainIndex] = {
+              ...updatedChains[existingChainIndex],
+              virtual_pool: response.data.virtual_pool,
+              ...((response.data as any).graduation && {
+                graduation: (response.data as any).graduation,
+              }),
+            } as any;
+            useChainsStore.setState({ chains: updatedChains });
+          }
+        }
+      } catch (error) {
+        console.error(`[WS] Failed to refresh chain ${chainId}:`, error);
+      }
+    };
+
+    refreshChain();
+  }, [lastBlockEvent]);
 
   // Keep refs in sync with latest values
   useEffect(() => {
