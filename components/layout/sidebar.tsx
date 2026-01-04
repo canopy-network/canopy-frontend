@@ -37,6 +37,7 @@ export function Sidebar() {
   // Block animation state and tooltip data
   const blockEvents = useBlocksStore((state) => state.blockEvents);
   const getLatestHeight = useBlocksStore((state) => state.getLatestHeight);
+  const getHighestIndexedHeight = useBlocksStore((state) => state.getHighestIndexedHeight);
   const getEstimatedTimeToNextBlock = useBlocksStore((state) => state.getEstimatedTimeToNextBlock);
   const [isLogoAnimating, setIsLogoAnimating] = useState(false);
   const prevEventCountRef = useRef(0);
@@ -67,6 +68,7 @@ export function Sidebar() {
   };
   const latestBlockTime = getLatestBlockTime();
   const latestHeight = getLatestHeight(1);
+  const highestIndexedHeight = getHighestIndexedHeight(1);
   const estimatedNextBlock = getEstimatedTimeToNextBlock(1);
 
   const formatWalletAddress = (address?: string, maxVisible: number = 22) => {
@@ -194,13 +196,13 @@ export function Sidebar() {
               />
             </Link>
           </TooltipTrigger>
-          <TooltipContent side="right">
-            <div className="text-xs space-y-1.5">
-              {/* Connection status */}
-              <div className="flex items-center gap-1.5">
+          <TooltipContent side="right" className="!bg-zinc-900 !text-white !border !border-zinc-700/50 !p-0">
+            <div className="p-4 text-sm space-y-2">
+              {/* Connection status header */}
+              <div className="flex items-center gap-2 font-medium text-base pb-1 border-b border-zinc-700/50 mb-2">
                 <span
                   className={cn(
-                    "size-2 rounded-full",
+                    "size-2.5 rounded-full flex-shrink-0",
                     connectionState === "connected" && "bg-green-500",
                     connectionState === "connecting" && "bg-yellow-500",
                     connectionState === "reconnecting" && "bg-yellow-500",
@@ -212,25 +214,29 @@ export function Sidebar() {
 
               {latestBlockTime ? (
                 <>
-                  {/* Latest block */}
-                  <div>
-                    <span className="text-muted-foreground">Block: </span>
-                    {latestHeight?.toLocaleString()}
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Time: </span>
-                    {new Date(latestBlockTime).toLocaleTimeString()}
-                  </div>
-                  {/* Next block estimate */}
-                  {estimatedNextBlock !== null && (
+                  {/* Latest finalized block + Next estimate */}
+                  <div className="flex items-center justify-between gap-4">
                     <div>
-                      <span className="text-muted-foreground">Next: </span>
-                      ~{estimatedNextBlock.toFixed(1)}s
+                      <span className="text-zinc-400">Finalized: </span>
+                      {latestHeight?.toLocaleString()}
+                    </div>
+                    {estimatedNextBlock !== null && (
+                      <div>
+                        <span className="text-zinc-400">Next: </span>
+                        ~{Math.round(estimatedNextBlock)}s
+                      </div>
+                    )}
+                  </div>
+                  {/* Highest indexed block */}
+                  {highestIndexedHeight !== null && (
+                    <div>
+                      <span className="text-zinc-400">Indexed: </span>
+                      {highestIndexedHeight.toLocaleString()}
                     </div>
                   )}
                 </>
               ) : (
-                <div className="text-muted-foreground">Waiting for blocks...</div>
+                <div className="text-zinc-400">Waiting for blocks...</div>
               )}
             </div>
           </TooltipContent>
