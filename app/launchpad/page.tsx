@@ -19,6 +19,7 @@ import { Template, Chain } from "@/types";
 import { cn, WINDOW_BREAKPOINTS } from "@/lib/utils";
 import { useWalletStore } from "@/lib/stores/wallet-store";
 import { useWallet } from "@/components/wallet/wallet-provider";
+import { useBlocksStore } from "@/lib/stores/blocks-store";
 
 /** Submit step tracking for the payment flow */
 type SubmitStep =
@@ -88,6 +89,31 @@ export default function LaunchpadPage() {
   const { currentWallet, sendTransaction } = useWalletStore();
   const { setShowSelectDialog } = useWallet();
   const isWalletUnlocked = currentWallet?.isUnlocked ?? false;
+
+  // Block time tracking for activation step
+  const getEstimatedTimeToNextBlock = useBlocksStore(
+    (state) => state.getEstimatedTimeToNextBlock
+  );
+  const [secondsToNextBlock, setSecondsToNextBlock] = useState<number | null>(
+    null
+  );
+
+  // Update countdown during activation step
+  useEffect(() => {
+    if (submitStep !== "activating") {
+      setSecondsToNextBlock(null);
+      return;
+    }
+
+    const updateCountdown = () => {
+      const estimate = getEstimatedTimeToNextBlock(1);
+      setSecondsToNextBlock(estimate !== null ? Math.round(estimate) : null);
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [submitStep, getEstimatedTimeToNextBlock]);
 
   // Handle unlock wallet button click
   const handleUnlockClick = useCallback(() => {
@@ -679,7 +705,10 @@ export default function LaunchpadPage() {
                       `Sending ${
                         100 + parseFloat(formData.initialPurchaseAmount || "0")
                       } CNPY...`}
-                    {submitStep === "activating" && "Confirming transaction..."}
+                    {submitStep === "activating" &&
+                      (secondsToNextBlock !== null
+                        ? `Confirming transaction... ~${secondsToNextBlock}s`
+                        : "Confirming transaction...")}
                     {submitStep === "uploading" && "Uploading assets..."}
                     {submitStep === "idle" && "Processing..."}
                   </>
