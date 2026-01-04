@@ -41,7 +41,7 @@ const TABLE_ARN =
 const TABLE_NAME = getTableNameFromArn(TABLE_ARN);
 
 const API_URL =
-  "http://app.neochiba.net:3001/api/v1/chains?include=assets&limit=10";
+  process.env.API_URL || "http://localhost:3001/api/v1/chains?include=assets&limit=10";
 
 interface ChainData {
   id: number;
