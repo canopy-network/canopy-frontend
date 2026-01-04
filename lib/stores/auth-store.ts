@@ -60,6 +60,19 @@ export function logPersistedAuthData() {
   return data;
 }
 
+/**
+ * Get cookie domain for cross-subdomain cookie sharing
+ * Enables cookies to work between dev.app.canopynetwork.org and api.dev.app.canopynetwork.org
+ */
+function getCookieDomain(): string {
+  if (typeof window === "undefined") return "";
+  const hostname = window.location.hostname;
+  // Don't set domain for localhost
+  if (hostname === "localhost" || hostname === "127.0.0.1") return "";
+  // Return domain attribute with leading dot for subdomain sharing
+  return `; domain=.${hostname}`;
+}
+
 // Custom storage that properly implements Zustand's StateStorage interface
 const zustandStorage: StateStorage = {
   getItem: (name: string): string | null => {
@@ -103,16 +116,18 @@ const createAuthStore = () => {
           // Store token in localStorage if provided
           if (token && typeof window !== "undefined") {
             localStorage.setItem("auth_token", token);
-            // Also set as cookie for WebSocket authentication
-            document.cookie = `auth_token=${token}; path=/; max-age=2592000; SameSite=Lax`;
+            // Also set as cookie for WebSocket authentication (with domain for cross-subdomain)
+            const cookieDomain = getCookieDomain();
+            document.cookie = `auth_token=${token}; path=/; max-age=2592000${cookieDomain}; SameSite=Lax; Secure`;
             console.log("🔑 Authorization token stored");
           }
 
           // Store authentication state in cookie for middleware access
           if (typeof window !== "undefined") {
-            document.cookie = `canopy_auth=true; path=/; max-age=2592000; SameSite=Lax`;
+            const cookieDomain = getCookieDomain();
+            document.cookie = `canopy_auth=true; path=/; max-age=2592000${cookieDomain}; SameSite=Lax; Secure`;
             if (user?.id) {
-              document.cookie = `canopy_user_id=${user.id}; path=/; max-age=2592000; SameSite=Lax`;
+              document.cookie = `canopy_user_id=${user.id}; path=/; max-age=2592000${cookieDomain}; SameSite=Lax; Secure`;
             }
           }
 
@@ -147,10 +162,11 @@ const createAuthStore = () => {
           clearUserId();
           if (typeof window !== "undefined") {
             localStorage.removeItem("auth_token");
-            // Clear authentication cookies
-            document.cookie = "canopy_auth=; path=/; max-age=0";
-            document.cookie = "canopy_user_id=; path=/; max-age=0";
-            document.cookie = "auth_token=; path=/; max-age=0";
+            // Clear authentication cookies (with domain for cross-subdomain)
+            const cookieDomain = getCookieDomain();
+            document.cookie = `canopy_auth=; path=/; max-age=0${cookieDomain}`;
+            document.cookie = `canopy_user_id=; path=/; max-age=0${cookieDomain}`;
+            document.cookie = `auth_token=; path=/; max-age=0${cookieDomain}`;
           }
           set({
             user: null,
@@ -173,10 +189,11 @@ const createAuthStore = () => {
           clearUserId();
           if (typeof window !== "undefined") {
             localStorage.removeItem("auth_token");
-            // Clear authentication cookies
-            document.cookie = "canopy_auth=; path=/; max-age=0";
-            document.cookie = "canopy_user_id=; path=/; max-age=0";
-            document.cookie = "auth_token=; path=/; max-age=0";
+            // Clear authentication cookies (with domain for cross-subdomain)
+            const cookieDomain = getCookieDomain();
+            document.cookie = `canopy_auth=; path=/; max-age=0${cookieDomain}`;
+            document.cookie = `canopy_user_id=; path=/; max-age=0${cookieDomain}`;
+            document.cookie = `auth_token=; path=/; max-age=0${cookieDomain}`;
           }
           set({
             user: null,
@@ -212,15 +229,17 @@ const createAuthStore = () => {
                 if (!storedToken) {
                   localStorage.setItem("auth_token", state.token);
                 }
-                // Also restore auth_token cookie for WebSocket authentication
-                document.cookie = `auth_token=${state.token}; path=/; max-age=2592000; SameSite=Lax`;
+                // Also restore auth_token cookie for WebSocket authentication (with domain for cross-subdomain)
+                const cookieDomain = getCookieDomain();
+                document.cookie = `auth_token=${state.token}; path=/; max-age=2592000${cookieDomain}; SameSite=Lax; Secure`;
               }
 
               // Restore authentication cookies for middleware access
               if (state.isAuthenticated && typeof window !== "undefined") {
-                document.cookie = `canopy_auth=true; path=/; max-age=2592000; SameSite=Lax`;
+                const cookieDomain = getCookieDomain();
+                document.cookie = `canopy_auth=true; path=/; max-age=2592000${cookieDomain}; SameSite=Lax; Secure`;
                 if (state.user?.id) {
-                  document.cookie = `canopy_user_id=${state.user.id}; path=/; max-age=2592000; SameSite=Lax`;
+                  document.cookie = `canopy_user_id=${state.user.id}; path=/; max-age=2592000${cookieDomain}; SameSite=Lax; Secure`;
                 }
               }
             }
