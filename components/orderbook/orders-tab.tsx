@@ -473,11 +473,11 @@ export default function OrdersTab() {
       return;
     }
 
-    // Check if this is the user's own order - cannot lock your own orders
-    if (isOrderOwner(order)) {
-      toast.error("You cannot lock your own orders");
-      return;
-    }
+    // NOTE: Owners can now lock their own orders for testing/self-purchase
+    // if (isOrderOwner(order)) {
+    //   toast.error("You cannot lock your own orders");
+    //   return;
+    // }
 
     // Check if order is already locked
     if (isOrderLocked(rawOrder)) {
