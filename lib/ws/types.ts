@@ -112,6 +112,15 @@ export interface BlockFinalizedMessage {
   };
 }
 
+/** Block indexed event (separate from finalized) */
+export interface BlockIndexedMessage {
+  type: "block.indexed";
+  payload: {
+    chainId: number;
+    height: number;
+  };
+}
+
 /** Union type of all known message types */
 export type KnownMessage =
   | SubscribeMessage
@@ -123,7 +132,8 @@ export type KnownMessage =
   | PriceUpdateMessage
   | TransactionMessage
   | NotificationMessage
-  | BlockFinalizedMessage;
+  | BlockFinalizedMessage
+  | BlockIndexedMessage;
 
 /** Event handler type */
 export type MessageHandler<T = unknown> = (message: WsMessage<T>) => void;

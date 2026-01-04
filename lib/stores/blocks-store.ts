@@ -20,9 +20,22 @@ export interface BlockFinalizedEvent {
   payload: BlockFinalizedPayload;
 }
 
+export interface BlockIndexedPayload {
+  chainId: number;
+  height: number;
+}
+
+export interface BlockIndexedEvent {
+  type: "block.indexed";
+  timestamp: string;
+  payload: BlockIndexedPayload;
+}
+
 export interface BlocksState {
   // Map of chainId -> array of up to 5 most recent events
   blockEvents: Record<number, BlockFinalizedEvent[]>;
+  // Map of chainId -> highest indexed block height received via WebSocket (not finalized height)
+  highestIndexedHeight: Record<number, number>;
   // Counter incremented on each event (for triggering effects)
   eventCount: number;
   // Most recent event across all chains (for subscribing to all events)
@@ -30,9 +43,12 @@ export interface BlocksState {
 
   // Actions
   addBlockEvent: (event: BlockFinalizedEvent) => void;
+  addBlockIndexedEvent: (event: BlockIndexedEvent) => void;
   clearEvents: (chainId?: number) => void;
   getEventsForChain: (chainId: number) => BlockFinalizedEvent[];
   getLatestHeight: (chainId: number) => number | null;
+  // Returns the highest indexed block height received via WebSocket (not finalized height)
+  getHighestIndexedHeight: (chainId: number) => number | null;
   getAverageBlockTime: (chainId: number) => number | null;
   getEstimatedTimeToNextBlock: (chainId: number) => number | null;
 }
@@ -41,6 +57,7 @@ const MAX_EVENTS_PER_CHAIN = 5;
 
 export const useBlocksStore = create<BlocksState>()((set, get) => ({
   blockEvents: {},
+  highestIndexedHeight: {},
   eventCount: 0,
   lastEvent: null,
 
@@ -64,14 +81,32 @@ export const useBlocksStore = create<BlocksState>()((set, get) => ({
     });
   },
 
+  addBlockIndexedEvent: (event: BlockIndexedEvent) => {
+    const { chainId, height } = event.payload;
+
+    set((state) => {
+      // Track highest indexed block height (separate from finalized)
+      const currentHighest = state.highestIndexedHeight[chainId] || 0;
+      const newHighest = Math.max(currentHighest, height);
+
+      return {
+        highestIndexedHeight: {
+          ...state.highestIndexedHeight,
+          [chainId]: newHighest,
+        },
+      };
+    });
+  },
+
   clearEvents: (chainId?: number) => {
     if (chainId !== undefined) {
       set((state) => {
-        const { [chainId]: _, ...rest } = state.blockEvents;
-        return { blockEvents: rest };
+        const { [chainId]: _, ...restEvents } = state.blockEvents;
+        const { [chainId]: __, ...restHeights } = state.highestIndexedHeight;
+        return { blockEvents: restEvents, highestIndexedHeight: restHeights };
       });
     } else {
-      set({ blockEvents: {} });
+      set({ blockEvents: {}, highestIndexedHeight: {} });
     }
   },
 
@@ -83,6 +118,11 @@ export const useBlocksStore = create<BlocksState>()((set, get) => ({
     const events = get().blockEvents[chainId];
     if (!events || events.length === 0) return null;
     return events[0].payload.height;
+  },
+
+  // Returns the highest indexed block height received via WebSocket (not finalized height)
+  getHighestIndexedHeight: (chainId: number) => {
+    return get().highestIndexedHeight[chainId] || null;
   },
 
   getAverageBlockTime: (chainId: number) => {
