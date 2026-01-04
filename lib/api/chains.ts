@@ -89,7 +89,7 @@ export const chainsApi = {
   /**
    * Get all chains with optional filtering and pagination
    */
-  getChains: (params?: GetChainsParams) => apiClient.get<Chain[]>("/api/v1/chains", params),
+  getChains: (params?: GetChainsParams) => apiClient.get<Chain[]>("/api/v1/chains/", params),
 
   /**
    * Get a single chain by ID
@@ -99,7 +99,7 @@ export const chainsApi = {
   /**
    * Create a new chain
    */
-  createChain: (data: CreateChainRequest) => apiClient.post<Chain>("/api/v1/chains", data),
+  createChain: (data: CreateChainRequest) => apiClient.post<Chain>("/api/v1/chains/", data),
 
   /**
    * Activate a chain after payment verification

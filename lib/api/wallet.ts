@@ -70,7 +70,7 @@ export const walletApi = {
    */
   exportWallets: async (): Promise<ExportWalletResponse> => {
     try {
-      const response = await apiClient.get<ExportWalletResponse>("/api/v1/wallet/export");
+      const response = await apiClient.get<ExportWalletResponse>("/api/v1/wallet/export/");
       return response.data;
     } catch (error) {
       console.error("There was an error retrieving wallets");

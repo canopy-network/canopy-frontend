@@ -37,7 +37,7 @@ export const chainFavoritesApi = {
    * POST /api/v1/users/chain-favorites
    */
   setPreference: (chainId: number, preference: PreferenceType) =>
-    apiClient.post<ChainFavoriteResponse>("/api/v1/users/chain-favorites", {
+    apiClient.post<ChainFavoriteResponse>("/api/v1/users/chain-favorites/", {
       chain_id: chainId,
       preference,
     }),
@@ -58,7 +58,7 @@ export const chainFavoritesApi = {
   list: (preference?: PreferenceType) => {
     const params = preference ? { preference } : undefined;
     return apiClient.get<ChainFavoritesListResponse>(
-      "/api/v1/users/chain-favorites",
+      "/api/v1/users/chain-favorites/",
       params
     );
   },

@@ -41,7 +41,7 @@ export async function getChainPriceHistory(
   chainId: string,
   params?: GetPriceHistoryParams
 ): Promise<ApiResponse<PriceHistoryDataPoint[]>> {
-  const url = `/api/v1/chains/${chainId}/price-history`;
+  const url = `/api/v1/chains/${chainId}/price-history/`;
 
   return apiClient.get<PriceHistoryDataPoint[]>(url, params);
 }

@@ -34,7 +34,7 @@ export const portfolioApi = {
     data: PortfolioOverviewRequest
   ): Promise<PortfolioOverviewResponse> => {
     const response = await apiClient.post<PortfolioOverviewResponse>(
-      "/api/v1/wallet/portfolio/overview",
+      "/api/v1/wallet/portfolio/overview/",
       data
     );
     return response.data;
