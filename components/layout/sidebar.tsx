@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MainNav } from "@/components/navigation/main-nav";
 import { WalletConnectButton } from "@/components/wallet/wallet-connect-button";
 import { LoginDialog } from "@/components/auth/login-dialog";
@@ -14,6 +14,13 @@ import LaunchOverviewDialog from "@/components/launchpad/launch-overview-dialog"
 import Image from "next/image";
 import { CommandSearchTrigger } from "@/components/command-search-trigger";
 import { toast } from "sonner";
+import { useBlocksStore } from "@/lib/stores/blocks-store";
+import { getWebSocketClient, type ConnectionState } from "@/lib/ws";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export function Sidebar() {
   const { user, isAuthenticated, logout } = useAuthStore();
@@ -26,6 +33,41 @@ export function Sidebar() {
   const [isMobile, setIsMobile] = useState(false);
   const [addressVisibleChars, setAddressVisibleChars] = useState(22);
   const pathname = usePathname();
+
+  // Block animation state and tooltip data
+  const blockEvents = useBlocksStore((state) => state.blockEvents);
+  const getLatestHeight = useBlocksStore((state) => state.getLatestHeight);
+  const getEstimatedTimeToNextBlock = useBlocksStore((state) => state.getEstimatedTimeToNextBlock);
+  const [isLogoAnimating, setIsLogoAnimating] = useState(false);
+  const prevEventCountRef = useRef(0);
+
+  // WebSocket connection status - only poll when tooltip is open
+  const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
+  const [tooltipOpen, setTooltipOpen] = useState(false);
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!tooltipOpen) return;
+
+    const client = getWebSocketClient();
+    setConnectionState(client.connectionState);
+
+    const interval = setInterval(() => {
+      setConnectionState(client.connectionState);
+      setTick((t) => t + 1); // Force re-render for live tooltip updates
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [tooltipOpen]);
+
+  // Get latest block time for tooltip
+  const getLatestBlockTime = () => {
+    const events = blockEvents[1]; // Chain 1
+    if (!events?.length) return null;
+    return events[0].timestamp;
+  };
+  const latestBlockTime = getLatestBlockTime();
+  const latestHeight = getLatestHeight(1);
+  const estimatedNextBlock = getEstimatedTimeToNextBlock(1);
 
   const formatWalletAddress = (address?: string, maxVisible: number = 22) => {
     if (!address) return "";
@@ -63,6 +105,20 @@ export function Sidebar() {
     window.addEventListener("resize", updateVisibleChars);
     return () => window.removeEventListener("resize", updateVisibleChars);
   }, []);
+
+  // Trigger logo animation when new block.finalized events arrive
+  useEffect(() => {
+    const totalEventCount = Object.values(blockEvents).reduce(
+      (sum, events) => sum + events.length,
+      0
+    );
+    if (totalEventCount > prevEventCountRef.current) {
+      setIsLogoAnimating(true);
+      const timeout = setTimeout(() => setIsLogoAnimating(false), 500);
+      return () => clearTimeout(timeout);
+    }
+    prevEventCountRef.current = totalEventCount;
+  }, [blockEvents]);
 
   // Check if sidebar should be compact
   useEffect(() => {
@@ -116,21 +172,69 @@ export function Sidebar() {
           isCondensed ? "px-5" : "px-4"
         )}
       >
-        <Link
-          href="/"
-          className={cn(
-            "overflow-hidden transition-all duration-300  block  ",
-            isCondensed ? "w-[24px] max-w-[24px] mx-auto" : "w-38 mr-auto xl:px-4"
-          )}
-        >
-          <Image
-            width={128}
-            height={128}
-            src="/images/logo.svg"
-            alt="Logo"
-            className={cn(isCondensed ? "w-26 min-w-26" : "w-auto min-w-auto", "h-auto object-contain")}
-          />
-        </Link>
+        <Tooltip open={tooltipOpen} onOpenChange={setTooltipOpen}>
+          <TooltipTrigger asChild>
+            <Link
+              href="/"
+              className={cn(
+                "overflow-hidden transition-all duration-300 block",
+                isCondensed ? "w-[24px] max-w-[24px] mx-auto" : "w-38 mr-auto xl:px-4"
+              )}
+            >
+              <Image
+                width={128}
+                height={128}
+                src="/images/logo.svg"
+                alt="Logo"
+                className={cn(
+                  isCondensed ? "w-26 min-w-26" : "w-auto min-w-auto",
+                  "h-auto object-contain transition-all duration-300",
+                  isLogoAnimating && "scale-105 drop-shadow-[0_0_8px_rgba(34,197,94,0.6)]"
+                )}
+              />
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            <div className="text-xs space-y-1.5">
+              {/* Connection status */}
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={cn(
+                    "size-2 rounded-full",
+                    connectionState === "connected" && "bg-green-500",
+                    connectionState === "connecting" && "bg-yellow-500",
+                    connectionState === "reconnecting" && "bg-yellow-500",
+                    connectionState === "disconnected" && "bg-red-500"
+                  )}
+                />
+                <span className="capitalize">{connectionState}</span>
+              </div>
+
+              {latestBlockTime ? (
+                <>
+                  {/* Latest block */}
+                  <div>
+                    <span className="text-muted-foreground">Block: </span>
+                    {latestHeight?.toLocaleString()}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Time: </span>
+                    {new Date(latestBlockTime).toLocaleTimeString()}
+                  </div>
+                  {/* Next block estimate */}
+                  {estimatedNextBlock !== null && (
+                    <div>
+                      <span className="text-muted-foreground">Next: </span>
+                      ~{estimatedNextBlock.toFixed(1)}s
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-muted-foreground">Waiting for blocks...</div>
+              )}
+            </div>
+          </TooltipContent>
+        </Tooltip>
       </div>
 
       {/* Search and Create */}

@@ -10,6 +10,7 @@ import { QueryProvider } from "@/components/providers/query-provider";
 import { ErrorBoundary } from "@/components/providers/error-boundary";
 import { AuthCookieSync } from "@/components/auth/auth-cookie-sync";
 import { Web3Provider } from "@/components/web3/web3-provider";
+import { WebSocketProvider } from "@/components/providers/websocket-provider";
 import { Toaster } from "sonner";
 import "./globals.css";
 import { Header } from "@/components/layout/header";
@@ -39,6 +40,7 @@ export default function RootLayout({
             <Web3Provider>
               <StoreProvider>
                 <AuthCookieSync />
+                <WebSocketProvider>
                 <WalletProvider>
                   <TooltipProvider>
                     <div className="flex h-screen bg-background overflow-hidden">
@@ -69,6 +71,7 @@ export default function RootLayout({
                     />
                   </TooltipProvider>
                 </WalletProvider>
+                </WebSocketProvider>
               </StoreProvider>
             </Web3Provider>
           </QueryProvider>
